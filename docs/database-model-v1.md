@@ -115,10 +115,12 @@ Durable-черга команд керування пристроєм.
 
 ```text
 id
+request_id
 device_id
 command_type
 payload
 status
+ttl_seconds
 expires_at
 published_at
 acknowledged_at
@@ -137,3 +139,6 @@ Device 1 ─── * DeviceCommand
 ```
 
 Команда спочатку фіксується в PostgreSQL зі статусом `queued`, а вже наступний шар відповідає за MQTT delivery та ACK.
+
+
+`request_id` має унікальний індекс і забезпечує ідемпотентність повторного HTTP-запиту. Для майбутнього expiry worker також використовується індекс `(status, expires_at)`.
