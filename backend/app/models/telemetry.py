@@ -89,6 +89,12 @@ class DeviceState(TimestampMixin, Base):
     """Останній відомий телеметричний стан конкретного пристрою."""
 
     __tablename__ = "device_states"
+    __table_args__ = (
+        CheckConstraint(
+            "last_sequence IS NULL OR last_sequence >= 0",
+            name="ck_device_states_last_sequence_non_negative",
+        ),
+    )
 
     device_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -98,6 +104,10 @@ class DeviceState(TimestampMixin, Base):
     last_telemetry_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("telemetry_messages.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    last_sequence: Mapped[int | None] = mapped_column(
+        BigInteger,
         nullable=True,
     )
     last_reported_at: Mapped[datetime | None] = mapped_column(
