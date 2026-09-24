@@ -7,6 +7,7 @@
 - [Етап 1 — Local Infrastructure](dossier-v3.5-stage-1-local-infrastructure.md)
 - [Етап 2 — Backend Core](dossier-v3.5-stage-2-backend-core.md)
 - [Етап 3 — Data Model v1](dossier-v3.5-stage-3-data-model.md)
+- [Етап 4 — IoT Telemetry & Reliability](dossier-v3.5-stage-4-iot-telemetry-reliability.md)
 
 ## Технічна документація
 
