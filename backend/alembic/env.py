@@ -8,6 +8,7 @@ from app.models import (
     Capability,
     Device,
     DeviceCapability,
+    DeviceCommand,
     DeviceState,
     Organization,
     Site,
