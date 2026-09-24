@@ -1694,7 +1694,22 @@ backend має повний audit lifecycle
 
 ---
 
-# 37. Пов'язані документи
+# 37. Фінальний E2E test
+
+```text
+command_id = ad55d377-0468-41b6-a4e3-5e1e3a0ab1b0
+frequency_hz = 37
+status = succeeded
+publish_attempts = 1
+last_publish_error = null
+acknowledged_at != null
+completed_at != null
+result.frequency_hz = 37
+error_code = null
+error_message = null
+```
+
+# 38. Пов'язані документи
 
 - [Етап 5 — робочий журнал](stage-5-remote-command-core.md)
 - [Command Core v1](command-core-v1.md)
