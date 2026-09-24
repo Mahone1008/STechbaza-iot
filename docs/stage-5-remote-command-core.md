@@ -187,6 +187,10 @@ broker повернувся → queued command автоматично доста
 та сама command збережена в PostgreSQL під час outage              ✅
 broker offline при online Device → publish attempt зафіксовано     ✅
 publish_attempts=1 / last_publish_error=mqtt_not_connected         ✅
+broker recovery для mqtt_not_connected command                     ✅
+queued command автоматично перейшла в published                    ✅
+last_publish_error очищено після успішної доставки                 ✅
+той самий command_id реально отримано MQTT subscriber              ✅
 ```
 
 
