@@ -5,7 +5,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.db import get_db_session
+from app.schemas.availability import DeviceAvailabilityRead
 from app.schemas.device import DeviceCreate, DeviceRead
+from app.services.device_presence import (
+    DevicePresenceService,
+    PresenceDeviceNotFoundError,
+)
 from app.services.devices import (
     DeviceAlreadyExistsError,
     DeviceNotFoundError,
@@ -83,3 +88,31 @@ def get_device(
         ) from exc
 
     return DeviceRead.model_validate(device)
+
+
+@router.get(
+    "/devices/{device_id}/availability",
+    response_model=DeviceAvailabilityRead,
+)
+def get_device_availability(
+    device_id: uuid.UUID,
+    session: DbSession,
+) -> DeviceAvailabilityRead:
+    try:
+        availability = DevicePresenceService(session).get_availability(
+            device_id=device_id
+        )
+    except PresenceDeviceNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Пристрій не знайдено",
+        ) from exc
+
+    return DeviceAvailabilityRead(
+        device_id=availability.device_id,
+        uid=availability.uid,
+        online=availability.online,
+        last_seen_at=availability.last_seen_at,
+        timeout_seconds=availability.timeout_seconds,
+        seconds_since_seen=availability.seconds_since_seen,
+    )
