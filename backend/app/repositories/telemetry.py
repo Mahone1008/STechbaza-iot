@@ -35,6 +35,7 @@ class TelemetryRepository:
         *,
         device_id: uuid.UUID,
         telemetry_id: uuid.UUID,
+        sequence: int | None,
         reported_at: datetime | None,
         received_at: datetime,
         values: dict,
@@ -46,6 +47,7 @@ class TelemetryRepository:
             snapshot = DeviceState(
                 device_id=device_id,
                 last_telemetry_id=telemetry_id,
+                last_sequence=sequence,
                 last_reported_at=reported_at,
                 last_received_at=received_at,
                 values=values,
@@ -54,6 +56,7 @@ class TelemetryRepository:
             self._session.add(snapshot)
         else:
             snapshot.last_telemetry_id = telemetry_id
+            snapshot.last_sequence = sequence
             snapshot.last_reported_at = reported_at
             snapshot.last_received_at = received_at
             snapshot.values = values
