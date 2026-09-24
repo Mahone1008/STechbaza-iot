@@ -12,6 +12,7 @@ class TelemetryEnvelope(BaseModel):
 
     schema_version: Literal[1]
     message_id: uuid.UUID
+    session_id: uuid.UUID | None = None
     sent_at: datetime | None = None
     sequence: int | None = Field(default=None, ge=0)
     values: dict[str, Any] = Field(default_factory=dict, max_length=128)
@@ -33,6 +34,7 @@ class TelemetryMessageRead(BaseModel):
     id: uuid.UUID
     message_id: uuid.UUID
     device_id: uuid.UUID
+    session_id: uuid.UUID | None
     schema_version: int
     sequence: int | None
     sent_at: datetime | None
@@ -48,6 +50,7 @@ class DeviceStateRead(BaseModel):
 
     device_id: uuid.UUID
     last_telemetry_id: uuid.UUID | None
+    last_session_id: uuid.UUID | None
     last_sequence: int | None
     last_reported_at: datetime | None
     last_received_at: datetime
