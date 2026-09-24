@@ -52,6 +52,19 @@ class DeviceCommandCreate(BaseModel):
         return self
 
 
+class CommandEnvelope(BaseModel):
+    """MQTT contract однієї команди Backend → Device."""
+
+    schema_version: Literal[1] = 1
+    command_id: uuid.UUID
+    request_id: uuid.UUID
+    issued_at: datetime
+    expires_at: datetime
+    ttl_seconds: int = Field(ge=5, le=300)
+    command_type: CommandType
+    payload: dict[str, Any] = Field(default_factory=dict)
+
+
 class DeviceCommandRead(BaseModel):
     """Публічне представлення команди та її життєвого циклу."""
 
