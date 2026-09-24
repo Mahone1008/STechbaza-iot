@@ -17,18 +17,25 @@ from app.mqtt_client import (
     start_mqtt,
     stop_mqtt,
 )
+from app.services.command_reliability import (
+    command_reliability_status,
+    start_command_reliability_worker,
+    stop_command_reliability_worker,
+)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     start_mqtt()
+    start_command_reliability_worker()
     yield
+    stop_command_reliability_worker()
     stop_mqtt()
 
 
 app = FastAPI(
     title="TechBaza Backend",
-    version="0.16.0",
+    version="0.17.0",
     description="Backend API платформи TechBaza IoT Pump Control",
     lifespan=lifespan,
 )
@@ -41,7 +48,7 @@ def health() -> dict[str, str]:
     return {
         "status": "ok",
         "service": "techbaza-backend",
-        "version": "0.16.0",
+        "version": "0.17.0",
     }
 
 
@@ -125,4 +132,12 @@ def mqtt_last_command_result() -> dict[str, Any]:
     return {
         "status": "ok",
         "command_result": last_command_result_result(),
+    }
+
+
+@app.get("/command/reliability/status")
+def command_reliability() -> dict[str, Any]:
+    return {
+        "status": "ok",
+        "worker": command_reliability_status(),
     }
