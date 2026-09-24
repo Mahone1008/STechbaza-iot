@@ -12,6 +12,7 @@ from app.models.mixins import TimestampMixin
 if TYPE_CHECKING:
     from app.models.capability import DeviceCapability
     from app.models.site import Site
+    from app.models.telemetry import DeviceState, TelemetryMessage
 
 
 class Device(TimestampMixin, Base):
@@ -53,4 +54,15 @@ class Device(TimestampMixin, Base):
         back_populates="device",
         cascade="all, delete-orphan",
         passive_deletes=True,
+    )
+    telemetry_messages: Mapped[list["TelemetryMessage"]] = relationship(
+        back_populates="device",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+    state_snapshot: Mapped["DeviceState | None"] = relationship(
+        back_populates="device",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        uselist=False,
     )
