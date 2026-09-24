@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from app.api.v1.capabilities import router as capabilities_router
+from app.api.v1.commands import router as commands_router
 from app.api.v1.devices import router as devices_router
 from app.api.v1.organizations import router as organizations_router
 from app.api.v1.sites import router as sites_router
@@ -12,3 +13,4 @@ api_v1_router.include_router(sites_router)
 api_v1_router.include_router(devices_router)
 api_v1_router.include_router(capabilities_router)
 api_v1_router.include_router(telemetry_router)
+api_v1_router.include_router(commands_router)
