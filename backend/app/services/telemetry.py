@@ -6,13 +6,29 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models.telemetry import TelemetryMessage
+from app.repositories.capabilities import CapabilityRepository
 from app.repositories.devices import DeviceRepository
 from app.repositories.telemetry import TelemetryRepository
 from app.schemas.telemetry import TelemetryEnvelope
+from app.services.telemetry_policy import validate_telemetry_capabilities
 
 
 class TelemetryDeviceNotFoundError(Exception):
     """Device UID з MQTT topic не зареєстрований у TechBaza."""
+
+
+class TelemetryCapabilityViolationError(Exception):
+    """Payload не відповідає активним capabilities пристрою."""
+
+    def __init__(
+        self,
+        *,
+        missing_capabilities: tuple[str, ...],
+        unsupported_keys: tuple[str, ...],
+    ) -> None:
+        super().__init__("Telemetry payload violates device capabilities")
+        self.missing_capabilities = missing_capabilities
+        self.unsupported_keys = unsupported_keys
 
 
 @dataclass(frozen=True, slots=True)
@@ -29,6 +45,7 @@ class TelemetryService:
     def __init__(self, session: Session) -> None:
         self._session = session
         self._devices = DeviceRepository(session)
+        self._capabilities = CapabilityRepository(session)
         self._telemetry = TelemetryRepository(session)
 
     def ingest(
@@ -47,6 +64,20 @@ class TelemetryService:
             return TelemetryIngestResult(
                 telemetry_id=existing.id,
                 duplicate=True,
+            )
+
+        enabled_capabilities = self._capabilities.get_enabled_codes_for_device(
+            device.id
+        )
+        policy = validate_telemetry_capabilities(
+            value_keys=set(payload.values),
+            state_keys=set(payload.state),
+            enabled_capabilities=enabled_capabilities,
+        )
+        if not policy.allowed:
+            raise TelemetryCapabilityViolationError(
+                missing_capabilities=policy.missing_capabilities,
+                unsupported_keys=policy.unsupported_keys,
             )
 
         server_received_at = received_at or datetime.now(timezone.utc)
