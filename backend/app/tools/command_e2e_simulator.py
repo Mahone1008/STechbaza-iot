@@ -1,6 +1,7 @@
 import argparse
 import json
 import os
+import queue
 import threading
 import uuid
 from datetime import datetime, timezone
@@ -11,6 +12,7 @@ import paho.mqtt.client as mqtt
 
 DEFAULT_HOST = os.getenv("MQTT_HOST", "mosquitto")
 DEFAULT_PORT = int(os.getenv("MQTT_PORT", "1883"))
+MQTT_WAIT_TIMEOUT_SECONDS = 5.0
 
 
 def _utc_now() -> str:
@@ -74,7 +76,10 @@ def main() -> None:
     result_topic = f"techbaza/devices/{args.device_uid}/commands/result"
     heartbeat_topic = f"techbaza/devices/{args.device_uid}/heartbeat"
 
+    connected = threading.Event()
+    subscribed = threading.Event()
     finished = threading.Event()
+    incoming_commands: queue.Queue[dict[str, Any]] = queue.Queue()
     processed_command_ids: set[str] = set()
 
     client = mqtt.Client(
@@ -83,6 +88,8 @@ def main() -> None:
     )
 
     def publish_json(topic: str, payload: dict[str, Any]) -> None:
+        """Публікує QoS 1 message поза MQTT callback thread та чекає PUBACK."""
+
         info = client.publish(
             topic,
             payload=json.dumps(
@@ -93,7 +100,7 @@ def main() -> None:
             qos=1,
             retain=False,
         )
-        info.wait_for_publish(timeout=3)
+        info.wait_for_publish(timeout=MQTT_WAIT_TIMEOUT_SECONDS)
         if not info.is_published():
             raise RuntimeError(f"MQTT publish timeout: {topic}")
 
@@ -109,104 +116,43 @@ def main() -> None:
             finished.set()
             return
 
-        mqtt_client.subscribe(command_topic, qos=1)
+        connected.set()
+        result, _ = mqtt_client.subscribe(command_topic, qos=1)
+        if result != mqtt.MQTT_ERR_SUCCESS:
+            print(
+                f"[ERROR] MQTT subscribe failed: rc={result}",
+                flush=True,
+            )
+            finished.set()
+
+    def on_subscribe(
+        mqtt_client,
+        userdata,
+        mid,
+        reason_code_list,
+        properties,
+    ) -> None:
+        subscribed.set()
         print(
             f"[READY] Device simulator subscribed: {command_topic}",
             flush=True,
         )
 
-        heartbeat = {
-            "schema_version": 1,
-            "message_id": str(uuid.uuid4()),
-            "session_id": args.session_id,
-            "sent_at": _utc_now(),
-            "sequence": 1,
-        }
-        publish_json(heartbeat_topic, heartbeat)
-        print(
-            f"[HEARTBEAT] Device online: {args.device_uid}",
-            flush=True,
-        )
-
     def on_message(mqtt_client, userdata, message) -> None:
+        """Callback лише приймає message; ACK/Result публікує main thread."""
+
         try:
             command = json.loads(message.payload.decode("utf-8"))
-            command_id = str(command["command_id"])
-            expires_at = _parse_datetime(str(command["expires_at"]))
+            if not isinstance(command, dict):
+                raise ValueError("CommandEnvelope must be a JSON object")
         except Exception as exc:
             print(f"[REJECT] Invalid CommandEnvelope: {exc}", flush=True)
             return
 
-        if command_id in processed_command_ids:
-            print(
-                f"[DUPLICATE] command_id={command_id}; physical execution skipped",
-                flush=True,
-            )
-            return
-
-        if datetime.now(timezone.utc) >= expires_at:
-            print(
-                f"[REJECT] command_id={command_id}; command already expired",
-                flush=True,
-            )
-            return
-
-        # Device-side deduplication відбувається до фізичної дії.
-        processed_command_ids.add(command_id)
-
-        print(
-            (
-                f"[RECEIVED] command_id={command_id} "
-                f"type={command.get('command_type')} "
-                f"payload={command.get('payload')}"
-            ),
-            flush=True,
-        )
-
-        ack = {
-            "schema_version": 1,
-            "message_id": str(uuid.uuid4()),
-            "command_id": command_id,
-            "session_id": args.session_id,
-            "sent_at": _utc_now(),
-        }
-        publish_json(ack_topic, ack)
-        print(f"[ACK] command_id={command_id}", flush=True)
-
-        if args.outcome == "succeeded":
-            result = {
-                "schema_version": 1,
-                "message_id": str(uuid.uuid4()),
-                "command_id": command_id,
-                "session_id": args.session_id,
-                "sent_at": _utc_now(),
-                "status": "succeeded",
-                "result": _build_success_result(command),
-                "error_code": None,
-                "error_message": None,
-            }
-        else:
-            result = {
-                "schema_version": 1,
-                "message_id": str(uuid.uuid4()),
-                "command_id": command_id,
-                "session_id": args.session_id,
-                "sent_at": _utc_now(),
-                "status": "failed",
-                "result": {},
-                "error_code": args.error_code,
-                "error_message": args.error_message,
-            }
-
-        publish_json(result_topic, result)
-        print(
-            f"[RESULT] command_id={command_id} status={args.outcome}",
-            flush=True,
-        )
-        finished.set()
-        mqtt_client.disconnect()
+        incoming_commands.put(command)
 
     client.on_connect = on_connect
+    client.on_subscribe = on_subscribe
     client.on_message = on_message
 
     print(
@@ -221,10 +167,117 @@ def main() -> None:
     client.loop_start()
 
     try:
-        while not finished.wait(timeout=0.25):
-            pass
+        if not connected.wait(timeout=MQTT_WAIT_TIMEOUT_SECONDS):
+            raise RuntimeError("MQTT connect timeout")
+
+        if not subscribed.wait(timeout=MQTT_WAIT_TIMEOUT_SECONDS):
+            raise RuntimeError("MQTT subscribe timeout")
+
+        heartbeat = {
+            "schema_version": 1,
+            "message_id": str(uuid.uuid4()),
+            "session_id": args.session_id,
+            "sent_at": _utc_now(),
+            "sequence": 1,
+        }
+        publish_json(heartbeat_topic, heartbeat)
+        print(
+            f"[HEARTBEAT] Device online: {args.device_uid}",
+            flush=True,
+        )
+
+        while not finished.is_set():
+            try:
+                command = incoming_commands.get(timeout=0.25)
+            except queue.Empty:
+                continue
+
+            try:
+                command_id = str(command["command_id"])
+                expires_at = _parse_datetime(str(command["expires_at"]))
+            except Exception as exc:
+                print(f"[REJECT] Invalid CommandEnvelope: {exc}", flush=True)
+                continue
+
+            if command_id in processed_command_ids:
+                print(
+                    (
+                        f"[DUPLICATE] command_id={command_id}; "
+                        "physical execution skipped"
+                    ),
+                    flush=True,
+                )
+                continue
+
+            if datetime.now(timezone.utc) >= expires_at:
+                print(
+                    (
+                        f"[REJECT] command_id={command_id}; "
+                        "command already expired"
+                    ),
+                    flush=True,
+                )
+                continue
+
+            # Device-side deduplication відбувається до фізичної дії.
+            processed_command_ids.add(command_id)
+
+            print(
+                (
+                    f"[RECEIVED] command_id={command_id} "
+                    f"type={command.get('command_type')} "
+                    f"payload={command.get('payload')}"
+                ),
+                flush=True,
+            )
+
+            ack = {
+                "schema_version": 1,
+                "message_id": str(uuid.uuid4()),
+                "command_id": command_id,
+                "session_id": args.session_id,
+                "sent_at": _utc_now(),
+            }
+            publish_json(ack_topic, ack)
+            print(f"[ACK] command_id={command_id}", flush=True)
+
+            if args.outcome == "succeeded":
+                result = {
+                    "schema_version": 1,
+                    "message_id": str(uuid.uuid4()),
+                    "command_id": command_id,
+                    "session_id": args.session_id,
+                    "sent_at": _utc_now(),
+                    "status": "succeeded",
+                    "result": _build_success_result(command),
+                    "error_code": None,
+                    "error_message": None,
+                }
+            else:
+                result = {
+                    "schema_version": 1,
+                    "message_id": str(uuid.uuid4()),
+                    "command_id": command_id,
+                    "session_id": args.session_id,
+                    "sent_at": _utc_now(),
+                    "status": "failed",
+                    "result": {},
+                    "error_code": args.error_code,
+                    "error_message": args.error_message,
+                }
+
+            publish_json(result_topic, result)
+            print(
+                f"[RESULT] command_id={command_id} status={args.outcome}",
+                flush=True,
+            )
+            finished.set()
+
     except KeyboardInterrupt:
         print("[STOP] Interrupted by user", flush=True)
+    except Exception as exc:
+        print(f"[ERROR] {exc}", flush=True)
+        raise
     finally:
         client.disconnect()
         client.loop_stop()
