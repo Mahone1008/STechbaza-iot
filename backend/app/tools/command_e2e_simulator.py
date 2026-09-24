@@ -3,6 +3,7 @@ import json
 import os
 import queue
 import threading
+import time
 import uuid
 from datetime import datetime, timezone
 from typing import Any
@@ -13,6 +14,7 @@ import paho.mqtt.client as mqtt
 DEFAULT_HOST = os.getenv("MQTT_HOST", "mosquitto")
 DEFAULT_PORT = int(os.getenv("MQTT_PORT", "1883"))
 MQTT_WAIT_TIMEOUT_SECONDS = 5.0
+HEARTBEAT_INTERVAL_SECONDS = 30.0
 
 
 def _utc_now() -> str:
@@ -173,20 +175,32 @@ def main() -> None:
         if not subscribed.wait(timeout=MQTT_WAIT_TIMEOUT_SECONDS):
             raise RuntimeError("MQTT subscribe timeout")
 
-        heartbeat = {
-            "schema_version": 1,
-            "message_id": str(uuid.uuid4()),
-            "session_id": args.session_id,
-            "sent_at": _utc_now(),
-            "sequence": 1,
-        }
-        publish_json(heartbeat_topic, heartbeat)
-        print(
-            f"[HEARTBEAT] Device online: {args.device_uid}",
-            flush=True,
-        )
+        heartbeat_sequence = 0
+        next_heartbeat_at = 0.0
 
         while not finished.is_set():
+            now_monotonic = time.monotonic()
+            if now_monotonic >= next_heartbeat_at:
+                heartbeat_sequence += 1
+                heartbeat = {
+                    "schema_version": 1,
+                    "message_id": str(uuid.uuid4()),
+                    "session_id": args.session_id,
+                    "sent_at": _utc_now(),
+                    "sequence": heartbeat_sequence,
+                }
+                publish_json(heartbeat_topic, heartbeat)
+                print(
+                    (
+                        f"[HEARTBEAT] Device online: {args.device_uid} "
+                        f"sequence={heartbeat_sequence}"
+                    ),
+                    flush=True,
+                )
+                next_heartbeat_at = (
+                    now_monotonic + HEARTBEAT_INTERVAL_SECONDS
+                )
+
             try:
                 command = incoming_commands.get(timeout=0.25)
             except queue.Empty:
