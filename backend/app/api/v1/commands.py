@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.db import get_db_session
 from app.schemas.command import DeviceCommandCreate, DeviceCommandRead
+from app.services.command_dispatch import CommandDispatchService
 from app.services.commands import (
     CommandCapabilityViolationError,
     CommandDeviceNotFoundError,
@@ -56,8 +57,12 @@ def create_command(
 
     if not created:
         response.status_code = status.HTTP_200_OK
+        return DeviceCommandRead.model_validate(command)
 
-    return DeviceCommandRead.model_validate(command)
+    # Durable record уже закомічено. MQTT publish — окремий крок:
+    # при тимчасовій помилці брокера команда залишається queued, а не губиться.
+    dispatch = CommandDispatchService(session).dispatch(command.id)
+    return DeviceCommandRead.model_validate(dispatch.command)
 
 
 @router.get(
