@@ -4,6 +4,7 @@ from typing import Any
 from fastapi import FastAPI, HTTPException
 from sqlalchemy.exc import SQLAlchemyError
 
+from app.api.v1.router import api_v1_router
 from app.db import check_database
 from app.mqtt_client import (
     last_mqtt_message,
@@ -22,10 +23,12 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="TechBaza Backend",
-    version="0.3.0",
+    version="0.4.0",
     description="Backend API платформи TechBaza IoT Pump Control",
     lifespan=lifespan,
 )
+
+app.include_router(api_v1_router, prefix="/api/v1")
 
 
 @app.get("/health")
@@ -33,7 +36,7 @@ def health() -> dict[str, str]:
     return {
         "status": "ok",
         "service": "techbaza-backend",
-        "version": "0.3.0",
+        "version": "0.4.0",
     }
 
 
