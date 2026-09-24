@@ -191,6 +191,7 @@ broker recovery для mqtt_not_connected command                     ✅
 queued command автоматично перейшла в published                    ✅
 last_publish_error очищено після успішної доставки                 ✅
 той самий command_id реально отримано MQTT subscriber              ✅
+ACK після broker recovery → acknowledged                            ✅
 ```
 
 
