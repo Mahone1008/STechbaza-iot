@@ -28,8 +28,8 @@ VFD
 Операція 2 — MQTT Command Publisher         ✅ завершено
 Операція 3 — Command ACK                     ✅ завершено
 Операція 4 — Command Result                  ✅ завершено
-Операція 5 — Command Reliability             ← у роботі
-Операція 6 — End-to-End Command Test
+Операція 5 — Command Reliability             ✅ завершено
+Операція 6 — End-to-End Command Test          ← у роботі
 ```
 
 ## Операція 1 — перевірено реально
@@ -147,7 +147,7 @@ failed без error_code → invalid_payload                   ✅
 
 ## Операція 5 — Command Reliability
 
-Поточна ціль:
+Перевірено реально:
 
 ```text
 offline Device → queued
@@ -192,8 +192,39 @@ queued command автоматично перейшла в published             
 last_publish_error очищено після успішної доставки                 ✅
 той самий command_id реально отримано MQTT subscriber              ✅
 ACK після broker recovery → acknowledged                            ✅
+publish_attempts після ACK залишився незмінним                     ✅
 ```
 
+
+## Операція 6 — End-to-End Command Test
+
+Поточна ціль:
+
+```text
+HTTP POST
+   ↓
+durable command
+   ↓
+MQTT
+   ↓
+Device simulator
+   ↓
+ACK
+   ↓
+Result
+   ↓
+succeeded / failed
+   ↓
+GET Command API
+```
+
+Для repeatable інтеграційної перевірки додано одноразовий Device simulator:
+
+```text
+python -m app.tools.command_e2e_simulator
+```
+
+Деталі: [End-to-End Command Test v1](end-to-end-command-test-v1.md).
 
 ## Definition of Done Етапу 5
 
