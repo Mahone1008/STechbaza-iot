@@ -169,6 +169,9 @@ published_at=null                                          ✅
 publish_attempts=0                                         ✅
 reliability worker → candidate_count=1                     ✅
 reliability worker → reason=device_offline                 ✅
+queued offline command → expired після TTL                 ✅
+completed_at заповнено                                      ✅
+error_code=command_expired                                  ✅
 ```
 
 
