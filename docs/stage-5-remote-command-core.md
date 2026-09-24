@@ -183,6 +183,8 @@ late ACK після expiry → rejected / command_expired              ✅
 Result без ACK → succeeded                                      ✅
 backend implicit заповнив acknowledged_at                       ✅
 late Result після expiry → rejected / command_expired            ✅
+broker повернувся → queued command автоматично доставлена         ✅
+та сама command збережена в PostgreSQL під час outage              ✅
 ```
 
 
