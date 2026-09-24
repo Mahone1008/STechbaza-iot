@@ -11,6 +11,7 @@ from pydantic import ValidationError
 from app.db import SessionLocal
 from app.schemas.telemetry import TelemetryEnvelope
 from app.services.telemetry import (
+    TelemetryCapabilityViolationError,
     TelemetryDeviceNotFoundError,
     TelemetryService,
 )
@@ -107,6 +108,24 @@ def _handle_telemetry(topic: str, payload_text: str) -> None:
             device_uid=device_uid,
             message_id=str(envelope.message_id),
             reason="unknown_device",
+        )
+        return
+    except TelemetryCapabilityViolationError as exc:
+        logger.warning(
+            "Відхилено telemetry payload через capability policy: "
+            "uid=%s missing=%s unsupported=%s",
+            device_uid,
+            exc.missing_capabilities,
+            exc.unsupported_keys,
+        )
+        _remember_ingestion(
+            status="rejected",
+            topic=topic,
+            device_uid=device_uid,
+            message_id=str(envelope.message_id),
+            reason="capability_violation",
+            missing_capabilities=list(exc.missing_capabilities),
+            unsupported_keys=list(exc.unsupported_keys),
         )
         return
     except Exception:
