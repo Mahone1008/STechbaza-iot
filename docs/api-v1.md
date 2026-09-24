@@ -252,6 +252,7 @@ vfd.frequency.set
 
 ```json
 {
+  "request_id": "11111111-2222-4333-8444-555555555555",
   "command_type": "vfd.frequency.set",
   "payload": {
     "frequency_hz": 45.0
@@ -261,3 +262,14 @@ vfd.frequency.set
 ```
 
 На поточній операції нова команда отримує статус `queued`. MQTT publish та ACK реалізуються окремими наступними операціями.
+
+
+### Ідемпотентність створення command
+
+`request_id` генерується клієнтом до POST.
+
+- перший валідний запит → `201 Created`;
+- повтор ідентичного POST з тим самим `request_id` → `200 OK` і той самий command;
+- той самий `request_id` з іншим Device/type/payload/TTL → `409 Conflict`.
+
+Це не дозволяє HTTP retry випадково створити дві фізичні команди.
