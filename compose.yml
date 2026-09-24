@@ -42,6 +42,7 @@ services:
       MQTT_TELEMETRY_TOPIC: techbaza/devices/+/telemetry
       MQTT_HEARTBEAT_TOPIC: techbaza/devices/+/heartbeat
       MQTT_COMMAND_TOPIC_TEMPLATE: techbaza/devices/{device_uid}/commands
+      MQTT_COMMAND_ACK_TOPIC: techbaza/devices/+/commands/ack
       MQTT_PUBLISH_TIMEOUT_SECONDS: 3
       DEVICE_ONLINE_TIMEOUT_SECONDS: 90
     ports:
