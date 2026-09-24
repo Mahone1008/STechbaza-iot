@@ -4,7 +4,15 @@ from alembic import context
 from sqlalchemy import engine_from_config, pool
 
 from app.db import DATABASE_URL
-from app.models import (\n    Capability,\n    Device,\n    DeviceCapability,\n    DeviceState,\n    Organization,\n    Site,\n    TelemetryMessage,\n)
+from app.models import (
+    Capability,
+    Device,
+    DeviceCapability,
+    DeviceState,
+    Organization,
+    Site,
+    TelemetryMessage,
+)
 from app.models.base import Base
 
 config = context.config
