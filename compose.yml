@@ -35,6 +35,10 @@ services:
     restart: unless-stopped
     environment:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-techbaza}:${POSTGRES_PASSWORD:-techbaza_dev_only}@postgres:5432/${POSTGRES_DB:-techbaza}
+      MQTT_HOST: mosquitto
+      MQTT_PORT: 1883
+      MQTT_CLIENT_ID: techbaza-backend
+      MQTT_TEST_TOPIC: techbaza/test/backend
     ports:
       - "127.0.0.1:8000:8000"
     depends_on:
