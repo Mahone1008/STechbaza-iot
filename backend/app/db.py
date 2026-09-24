@@ -1,7 +1,9 @@
 import os
+from collections.abc import Generator
 
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
+from sqlalchemy.orm import Session, sessionmaker
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
@@ -12,6 +14,23 @@ engine: Engine = create_engine(
     DATABASE_URL,
     pool_pre_ping=True,
 )
+
+SessionLocal = sessionmaker(
+    bind=engine,
+    class_=Session,
+    autoflush=False,
+    expire_on_commit=False,
+)
+
+
+def get_db_session() -> Generator[Session, None, None]:
+    """Створює окрему DB-сесію на один HTTP-запит."""
+
+    session = SessionLocal()
+    try:
+        yield session
+    finally:
+        session.close()
 
 
 def check_database() -> dict[str, str]:
