@@ -31,6 +31,7 @@ GET Command API
 Simulator поводиться як мінімальний edge-контролер:
 
 - підписується на command topic;
+- відправляє heartbeat і переводить Device в online;
 - перевіряє `expires_at`;
 - дедуплікує фізичне виконання за `command_id`;
 - відправляє ACK;
@@ -58,6 +59,7 @@ docker compose exec backend python -m app.tools.command_e2e_simulator --device-u
 ```text
 [START] ...
 [READY] Device simulator subscribed: techbaza/devices/TB-ESP32-001/commands
+[HEARTBEAT] Device online: TB-ESP32-001
 ```
 
 Після створення нової command simulator повинен показати:
