@@ -23,6 +23,7 @@
 - [Device Presence v1](device-presence-v1.md)
 - [Telemetry Ordering v1](telemetry-ordering-v1.md)
 - [Telemetry Session Protection v1](telemetry-session-protection-v1.md)
+- [Етап 5 — Remote Command Core (у роботі)](stage-5-remote-command-core.md)
 - [Command Core v1](command-core-v1.md)
 
 ## Запланований розвиток
