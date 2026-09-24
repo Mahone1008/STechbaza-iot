@@ -120,3 +120,29 @@ reason = capability_violation
 і показує `missing_capabilities`.
 
 Невідомий telemetry key також відхиляється та потрапляє до `unsupported_keys`.
+
+
+## Out-of-order test
+
+Після міграції `20260924_0003` ingestion показує також:
+
+```text
+state_updated
+ordering_reason
+```
+
+Новіший пакет має:
+
+```text
+state_updated = true
+```
+
+Старіший пакет з іншим `message_id`:
+
+```text
+status = stored
+state_updated = false
+ordering_reason = older_sent_at
+```
+
+Такий пакет залишається в `telemetry_messages`, але не переписує `device_states`.
