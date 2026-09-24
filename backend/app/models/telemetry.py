@@ -31,6 +31,11 @@ class TelemetryMessage(Base):
             "device_id",
             "received_at",
         ),
+        Index(
+            "ix_telemetry_messages_device_session_id",
+            "device_id",
+            "session_id",
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -49,6 +54,10 @@ class TelemetryMessage(Base):
         ForeignKey("devices.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
+    )
+    session_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        nullable=True,
     )
     schema_version: Mapped[int] = mapped_column(
         SmallInteger,
@@ -104,6 +113,10 @@ class DeviceState(TimestampMixin, Base):
     last_telemetry_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("telemetry_messages.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    last_session_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
         nullable=True,
     )
     last_sequence: Mapped[int | None] = mapped_column(
