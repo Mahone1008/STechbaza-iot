@@ -25,8 +25,8 @@ VFD
 
 ```text
 Операція 1 — Durable Command Queue          ✅ завершено
-Операція 2 — MQTT Command Publisher         ← у роботі
-Операція 3 — Command ACK
+Операція 2 — MQTT Command Publisher         ✅ завершено
+Операція 3 — Command ACK                     ← у роботі
 Операція 4 — Command Result
 Операція 5 — Command Reliability
 Операція 6 — End-to-End Command Test
@@ -53,7 +53,7 @@ Durable queue використовує:
 - lifecycle status;
 - audit fields.
 
-## Операція 2 — поточна ціль
+## Операція 2 — перевірено реально
 
 ```text
 queued command
@@ -70,6 +70,38 @@ status = published
 ```
 
 Деталі MQTT contract: [MQTT Command Protocol v1](mqtt-command-protocol-v1.md).
+
+Перевірено локально:
+
+```text
+Backend 0.14.0                                         ✅
+POST command → status published                       ✅
+published_at set                                       ✅
+Mosquitto subscriber реально отримав CommandEnvelope   ✅
+QoS 1                                                  ✅
+retain=false                                           ✅
+HTTP retry не викликав повторний MQTT publish          ✅
+новий subscriber після reconnect не отримав стару command ✅
+```
+
+## Операція 3 — Command ACK
+
+Поточна ціль:
+
+```text
+published command
+      ↓
+ESP32 / simulator отримав command
+      ↓
+techbaza/devices/{device_uid}/commands/ack
+      ↓
+Backend validation
+      ↓
+status = acknowledged
+acknowledged_at = server UTC time
+```
+
+Деталі ACK contract: [MQTT Command ACK Protocol v1](mqtt-command-ack-v1.md).
 
 ## Definition of Done Етапу 5
 
