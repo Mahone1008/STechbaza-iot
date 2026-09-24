@@ -154,6 +154,11 @@ def _handle_telemetry(topic: str, payload_text: str) -> None:
         topic=topic,
         device_uid=device_uid,
         message_id=str(envelope.message_id),
+        session_id=(
+            str(envelope.session_id)
+            if envelope.session_id is not None
+            else None
+        ),
         telemetry_id=str(result.telemetry_id),
         duplicate=result.duplicate,
         state_updated=result.state_updated,
@@ -217,6 +222,11 @@ def _handle_heartbeat(topic: str, payload_text: str) -> None:
         topic=topic,
         device_uid=device_uid,
         message_id=str(envelope.message_id),
+        session_id=(
+            str(envelope.session_id)
+            if envelope.session_id is not None
+            else None
+        ),
         sequence=envelope.sequence,
         seen_at=seen_at.isoformat(),
     )
