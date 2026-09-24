@@ -2,137 +2,49 @@
 
 ## Мета
 
-MQTT і мобільний зв'язок не гарантують, що всі пакети дійдуть до backend строго в тому порядку, у якому їх сформував контролер.
+MQTT і мобільний зв'язок можуть доставляти пакети не в тому порядку, в якому їх сформував контролер.
 
-Приклад:
-
-```text
-ESP32 створив sequence 10 → 45 Hz
-ESP32 створив sequence 11 → 48 Hz
-
-через затримку мережі backend отримав:
-11 → першим
-10 → другим
-```
-
-Без окремого ordering policy старий пакет `10` міг би відкотити current state назад до 45 Hz.
-
-## Принцип TechBaza
-
-Історія та current state мають різні правила.
-
-```text
-валідний новий message_id
-        │
-        ├── telemetry_messages
-        │      зберігаємо в історію
-        │
-        └── device_states
-               оновлюємо лише якщо пакет новіший
-```
-
-Тобто out-of-order пакет не втрачається: він залишається в історії для діагностики, але не має права переписувати актуальний snapshot.
+TechBaza розділяє history та current state: усі валідні нові `message_id` зберігаються в history, а current state змінюється лише від актуального пакета.
 
 ## Ordering metadata
 
-Для рішення використовуються:
+Поточна модель використовує `session_id`, `sequence`, `sent_at` і `received_at`.
 
-```text
-sent_at
-sequence
-```
+### session_id
 
-У `device_states` додано:
+UUID одного boot ESP32. Новий reboot означає новий `session_id`.
 
-```text
-last_sequence
-last_reported_at
-last_received_at
-```
+### sequence
 
-## Правила v1
+Монотонний номер пакета всередині однієї session. Коли `session_id` однаковий, `sequence` є головним джерелом порядку.
 
-Пріоритет має `sent_at`, коли timestamp є і в current state, і в новому пакеті.
+### sent_at
 
-```text
-incoming.sent_at > current.last_reported_at
-→ update current state
+Час, заявлений контролером. Використовується як fallback, якщо sequence недоступний.
 
-incoming.sent_at < current.last_reported_at
-→ history only
-```
+### received_at
 
-Якщо `sent_at` однаковий, sequence використовується як tie-breaker:
+Серверний час фактичного отримання. Потрібний для діагностики мережі, але сам по собі не визначає актуальність фізичного стану.
 
-```text
-incoming.sequence > current.last_sequence
-→ update current state
+## Правила
 
-incoming.sequence <= current.last_sequence
-→ history only
-```
+У межах однієї session більший `sequence` оновлює current state, а неперевищуючий — лишається тільки в history.
 
-Якщо timestamp недостатньо, sequence може використовуватися як fallback.
+Раніше невідома session означає новий boot і може оновити current state навіть якщо sequence почався з 0.
 
-Якщо ordering metadata недостатньо для безпечного рішення, існуючий snapshot не переписується.
+Якщо пакет приходить зі старої session, яку backend уже бачив до переходу на іншу session, він зберігається в history, але current state не змінює.
 
-## Чим stale відрізняється від duplicate
+Legacy payload без `session_id` використовує стару sent_at/sequence логіку лише доки current state також legacy.
 
-### Duplicate
+## Duplicate vs stale vs old session
 
-Той самий `message_id`.
+- duplicate: той самий `message_id`, другий history row не створюється;
+- stale: новий `message_id`, але старіший порядок у тій самій session — history yes, current state no;
+- old session: новий `message_id` зі старої boot-session — history yes, current state no.
 
-```text
-message_id already exists
-→ другий history row НЕ створюється
-→ current state НЕ змінюється
-```
+## Міграції
 
-### Stale / out-of-order
+- `20260924_0003` — `last_sequence`;
+- `20260924_0004` — `session_id` / `last_session_id`.
 
-Інший `message_id`, але пакет старіший за current state.
-
-```text
-new message_id
-але старіший sent_at / sequence
-→ history row створюється
-→ current state НЕ змінюється
-```
-
-Це принципово різні ситуації.
-
-## Діагностика
-
-`GET /mqtt/ingestion/last` тепер повертає:
-
-```json
-{
-  "status": "ok",
-  "ingestion": {
-    "status": "stored",
-    "duplicate": false,
-    "state_updated": false,
-    "ordering_reason": "older_sent_at"
-  }
-}
-```
-
-`status = stored` означає, що пакет потрапив до історії.
-
-`state_updated = false` означає, що current snapshot залишився новішим.
-
-## Міграція
-
-Міграція:
-
-```text
-20260924_0003_telemetry_ordering
-```
-
-додає `device_states.last_sequence` і заповнює його для існуючих snapshot на основі пов'язаного telemetry message.
-
-## Обмеження v1
-
-`sent_at` формує сам контролер, тому його годинник має бути синхронізований.
-
-У майбутньому для складніших сценаріїв reboot/offline-buffering можна додати окремий boot/session marker. Поточна версія вже захищає основний сценарій out-of-order доставки та не дозволяє старому пакету відкотити current state.
+Деталі reboot-захисту: `docs/telemetry-session-protection-v1.md`.
