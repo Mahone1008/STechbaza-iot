@@ -105,3 +105,35 @@ PostgreSQL schema
 - devices;
 - capabilities;
 - device_capabilities.
+
+
+## device_commands
+
+Durable-черга команд керування пристроєм.
+
+Основні поля:
+
+```text
+id
+device_id
+command_type
+payload
+status
+expires_at
+published_at
+acknowledged_at
+completed_at
+result
+error_code
+error_message
+created_at
+updated_at
+```
+
+Зв'язок:
+
+```text
+Device 1 ─── * DeviceCommand
+```
+
+Команда спочатку фіксується в PostgreSQL зі статусом `queued`, а вже наступний шар відповідає за MQTT delivery та ACK.
