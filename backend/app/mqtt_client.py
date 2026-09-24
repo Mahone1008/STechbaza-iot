@@ -10,6 +10,7 @@ from pydantic import ValidationError
 
 from app.db import SessionLocal
 from app.schemas.command_ack import CommandAckEnvelope
+from app.schemas.command_result import CommandResultEnvelope
 from app.schemas.heartbeat import HeartbeatEnvelope
 from app.schemas.telemetry import TelemetryEnvelope
 from app.services.command_ack import (
@@ -18,6 +19,14 @@ from app.services.command_ack import (
     CommandAckDeviceNotFoundError,
     CommandAckInvalidTransitionError,
     CommandAckService,
+)
+from app.services.command_result import (
+    CommandResultCommandNotFoundError,
+    CommandResultConflictError,
+    CommandResultDeviceMismatchError,
+    CommandResultDeviceNotFoundError,
+    CommandResultInvalidTransitionError,
+    CommandResultService,
 )
 from app.services.device_presence import (
     DevicePresenceService,
@@ -47,6 +56,10 @@ MQTT_COMMAND_ACK_TOPIC = os.getenv(
     "MQTT_COMMAND_ACK_TOPIC",
     "techbaza/devices/+/commands/ack",
 )
+MQTT_COMMAND_RESULT_TOPIC = os.getenv(
+    "MQTT_COMMAND_RESULT_TOPIC",
+    "techbaza/devices/+/commands/result",
+)
 MQTT_COMMAND_TOPIC_TEMPLATE = os.getenv(
     "MQTT_COMMAND_TOPIC_TEMPLATE",
     "techbaza/devices/{device_uid}/commands",
@@ -62,6 +75,7 @@ _last_ingestion: dict[str, Any] | None = None
 _last_heartbeat: dict[str, Any] | None = None
 _last_command_publish: dict[str, Any] | None = None
 _last_command_ack: dict[str, Any] | None = None
+_last_command_result: dict[str, Any] | None = None
 
 
 def _extract_device_uid(topic: str, expected_suffix: str) -> str | None:
@@ -143,6 +157,15 @@ def _remember_command_ack(**data: Any) -> None:
     global _last_command_ack
     with _lock:
         _last_command_ack = {
+            **data,
+            "processed_at": datetime.now(timezone.utc).isoformat(),
+        }
+
+
+def _remember_command_result(**data: Any) -> None:
+    global _last_command_result
+    with _lock:
+        _last_command_result = {
             **data,
             "processed_at": datetime.now(timezone.utc).isoformat(),
         }
@@ -489,6 +512,129 @@ def _handle_command_ack(topic: str, payload_text: str) -> None:
     )
 
 
+
+def _handle_command_result(topic: str, payload_text: str) -> None:
+    device_uid = _extract_command_event_uid(topic, "result")
+    if device_uid is None:
+        return
+
+    try:
+        payload_json = json.loads(payload_text)
+        envelope = CommandResultEnvelope.model_validate(payload_json)
+    except (json.JSONDecodeError, ValidationError) as exc:
+        logger.warning(
+            "Відхилено невалідний command result: topic=%s error=%s",
+            topic,
+            exc,
+        )
+        _remember_command_result(
+            status="rejected",
+            topic=topic,
+            device_uid=device_uid,
+            reason="invalid_payload",
+        )
+        return
+
+    try:
+        with SessionLocal() as session:
+            result = CommandResultService(session).complete(
+                device_uid=device_uid,
+                payload=envelope,
+            )
+    except CommandResultDeviceNotFoundError:
+        _remember_command_result(
+            status="rejected",
+            topic=topic,
+            device_uid=device_uid,
+            command_id=str(envelope.command_id),
+            message_id=str(envelope.message_id),
+            reason="unknown_device",
+        )
+        return
+    except CommandResultCommandNotFoundError:
+        _remember_command_result(
+            status="rejected",
+            topic=topic,
+            device_uid=device_uid,
+            command_id=str(envelope.command_id),
+            message_id=str(envelope.message_id),
+            reason="unknown_command",
+        )
+        return
+    except CommandResultDeviceMismatchError:
+        _remember_command_result(
+            status="rejected",
+            topic=topic,
+            device_uid=device_uid,
+            command_id=str(envelope.command_id),
+            message_id=str(envelope.message_id),
+            reason="device_mismatch",
+        )
+        return
+    except CommandResultConflictError:
+        _remember_command_result(
+            status="rejected",
+            topic=topic,
+            device_uid=device_uid,
+            command_id=str(envelope.command_id),
+            message_id=str(envelope.message_id),
+            reason="terminal_result_conflict",
+        )
+        return
+    except CommandResultInvalidTransitionError as exc:
+        _remember_command_result(
+            status="rejected",
+            topic=topic,
+            device_uid=device_uid,
+            command_id=str(envelope.command_id),
+            message_id=str(envelope.message_id),
+            reason="invalid_transition",
+            command_status=exc.status,
+        )
+        return
+    except Exception:
+        logger.exception(
+            "Помилка command result: device_uid=%s command_id=%s",
+            device_uid,
+            envelope.command_id,
+        )
+        _remember_command_result(
+            status="error",
+            topic=topic,
+            device_uid=device_uid,
+            command_id=str(envelope.command_id),
+            message_id=str(envelope.message_id),
+            reason="internal_error",
+        )
+        return
+
+    _remember_command_result(
+        status="duplicate" if result.duplicate else "accepted",
+        topic=topic,
+        device_uid=device_uid,
+        command_id=str(envelope.command_id),
+        message_id=str(envelope.message_id),
+        session_id=str(envelope.session_id),
+        duplicate=result.duplicate,
+        command_updated=result.updated,
+        reason=result.reason,
+        command_status=result.command.status,
+        acknowledged_at=(
+            result.command.acknowledged_at.isoformat()
+            if result.command.acknowledged_at is not None
+            else None
+        ),
+        completed_at=(
+            result.command.completed_at.isoformat()
+            if result.command.completed_at is not None
+            else None
+        ),
+        result=result.command.result,
+        error_code=result.command.error_code,
+        error_message=result.command.error_message,
+    )
+
+
 def _on_connect(client, userdata, connect_flags, reason_code, properties) -> None:
     global _connected
     is_connected = reason_code == 0
@@ -501,6 +647,7 @@ def _on_connect(client, userdata, connect_flags, reason_code, properties) -> Non
         client.subscribe(MQTT_TELEMETRY_TOPIC, qos=1)
         client.subscribe(MQTT_HEARTBEAT_TOPIC, qos=1)
         client.subscribe(MQTT_COMMAND_ACK_TOPIC, qos=1)
+        client.subscribe(MQTT_COMMAND_RESULT_TOPIC, qos=1)
 
 
 def _on_disconnect(client, userdata, disconnect_flags, reason_code, properties) -> None:
@@ -523,6 +670,10 @@ def _on_message(client, userdata, message) -> None:
 
     if _extract_command_event_uid(message.topic, "ack") is not None:
         _handle_command_ack(message.topic, payload)
+        return
+
+    if _extract_command_event_uid(message.topic, "result") is not None:
+        _handle_command_result(message.topic, payload)
 
 
 client = mqtt.Client(
@@ -555,6 +706,7 @@ def mqtt_status() -> dict[str, Any]:
             "subscribed_telemetry_topic": MQTT_TELEMETRY_TOPIC,
             "subscribed_heartbeat_topic": MQTT_HEARTBEAT_TOPIC,
             "subscribed_command_ack_topic": MQTT_COMMAND_ACK_TOPIC,
+            "subscribed_command_result_topic": MQTT_COMMAND_RESULT_TOPIC,
             "command_topic_template": MQTT_COMMAND_TOPIC_TEMPLATE,
             "command_qos": 1,
             "command_retain": False,
@@ -590,5 +742,14 @@ def last_command_ack_result() -> dict[str, Any] | None:
         return (
             dict(_last_command_ack)
             if _last_command_ack is not None
+            else None
+        )
+
+
+def last_command_result_result() -> dict[str, Any] | None:
+    with _lock:
+        return (
+            dict(_last_command_result)
+            if _last_command_result is not None
             else None
         )
