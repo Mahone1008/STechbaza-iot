@@ -156,6 +156,8 @@ def _handle_telemetry(topic: str, payload_text: str) -> None:
         message_id=str(envelope.message_id),
         telemetry_id=str(result.telemetry_id),
         duplicate=result.duplicate,
+        state_updated=result.state_updated,
+        ordering_reason=result.ordering_reason,
     )
 
 
