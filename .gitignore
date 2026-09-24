@@ -1,0 +1,36 @@
+# Secrets and local environment files
+.env
+.env.*
+!.env.example
+
+# Python / backend
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Node / frontend
+node_modules/
+dist/
+build/
+.next/
+
+# ESP32 / PlatformIO
+.pio/
+.platformio/
+
+# Logs and runtime files
+*.log
+logs/
+tmp/
+temp/
+
+# IDE / OS
+.idea/
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Local certificates and private keys
+*.pem
+*.key
