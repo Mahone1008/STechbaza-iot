@@ -1,12 +1,12 @@
-# Firmware
+# Прошивка
 
-Firmware for TechBaza field controllers.
+Прошивка для польових контролерів TechBaza.
 
-Current hardware direction:
+Поточний напрямок по обладнанню:
 - ESP32-S3;
-- isolated RS485;
-- Modbus RTU communication with VFDs;
-- Wi-Fi / 4G connectivity;
-- remote control and telemetry.
+- ізольований RS485;
+- Modbus RTU для зв'язку з частотними перетворювачами;
+- Wi-Fi / 4G;
+- дистанційне керування та телеметрія.
 
-The firmware must support modular hardware so each installation can expose only the capabilities actually installed on that site.
+Прошивка повинна підтримувати модульну конфігурацію обладнання, щоб кожен об'єкт відображав лише реально встановлені можливості.
