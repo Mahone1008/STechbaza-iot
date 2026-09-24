@@ -41,6 +41,8 @@ services:
       MQTT_TEST_TOPIC: techbaza/test/backend
       MQTT_TELEMETRY_TOPIC: techbaza/devices/+/telemetry
       MQTT_HEARTBEAT_TOPIC: techbaza/devices/+/heartbeat
+      MQTT_COMMAND_TOPIC_TEMPLATE: techbaza/devices/{device_uid}/commands
+      MQTT_PUBLISH_TIMEOUT_SECONDS: 3
       DEVICE_ONLINE_TIMEOUT_SECONDS: 90
     ports:
       - "127.0.0.1:8000:8000"
