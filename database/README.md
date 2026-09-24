@@ -1,12 +1,12 @@
-# Database
+# База даних
 
-PostgreSQL schema, migrations and seed data for TechBaza.
+Схема PostgreSQL, міграції та початкові дані для TechBaza.
 
-This module will describe:
-- users and roles;
-- customers and sites;
-- controllers and connected equipment;
-- installed modules and sensors;
-- telemetry;
-- commands;
-- alarms and event history.
+Цей модуль описуватиме:
+- користувачів і ролі;
+- клієнтів та об'єкти;
+- контролери й підключене обладнання;
+- встановлені модулі та можливості;
+- телеметрію;
+- команди;
+- аварії та історію подій.
