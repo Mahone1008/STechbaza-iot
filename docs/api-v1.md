@@ -158,3 +158,73 @@ provisioning
 ```
 
 Це означає, що запис у системі вже існує, але пристрій ще не вважається повністю введеним в експлуатацію.
+
+
+## Четвертий доменний ресурс: capabilities
+
+Capability описує функцію, яку може підтримувати конкретний Device.
+
+Каталог capabilities є глобальним:
+
+```text
+GET  /api/v1/capabilities
+POST /api/v1/capabilities
+```
+
+Прив'язка до конкретного пристрою:
+
+```text
+GET  /api/v1/devices/{device_id}/capabilities
+POST /api/v1/devices/{device_id}/capabilities/{capability_id}
+```
+
+Приклади capability code:
+
+```text
+vfd.control
+vfd.frequency.read
+pressure.read
+current.read
+water_level.read
+fertilizer.control
+camera.view
+```
+
+Приклад створення capability:
+
+```json
+{
+  "code": "vfd.control",
+  "name": "Керування частотним перетворювачем",
+  "description": "Дозволяє запуск, зупинку та передачу команд керування VFD."
+}
+```
+
+Приклад прив'язки до Device:
+
+```json
+{
+  "is_enabled": true,
+  "config": {
+    "modbus_slave_id": 1
+  }
+}
+```
+
+Поле `config` зберігається як JSONB та містить параметри саме цього встановлення.
+
+Архітектура:
+
+```text
+Organization
+    ↓
+Site
+    ↓
+Device
+    ↓
+DeviceCapability
+    ↓
+Capability
+```
+
+Таким чином frontend і backend можуть визначати функції конкретного контролера на основі фактичної конфігурації, а не жорстко зашитого набору датчиків.
