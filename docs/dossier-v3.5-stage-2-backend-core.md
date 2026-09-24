@@ -1,10 +1,10 @@
 # Досьє V3.5 — Етап 2
 ## Backend Core TechBaza: FastAPI, API та підключення до PostgreSQL
 
-**Статус:** етап у процесі  
+**Статус:** завершено  
 **Версія:** V3.5  
 **Етап:** 2  
-**Поточний результат:** FastAPI backend запущений, API працює, зв'язок із PostgreSQL підтверджений. MQTT-інтеграція підготовлена в коді, але ще не пройшла фінальну перевірку на локальному стенді.
+**Поточний результат:** FastAPI backend запущений, API працює, зв'язок із PostgreSQL підтверджений, MQTT-інтеграція перевірена реальним повідомленням.
 
 ---
 
@@ -527,9 +527,13 @@ GET /health/db
 
 ---
 
-# 15. Підготовка Backend → MQTT
+# 15. Backend → MQTT — перевірено
 
-На момент створення цього досьє код наступної операції вже підготовлений у репозиторії.
+На цьому етапі backend підключено до Mosquitto через бібліотеку:
+
+```text
+paho-mqtt
+```
 
 Створено:
 
@@ -537,13 +541,7 @@ GET /health/db
 backend/app/mqtt_client.py
 ```
 
-Додана бібліотека:
-
-```text
-paho-mqtt
-```
-
-Підготовлена схема:
+Схема:
 
 ```text
 FastAPI Backend
@@ -553,33 +551,69 @@ FastAPI Backend
 Mosquitto MQTT
 ```
 
-Заплановані endpoint-и:
+Додано endpoint-и:
 
 ```text
 GET /health/mqtt
 GET /mqtt/last
 ```
 
-Тестовий topic:
+Backend підписаний на тестовий topic:
 
 ```text
 techbaza/test/backend
 ```
 
-Але важливо:
+Перевірка `GET /health/mqtt` підтвердила:
 
-**ця MQTT-частина ще не вважається підтвердженою, доки не буде пересобрано backend і не буде отримано реальне тестове повідомлення.**
-
-Тобто поточний статус:
-
-```text
-Backend → PostgreSQL   ✅ перевірено
-
-Backend → MQTT         🟡 код підготовлено,
-                        перевірка ще попереду
+```json
+{
+  "status": "ok",
+  "mqtt": {
+    "connected": true,
+    "host": "mosquitto",
+    "port": 1883,
+    "subscribed_test_topic": "techbaza/test/backend"
+  }
+}
 ```
 
----
+Для реальної перевірки в Mosquitto було відправлено:
+
+```text
+topic:   techbaza/test/backend
+payload: message for backend
+```
+
+Після цього endpoint:
+
+```text
+GET /mqtt/last
+```
+
+повернув отримане повідомлення з полями:
+
+- topic;
+- payload;
+- QoS;
+- retain;
+- час отримання.
+
+Фактично підтверджена схема:
+
+```text
+mosquitto_pub
+     ↓
+Mosquitto
+     ↓
+FastAPI Backend
+     ↓
+/mqtt/last
+     ↓
+Browser
+```
+
+Тобто backend уже вміє не лише працювати з PostgreSQL, а й реально отримувати MQTT-повідомлення.
 
 # 16. Як виглядає поточна архітектура
 
@@ -750,14 +784,15 @@ user = techbaza                         ✅
 PostgreSQL 16.15                        ✅
 ```
 
-Підготовлено, але ще не підтверджено тестом:
+Підтверджено на реальному локальному середовищі:
 
 ```text
-paho-mqtt                               🟡
-backend/app/mqtt_client.py              🟡
-Backend → Mosquitto                     🟡
-GET /health/mqtt                        🟡
-GET /mqtt/last                          🟡
+paho-mqtt                               ✅
+backend/app/mqtt_client.py              ✅
+Backend → Mosquitto                     ✅
+GET /health/mqtt                        ✅
+GET /mqtt/last                          ✅
+Отримання MQTT-повідомлення backend     ✅
 ```
 
 ---
@@ -817,35 +852,33 @@ Browser ────────▶│ FastAPI Backend │
 
 # 23. Наступна операція
 
-Наступна операція — завершити та перевірити:
+Операцію Backend → MQTT завершено та перевірено.
 
-```text
-Backend
-   ↓
-MQTT
-   ↓
-Mosquitto
-```
-
-Потрібно підтвердити:
+Підтверджено:
 
 1. backend підключився до Mosquitto;
-2. backend підписався на topic;
+2. backend підписався на topic `techbaza/test/backend`;
 3. MQTT-повідомлення реально прийшло в backend;
 4. endpoint `/mqtt/last` показав отримане повідомлення.
 
-Після цього буде підтверджена схема:
+Підтверджена схема:
 
 ```text
-Publisher
+mosquitto_pub
    ↓
 Mosquitto
    ↓
 FastAPI Backend
    ↓
-API
+GET /mqtt/last
    ↓
 Browser
+```
+
+Фактичне тестове повідомлення:
+
+```text
+message for backend
 ```
 
 ---
@@ -890,4 +923,4 @@ PostgreSQL
 Browser
 ```
 
-**V3.5 — Етап 2: backend запущено, HTTP API працює, зв'язок із PostgreSQL підтверджено. MQTT-частина підготовлена та очікує перевірки.**
+**V3.5 — Етап 2 завершено: backend запущено, HTTP API працює, зв'язок із PostgreSQL підтверджено, зв'язок Backend → MQTT підтверджено реальним повідомленням.**
