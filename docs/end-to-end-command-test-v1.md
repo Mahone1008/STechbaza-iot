@@ -137,3 +137,47 @@ POST
 ```
 
 Після цього Етап 5 — Remote Command Core може бути закритий.
+
+
+## Фактичний результат перевірки
+
+**Дата:** 2026-09-24  
+**Статус:** пройдено ✅
+
+Контрольна command:
+
+```text
+command_id = ad55d377-0468-41b6-a4e3-5e1e3a0ab1b0
+command_type = vfd.frequency.set
+frequency_hz = 37
+ttl_seconds = 300
+```
+
+Simulator:
+
+```text
+[RECEIVED] ✅
+[ACK] ✅
+[RESULT] status=succeeded ✅
+```
+
+Фінальний API state:
+
+```text
+status = succeeded
+published_at != null
+publish_attempts = 1
+last_publish_error = null
+acknowledged_at != null
+completed_at != null
+result.frequency_hz = 37
+error_code = null
+error_message = null
+```
+
+Definition of Done виконано.
+
+```text
+Операція 6 — End-to-End Command Test ✅
+Етап 5 — Remote Command Core ✅
+```
