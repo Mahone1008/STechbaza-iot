@@ -177,6 +177,8 @@ queued command автоматично опублікована без новог
 без ACK worker повторно доставляв той самий command_id      ✅
 publish_attempts=9 до завершення TTL                         ✅
 після retry без ACK command автоматично стала expired        ✅
+ACK зупинив retry                                             ✅
+publish_attempts після ACK більше не збільшувався              ✅
 ```
 
 
