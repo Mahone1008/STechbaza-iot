@@ -84,7 +84,7 @@ class CommandDispatchService:
             )
 
         if (
-            command.status == "published"
+            allow_retry
             and command.last_publish_attempt_at is not None
             and current_time - command.last_publish_attempt_at
             < timedelta(seconds=COMMAND_RETRY_INTERVAL_SECONDS)
