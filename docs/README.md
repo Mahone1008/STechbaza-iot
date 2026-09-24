@@ -1,11 +1,11 @@
-# Documentation
+# Документація
 
-Project documentation for TechBaza IoT Pump Control.
+Документація проєкту TechBaza IoT Pump Control.
 
-Planned content:
-- system architecture;
-- hardware wiring;
-- Modbus register maps;
-- MQTT topics and payloads;
-- API contracts;
-- deployment and maintenance instructions.
+Запланований вміст:
+- архітектура системи;
+- схеми підключення обладнання;
+- карти регістрів Modbus;
+- MQTT-топіки та формати повідомлень;
+- API-контракти;
+- інструкції з розгортання та обслуговування.
