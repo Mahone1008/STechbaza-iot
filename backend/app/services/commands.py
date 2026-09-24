@@ -1,6 +1,7 @@
 import uuid
 from datetime import datetime, timedelta, timezone
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models.command import DeviceCommand
@@ -33,8 +34,12 @@ class CommandCapabilityViolationError(Exception):
         self.capability_code = capability_code
 
 
+class CommandRequestConflictError(Exception):
+    """request_id повторно використано для іншої команди."""
+
+
 class CommandService:
-    """Створює та читає команди без прямого доступу API до MQTT."""
+    """Створює durable-команди та гарантує ідемпотентність HTTP retry."""
 
     def __init__(self, session: Session) -> None:
         self._session = session
@@ -42,13 +47,26 @@ class CommandService:
         self._devices = DeviceRepository(session)
         self._capabilities = CapabilityRepository(session)
 
+    @staticmethod
+    def _matches_request(
+        command: DeviceCommand,
+        device_id: uuid.UUID,
+        payload: DeviceCommandCreate,
+    ) -> bool:
+        return (
+            command.device_id == device_id
+            and command.command_type == payload.command_type
+            and command.payload == payload.payload
+            and command.ttl_seconds == payload.ttl_seconds
+        )
+
     def create(
         self,
         device_id: uuid.UUID,
         payload: DeviceCommandCreate,
         *,
         now: datetime | None = None,
-    ) -> DeviceCommand:
+    ) -> tuple[DeviceCommand, bool]:
         device = self._devices.get(device_id)
         if device is None:
             raise CommandDeviceNotFoundError
@@ -58,18 +76,40 @@ class CommandService:
         if required_capability not in enabled:
             raise CommandCapabilityViolationError(required_capability)
 
+        existing = self._commands.get_by_request_id(payload.request_id)
+        if existing is not None:
+            if not self._matches_request(existing, device_id, payload):
+                raise CommandRequestConflictError
+            return existing, False
+
         created_at = now or datetime.now(timezone.utc)
         command = DeviceCommand(
+            request_id=payload.request_id,
             device_id=device_id,
             command_type=payload.command_type,
             payload=payload.payload,
             status="queued",
+            ttl_seconds=payload.ttl_seconds,
             expires_at=created_at + timedelta(seconds=payload.ttl_seconds),
+            created_at=created_at,
+            updated_at=created_at,
         )
 
-        created = self._commands.add(command)
-        self._session.commit()
-        return created
+        try:
+            created = self._commands.add(command)
+            self._session.commit()
+            return created, True
+        except IntegrityError as exc:
+            # Захищаємося від двох одночасних POST з однаковим request_id.
+            self._session.rollback()
+            existing = self._commands.get_by_request_id(payload.request_id)
+            if existing is None:
+                raise
+
+            if not self._matches_request(existing, device_id, payload):
+                raise CommandRequestConflictError from exc
+
+            return existing, False
 
     def get(self, command_id: uuid.UUID) -> DeviceCommand:
         command = self._commands.get(command_id)
