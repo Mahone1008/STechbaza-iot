@@ -72,6 +72,7 @@ def main() -> None:
     command_topic = f"techbaza/devices/{args.device_uid}/commands"
     ack_topic = f"techbaza/devices/{args.device_uid}/commands/ack"
     result_topic = f"techbaza/devices/{args.device_uid}/commands/result"
+    heartbeat_topic = f"techbaza/devices/{args.device_uid}/heartbeat"
 
     finished = threading.Event()
     processed_command_ids: set[str] = set()
@@ -111,6 +112,19 @@ def main() -> None:
         mqtt_client.subscribe(command_topic, qos=1)
         print(
             f"[READY] Device simulator subscribed: {command_topic}",
+            flush=True,
+        )
+
+        heartbeat = {
+            "schema_version": 1,
+            "message_id": str(uuid.uuid4()),
+            "session_id": args.session_id,
+            "sent_at": _utc_now(),
+            "sequence": 1,
+        }
+        publish_json(heartbeat_topic, heartbeat)
+        print(
+            f"[HEARTBEAT] Device online: {args.device_uid}",
             flush=True,
         )
 
