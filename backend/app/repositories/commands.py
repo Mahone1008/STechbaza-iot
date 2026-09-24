@@ -21,6 +21,30 @@ class CommandRepository:
     def get(self, command_id: uuid.UUID) -> DeviceCommand | None:
         return self._session.get(DeviceCommand, command_id)
 
+    def get_for_update(
+        self,
+        command_id: uuid.UUID,
+    ) -> DeviceCommand | None:
+        statement = (
+            select(DeviceCommand)
+            .where(DeviceCommand.id == command_id)
+            .with_for_update()
+        )
+        return self._session.scalar(statement)
+
+    def list_delivery_candidate_ids(
+        self,
+        *,
+        limit: int = 100,
+    ) -> list[uuid.UUID]:
+        statement = (
+            select(DeviceCommand.id)
+            .where(DeviceCommand.status.in_(("queued", "published")))
+            .order_by(DeviceCommand.expires_at.asc(), DeviceCommand.created_at.asc())
+            .limit(limit)
+        )
+        return list(self._session.scalars(statement))
+
     def get_by_request_id(
         self,
         request_id: uuid.UUID,
