@@ -273,3 +273,12 @@ vfd.frequency.set
 - той самий `request_id` з іншим Device/type/payload/TTL → `409 Conflict`.
 
 Це не дозволяє HTTP retry випадково створити дві фізичні команди.
+
+
+## Command reliability diagnostics
+
+```text
+GET /command/reliability/status
+```
+
+Показує стан локального reliability worker, polling interval, batch size та результат останнього циклу.
