@@ -142,3 +142,16 @@ Device 1 ─── * DeviceCommand
 
 
 `request_id` має унікальний індекс і забезпечує ідемпотентність повторного HTTP-запиту. Для майбутнього expiry worker також використовується індекс `(status, expires_at)`.
+
+
+### Command delivery reliability metadata
+
+Після міграції `20260924_0007` таблиця `device_commands` також містить:
+
+```text
+publish_attempts
+last_publish_attempt_at
+last_publish_error
+```
+
+Ці поля використовуються для контрольованого MQTT retry та діагностики втрати ACK.
