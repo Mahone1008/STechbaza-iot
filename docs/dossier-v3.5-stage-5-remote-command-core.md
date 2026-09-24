@@ -1,11 +1,10 @@
 # Досьє V3.5 — Етап 5
 ## Remote Command Core: durable commands, MQTT delivery, ACK/Result та reliability
 
-**Статус:** у роботі  
+**Статус:** завершено  
 **Версія:** V3.5  
 **Етап:** 5  
-**Завершено:** Операції 1–5  
-**У роботі:** Операція 6 — End-to-End Command Test  
+**Завершено:** Операції 1–6  
 **Межі етапу:** від першої durable-команди після завершення telemetry/reliability фундаменту Етапу 4 до повного end-to-end command lifecycle  
 **Мета етапу:** побудувати надійний зворотний канал керування від API до Device, у якому команда не губиться, має чіткий lifecycle, TTL, idempotency, MQTT delivery, ACK, фінальний Result та контрольований retry.
 
@@ -96,7 +95,7 @@ End-to-End Command Test
 Операція 3  ✅
 Операція 4  ✅
 Операція 5  ✅
-Операція 6  ← у роботі
+Операція 6  ✅
 ```
 
 ---
@@ -1448,6 +1447,7 @@ GET /api/v1/devices/{device_id}/availability
 29. old queued command automatically delivered           ✅
 30. last_publish_error cleared after recovery             ✅
 31. ACK after broker recovery stops further retry         ✅
+32. Повний End-to-End lifecycle                            ✅
 ```
 
 ---
@@ -1536,58 +1536,89 @@ backend instance C
 
 # 34. Операція 6 — End-to-End Command Test
 
-Операція 6 ще не завершена.
+Операція 6 завершила Етап 5 одним повним контрольованим проходом command lifecycle.
 
-Її мета — одним контрольованим тестом пройти весь lifecycle:
+Фактичний тест:
 
 ```text
-HTTP POST
+POST /api/v1/devices/{device_id}/commands
    ↓
-durable PostgreSQL command
+device_commands
    ↓
-MQTT publish
+queued
+   ↓
+Device simulator heartbeat
+   ↓
+Device online
+   ↓
+Reliability worker
+   ↓
+MQTT command
    ↓
 Device simulator
    ↓
 ACK
    ↓
-acknowledged
-   ↓
-Result
+Command Result
    ↓
 succeeded
    ↓
-GET Command API
+GET /api/v1/commands/{command_id}
 ```
 
-Для цього в репозиторій уже додано:
+Контрольні дані:
 
 ```text
-backend/app/tools/command_e2e_simulator.py
+Device UID: TB-ESP32-001
+command_id: ad55d377-0468-41b6-a4e3-5e1e3a0ab1b0
+command_type: vfd.frequency.set
+frequency_hz: 37
+ttl_seconds: 300
 ```
 
-Simulator:
-
-- сам підключається до MQTT;
-- підписується на command topic;
-- надсилає heartbeat;
-- перевіряє `expires_at`;
-- дедуплікує command за `command_id`;
-- надсилає ACK;
-- надсилає Result;
-- завершує роботу після однієї command.
-
-Документ:
+Device simulator підтвердив:
 
 ```text
-docs/end-to-end-command-test-v1.md
+[START]                                      ✅
+[READY] subscribed to commands              ✅
+[HEARTBEAT] Device online                   ✅
+[RECEIVED] frequency_hz=37                  ✅
+[ACK]                                       ✅
+[RESULT] status=succeeded                   ✅
 ```
 
-Після успішного E2E-тесту Етап 5 можна буде закрити повністю.
+Фінальний Command API повернув:
+
+```text
+status = succeeded                          ✅
+published_at != null                        ✅
+publish_attempts = 1                        ✅
+last_publish_error = null                   ✅
+acknowledged_at != null                     ✅
+completed_at != null                        ✅
+result.frequency_hz = 37                    ✅
+error_code = null                           ✅
+error_message = null                        ✅
+```
+
+Під час підготовки simulator додатково виявлено та усунено два тестові дефекти:
+
+1. блокуюче очікування MQTT PUBACK усередині callback thread могло створювати timeout/deadlock;
+2. один heartbeat на старті simulator міг застаріти під час ручного Swagger-тесту при online timeout 90 секунд.
+
+Фінальна версія simulator:
+
+- не блокує MQTT callback thread;
+- публікує ACK/Result з main thread;
+- підтримує періодичний heartbeat;
+- перевіряє expires_at;
+- дедуплікує фізичне виконання за command_id.
+
+Документ: docs/end-to-end-command-test-v1.md
 
 ---
 
-# 35. Поточний Definition of Done
+# 35. Definition of Done — виконано
 
 Вже виконано:
 
@@ -1606,26 +1637,26 @@ race protection                  ✅
 audit/delivery metadata          ✅
 ```
 
-Залишилось:
+Фінальний E2E command test також виконано:
 
 ```text
-one repeatable E2E command test  ⏳
+one repeatable E2E command test  ✅
 ```
 
-Після нього:
+Отже:
 
 ```text
 Етап 5 — Remote Command Core
-→ завершено
+→ завершено ✅
 ```
 
 ---
 
-# 36. Результат Етапу 5 на поточний момент
+# 36. Фінальний результат Етапу 5
 
 До Етапу 5 TechBaza в основному вміла **спостерігати** за Device.
 
-Після Операцій 1–5 платформа вже вміє **надійно керувати** Device на server-side рівні:
+Після Операцій 1–6 платформа вміє **надійно керувати** Device на server-side рівні:
 
 ```text
 користувач створює command
