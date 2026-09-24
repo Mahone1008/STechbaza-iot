@@ -2,7 +2,9 @@
 
 Backend TechBaza працює на FastAPI.
 
-## Поточний мінімальний endpoint
+## Поточні endpoint-и
+
+### Перевірка backend
 
 ```text
 GET /health
@@ -14,50 +16,80 @@ GET /health
 {
   "status": "ok",
   "service": "techbaza-backend",
-  "version": "0.1.0"
+  "version": "0.2.0"
 }
 ```
 
-## Локальна адреса
+### Перевірка зв'язку backend → PostgreSQL
 
 ```text
+GET /health/db
+```
+
+Цей endpoint виконує реальний SQL-запит через SQLAlchemy та psycopg.
+
+Очікувана структура відповіді:
+
+```json
+{
+  "status": "ok",
+  "postgresql": {
+    "database": "techbaza",
+    "user": "techbaza",
+    "version": "PostgreSQL ..."
+  }
+}
+```
+
+## Локальні адреси
+
+```text
+Backend:
 http://127.0.0.1:8000
-```
 
-Перевірка health endpoint:
-
-```text
+Health:
 http://127.0.0.1:8000/health
-```
 
-Автоматична документація FastAPI:
+PostgreSQL health:
+http://127.0.0.1:8000/health/db
 
-```text
+Swagger / OpenAPI:
 http://127.0.0.1:8000/docs
 ```
 
-## Запуск
+## Як backend підключається до PostgreSQL
+
+Backend і PostgreSQL знаходяться в одній внутрішній Docker-мережі.
+
+Тому backend звертається не до Windows-порту 5433, а прямо до Docker-сервісу:
+
+```text
+backend
+  │
+  │ postgres:5432
+  ▼
+PostgreSQL
+```
+
+Порт `5433` потрібен лише для доступу до PostgreSQL з Windows.
+
+## Запуск після змін
 
 У корені репозиторію:
 
 ```powershell
+git pull
 docker compose up -d --build
-```
-
-Перевірка контейнерів:
-
-```powershell
 docker compose ps
 ```
 
-## Поточна роль backend
+## Поточний стан
 
-На цьому кроці backend лише доводить, що окремий API-сервіс TechBaza запускається у Docker та доступний локально.
+Завершено:
 
-Наступні кроки:
+1. окремий FastAPI-сервіс;
+2. endpoint `GET /health`;
+3. реальне підключення backend до PostgreSQL;
+4. endpoint `GET /health/db`.
 
-1. підключення до PostgreSQL;
-2. підключення до MQTT;
-3. структура API;
-4. користувачі, ролі та об'єкти;
-5. телеметрія та команди пристроїв.
+Наступним кроком буде підключення backend до MQTT-брокера.
