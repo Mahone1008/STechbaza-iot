@@ -180,6 +180,8 @@ publish_attempts=9 до завершення TTL                         ✅
 ACK зупинив retry                                             ✅
 publish_attempts після ACK більше не збільшувався              ✅
 late ACK після expiry → rejected / command_expired              ✅
+Result без ACK → succeeded                                      ✅
+backend implicit заповнив acknowledged_at                       ✅
 ```
 
 
