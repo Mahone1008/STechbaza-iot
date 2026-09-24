@@ -27,8 +27,8 @@ VFD
 Операція 1 — Durable Command Queue          ✅ завершено
 Операція 2 — MQTT Command Publisher         ✅ завершено
 Операція 3 — Command ACK                     ✅ завершено
-Операція 4 — Command Result                  ← у роботі
-Операція 5 — Command Reliability
+Операція 4 — Command Result                  ✅ завершено
+Операція 5 — Command Reliability             ← у роботі
 Операція 6 — End-to-End Command Test
 ```
 
@@ -114,7 +114,7 @@ unknown command_id → rejected / unknown_command       ✅
 
 ## Операція 4 — Command Result
 
-Поточна ціль:
+Перевірено реально:
 
 ```text
 acknowledged command
@@ -131,6 +131,34 @@ completed_at + result/error
 ```
 
 Деталі Result contract: [MQTT Command Result Protocol v1](mqtt-command-result-v1.md).
+
+```text
+acknowledged → succeeded                                  ✅
+completed_at + result записані                            ✅
+duplicate Result → already_completed                      ✅
+duplicate Result не переписав completed_at                ✅
+succeeded → conflicting failed → terminal_result_conflict ✅
+acknowledged → failed                                     ✅
+error_code/error_message збережені                        ✅
+failed без error_code → invalid_payload                   ✅
+```
+
+Примітка тестового середовища: Windows PowerShell pipe може пошкоджувати non-ASCII текст під час `docker exec`. Це не змінює MQTT/JSON contract; для console test messages краще використовувати ASCII.
+
+## Операція 5 — Command Reliability
+
+Поточна ціль:
+
+```text
+offline Device → queued
+online before TTL → publish
+published without ACK → safe retry with same command_id
+TTL elapsed → expired
+late ACK → rejected
+ACK received → retry stops
+```
+
+Деталі: [Command Reliability v1](command-reliability-v1.md).
 
 ## Definition of Done Етапу 5
 
