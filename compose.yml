@@ -40,6 +40,8 @@ services:
       MQTT_CLIENT_ID: techbaza-backend
       MQTT_TEST_TOPIC: techbaza/test/backend
       MQTT_TELEMETRY_TOPIC: techbaza/devices/+/telemetry
+      MQTT_HEARTBEAT_TOPIC: techbaza/devices/+/heartbeat
+      DEVICE_ONLINE_TIMEOUT_SECONDS: 90
     ports:
       - "127.0.0.1:8000:8000"
     depends_on:
