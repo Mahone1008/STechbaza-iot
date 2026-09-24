@@ -7,6 +7,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from app.api.v1.router import api_v1_router
 from app.db import check_database
 from app.mqtt_client import (
+    last_command_publish_result,
     last_heartbeat_result,
     last_ingestion_result,
     last_mqtt_message,
@@ -25,7 +26,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="TechBaza Backend",
-    version="0.13.0",
+    version="0.14.0",
     description="Backend API платформи TechBaza IoT Pump Control",
     lifespan=lifespan,
 )
@@ -38,7 +39,7 @@ def health() -> dict[str, str]:
     return {
         "status": "ok",
         "service": "techbaza-backend",
-        "version": "0.13.0",
+        "version": "0.14.0",
     }
 
 
@@ -98,4 +99,12 @@ def mqtt_last_heartbeat() -> dict[str, Any]:
     return {
         "status": "ok",
         "heartbeat": last_heartbeat_result(),
+    }
+
+
+@app.get("/mqtt/command/last")
+def mqtt_last_command_publish() -> dict[str, Any]:
+    return {
+        "status": "ok",
+        "command_publish": last_command_publish_result(),
     }
