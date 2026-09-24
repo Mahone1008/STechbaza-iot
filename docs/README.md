@@ -2,7 +2,31 @@
 
 Документація проєкту TechBaza IoT Pump Control.
 
-Запланований вміст:
+## Досьє V3.5
+
+- [Етап 1 — Local Infrastructure](dossier-v3.5-stage-1-local-infrastructure.md)
+- [Етап 2 — Backend Core](dossier-v3.5-stage-2-backend-core.md)
+- [Етап 3 — Data Model v1](dossier-v3.5-stage-3-data-model.md)
+- [Етап 4 — Telemetry Core](dossier-v3.5-stage-4-telemetry-core.md)
+- [Етап 5 — Telemetry Reliability](dossier-v3.5-stage-5-telemetry-reliability.md)
+
+## Технічна документація
+
+- [Technology Stack](technology-stack.md)
+- [Development Standards](development-standards.md)
+- [Backend Development](backend-development.md)
+- [Local Development](local-development.md)
+- [Database Model v1](database-model-v1.md)
+- [API v1](api-v1.md)
+- [Telemetry Contract v1](telemetry-contract-v1.md)
+- [Telemetry Capability Policy v1](telemetry-capability-policy-v1.md)
+- [Telemetry Ingestion — Local Test](telemetry-ingestion-local-test.md)
+- [Device Presence v1](device-presence-v1.md)
+- [Telemetry Ordering v1](telemetry-ordering-v1.md)
+- [Telemetry Session Protection v1](telemetry-session-protection-v1.md)
+
+## Запланований розвиток
+
 - архітектура системи;
 - схеми підключення обладнання;
 - карти регістрів Modbus;
