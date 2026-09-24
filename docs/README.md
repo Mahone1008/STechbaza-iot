@@ -7,9 +7,7 @@
 - [Етап 1 — Local Infrastructure](dossier-v3.5-stage-1-local-infrastructure.md)
 - [Етап 2 — Backend Core](dossier-v3.5-stage-2-backend-core.md)
 - [Етап 3 — Data Model v1](dossier-v3.5-stage-3-data-model.md)
-- [Етап 4 — Telemetry Core](dossier-v3.5-stage-4-telemetry-core.md)
 - [Етап 5 — Telemetry Reliability](dossier-v3.5-stage-5-telemetry-reliability.md)
-- [Етап 6 — Reboot / Session Protection](dossier-v3.5-stage-6-reboot-session-protection.md)
 
 ## Технічна документація
 
