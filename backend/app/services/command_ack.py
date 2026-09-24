@@ -31,6 +31,10 @@ class CommandAckDeviceMismatchError(Exception):
     """Command належить іншому Device."""
 
 
+class CommandAckExpiredError(Exception):
+    """ACK прийшов після завершення TTL."""
+
+
 class CommandAckInvalidTransitionError(Exception):
     """ACK не дозволений з поточного lifecycle status."""
 
@@ -58,15 +62,14 @@ class CommandAckService:
         if device is None:
             raise CommandAckDeviceNotFoundError
 
-        command = self._commands.get(payload.command_id)
+        command = self._commands.get_for_update(payload.command_id)
         if command is None:
             raise CommandAckCommandNotFoundError
 
         if command.device_id != device.id:
             raise CommandAckDeviceMismatchError
 
-        # ACK означає лише "Device отримав command".
-        # Повторна доставка MQTT ACK після acknowledged є безпечною ідемпотентною.
+        # Повторний ACK після вже прийнятого ACK/Result є idempotent.
         if command.status in {"acknowledged", "succeeded", "failed"}:
             return CommandAckResult(
                 command=command,
@@ -75,12 +78,25 @@ class CommandAckService:
                 reason="already_acknowledged",
             )
 
+        current_time = now or datetime.now(timezone.utc)
+
+        if command.status == "expired" or command.expires_at <= current_time:
+            if command.status != "expired":
+                command.status = "expired"
+                command.completed_at = current_time
+                command.error_code = "command_expired"
+                command.error_message = (
+                    "ACK надійшов після завершення TTL команди"
+                )
+                self._session.commit()
+                self._session.refresh(command)
+            raise CommandAckExpiredError
+
         if command.status != "published":
             raise CommandAckInvalidTransitionError(command.status)
 
-        acknowledged_at = now or datetime.now(timezone.utc)
         command.status = "acknowledged"
-        command.acknowledged_at = acknowledged_at
+        command.acknowledged_at = current_time
 
         self._session.commit()
         self._session.refresh(command)
