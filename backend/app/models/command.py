@@ -84,6 +84,20 @@ class DeviceCommand(TimestampMixin, Base):
         DateTime(timezone=True),
         nullable=True,
     )
+    publish_attempts: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=0,
+        server_default="0",
+    )
+    last_publish_attempt_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    last_publish_error: Mapped[str | None] = mapped_column(
+        String(96),
+        nullable=True,
+    )
     acknowledged_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
