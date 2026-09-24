@@ -1,91 +1,91 @@
-# TechBaza Technology Stack
+# Технологічний стек TechBaza
 
-This document fixes the baseline technology stack for the TechBaza IoT Pump Control platform.
+Цей документ фіксує базовий технологічний стек платформи TechBaza IoT Pump Control.
 
-## 1. Field controller
+## 1. Польовий контролер
 
-- **MCU:** ESP32-S3
-- **Firmware language/framework:** C++ with PlatformIO / Arduino framework for the prototype stages
-- **Industrial bus:** RS485
-- **Device protocol:** Modbus RTU
-- **Connectivity:** Wi-Fi for development, 4G/LTE for field deployments
-- **Cloud protocol:** MQTT over TLS
-- **Local fallback:** the controller must retain safe local behavior if Internet/cloud connectivity is lost
+- **Мікроконтролер:** ESP32-S3
+- **Мова / середовище прошивки:** C++ з PlatformIO / Arduino framework для прототипних етапів
+- **Промислова шина:** RS485
+- **Протокол пристрою:** Modbus RTU
+- **Підключення до Інтернету:** Wi-Fi для розробки, 4G/LTE для польових об'єктів
+- **Хмарний протокол:** MQTT через TLS
+- **Локальний резервний режим:** контролер повинен зберігати безпечну локальну логіку навіть при втраті Інтернету або зв'язку з сервером
 
-## 2. MQTT layer
+## 2. MQTT-рівень
 
-- **Protocol:** MQTT
-- **Broker:** Eclipse Mosquitto for development and first production deployment
-- **Security:** TLS, per-device credentials, topic-level authorization
-- **Message model:** telemetry, state, commands, acknowledgements and events are separated into distinct topics
+- **Протокол:** MQTT
+- **Брокер:** Eclipse Mosquitto для розробки та першого production-розгортання
+- **Безпека:** TLS, окремі облікові дані для кожного пристрою, авторизація на рівні топіків
+- **Модель повідомлень:** телеметрія, стан, команди, підтвердження та події передаються окремими топіками
 
-MQTT is used between field controllers and the server. Modbus RTU remains local between the ESP32 controller and the VFD/sensors.
+MQTT використовується між польовими контролерами та сервером. Modbus RTU залишається локальним протоколом між ESP32, частотним перетворювачем і сумісними датчиками.
 
 ## 3. Backend
 
-- **Language:** Python
-- **Framework:** FastAPI
-- **API style:** REST for the web application; WebSocket/SSE can be added for live updates
-- **MQTT integration:** backend service subscribes to device telemetry/events and publishes commands
-- **Validation:** Pydantic models
-- **Database access:** SQLAlchemy
-- **Migrations:** Alembic
+- **Мова:** Python
+- **Фреймворк:** FastAPI
+- **API:** REST для вебзастосунку; за потреби WebSocket / SSE для даних у реальному часі
+- **MQTT-інтеграція:** backend отримує телеметрію та події від пристроїв і надсилає команди
+- **Валідація даних:** Pydantic
+- **Робота з БД:** SQLAlchemy
+- **Міграції:** Alembic
 
-The backend is the central business-logic layer. It must not hardcode one fixed hardware configuration for every customer.
+Backend є центральним рівнем бізнес-логіки. Він не повинен бути жорстко прив'язаний до одного фіксованого комплекту обладнання для всіх клієнтів.
 
-## 4. Database
+## 4. База даних
 
-- **Database:** PostgreSQL
-- **Model:** capability-driven / modular
-- **Stores:** users, organizations, sites, devices, hardware modules, installed capabilities, telemetry, commands, alarms, events and audit history
+- **СУБД:** PostgreSQL
+- **Модель:** модульна, на основі фактично доступних можливостей обладнання
+- **Зберігає:** користувачів, організації, об'єкти, контролери, модулі, встановлені можливості, телеметрію, команди, аварії, події та журнал дій
 
-Each controller/site can have a different set of installed sensors and modules. The backend and frontend must derive available functions from the actual assigned hardware.
+Кожен контролер або об'єкт може мати різний набір датчиків і модулів. Backend і frontend мають визначати доступні функції на основі фактично встановленого обладнання.
 
 ## 5. Frontend
 
-- **Language:** TypeScript
-- **Framework:** React with Next.js
-- **UI approach:** responsive web application
-- **Live data:** API plus WebSocket/SSE where required
-- **Authorization:** role- and organization-aware UI
-- **Capability-driven interface:** only controls/widgets supported by the installed hardware are shown
+- **Мова:** TypeScript
+- **Фреймворк:** React + Next.js
+- **Формат:** адаптивний вебзастосунок
+- **Дані в реальному часі:** API + WebSocket / SSE там, де це потрібно
+- **Доступ:** інтерфейс враховує роль користувача та його організацію
+- **Модульний інтерфейс:** показуються лише ті віджети та елементи керування, які підтримує обладнання конкретного об'єкта
 
-Primary roles:
-- customer;
-- service engineer;
-- administrator.
+Основні ролі:
+- клієнт;
+- сервісний інженер;
+- адміністратор.
 
-## 6. Infrastructure
+## 6. Інфраструктура
 
-- **Containers:** Docker
-- **Local orchestration:** Docker Compose
-- **Reverse proxy / HTTPS:** Caddy or Nginx
-- **Services:** frontend, backend, PostgreSQL, MQTT broker
-- **Secrets:** environment variables / secret files, never committed to Git
-- **Deployment target:** Linux VPS/server for the first production version
+- **Контейнери:** Docker
+- **Локальний запуск:** Docker Compose
+- **Reverse proxy / HTTPS:** Caddy або Nginx
+- **Сервіси:** frontend, backend, PostgreSQL, MQTT broker
+- **Секрети:** змінні середовища та secret-файли; секрети не зберігаються в Git
+- **Перший production-сервер:** Linux VPS / сервер
 
-## 7. Simulator
+## 7. Симулятор
 
-A software simulator will emulate field devices so the cloud platform can be tested without a physical VFD or pump.
+Програмний симулятор дозволить тестувати TechBaza без фізичного частотника або насоса.
 
-It should be able to emulate:
-- online/offline state;
-- frequency;
-- current;
-- pressure and other optional sensors;
-- VFD faults;
-- alarms;
-- command acknowledgements.
+Він має вміти імітувати:
+- online/offline стан;
+- частоту;
+- струм;
+- тиск та інші опціональні датчики;
+- аварії частотного перетворювача;
+- тривоги;
+- підтвердження виконання команд.
 
-## 8. Data path
+## 8. Шлях даних
 
 ```text
-Pump / motor
+Насос / двигун
     ↑
-VFD
+Частотний перетворювач
     ↕ Modbus RTU / RS485
-ESP32-S3 controller
-    ↕ MQTT over TLS (Wi-Fi or 4G)
+Контролер ESP32-S3
+    ↕ MQTT через TLS (Wi-Fi або 4G)
 MQTT broker
     ↕
 FastAPI backend
@@ -94,11 +94,11 @@ PostgreSQL
     ↕
 Next.js frontend
     ↓
-Customer / service / admin
+Клієнт / сервіс / адміністратор
 ```
 
-## 9. Important architecture rule
+## 9. Головне архітектурне правило
 
-TechBaza is a **modular constructor**, not a fixed hardware bundle.
+TechBaza — це **модульний конструктор**, а не один фіксований комплект обладнання.
 
-The common platform is shared, while every installation may have a different set of optional sensors, actuators and modules. The backend, database and frontend must reflect the actual hardware assigned to each device/site instead of assuming that all customers have the same capabilities.
+Базова платформа є спільною, але кожен об'єкт може мати власний набір додаткових датчиків, виконавчих механізмів і модулів. Backend, база даних та frontend повинні відображати реальну конфігурацію конкретного пристрою або об'єкта, а не припускати, що всі клієнти мають однакові можливості.
