@@ -43,6 +43,22 @@ class CapabilityRepository:
         )
         return list(self._session.scalars(statement))
 
+    def get_enabled_codes_for_device(self, device_id: uuid.UUID) -> set[str]:
+        """Повертає лише активні capabilities, реально призначені Device."""
+
+        statement = (
+            select(Capability.code)
+            .join(
+                DeviceCapability,
+                DeviceCapability.capability_id == Capability.id,
+            )
+            .where(
+                DeviceCapability.device_id == device_id,
+                DeviceCapability.is_enabled.is_(True),
+            )
+        )
+        return set(self._session.scalars(statement))
+
     def get_assignment(
         self,
         device_id: uuid.UUID,
