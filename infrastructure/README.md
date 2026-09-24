@@ -1,12 +1,12 @@
-# Infrastructure
+# Інфраструктура
 
-Deployment and runtime infrastructure for TechBaza.
+Інфраструктура запуску та розгортання TechBaza.
 
-Planned components:
+Заплановані компоненти:
 - Docker;
 - MQTT broker;
-- backend services;
+- backend-сервіси;
 - PostgreSQL;
 - reverse proxy;
-- environment configuration;
-- deployment scripts and monitoring.
+- конфігурація середовища;
+- скрипти розгортання та моніторинг.
