@@ -1,10 +1,10 @@
-# Simulator
+# Симулятор
 
-Software simulator for testing TechBaza without physical hardware.
+Програмний симулятор для тестування TechBaza без фізичного обладнання.
 
-It will emulate:
-- controller connectivity;
-- VFD telemetry;
-- sensor values;
-- alarms and faults;
-- command acknowledgements.
+Він буде імітувати:
+- підключення контролера;
+- телеметрію частотного перетворювача;
+- значення датчиків;
+- аварії та помилки;
+- підтвердження виконання команд.
