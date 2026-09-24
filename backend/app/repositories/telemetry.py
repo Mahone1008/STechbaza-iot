@@ -22,6 +22,21 @@ class TelemetryRepository:
         )
         return self._session.scalar(statement)
 
+    def has_session_for_device(
+        self,
+        device_id: uuid.UUID,
+        session_id: uuid.UUID,
+    ) -> bool:
+        statement = (
+            select(TelemetryMessage.id)
+            .where(
+                TelemetryMessage.device_id == device_id,
+                TelemetryMessage.session_id == session_id,
+            )
+            .limit(1)
+        )
+        return self._session.scalar(statement) is not None
+
     def add_message(self, message: TelemetryMessage) -> TelemetryMessage:
         self._session.add(message)
         self._session.flush()
@@ -35,6 +50,7 @@ class TelemetryRepository:
         *,
         device_id: uuid.UUID,
         telemetry_id: uuid.UUID,
+        session_id: uuid.UUID | None,
         sequence: int | None,
         reported_at: datetime | None,
         received_at: datetime,
@@ -47,6 +63,7 @@ class TelemetryRepository:
             snapshot = DeviceState(
                 device_id=device_id,
                 last_telemetry_id=telemetry_id,
+                last_session_id=session_id,
                 last_sequence=sequence,
                 last_reported_at=reported_at,
                 last_received_at=received_at,
@@ -56,6 +73,7 @@ class TelemetryRepository:
             self._session.add(snapshot)
         else:
             snapshot.last_telemetry_id = telemetry_id
+            snapshot.last_session_id = session_id
             snapshot.last_sequence = sequence
             snapshot.last_reported_at = reported_at
             snapshot.last_received_at = received_at
