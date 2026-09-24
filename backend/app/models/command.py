@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import DateTime, ForeignKey, Index, String, Text, text
+from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text, text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 
 class DeviceCommand(TimestampMixin, Base):
-    """Команда керування, поставлена backend-ом у чергу для Device."""
+    """Durable-команда керування, зареєстрована backend-ом для Device."""
 
     __tablename__ = "device_commands"
     __table_args__ = (
@@ -28,12 +28,23 @@ class DeviceCommand(TimestampMixin, Base):
             "device_id",
             "status",
         ),
+        Index(
+            "ix_device_commands_status_expires_at",
+            "status",
+            "expires_at",
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         primary_key=True,
         default=uuid.uuid4,
+    )
+    request_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        nullable=False,
+        unique=True,
+        index=True,
     )
     device_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -58,6 +69,12 @@ class DeviceCommand(TimestampMixin, Base):
         default="queued",
         server_default="queued",
         index=True,
+    )
+    ttl_seconds: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=30,
+        server_default="30",
     )
     expires_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
