@@ -39,6 +39,7 @@ services:
       MQTT_PORT: 1883
       MQTT_CLIENT_ID: techbaza-backend
       MQTT_TEST_TOPIC: techbaza/test/backend
+      MQTT_TELEMETRY_TOPIC: techbaza/devices/+/telemetry
     ports:
       - "127.0.0.1:8000:8000"
     depends_on:
