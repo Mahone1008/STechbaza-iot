@@ -8,6 +8,7 @@ from app.api.v1.router import api_v1_router
 from app.db import check_database
 from app.mqtt_client import (
     last_command_ack_result,
+    last_command_ack_result,
     last_command_publish_result,
     last_heartbeat_result,
     last_ingestion_result,
@@ -108,6 +109,14 @@ def mqtt_last_command_publish() -> dict[str, Any]:
     return {
         "status": "ok",
         "command_publish": last_command_publish_result(),
+    }
+
+
+@app.get("/mqtt/command/ack/last")
+def mqtt_last_command_ack() -> dict[str, Any]:
+    return {
+        "status": "ok",
+        "command_ack": last_command_ack_result(),
     }
 
 
