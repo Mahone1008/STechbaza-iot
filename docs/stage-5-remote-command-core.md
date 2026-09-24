@@ -26,8 +26,8 @@ VFD
 ```text
 Операція 1 — Durable Command Queue          ✅ завершено
 Операція 2 — MQTT Command Publisher         ✅ завершено
-Операція 3 — Command ACK                     ← у роботі
-Операція 4 — Command Result
+Операція 3 — Command ACK                     ✅ завершено
+Операція 4 — Command Result                  ← у роботі
 Операція 5 — Command Reliability
 Операція 6 — End-to-End Command Test
 ```
@@ -86,7 +86,7 @@ HTTP retry не викликав повторний MQTT publish          ✅
 
 ## Операція 3 — Command ACK
 
-Поточна ціль:
+Перевірено реально:
 
 ```text
 published command
@@ -102,6 +102,35 @@ acknowledged_at = server UTC time
 ```
 
 Деталі ACK contract: [MQTT Command ACK Protocol v1](mqtt-command-ack-v1.md).
+
+```text
+published command → ACK → acknowledged              ✅
+acknowledged_at записано server-side                  ✅
+completed_at залишився null                           ✅
+duplicate ACK → duplicate / command_updated=false     ✅
+duplicate ACK не переписав acknowledged_at            ✅
+unknown command_id → rejected / unknown_command       ✅
+```
+
+## Операція 4 — Command Result
+
+Поточна ціль:
+
+```text
+acknowledged command
+      ↓
+Device виконав або відхилив дію
+      ↓
+techbaza/devices/{device_uid}/commands/result
+      ↓
+Backend validation
+      ↓
+succeeded / failed
+      ↓
+completed_at + result/error
+```
+
+Деталі Result contract: [MQTT Command Result Protocol v1](mqtt-command-result-v1.md).
 
 ## Definition of Done Етапу 5
 
