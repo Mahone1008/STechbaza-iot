@@ -29,6 +29,7 @@
 - [MQTT Command ACK Protocol v1](mqtt-command-ack-v1.md)
 - [MQTT Command Result Protocol v1](mqtt-command-result-v1.md)
 - [Command Reliability v1](command-reliability-v1.md)
+- [End-to-End Command Test v1](end-to-end-command-test-v1.md)
 
 ## Запланований розвиток
 
