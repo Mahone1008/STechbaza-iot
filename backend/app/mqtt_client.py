@@ -35,12 +35,20 @@ MQTT_HEARTBEAT_TOPIC = os.getenv(
     "MQTT_HEARTBEAT_TOPIC",
     "techbaza/devices/+/heartbeat",
 )
+MQTT_COMMAND_TOPIC_TEMPLATE = os.getenv(
+    "MQTT_COMMAND_TOPIC_TEMPLATE",
+    "techbaza/devices/{device_uid}/commands",
+)
+MQTT_PUBLISH_TIMEOUT_SECONDS = float(
+    os.getenv("MQTT_PUBLISH_TIMEOUT_SECONDS", "3")
+)
 
 _lock = threading.Lock()
 _connected = False
 _last_message: dict[str, Any] | None = None
 _last_ingestion: dict[str, Any] | None = None
 _last_heartbeat: dict[str, Any] | None = None
+_last_command_publish: dict[str, Any] | None = None
 
 
 def _extract_device_uid(topic: str, expected_suffix: str) -> str | None:
@@ -54,6 +62,15 @@ def _extract_device_uid(topic: str, expected_suffix: str) -> str | None:
     ):
         return parts[2]
     return None
+
+
+def command_topic(device_uid: str) -> str:
+    """Будує publish-topic конкретного Device без MQTT wildcard."""
+
+    if not device_uid or any(char in device_uid for char in ("/", "+", "#")):
+        raise ValueError("Некоректний device_uid для MQTT topic")
+
+    return MQTT_COMMAND_TOPIC_TEMPLATE.format(device_uid=device_uid)
 
 
 def _remember_raw_message(message: mqtt.MQTTMessage, payload: str) -> None:
@@ -84,6 +101,106 @@ def _remember_heartbeat(**data: Any) -> None:
             **data,
             "processed_at": datetime.now(timezone.utc).isoformat(),
         }
+
+
+def _remember_command_publish(**data: Any) -> None:
+    global _last_command_publish
+    with _lock:
+        _last_command_publish = {
+            **data,
+            "processed_at": datetime.now(timezone.utc).isoformat(),
+        }
+
+
+def publish_command_message(
+    *,
+    topic: str,
+    payload: dict[str, Any],
+    command_id: Any,
+    device_uid: str,
+) -> tuple[bool, str]:
+    """Публікує command із QoS 1 та ніколи не використовує retain."""
+
+    with _lock:
+        connected = _connected
+
+    if not connected:
+        _remember_command_publish(
+            status="failed",
+            reason="mqtt_not_connected",
+            topic=topic,
+            command_id=str(command_id),
+            device_uid=device_uid,
+        )
+        return False, "mqtt_not_connected"
+
+    payload_text = json.dumps(
+        payload,
+        ensure_ascii=False,
+        separators=(",", ":"),
+    )
+
+    try:
+        info = client.publish(
+            topic,
+            payload=payload_text,
+            qos=1,
+            retain=False,
+        )
+
+        if info.rc != mqtt.MQTT_ERR_SUCCESS:
+            reason = f"mqtt_publish_rc_{info.rc}"
+            _remember_command_publish(
+                status="failed",
+                reason=reason,
+                topic=topic,
+                command_id=str(command_id),
+                device_uid=device_uid,
+                qos=1,
+                retain=False,
+            )
+            return False, reason
+
+        info.wait_for_publish(timeout=MQTT_PUBLISH_TIMEOUT_SECONDS)
+        if not info.is_published():
+            _remember_command_publish(
+                status="failed",
+                reason="mqtt_publish_timeout",
+                topic=topic,
+                command_id=str(command_id),
+                device_uid=device_uid,
+                qos=1,
+                retain=False,
+            )
+            return False, "mqtt_publish_timeout"
+    except Exception:
+        logger.exception(
+            "Помилка MQTT publish command: device_uid=%s command_id=%s",
+            device_uid,
+            command_id,
+        )
+        _remember_command_publish(
+            status="failed",
+            reason="mqtt_publish_exception",
+            topic=topic,
+            command_id=str(command_id),
+            device_uid=device_uid,
+            qos=1,
+            retain=False,
+        )
+        return False, "mqtt_publish_exception"
+
+    _remember_command_publish(
+        status="published",
+        reason="published",
+        topic=topic,
+        command_id=str(command_id),
+        device_uid=device_uid,
+        payload=payload,
+        qos=1,
+        retain=False,
+    )
+    return True, "published"
 
 
 def _handle_telemetry(topic: str, payload_text: str) -> None:
@@ -292,6 +409,9 @@ def mqtt_status() -> dict[str, Any]:
             "subscribed_test_topic": MQTT_TEST_TOPIC,
             "subscribed_telemetry_topic": MQTT_TELEMETRY_TOPIC,
             "subscribed_heartbeat_topic": MQTT_HEARTBEAT_TOPIC,
+            "command_topic_template": MQTT_COMMAND_TOPIC_TEMPLATE,
+            "command_qos": 1,
+            "command_retain": False,
         }
 
 
@@ -308,3 +428,12 @@ def last_ingestion_result() -> dict[str, Any] | None:
 def last_heartbeat_result() -> dict[str, Any] | None:
     with _lock:
         return dict(_last_heartbeat) if _last_heartbeat is not None else None
+
+
+def last_command_publish_result() -> dict[str, Any] | None:
+    with _lock:
+        return (
+            dict(_last_command_publish)
+            if _last_command_publish is not None
+            else None
+        )
