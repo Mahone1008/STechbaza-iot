@@ -31,6 +31,10 @@ class CommandResultDeviceMismatchError(Exception):
     """Command належить іншому Device."""
 
 
+class CommandResultExpiredError(Exception):
+    """Final result без ACK надійшов після завершення TTL."""
+
+
 class CommandResultInvalidTransitionError(Exception):
     """Result не дозволений з поточного lifecycle status."""
 
@@ -74,7 +78,7 @@ class CommandResultService:
         if device is None:
             raise CommandResultDeviceNotFoundError
 
-        command = self._commands.get(payload.command_id)
+        command = self._commands.get_for_update(payload.command_id)
         if command is None:
             raise CommandResultCommandNotFoundError
 
@@ -92,18 +96,35 @@ class CommandResultService:
                 reason="already_completed",
             )
 
-        # Result є сильнішим доказом за ACK: якщо ACK загубився або прийшов
-        # пізніше через інший MQTT topic, final result все одно можна прийняти.
+        current_time = now or datetime.now(timezone.utc)
+
+        # Якщо ACK вже був прийнятий до deadline, виконання може завершитися
+        # пізніше. Але Result не може вперше "підтвердити" прострочену command.
+        if (
+            command.status == "published"
+            and command.expires_at <= current_time
+        ):
+            command.status = "expired"
+            command.completed_at = current_time
+            command.error_code = "command_expired"
+            command.error_message = (
+                "Result без ACK надійшов після завершення TTL команди"
+            )
+            self._session.commit()
+            self._session.refresh(command)
+            raise CommandResultExpiredError
+
+        if command.status == "expired":
+            raise CommandResultExpiredError
+
         if command.status not in {"published", "acknowledged"}:
             raise CommandResultInvalidTransitionError(command.status)
 
-        completed_at = now or datetime.now(timezone.utc)
-
         if command.acknowledged_at is None:
-            command.acknowledged_at = completed_at
+            command.acknowledged_at = current_time
 
         command.status = payload.status
-        command.completed_at = completed_at
+        command.completed_at = current_time
         command.result = payload.result
         command.error_code = payload.error_code
         command.error_message = payload.error_message
