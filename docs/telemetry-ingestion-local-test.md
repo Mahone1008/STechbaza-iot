@@ -1,6 +1,6 @@
 # Telemetry ingestion — локальна перевірка
 
-Цей документ описує перевірку першого реального ланцюга:
+Цей документ описує перевірку реального ланцюга:
 
 ```text
 MQTT
@@ -10,6 +10,8 @@ Mosquitto
 FastAPI backend
  ↓
 валідація Device UID та payload
+ ↓
+capability-aware policy
  ↓
 PostgreSQL
  ├── telemetry_messages
@@ -30,12 +32,33 @@ techbaza/devices/+/telemetry
 techbaza/devices/TB-ESP32-001/telemetry
 ```
 
-## Тестовий пакет
+## Надійна відправка JSON з Windows PowerShell
 
-У PowerShell зручно передати JSON як одинарно quoted аргумент:
+Не передаємо JSON напряму через `-m`, оскільки зв'язка PowerShell → docker exec може змінити лапки в аргументі.
+
+Створюємо payload як PowerShell object:
 
 ```powershell
-docker exec -it techbaza-mosquitto mosquitto_pub -h localhost -q 1 -t techbaza/devices/TB-ESP32-001/telemetry -m '{"schema_version":1,"message_id":"9c1d9ce2-ec37-4f18-af3c-e66918f88a01","sent_at":"2026-09-24T08:30:00Z","sequence":1,"values":{"vfd.frequency_hz":42.5},"state":{"pump_running":true}}'
+$messageId = [guid]::NewGuid().ToString()
+
+$payload = @{
+    schema_version = 1
+    message_id = $messageId
+    sent_at = (Get-Date).ToUniversalTime().ToString("o")
+    sequence = 1
+    values = @{
+        "vfd.frequency_hz" = 42.5
+    }
+    state = @{
+        pump_running = $true
+    }
+} | ConvertTo-Json -Compress
+```
+
+Передаємо JSON через stdin:
+
+```powershell
+$payload | docker exec -i techbaza-mosquitto mosquitto_pub -h localhost -q 1 -t techbaza/devices/TB-ESP32-001/telemetry -l
 ```
 
 ## Діагностика ingestion
@@ -44,17 +67,13 @@ docker exec -it techbaza-mosquitto mosquitto_pub -h localhost -q 1 -t techbaza/d
 GET /mqtt/ingestion/last
 ```
 
-Очікувано:
+Можливі статуси:
 
-```json
-{
-  "status": "ok",
-  "ingestion": {
-    "status": "stored",
-    "device_uid": "TB-ESP32-001",
-    "duplicate": false
-  }
-}
+```text
+stored      — новий пакет успішно збережено
+duplicate   — message_id вже існує, дубль не записано
+rejected    — пакет відхилено до запису
+error       — внутрішня помилка обробки
 ```
 
 ## Читання останнього стану
@@ -63,40 +82,41 @@ GET /mqtt/ingestion/last
 GET /api/v1/devices/{device_id}/state
 ```
 
-Для тестового Device:
-
-```text
-41a7a0ee-72df-4655-8572-b823ec320195
-```
-
 ## Історія телеметрії
 
 ```text
 GET /api/v1/devices/{device_id}/telemetry
 ```
 
-## Idempotency test
+## Idempotency
 
-Повторне надсилання пакета з тим самим `message_id` не повинно створити другий запис.
+Повторне надсилання того самого `$payload` не повинно створювати другий запис.
 
-`/mqtt/ingestion/last` має показати:
+Очікувано:
 
 ```text
 status = duplicate
 duplicate = true
 ```
 
-Це важливо, тому що MQTT QoS може призводити до повторної доставки повідомлення.
+## Capability-aware policy
 
-## Що ще не входить у цю операцію
+Новий пакет перевіряється проти активних DeviceCapability.
 
-На цьому кроці backend перевіряє:
+Наприклад:
 
-- структуру topic;
-- існування Device UID;
-- JSON;
-- Telemetry Contract v1;
-- idempotency;
-- атомарний запис history + current state.
+```text
+vfd.frequency_hz  → vfd.frequency.read
+pump_running      → vfd.state.read
+```
 
-Перевірка того, чи конкретний ключ телеметрії дозволений через DeviceCapability, буде окремою наступною операцією.
+Якщо потрібної capability немає, ingestion повертає:
+
+```text
+status = rejected
+reason = capability_violation
+```
+
+і показує `missing_capabilities`.
+
+Невідомий telemetry key також відхиляється та потрапляє до `unsupported_keys`.
