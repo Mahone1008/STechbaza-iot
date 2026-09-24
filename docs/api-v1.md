@@ -80,3 +80,38 @@ GET /api/v1/organizations
 ```
 
 Це перевіряє не лише API, а повний ланцюг запису даних у PostgreSQL.
+
+
+## Другий доменний ресурс: sites
+
+Site — це конкретний фізичний об'єкт організації.
+
+Доступні endpoint-и:
+
+```text
+GET  /api/v1/organizations/{organization_id}/sites
+POST /api/v1/organizations/{organization_id}/sites
+GET  /api/v1/sites/{site_id}
+```
+
+Приклад створення Site:
+
+```json
+{
+  "name": "Поле 1",
+  "code": "field-1",
+  "timezone": "Europe/Kyiv"
+}
+```
+
+Архітектурний зв'язок:
+
+```text
+Organization
+    ↓ 1:N
+Site
+```
+
+Поле `code` унікальне не глобально, а в межах конкретної організації.
+
+Це означає, що дві різні організації можуть мати, наприклад, власний `field-1`, але одна організація не може створити два Site з однаковим code.
