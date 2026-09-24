@@ -223,3 +223,30 @@ Backend не повинен скасовувати:
 - інші апаратні/локальні заборони.
 
 Фінальне безпечне рішення про виконання має залишатися на edge-рівні.
+
+
+## Результати перевірки Операції 1
+
+Операція 1 підтверджена локальними end-to-end тестами API → PostgreSQL:
+
+```text
+45 Hz / new request_id
+→ 201 Created
+→ status queued
+
+same request_id + same request
+→ 200 OK
+→ same command_id
+
+same request_id + 60 Hz
+→ 409 Conflict
+
+SELECT COUNT(*) FROM device_commands
+→ 1
+
+new request_id + 150 Hz
+→ 422 Unprocessable Content
+→ новий DB row не створюється
+```
+
+**Операція 1 — Durable Command Queue завершена.**
