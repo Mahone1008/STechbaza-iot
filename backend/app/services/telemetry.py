@@ -88,7 +88,19 @@ class TelemetryService:
         server_received_at = received_at or datetime.now(timezone.utc)
         current_snapshot = self._telemetry.get_state(device.id)
 
+        incoming_session_seen_before = False
+        if payload.session_id is not None:
+            incoming_session_seen_before = self._telemetry.has_session_for_device(
+                device.id,
+                payload.session_id,
+            )
+
         ordering = decide_snapshot_update(
+            current_session_id=(
+                current_snapshot.last_session_id
+                if current_snapshot is not None
+                else None
+            ),
             current_reported_at=(
                 current_snapshot.last_reported_at
                 if current_snapshot is not None
@@ -99,14 +111,17 @@ class TelemetryService:
                 if current_snapshot is not None
                 else None
             ),
+            incoming_session_id=payload.session_id,
             incoming_reported_at=payload.sent_at,
             incoming_sequence=payload.sequence,
+            incoming_session_seen_before=incoming_session_seen_before,
             has_snapshot=current_snapshot is not None,
         )
 
         message = TelemetryMessage(
             message_id=payload.message_id,
             device_id=device.id,
+            session_id=payload.session_id,
             schema_version=payload.schema_version,
             sequence=payload.sequence,
             sent_at=payload.sent_at,
@@ -122,6 +137,7 @@ class TelemetryService:
                 self._telemetry.save_state(
                     device_id=device.id,
                     telemetry_id=saved_message.id,
+                    session_id=payload.session_id,
                     sequence=payload.sequence,
                     reported_at=payload.sent_at,
                     received_at=server_received_at,
@@ -130,7 +146,7 @@ class TelemetryService:
                 )
 
             # Валідний новий MQTT-пакет підтверджує зв'язок із Device,
-            # навіть якщо payload запізнився і не може переписати current state.
+            # навіть якщо старіша session не може переписати current state.
             device.last_seen_at = server_received_at
 
             self._session.commit()
