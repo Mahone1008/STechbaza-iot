@@ -1,7 +1,7 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy.orm import Session
 
 from app.db import get_db_session
@@ -10,6 +10,7 @@ from app.services.commands import (
     CommandCapabilityViolationError,
     CommandDeviceNotFoundError,
     CommandNotFoundError,
+    CommandRequestConflictError,
     CommandService,
 )
 
@@ -26,10 +27,11 @@ DbSession = Annotated[Session, Depends(get_db_session)]
 def create_command(
     device_id: uuid.UUID,
     payload: DeviceCommandCreate,
+    response: Response,
     session: DbSession,
 ) -> DeviceCommandRead:
     try:
-        command = CommandService(session).create(device_id, payload)
+        command, created = CommandService(session).create(device_id, payload)
     except CommandDeviceNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -43,6 +45,17 @@ def create_command(
                 f"потрібна capability {exc.capability_code}"
             ),
         ) from exc
+    except CommandRequestConflictError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "request_id уже використано для іншої команди або "
+                "іншого payload"
+            ),
+        ) from exc
+
+    if not created:
+        response.status_code = status.HTTP_200_OK
 
     return DeviceCommandRead.model_validate(command)
 
