@@ -175,6 +175,8 @@ error_code=command_expired                                  ✅
 heartbeat повернув Device online                            ✅
 queued command автоматично опублікована без нового POST     ✅
 без ACK worker повторно доставляв той самий command_id      ✅
+publish_attempts=9 до завершення TTL                         ✅
+після retry без ACK command автоматично стала expired        ✅
 ```
 
 
