@@ -26,6 +26,7 @@
 - [Етап 5 — Remote Command Core (у роботі)](stage-5-remote-command-core.md)
 - [Command Core v1](command-core-v1.md)
 - [MQTT Command Protocol v1](mqtt-command-protocol-v1.md)
+- [MQTT Command ACK Protocol v1](mqtt-command-ack-v1.md)
 
 ## Запланований розвиток
 
