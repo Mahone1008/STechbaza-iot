@@ -1,5 +1,5 @@
 # Frontend
 
-Web interface for TechBaza customers, service staff and administrators.
+Вебінтерфейс TechBaza для клієнтів, сервісних спеціалістів та адміністраторів.
 
-The interface will be capability-driven: widgets and controls are shown according to the equipment, sensors and modules assigned to each device/site.
+Інтерфейс буде модульним: віджети та елементи керування показуються відповідно до обладнання, датчиків і модулів, які реально призначені конкретному пристрою або об'єкту.
