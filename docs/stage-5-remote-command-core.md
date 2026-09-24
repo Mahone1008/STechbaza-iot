@@ -1,7 +1,7 @@
 # V3.5 — Етап 5
 ## Remote Command Core
 
-**Статус:** у роботі
+**Статус:** завершено
 
 Етап 5 починає зворотний канал керування TechBaza:
 
@@ -29,7 +29,7 @@ VFD
 Операція 3 — Command ACK                     ✅ завершено
 Операція 4 — Command Result                  ✅ завершено
 Операція 5 — Command Reliability             ✅ завершено
-Операція 6 — End-to-End Command Test          ← у роботі
+Операція 6 — End-to-End Command Test          ✅ завершено
 ```
 
 ## Операція 1 — перевірено реально
@@ -198,31 +198,64 @@ publish_attempts після ACK залишився незмінним           
 
 ## Операція 6 — End-to-End Command Test
 
-Поточна ціль:
+Перевірено реально:
 
 ```text
 HTTP POST
    ↓
-durable command
+durable PostgreSQL command
    ↓
-MQTT
+queued
    ↓
-Device simulator
+heartbeat / Device online
+   ↓
+MQTT publish
+   ↓
+Device simulator received
    ↓
 ACK
    ↓
 Result
    ↓
-succeeded / failed
+status = succeeded
    ↓
 GET Command API
 ```
 
-Для repeatable інтеграційної перевірки додано одноразовий Device simulator:
+Фінальна контрольна command:
 
 ```text
-python -m app.tools.command_e2e_simulator
+command_id = ad55d377-0468-41b6-a4e3-5e1e3a0ab1b0
+command_type = vfd.frequency.set
+frequency_hz = 37
+status = succeeded
+publish_attempts = 1
+last_publish_error = null
+result.frequency_hz = 37
+error_code = null
+error_message = null
 ```
+
+Фінальний API підтвердив:
+
+```text
+published_at != null
+acknowledged_at != null
+completed_at != null
+```
+
+Device simulator реально показав:
+
+```text
+[RECEIVED] ... frequency_hz=37
+[ACK] ...
+[RESULT] ... status=succeeded
+```
+
+Під час підготовки E2E simulator було знайдено та виправлено два тестові нюанси:
+
+- MQTT publish не можна блокуюче чекати всередині MQTT callback thread;
+- одноразового heartbeat недостатньо при ручному тесті з timeout 90 s, тому simulator переведено на періодичний heartbeat.
 
 Деталі: [End-to-End Command Test v1](end-to-end-command-test-v1.md).
 
@@ -261,3 +294,12 @@ result available through API
 - audit trail у PostgreSQL.
 
 Деталі Операції 1: [Command Core v1](command-core-v1.md).
+
+
+## Фінальний статус
+
+```text
+Етап 5 — Remote Command Core завершено ✅
+```
+
+Усі шість операцій пройдені та перевірені локально.
