@@ -7,7 +7,7 @@ from app.models.command import DeviceCommand
 
 
 class CommandRepository:
-    """Інкапсулює SQL-операції черги команд пристроїв."""
+    """Інкапсулює SQL-операції durable-черги команд пристроїв."""
 
     def __init__(self, session: Session) -> None:
         self._session = session
@@ -20,6 +20,15 @@ class CommandRepository:
 
     def get(self, command_id: uuid.UUID) -> DeviceCommand | None:
         return self._session.get(DeviceCommand, command_id)
+
+    def get_by_request_id(
+        self,
+        request_id: uuid.UUID,
+    ) -> DeviceCommand | None:
+        statement = select(DeviceCommand).where(
+            DeviceCommand.request_id == request_id
+        )
+        return self._session.scalar(statement)
 
     def list_for_device(
         self,
