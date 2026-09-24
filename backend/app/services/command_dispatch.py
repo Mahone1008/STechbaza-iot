@@ -1,6 +1,7 @@
+import os
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.orm import Session
 
@@ -9,6 +10,12 @@ from app.mqtt_client import command_topic, publish_command_message
 from app.repositories.commands import CommandRepository
 from app.repositories.devices import DeviceRepository
 from app.schemas.command import CommandEnvelope
+from app.services.device_presence import DevicePresenceService
+
+
+COMMAND_RETRY_INTERVAL_SECONDS = int(
+    os.getenv("COMMAND_RETRY_INTERVAL_SECONDS", "10")
+)
 
 
 @dataclass(frozen=True)
@@ -26,54 +33,85 @@ class CommandDispatchNotFoundError(Exception):
 
 
 class CommandDispatchService:
-    """Перетворює queued command на MQTT message без втрати durable record."""
+    """Надійно публікує queued/published command з row-level locking."""
 
     def __init__(self, session: Session) -> None:
         self._session = session
         self._commands = CommandRepository(session)
         self._devices = DeviceRepository(session)
+        self._presence = DevicePresenceService(session)
 
     def dispatch(
         self,
         command_id: uuid.UUID,
         *,
         now: datetime | None = None,
+        allow_retry: bool = False,
     ) -> CommandDispatchResult:
-        command = self._commands.get(command_id)
+        command = self._commands.get_for_update(command_id)
         if command is None:
             raise CommandDispatchNotFoundError
 
-        # Повторний HTTP GET/POST не повинен повторно публікувати вже
-        # відправлену команду. Повторна доставка буде окремою reliability-логікою.
-        if command.status != "queued":
+        current_time = now or datetime.now(timezone.utc)
+
+        if command.status not in {"queued", "published"}:
             return CommandDispatchResult(
                 command=command,
                 published=False,
                 reason=f"status_{command.status}",
             )
 
-        current_time = now or datetime.now(timezone.utc)
+        if command.status == "published" and not allow_retry:
+            return CommandDispatchResult(
+                command=command,
+                published=False,
+                reason="already_published",
+            )
+
         if command.expires_at <= current_time:
             command.status = "expired"
             command.completed_at = current_time
             command.error_code = "command_expired"
-            command.error_message = "TTL команди завершився до MQTT publish"
+            command.error_message = (
+                "TTL команди завершився до підтвердження доставки Device"
+            )
             self._session.commit()
             self._session.refresh(command)
             return CommandDispatchResult(
                 command=command,
                 published=False,
-                reason="expired_before_publish",
+                reason="expired",
+            )
+
+        if (
+            command.status == "published"
+            and command.last_publish_attempt_at is not None
+            and current_time - command.last_publish_attempt_at
+            < timedelta(seconds=COMMAND_RETRY_INTERVAL_SECONDS)
+        ):
+            return CommandDispatchResult(
+                command=command,
+                published=False,
+                reason="retry_not_due",
             )
 
         device = self._devices.get(command.device_id)
         if device is None:
-            # FK з ON DELETE CASCADE робить цей сценарій малоймовірним,
-            # але dispatch не має публікувати команду без валідної цілі.
             return CommandDispatchResult(
                 command=command,
                 published=False,
                 reason="device_not_found",
+            )
+
+        availability = self._presence.get_availability(
+            device_id=command.device_id,
+            now=current_time,
+        )
+        if not availability.online:
+            return CommandDispatchResult(
+                command=command,
+                published=False,
+                reason="device_offline",
             )
 
         topic = command_topic(device.uid)
@@ -87,15 +125,20 @@ class CommandDispatchService:
             payload=command.payload,
         )
 
+        command.publish_attempts += 1
+        command.last_publish_attempt_at = current_time
+
         published, reason = publish_command_message(
             topic=topic,
             payload=envelope.model_dump(mode="json"),
             command_id=command.id,
             device_uid=device.uid,
         )
+
         if not published:
-            # Durable record залишається queued. У наступній reliability-операції
-            # queued-команди отримають контрольований retry policy.
+            command.last_publish_error = reason
+            self._session.commit()
+            self._session.refresh(command)
             return CommandDispatchResult(
                 command=command,
                 published=False,
@@ -104,9 +147,12 @@ class CommandDispatchService:
             )
 
         command.status = "published"
-        command.published_at = current_time
+        if command.published_at is None:
+            command.published_at = current_time
+        command.last_publish_error = None
         command.error_code = None
         command.error_message = None
+
         self._session.commit()
         self._session.refresh(command)
 
