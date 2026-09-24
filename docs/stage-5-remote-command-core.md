@@ -179,6 +179,7 @@ publish_attempts=9 до завершення TTL                         ✅
 після retry без ACK command автоматично стала expired        ✅
 ACK зупинив retry                                             ✅
 publish_attempts після ACK більше не збільшувався              ✅
+late ACK після expiry → rejected / command_expired              ✅
 ```
 
 
