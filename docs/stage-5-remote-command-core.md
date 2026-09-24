@@ -185,6 +185,8 @@ backend implicit заповнив acknowledged_at                       ✅
 late Result після expiry → rejected / command_expired            ✅
 broker повернувся → queued command автоматично доставлена         ✅
 та сама command збережена в PostgreSQL під час outage              ✅
+broker offline при online Device → publish attempt зафіксовано     ✅
+publish_attempts=1 / last_publish_error=mqtt_not_connected         ✅
 ```
 
 
