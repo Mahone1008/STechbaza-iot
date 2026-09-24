@@ -8,6 +8,7 @@
 - [Етап 2 — Backend Core](dossier-v3.5-stage-2-backend-core.md)
 - [Етап 3 — Data Model v1](dossier-v3.5-stage-3-data-model.md)
 - [Етап 4 — IoT Telemetry & Reliability](dossier-v3.5-stage-4-iot-telemetry-reliability.md)
+- [Етап 5 — Remote Command Core](dossier-v3.5-stage-5-remote-command-core.md)
 
 ## Технічна документація
 
