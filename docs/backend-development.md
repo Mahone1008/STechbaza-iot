@@ -10,17 +10,7 @@ Backend TechBaza працює на FastAPI.
 GET /health
 ```
 
-Очікувана відповідь:
-
-```json
-{
-  "status": "ok",
-  "service": "techbaza-backend",
-  "version": "0.2.0"
-}
-```
-
-### Перевірка зв'язку backend → PostgreSQL
+### Перевірка backend → PostgreSQL
 
 ```text
 GET /health/db
@@ -28,18 +18,27 @@ GET /health/db
 
 Цей endpoint виконує реальний SQL-запит через SQLAlchemy та psycopg.
 
-Очікувана структура відповіді:
+### Перевірка backend → MQTT
 
-```json
-{
-  "status": "ok",
-  "postgresql": {
-    "database": "techbaza",
-    "user": "techbaza",
-    "version": "PostgreSQL ..."
-  }
-}
+```text
+GET /health/mqtt
 ```
+
+Якщо backend підключений до Mosquitto, endpoint повертає `status: ok`.
+
+### Останнє MQTT-повідомлення
+
+```text
+GET /mqtt/last
+```
+
+Backend підписаний на тестовий topic:
+
+```text
+techbaza/test/backend
+```
+
+Після отримання повідомлення endpoint `/mqtt/last` показує останній topic, payload, QoS, retain та час отримання.
 
 ## Локальні адреси
 
@@ -53,29 +52,47 @@ http://127.0.0.1:8000/health
 PostgreSQL health:
 http://127.0.0.1:8000/health/db
 
+MQTT health:
+http://127.0.0.1:8000/health/mqtt
+
+Останнє MQTT-повідомлення:
+http://127.0.0.1:8000/mqtt/last
+
 Swagger / OpenAPI:
 http://127.0.0.1:8000/docs
 ```
 
-## Як backend підключається до PostgreSQL
-
-Backend і PostgreSQL знаходяться в одній внутрішній Docker-мережі.
-
-Тому backend звертається не до Windows-порту 5433, а прямо до Docker-сервісу:
+## Внутрішня Docker-схема
 
 ```text
-backend
-  │
-  │ postgres:5432
-  ▼
 PostgreSQL
+    ↑
+    │ postgres:5432
+    │
+FastAPI Backend
+    │
+    │ mosquitto:1883
+    ↓
+Mosquitto MQTT
 ```
 
-Порт `5433` потрібен лише для доступу до PostgreSQL з Windows.
+## Тест отримання MQTT-повідомлення backend-ом
+
+Після запуску контейнерів відправити:
+
+```powershell
+docker exec -it techbaza-mosquitto mosquitto_pub -h localhost -t techbaza/test/backend -m "message for backend"
+```
+
+Потім відкрити:
+
+```text
+http://127.0.0.1:8000/mqtt/last
+```
+
+Очікується, що backend покаже отримане повідомлення.
 
 ## Запуск після змін
-
-У корені репозиторію:
 
 ```powershell
 git pull
@@ -88,8 +105,12 @@ docker compose ps
 Завершено:
 
 1. окремий FastAPI-сервіс;
-2. endpoint `GET /health`;
+2. `GET /health`;
 3. реальне підключення backend до PostgreSQL;
-4. endpoint `GET /health/db`.
+4. `GET /health/db`;
+5. MQTT-клієнт всередині backend;
+6. `GET /health/mqtt`;
+7. підписка backend на тестовий MQTT-topic;
+8. `GET /mqtt/last`.
 
-Наступним кроком буде підключення backend до MQTT-брокера.
+Наступний крок — перевірити реальне MQTT-повідомлення, яке отримує сам backend.
