@@ -33,6 +33,8 @@ services:
       context: ./backend
     container_name: techbaza-backend
     restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-techbaza}:${POSTGRES_PASSWORD:-techbaza_dev_only}@postgres:5432/${POSTGRES_DB:-techbaza}
     ports:
       - "127.0.0.1:8000:8000"
     depends_on:
