@@ -86,7 +86,7 @@ Backend використовує його для idempotency: повторна �
 
 Монотонний локальний номер пакета в межах робочої сесії контролера.
 
-На першій версії поле допускається як додаткова діагностична ознака, а основний захист від дублювання забезпечує `message_id`.
+`message_id` відповідає за idempotency, а `sequence` разом із `sent_at` допомагає визначити порядок різних пакетів і не дозволити старому пакету відкотити current state.
 
 ### values
 
@@ -160,18 +160,17 @@ now - last_seen_at <= timeout
 
 ## 7. Capability-aware processing
 
-Backend не повинен безумовно приймати будь-які ключі від будь-якого пристрою.
-
-Наступна операція додасть перевірку:
+Backend перевіряє telemetry keys проти активних DeviceCapability конкретного пристрою.
 
 ```text
 Device UID
    ↓
-його DeviceCapability
+активні DeviceCapability
    ↓
-чи дозволена ця телеметрія
+telemetry key → required capability
    ↓
-запис у PostgreSQL
+дозволено → продовжуємо ingestion
+немає capability → rejected
 ```
 
 Це зберігає модульний принцип TechBaza.
@@ -198,3 +197,20 @@ Device
 `received_at` — серверний час прийому і є основною часовою опорою для серверної діагностики.
 
 `sent_at` — час, заявлений пристроєм, і використовується як корисний контекст, але контролер може мати неправильний годинник.
+
+
+## 10. Out-of-order protection
+
+Валідний пакет із новим `message_id` завжди може бути корисним для історії, але не кожен пакет має право переписати current state.
+
+Backend порівнює `sent_at` та `sequence` з останнім snapshot:
+
+```text
+новіший пакет
+→ history + current state
+
+старіший пакет
+→ history only
+```
+
+Детальні правила описані в `docs/telemetry-ordering-v1.md`.
