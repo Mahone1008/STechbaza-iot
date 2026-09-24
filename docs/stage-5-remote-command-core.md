@@ -160,6 +160,18 @@ ACK received → retry stops
 
 Деталі: [Command Reliability v1](command-reliability-v1.md).
 
+Перевірено локально:
+
+```text
+Device availability → online=false                         ✅
+POST command while offline → status=queued                ✅
+published_at=null                                          ✅
+publish_attempts=0                                         ✅
+reliability worker → candidate_count=1                     ✅
+reliability worker → reason=device_offline                 ✅
+```
+
+
 ## Definition of Done Етапу 5
 
 Етап вважається завершеним, коли одна команда проходить повний контрольований lifecycle:
