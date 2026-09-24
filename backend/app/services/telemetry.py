@@ -10,6 +10,7 @@ from app.repositories.capabilities import CapabilityRepository
 from app.repositories.devices import DeviceRepository
 from app.repositories.telemetry import TelemetryRepository
 from app.schemas.telemetry import TelemetryEnvelope
+from app.services.telemetry_ordering import decide_snapshot_update
 from app.services.telemetry_policy import validate_telemetry_capabilities
 
 
@@ -33,14 +34,16 @@ class TelemetryCapabilityViolationError(Exception):
 
 @dataclass(frozen=True, slots=True)
 class TelemetryIngestResult:
-    """Результат idempotent ingestion одного MQTT-пакета."""
+    """Результат ingestion одного MQTT-пакета."""
 
     telemetry_id: uuid.UUID
     duplicate: bool
+    state_updated: bool
+    ordering_reason: str
 
 
 class TelemetryService:
-    """Приймає валідовану телеметрію та атомарно оновлює стан пристрою."""
+    """Приймає телеметрію, зберігає історію та захищає current state."""
 
     def __init__(self, session: Session) -> None:
         self._session = session
@@ -64,6 +67,8 @@ class TelemetryService:
             return TelemetryIngestResult(
                 telemetry_id=existing.id,
                 duplicate=True,
+                state_updated=False,
+                ordering_reason="duplicate_message_id",
             )
 
         enabled_capabilities = self._capabilities.get_enabled_codes_for_device(
@@ -81,6 +86,23 @@ class TelemetryService:
             )
 
         server_received_at = received_at or datetime.now(timezone.utc)
+        current_snapshot = self._telemetry.get_state(device.id)
+
+        ordering = decide_snapshot_update(
+            current_reported_at=(
+                current_snapshot.last_reported_at
+                if current_snapshot is not None
+                else None
+            ),
+            current_sequence=(
+                current_snapshot.last_sequence
+                if current_snapshot is not None
+                else None
+            ),
+            incoming_reported_at=payload.sent_at,
+            incoming_sequence=payload.sequence,
+            has_snapshot=current_snapshot is not None,
+        )
 
         message = TelemetryMessage(
             message_id=payload.message_id,
@@ -96,33 +118,37 @@ class TelemetryService:
         try:
             saved_message = self._telemetry.add_message(message)
 
-            self._telemetry.save_state(
-                device_id=device.id,
-                telemetry_id=saved_message.id,
-                reported_at=payload.sent_at,
-                received_at=server_received_at,
-                values=payload.values,
-                state=payload.state,
-            )
+            if ordering.should_update:
+                self._telemetry.save_state(
+                    device_id=device.id,
+                    telemetry_id=saved_message.id,
+                    sequence=payload.sequence,
+                    reported_at=payload.sent_at,
+                    received_at=server_received_at,
+                    values=payload.values,
+                    state=payload.state,
+                )
 
-            # last_seen_at оновлюється тільки після валідного нового пакета.
-            # Дубль message_id не повинен штучно продовжувати online-стан.
+            # Валідний новий MQTT-пакет підтверджує зв'язок із Device,
+            # навіть якщо payload запізнився і не може переписати current state.
             device.last_seen_at = server_received_at
 
             self._session.commit()
         except IntegrityError:
-            # Unique(message_id) є фінальним захистом від race condition, якщо
-            # однаковий MQTT-пакет обробляється майже одночасно двічі.
             self._session.rollback()
             existing = self._telemetry.get_by_message_id(payload.message_id)
             if existing is not None:
                 return TelemetryIngestResult(
                     telemetry_id=existing.id,
                     duplicate=True,
+                    state_updated=False,
+                    ordering_reason="duplicate_message_id_race",
                 )
             raise
 
         return TelemetryIngestResult(
             telemetry_id=saved_message.id,
             duplicate=False,
+            state_updated=ordering.should_update,
+            ordering_reason=ordering.reason,
         )
