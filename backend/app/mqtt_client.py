@@ -17,6 +17,7 @@ from app.services.command_ack import (
     CommandAckCommandNotFoundError,
     CommandAckDeviceMismatchError,
     CommandAckDeviceNotFoundError,
+    CommandAckExpiredError,
     CommandAckInvalidTransitionError,
     CommandAckService,
 )
@@ -25,6 +26,7 @@ from app.services.command_result import (
     CommandResultConflictError,
     CommandResultDeviceMismatchError,
     CommandResultDeviceNotFoundError,
+    CommandResultExpiredError,
     CommandResultInvalidTransitionError,
     CommandResultService,
 )
@@ -466,6 +468,16 @@ def _handle_command_ack(topic: str, payload_text: str) -> None:
             reason="device_mismatch",
         )
         return
+    except CommandAckExpiredError:
+        _remember_command_ack(
+            status="rejected",
+            topic=topic,
+            device_uid=device_uid,
+            command_id=str(envelope.command_id),
+            message_id=str(envelope.message_id),
+            reason="command_expired",
+        )
+        return
     except CommandAckInvalidTransitionError as exc:
         _remember_command_ack(
             status="rejected",
@@ -579,6 +591,16 @@ def _handle_command_result(topic: str, payload_text: str) -> None:
             command_id=str(envelope.command_id),
             message_id=str(envelope.message_id),
             reason="terminal_result_conflict",
+        )
+        return
+    except CommandResultExpiredError:
+        _remember_command_result(
+            status="rejected",
+            topic=topic,
+            device_uid=device_uid,
+            command_id=str(envelope.command_id),
+            message_id=str(envelope.message_id),
+            reason="command_expired",
         )
         return
     except CommandResultInvalidTransitionError as exc:
