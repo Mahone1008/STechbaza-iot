@@ -172,6 +172,9 @@ reliability worker → reason=device_offline                 ✅
 queued offline command → expired після TTL                 ✅
 completed_at заповнено                                      ✅
 error_code=command_expired                                  ✅
+heartbeat повернув Device online                            ✅
+queued command автоматично опублікована без нового POST     ✅
+без ACK worker повторно доставляв той самий command_id      ✅
 ```
 
 
