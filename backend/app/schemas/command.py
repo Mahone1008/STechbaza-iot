@@ -79,6 +79,9 @@ class DeviceCommandRead(BaseModel):
     ttl_seconds: int
     expires_at: datetime
     published_at: datetime | None
+    publish_attempts: int
+    last_publish_attempt_at: datetime | None
+    last_publish_error: str | None
     acknowledged_at: datetime | None
     completed_at: datetime | None
     result: dict[str, Any]
