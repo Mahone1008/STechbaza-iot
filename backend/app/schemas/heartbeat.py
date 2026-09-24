@@ -12,6 +12,7 @@ class HeartbeatEnvelope(BaseModel):
 
     schema_version: Literal[1]
     message_id: uuid.UUID
+    session_id: uuid.UUID | None = None
     sent_at: datetime | None = None
     sequence: int | None = Field(default=None, ge=0)
 
