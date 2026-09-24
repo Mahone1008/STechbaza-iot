@@ -9,7 +9,12 @@ import paho.mqtt.client as mqtt
 from pydantic import ValidationError
 
 from app.db import SessionLocal
+from app.schemas.heartbeat import HeartbeatEnvelope
 from app.schemas.telemetry import TelemetryEnvelope
+from app.services.device_presence import (
+    DevicePresenceService,
+    PresenceDeviceNotFoundError,
+)
 from app.services.telemetry import (
     TelemetryCapabilityViolationError,
     TelemetryDeviceNotFoundError,
@@ -26,21 +31,26 @@ MQTT_TELEMETRY_TOPIC = os.getenv(
     "MQTT_TELEMETRY_TOPIC",
     "techbaza/devices/+/telemetry",
 )
+MQTT_HEARTBEAT_TOPIC = os.getenv(
+    "MQTT_HEARTBEAT_TOPIC",
+    "techbaza/devices/+/heartbeat",
+)
 
 _lock = threading.Lock()
 _connected = False
 _last_message: dict[str, Any] | None = None
 _last_ingestion: dict[str, Any] | None = None
+_last_heartbeat: dict[str, Any] | None = None
 
 
-def _extract_device_uid(topic: str) -> str | None:
+def _extract_device_uid(topic: str, expected_suffix: str) -> str | None:
     parts = topic.split("/")
     if (
         len(parts) == 4
         and parts[0] == "techbaza"
         and parts[1] == "devices"
         and parts[2]
-        and parts[3] == "telemetry"
+        and parts[3] == expected_suffix
     ):
         return parts[2]
     return None
@@ -48,7 +58,6 @@ def _extract_device_uid(topic: str) -> str | None:
 
 def _remember_raw_message(message: mqtt.MQTTMessage, payload: str) -> None:
     global _last_message
-
     with _lock:
         _last_message = {
             "topic": message.topic,
@@ -61,7 +70,6 @@ def _remember_raw_message(message: mqtt.MQTTMessage, payload: str) -> None:
 
 def _remember_ingestion(**data: Any) -> None:
     global _last_ingestion
-
     with _lock:
         _last_ingestion = {
             **data,
@@ -69,8 +77,17 @@ def _remember_ingestion(**data: Any) -> None:
         }
 
 
+def _remember_heartbeat(**data: Any) -> None:
+    global _last_heartbeat
+    with _lock:
+        _last_heartbeat = {
+            **data,
+            "processed_at": datetime.now(timezone.utc).isoformat(),
+        }
+
+
 def _handle_telemetry(topic: str, payload_text: str) -> None:
-    device_uid = _extract_device_uid(topic)
+    device_uid = _extract_device_uid(topic, "telemetry")
     if device_uid is None:
         return
 
@@ -98,10 +115,6 @@ def _handle_telemetry(topic: str, payload_text: str) -> None:
                 payload=envelope,
             )
     except TelemetryDeviceNotFoundError:
-        logger.warning(
-            "Відхилено телеметрію від невідомого пристрою: uid=%s",
-            device_uid,
-        )
         _remember_ingestion(
             status="rejected",
             topic=topic,
@@ -111,13 +124,6 @@ def _handle_telemetry(topic: str, payload_text: str) -> None:
         )
         return
     except TelemetryCapabilityViolationError as exc:
-        logger.warning(
-            "Відхилено telemetry payload через capability policy: "
-            "uid=%s missing=%s unsupported=%s",
-            device_uid,
-            exc.missing_capabilities,
-            exc.unsupported_keys,
-        )
         _remember_ingestion(
             status="rejected",
             topic=topic,
@@ -143,12 +149,6 @@ def _handle_telemetry(topic: str, payload_text: str) -> None:
         )
         return
 
-    logger.info(
-        "Телеметрію оброблено: uid=%s message_id=%s duplicate=%s",
-        device_uid,
-        envelope.message_id,
-        result.duplicate,
-    )
     _remember_ingestion(
         status="duplicate" if result.duplicate else "stored",
         topic=topic,
@@ -159,9 +159,69 @@ def _handle_telemetry(topic: str, payload_text: str) -> None:
     )
 
 
+def _handle_heartbeat(topic: str, payload_text: str) -> None:
+    device_uid = _extract_device_uid(topic, "heartbeat")
+    if device_uid is None:
+        return
+
+    try:
+        payload_json = json.loads(payload_text)
+        envelope = HeartbeatEnvelope.model_validate(payload_json)
+    except (json.JSONDecodeError, ValidationError) as exc:
+        logger.warning(
+            "Відхилено невалідний heartbeat: topic=%s error=%s",
+            topic,
+            exc,
+        )
+        _remember_heartbeat(
+            status="rejected",
+            topic=topic,
+            device_uid=device_uid,
+            reason="invalid_payload",
+        )
+        return
+
+    try:
+        with SessionLocal() as session:
+            seen_at = DevicePresenceService(session).mark_seen(
+                device_uid=device_uid
+            )
+    except PresenceDeviceNotFoundError:
+        _remember_heartbeat(
+            status="rejected",
+            topic=topic,
+            device_uid=device_uid,
+            message_id=str(envelope.message_id),
+            reason="unknown_device",
+        )
+        return
+    except Exception:
+        logger.exception(
+            "Помилка heartbeat ingestion: uid=%s message_id=%s",
+            device_uid,
+            envelope.message_id,
+        )
+        _remember_heartbeat(
+            status="error",
+            topic=topic,
+            device_uid=device_uid,
+            message_id=str(envelope.message_id),
+            reason="internal_error",
+        )
+        return
+
+    _remember_heartbeat(
+        status="accepted",
+        topic=topic,
+        device_uid=device_uid,
+        message_id=str(envelope.message_id),
+        sequence=envelope.sequence,
+        seen_at=seen_at.isoformat(),
+    )
+
+
 def _on_connect(client, userdata, connect_flags, reason_code, properties) -> None:
     global _connected
-
     is_connected = reason_code == 0
 
     with _lock:
@@ -170,11 +230,11 @@ def _on_connect(client, userdata, connect_flags, reason_code, properties) -> Non
     if is_connected:
         client.subscribe(MQTT_TEST_TOPIC, qos=0)
         client.subscribe(MQTT_TELEMETRY_TOPIC, qos=1)
+        client.subscribe(MQTT_HEARTBEAT_TOPIC, qos=1)
 
 
 def _on_disconnect(client, userdata, disconnect_flags, reason_code, properties) -> None:
     global _connected
-
     with _lock:
         _connected = False
 
@@ -183,8 +243,12 @@ def _on_message(client, userdata, message) -> None:
     payload = message.payload.decode("utf-8", errors="replace")
     _remember_raw_message(message, payload)
 
-    if _extract_device_uid(message.topic) is not None:
+    if _extract_device_uid(message.topic, "telemetry") is not None:
         _handle_telemetry(message.topic, payload)
+        return
+
+    if _extract_device_uid(message.topic, "heartbeat") is not None:
+        _handle_heartbeat(message.topic, payload)
 
 
 client = mqtt.Client(
@@ -215,6 +279,7 @@ def mqtt_status() -> dict[str, Any]:
             "port": MQTT_PORT,
             "subscribed_test_topic": MQTT_TEST_TOPIC,
             "subscribed_telemetry_topic": MQTT_TELEMETRY_TOPIC,
+            "subscribed_heartbeat_topic": MQTT_HEARTBEAT_TOPIC,
         }
 
 
@@ -226,3 +291,8 @@ def last_mqtt_message() -> dict[str, Any] | None:
 def last_ingestion_result() -> dict[str, Any] | None:
     with _lock:
         return dict(_last_ingestion) if _last_ingestion is not None else None
+
+
+def last_heartbeat_result() -> dict[str, Any] | None:
+    with _lock:
+        return dict(_last_heartbeat) if _last_heartbeat is not None else None
