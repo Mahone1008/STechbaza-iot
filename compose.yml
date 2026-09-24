@@ -28,6 +28,19 @@ services:
       - mosquitto_data:/mosquitto/data
       - mosquitto_log:/mosquitto/log
 
+  backend:
+    build:
+      context: ./backend
+    container_name: techbaza-backend
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mosquitto:
+        condition: service_started
+
 volumes:
   postgres_data:
   mosquitto_data:
