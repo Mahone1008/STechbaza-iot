@@ -228,3 +228,36 @@ Capability
 ```
 
 Таким чином frontend і backend можуть визначати функції конкретного контролера на основі фактичної конфігурації, а не жорстко зашитого набору датчиків.
+
+
+## Commands
+
+Базовий command API зберігає команду в PostgreSQL перед майбутньою MQTT-публікацією.
+
+```text
+POST /api/v1/devices/{device_id}/commands
+GET  /api/v1/devices/{device_id}/commands
+GET  /api/v1/commands/{command_id}
+```
+
+Початкові `command_type`:
+
+```text
+vfd.start
+vfd.stop
+vfd.frequency.set
+```
+
+Приклад створення:
+
+```json
+{
+  "command_type": "vfd.frequency.set",
+  "payload": {
+    "frequency_hz": 45.0
+  },
+  "ttl_seconds": 30
+}
+```
+
+На поточній операції нова команда отримує статус `queued`. MQTT publish та ACK реалізуються окремими наступними операціями.
