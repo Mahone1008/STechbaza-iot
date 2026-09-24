@@ -1,11 +1,11 @@
 # Backend
 
-Server-side logic for the TechBaza IoT platform.
+Серверна логіка платформи TechBaza IoT.
 
-Planned responsibilities:
-- device API and MQTT integration;
-- authentication and role-based access;
-- commands to controllers;
-- telemetry processing;
-- alarms, events and diagnostics;
-- PostgreSQL access.
+Заплановані задачі:
+- API для пристроїв і MQTT-інтеграція;
+- автентифікація та рольовий доступ;
+- передавання команд контролерам;
+- обробка телеметрії;
+- аварії, події та діагностика;
+- робота з PostgreSQL.
