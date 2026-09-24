@@ -2,7 +2,7 @@
 
 ## Мета
 
-Етап 7 починає зворотний канал керування:
+**V3.5 — Етап 5: Remote Command Core** починає зворотний канал керування:
 
 ```text
 UI / API
@@ -18,31 +18,63 @@ ESP32
 ACK / result
 ```
 
-Операція 1 реалізує тільки надійне створення та зберігання команди. MQTT-публікація та ACK будуть наступними операціями.
+Операція 1 реалізує durable-реєстрацію команди в PostgreSQL. MQTT-публікація та ACK будуть наступними операціями.
 
-## Чому команда спочатку потрапляє в PostgreSQL
+## Операція 1 — Durable Command Queue
 
-Небезпечно робити HTTP → MQTT напряму без durable record. Якщо backend впаде між запитом і публікацією, ми можемо втратити інформацію про те, що користувач намагався виконати.
+Команда не повинна існувати лише як короткочасний HTTP/MQTT виклик.
 
-Тому кожна команда спочатку отримує server-side UUID і status `queued`.
+Спочатку backend створює durable record:
+
+```text
+POST command
+   ↓
+валідація Device
+   ↓
+валідація capability
+   ↓
+валідація command payload
+   ↓
+idempotency check
+   ↓
+PostgreSQL
+   ↓
+status = queued
+```
+
+## Чому PostgreSQL стоїть перед MQTT
+
+Небезпечно будувати:
+
+```text
+HTTP → MQTT
+```
+
+без durable record.
+
+Якщо backend впаде в невдалий момент, система може втратити audit trail і не знати, чи команда взагалі існувала.
+
+Тому спочатку створюється запис у `device_commands`, а MQTT delivery виконується окремим шаром.
 
 ## Таблиця device_commands
 
 Основні поля:
 
-- `id` — command_id;
+- `id` — server-side command_id;
+- `request_id` — client-side UUID для ідемпотентності HTTP retry;
 - `device_id` — цільовий Device;
 - `command_type` — тип команди;
 - `payload` — параметри;
 - `status` — lifecycle;
-- `expires_at` — коли команда стає простроченою;
-- `published_at` — коли команда реально пішла в MQTT;
-- `acknowledged_at` — коли ESP32 підтвердив отримання;
-- `completed_at` — коли команда завершена;
+- `ttl_seconds` — дозволений строк життя;
+- `expires_at` — абсолютний deadline;
+- `published_at` — майбутній час MQTT publish;
+- `acknowledged_at` — майбутній час ACK;
+- `completed_at` — майбутній час завершення;
 - `result` — структурований результат;
-- `error_code` / `error_message` — причина відмови або помилки.
+- `error_code` / `error_message` — причина відмови.
 
-## Початкові типи команд
+## Початкові command types
 
 ```text
 vfd.start
@@ -50,7 +82,7 @@ vfd.stop
 vfd.frequency.set
 ```
 
-Усі вони в поточній версії вимагають capability:
+Усі вони наразі вимагають:
 
 ```text
 vfd.control
@@ -58,13 +90,63 @@ vfd.control
 
 ## TTL
 
-Команда створюється з `ttl_seconds` від 5 до 300 секунд. За замовчуванням — 30 секунд.
+Допустимий `ttl_seconds`:
 
-Короткий TTL потрібен, щоб команда, створена під час проблем зі зв'язком, не виконалась через багато хвилин після відновлення мережі.
+```text
+5..300 секунд
+```
+
+Default:
+
+```text
+30 секунд
+```
+
+Це захист від небезпечного сценарію:
+
+```text
+користувач натиснув START
+        ↓
+мережа зникла
+        ↓
+через багато хвилин зв'язок повернувся
+        ↓
+стара команда НЕ повинна раптово виконатися
+```
+
+## HTTP idempotency
+
+Клієнт генерує `request_id` до POST.
+
+Перший запит:
+
+```text
+request_id = X
+→ 201 Created
+→ створено один command_id
+```
+
+Повтор того самого запиту з тим самим `request_id`:
+
+```text
+request_id = X
+same Device/type/payload/TTL
+→ 200 OK
+→ повертається той самий command
+→ другий command НЕ створюється
+```
+
+Якщо той самий `request_id` повторно використано для іншої команди:
+
+```text
+→ 409 Conflict
+```
+
+Унікальний DB index додатково захищає від двох одночасних однакових POST.
 
 ## Frequency payload
 
-`vfd.frequency.set` приймає:
+`vfd.frequency.set`:
 
 ```json
 {
@@ -72,29 +154,35 @@ vfd.control
 }
 ```
 
-Поточна перевірка 0..100 Hz є лише протокольним guardrail. Реальні min/max конкретної установки пізніше повинні братися з конфігурації Device/VFD.
+Поточна перевірка:
+
+```text
+0..100 Hz
+```
+
+Це лише protocol guardrail. Реальні min/max конкретного VFD пізніше повинні братися з конфігурації установки.
 
 ## API
 
-Створити команду:
+Створити command:
 
 ```text
 POST /api/v1/devices/{device_id}/commands
 ```
 
-Перелік команд Device:
+Перелік commands Device:
 
 ```text
 GET /api/v1/devices/{device_id}/commands
 ```
 
-Прочитати одну команду:
+Одна command:
 
 ```text
 GET /api/v1/commands/{command_id}
 ```
 
-## Поточний lifecycle
+## Lifecycle
 
 На Операції 1:
 
@@ -102,7 +190,7 @@ GET /api/v1/commands/{command_id}
 queued
 ```
 
-У наступних операціях буде:
+Наступні операції додадуть:
 
 ```text
 queued
@@ -114,8 +202,24 @@ acknowledged
 succeeded / failed
 ```
 
-Також буде `expired`, якщо TTL вийшов до безпечного виконання.
+Окремо буде:
+
+```text
+expired
+```
+
+коли TTL закінчився.
 
 ## Safety principle
 
-Backend-команда не повинна обходити локальні захисти VFD, аварійний стоп, сухий хід та інші safety interlocks. Хмарний command channel — це запит на дію, а не право ігнорувати фізичну безпеку.
+Remote command — це **запит на дію**, а не право обходити фізичні захисти.
+
+Backend не повинен скасовувати:
+
+- аварійний стоп;
+- локальний safety interlock;
+- сухий хід;
+- fault VFD;
+- інші апаратні/локальні заборони.
+
+Фінальне безпечне рішення про виконання має залишатися на edge-рівні.
