@@ -9,6 +9,7 @@
 - [Етап 3 — Data Model v1](dossier-v3.5-stage-3-data-model.md)
 - [Етап 4 — Telemetry Core](dossier-v3.5-stage-4-telemetry-core.md)
 - [Етап 5 — Telemetry Reliability](dossier-v3.5-stage-5-telemetry-reliability.md)
+- [Етап 6 — Reboot / Session Protection](dossier-v3.5-stage-6-reboot-session-protection.md)
 
 ## Технічна документація
 
@@ -24,6 +25,7 @@
 - [Device Presence v1](device-presence-v1.md)
 - [Telemetry Ordering v1](telemetry-ordering-v1.md)
 - [Telemetry Session Protection v1](telemetry-session-protection-v1.md)
+- [Command Core v1](command-core-v1.md)
 
 ## Запланований розвиток
 
