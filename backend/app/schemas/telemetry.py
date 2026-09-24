@@ -48,6 +48,7 @@ class DeviceStateRead(BaseModel):
 
     device_id: uuid.UUID
     last_telemetry_id: uuid.UUID | None
+    last_sequence: int | None
     last_reported_at: datetime | None
     last_received_at: datetime
     values: dict[str, Any]
