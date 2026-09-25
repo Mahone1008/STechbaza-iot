@@ -4,6 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.organization import Organization
+from app.models.organization_membership import OrganizationMembership
 
 
 class OrganizationRepository:
@@ -15,6 +16,30 @@ class OrganizationRepository:
     def list(self, *, limit: int, offset: int) -> list[Organization]:
         statement = (
             select(Organization)
+            .order_by(Organization.created_at.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+        return list(self._session.scalars(statement))
+
+    def list_for_user(
+        self,
+        user_id: uuid.UUID,
+        *,
+        limit: int,
+        offset: int,
+    ) -> list[Organization]:
+        statement = (
+            select(Organization)
+            .join(
+                OrganizationMembership,
+                OrganizationMembership.organization_id == Organization.id,
+            )
+            .where(
+                OrganizationMembership.user_id == user_id,
+                OrganizationMembership.is_active.is_(True),
+                Organization.is_active.is_(True),
+            )
             .order_by(Organization.created_at.desc())
             .limit(limit)
             .offset(offset)
