@@ -11,6 +11,7 @@ from app.models.mixins import TimestampMixin
 from app.security.roles import PLATFORM_ROLE_VALUES
 
 if TYPE_CHECKING:
+    from app.models.auth_session import AuthSession
     from app.models.organization_membership import OrganizationMembership
 
 
@@ -65,6 +66,11 @@ class User(TimestampMixin, Base):
         nullable=True,
     )
 
+    auth_sessions: Mapped[list["AuthSession"]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
     memberships: Mapped[list["OrganizationMembership"]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",
