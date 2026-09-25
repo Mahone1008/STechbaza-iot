@@ -450,3 +450,18 @@ platform_role = user
 ```
 
 Membership для цього User ще не створено. Наступний крок — додати його до TechBaza Test Farm через POST memberships API з role=viewer.
+
+
+### Membership Management verification — POST membership
+
+Локально підтверджено:
+
+```text
+viewer-test@techbaza.dev додано через POST memberships   ✅
+membership id = 5dfdf2a4-4dc1-44da-a74a-1bb3e5c84796
+role = viewer                                            ✅
+is_active = true                                         ✅
+membership створено без прямого SQL                      ✅
+```
+
+Наступний крок — GET memberships і PATCH viewer → operator через API.
