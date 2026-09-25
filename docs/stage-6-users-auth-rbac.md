@@ -402,7 +402,7 @@ foreign resource anti-enumeration                         ✅
 live role propagation без перевидачі JWT                  ✅
 ```
 
-### Операція 4.2 — Membership Management API ← у роботі
+### Операція 4.2 — Membership Management API ✅ завершено
 
 Реалізовано:
 
