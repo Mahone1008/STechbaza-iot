@@ -785,3 +785,22 @@ response: "Недостатньо прав для цієї дії"              
 state, тому downgrade набуває сили без перевидачі JWT.
 
 Наступний крок — 6.5 logout / auth session revoke та перевірка старого access token.
+
+
+### Security E2E verification — 6.5 logout/session revoke
+
+Локально підтверджено:
+
+```text
+logout поточної auth session                              ✅
+старий access JWT → /auth/me                              ✅ deny / 401
+response: "Потрібна дійсна authentication session"       ✅
+старий refresh token → /auth/refresh                     ✅ deny / 401
+response: "Refresh token недійсний або завершився"        ✅
+```
+
+Це підтверджує server-side session revocation: logout робить непридатними
+і access token, прив'язаний до цієї auth session, і відповідний refresh token.
+
+Наступний крок — 6.6 foreign tenant anti-enumeration:
+автентифікований User не повинен відрізняти чужий tenant/resource від неіснуючого.
