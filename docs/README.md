@@ -35,6 +35,7 @@
 - [Identity & RBAC Foundation v1](identity-rbac-foundation-v1.md)
 - [Authentication Token Protocol v1](auth-token-v1.md)
 - [Current User / Session Context v1](current-user-context-v1.md)
+- [RBAC + Multi-tenant Guards v1](rbac-multitenant-guards-v1.md)
 
 ## Запланований розвиток
 
