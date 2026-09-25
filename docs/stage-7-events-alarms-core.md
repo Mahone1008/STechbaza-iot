@@ -53,7 +53,7 @@ alarm: warning | critical
 
 ```text
 Операція 1 — Events & Alarms Data Model Foundation        ✅ завершено
-Операція 2 — Events API + tenant-scoped read model
+Операція 2 — Events API + tenant-scoped read model        ← у роботі
 Операція 3 — Alarm Lifecycle Service
 Операція 4 — Rule Engine + debounce / hysteresis / anti-spam
 Операція 5 — System alarms: offline / reboot / command failure
@@ -152,3 +152,82 @@ WHERE state = 'active'
 ```
 
 Операція 1 — завершено.
+
+
+## Операція 2 — Events API + tenant-scoped read model
+
+Додано backend 0.25.0.
+
+### API
+
+```text
+GET /api/v1/devices/{device_id}/events
+GET /api/v1/events/{event_id}
+```
+
+List endpoint підтримує:
+
+```text
+limit
+offset
+event_type
+severity
+source
+occurred_from
+occurred_to
+```
+
+Events API навмисно read-only. Event creation поки не відкривається як public endpoint:
+system events повинні створюватися backend services / rule engine, а не довільним клієнтом.
+
+### RBAC
+
+Додано permission:
+
+```text
+event.read
+```
+
+Його мають tenant roles:
+
+```text
+owner
+admin
+operator
+viewer
+service
+```
+
+Кожний Event наслідує tenant через:
+
+```text
+Event
+  ↓ device_id
+Device
+  ↓ site_id
+Site
+  ↓ organization_id
+OrganizationMembership
+  ↓
+event.read
+```
+
+Для `GET /events/{event_id}` використовується та сама anti-enumeration policy,
+що й для інших tenant resources: чужий Event та відсутній Event не повинні
+розкриватися різними відповідями.
+
+### Definition of Done
+
+```text
+EventRepository                                  ✅ code
+DeviceEventRead                                  ✅ code
+GET /devices/{device_id}/events                  ✅ code
+GET /events/{event_id}                           ✅ code
+filters + pagination                             ✅ code
+event.read permission                            ✅ code
+tenant-scoped AccessControl.require_event        ✅ code
+backend 0.25.0                                   ✅ code
+local endpoint verification                      ⏳
+foreign tenant anti-enumeration verification     ⏳
+filter verification                              ⏳
+```
