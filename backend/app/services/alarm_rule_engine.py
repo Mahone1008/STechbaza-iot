@@ -1,4 +1,5 @@
 import logging
+import math
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -28,7 +29,7 @@ class RuleActionResult:
 
     rule_key: str
     action: str
-    value: float
+    value: float | None
     pending_count: int
     debounce_samples: int
     alarm_id: uuid.UUID | None = None
@@ -98,7 +99,8 @@ class TelemetryAlarmRuleEngine:
         if isinstance(raw, bool):
             return None
         if isinstance(raw, (int, float)):
-            return float(raw)
+            value = float(raw)
+            return value if math.isfinite(value) else None
         return None
 
     @staticmethod
@@ -241,7 +243,7 @@ class TelemetryAlarmRuleEngine:
                         RuleActionResult(
                             rule_key=rule.rule_key,
                             action="invalid_value",
-                            value=0.0,
+                            value=None,
                             pending_count=0,
                             debounce_samples=rule.debounce_samples,
                         )
