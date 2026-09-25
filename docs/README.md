@@ -44,7 +44,7 @@
 - [Membership Management v1](membership-management-v1.md)
 - [Command Actor Audit v1](command-actor-audit-v1.md)
 - [Security End-to-End Test v1](security-e2e-test-v1.md)
-- [Етап 7 — Events & Alarms Core — у роботі](stage-7-events-alarms-core.md)
+- [Етап 7 — Events & Alarms Core — завершено](stage-7-events-alarms-core.md)
 - [Events & Alarms Data Model v1](events-alarms-data-model-v1.md)
 - [Alarm Lifecycle v1](alarm-lifecycle-v1.md)
 - [Notifications foundation v1 — in-app стрічка та наскрізні перевірки](notifications-foundation-v1.md)

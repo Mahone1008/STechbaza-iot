@@ -1,11 +1,11 @@
 # Етап 7 — Events & Alarms Core
 
-**Статус:** у роботі (операції 1–6 перевірено; операція 7 очікує локальної перевірки)
+**Статус:** завершено 25.09.2026 (операції 1–7 перевірено; межі етапу зафіксовано нижче)
 **Backend:** 0.31.0
 
 Окремий блок [виправлень надійності та доступу](hardening-2026-09-25.md)
 та HTTP-перевірку операції 6 користувач підтвердив локально 25.09.2026.
-Операцію 6 закрито; реалізація операції 7 описана в
+Операції 6 і 7 закрито; реалізація та результати перевірки операції 7 описані в
 [Notifications foundation v1](notifications-foundation-v1.md).
 
 ## Мета
@@ -63,7 +63,7 @@ alarm: warning | critical
 Операція 4 — Rule Engine + debounce / hysteresis / anti-spam ✅ перевірено локально
 Операція 5 — System alarms: offline / reboot / command failure ✅ перевірено локально
 Операція 6 — Acknowledge + actor audit ✅ перевірено локально
-Операція 7 — Notifications foundation + final E2E ⏳ код, очікує перевірки
+Операція 7 — Notifications foundation + final E2E ✅ перевірено локально та в CI
 ```
 
 ## Перші alarm types
@@ -483,7 +483,23 @@ GitHub Actions [36140650684](https://github.com/Mahone1008/STechbaza-iot/actions
 Команди локальної перевірки одним PowerShell-блоком і межі реалізації:
 [Notifications foundation v1](notifications-foundation-v1.md).
 
-Telegram/email/push та UI є наступними окремими блоками. Операція 7 і весь
-Етап 7 залишаються відкритими до локального підтвердження користувачем.
+### Локальний результат — 25.09.2026
+
+Користувач підтвердив скриншотами оновлення до commit `2b50c9b`, успішну
+збірку, upgrade `0014 → 0015`, **28 tests in 4.228s — OK** без пропусків,
+три `PASS` HTTP acknowledge та `/health → ok / 0.31.0` після запуску.
+Штучний збій `Injected temporary database processing failure` належить
+до успішного тесту повторної доставки MQTT. Докладні результати та межі
+видимого виводу міграції наведено в розділі 9 документа Notifications foundation.
+
+**Операція 7 — завершено. Етап 7 — завершено.**
+
+Підтверджено програмний ланцюжок MQTT → telemetry → rule → Event/Alarm →
+notification → HTTP acknowledge → recovery, персональні прочитання,
+ізоляцію організацій, відкати транзакцій і конкурентні операції.
+
+Межі закритого етапу: backend Events & Alarms Core та in-app notifications
+foundation. Telegram/email/SMS/push, UI, навантажувальні перевірки, retention
+і фізичний ESP32/VFD залишаються окремими наступними роботами.
 
 
