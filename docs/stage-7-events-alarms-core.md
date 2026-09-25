@@ -323,3 +323,16 @@ first raise → action=raised, state=active, count=1   ✅
 repeat raise → same alarm_id, count=2               ✅
 duplicate active Alarm не створюється                ✅
 ```
+
+
+### Часткова verification — resolve/transitions
+
+Локально підтверджено:
+
+```text
+Alarm read API повертає state=resolved                 ✅
+occurrence_count зберігся = 2                          ✅
+resolved_at встановлено                               ✅
+transition history містить raised/repeated/resolved    ✅
+resolved transition з reason=Pressure restored         ✅
+```
