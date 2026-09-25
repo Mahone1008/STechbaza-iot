@@ -44,7 +44,7 @@ Audit
 Операція 3 — Current User / Session Context          ✅ завершено
 Операція 4 — RBAC + Multi-tenant Guards              ✅ завершено
 Операція 5 — Command Actor Audit                         ✅ завершено
-Операція 6 — Security End-to-End Test
+Операція 6 — Security End-to-End Test                         ← у роботі
 ```
 
 ## Операція 1 — Identity & Membership Foundation
@@ -692,4 +692,30 @@ role change не змінює старий audit                        ✅
 
 ```text
 Операція 6 — Security End-to-End Test
+```
+
+
+## Операція 6 — Security End-to-End Test
+
+Мета — пройти security-контур як один реальний сценарій, а не окремими unit-перевірками.
+
+План:
+
+```text
+6.1 owner login + tenant context                         ← поточний крок
+6.2 owner → device read + command execute
+6.3 command actor audit verification
+6.4 live role change → permission change без нового JWT
+6.5 logout → session revoke → старий access token deny
+6.6 foreign tenant anti-enumeration
+6.7 фінальний security checklist
+```
+
+Поточний тестовий стан:
+
+```text
+viewer-test@techbaza.dev  → owner
+stage6-admin@techbaza.dev → admin
+Organization              → TechBaza Test Farm
+Device                    → TB-ESP32-001
 ```
