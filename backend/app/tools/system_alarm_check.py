@@ -206,8 +206,10 @@ def main() -> None:
             expiry = CommandDispatchService(session).dispatch(
                 expired_command.id,
                 now=offline_at + timedelta(seconds=37),
+                allow_retry=True,  # Так викликає dispatcher фоновий worker.
             )
             assert expiry.reason == "expired"
+            assert expiry.command.status == "expired"
             assert _alarm(session, device_id, key).state == "active"
             transitions = session.scalar(
                 select(AlarmTransition.id)
