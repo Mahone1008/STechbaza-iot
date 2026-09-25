@@ -1,7 +1,7 @@
 # Етап 6 — Users, Authentication & RBAC
 
 **Статус:** у роботі  
-**Backend:** 0.21.0+
+**Backend:** 0.22.0+
 
 ## Мета
 
@@ -387,3 +387,44 @@ command створена зі status=queued                        ✅
 ```
 
 Це підтверджує, що RBAC не лише блокує заборонені дії, а й коректно пропускає дозволені write operations.
+
+
+### Операція 4.1 — завершено
+
+Behavioral verification підтвердив:
+
+```text
+operator read/execute matrix                              ✅
+viewer read-only matrix                                   ✅
+admin write permissions                                   ✅
+tenant isolation A/B                                      ✅
+foreign resource anti-enumeration                         ✅
+live role propagation без перевидачі JWT                  ✅
+```
+
+### Операція 4.2 — Membership Management API ← у роботі
+
+Реалізовано:
+
+```text
+GET organization memberships                             ✅
+POST membership                                           ✅
+PATCH membership role / active state                      ✅
+owner privilege-escalation protection                     ✅
+last-active-owner invariant                               ✅
+soft revoke через is_active=false                         ✅
+```
+
+Backend:
+
+```text
+0.22.0
+```
+
+Migration не потрібна.
+
+Документ:
+
+[Membership Management v1](membership-management-v1.md)
+
+Поточна задача — локальна verification admin membership-management flow.
