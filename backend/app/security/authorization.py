@@ -1,4 +1,5 @@
 import uuid
+from dataclasses import dataclass
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
@@ -34,6 +35,23 @@ def _forbidden() -> HTTPException:
         status_code=status.HTTP_403_FORBIDDEN,
         detail="Недостатньо прав для цієї дії",
     )
+
+
+@dataclass(frozen=True)
+class OrganizationAccessContext:
+    """Результат authorization для Organization з role snapshot."""
+
+    organization: Organization
+    organization_role: str | None
+
+
+@dataclass(frozen=True)
+class DeviceAccessContext:
+    """Результат authorization для Device з tenant context."""
+
+    device: Device
+    organization_id: uuid.UUID
+    organization_role: str | None
 
 
 class AccessControl:
@@ -92,17 +110,20 @@ class AccessControl:
             offset=offset,
         )
 
-    def require_organization(
+    def require_organization_context(
         self,
         organization_id: uuid.UUID,
         permission: Permission,
-    ) -> Organization:
+    ) -> OrganizationAccessContext:
         organization = self._organizations.get(organization_id)
         if organization is None:
             raise _not_found()
 
         if self.is_superadmin:
-            return organization
+            return OrganizationAccessContext(
+                organization=organization,
+                organization_role=None,
+            )
 
         if not organization.is_active:
             raise _not_found()
@@ -117,7 +138,20 @@ class AccessControl:
         if not role_has_permission(membership.role, permission):
             raise _forbidden()
 
-        return organization
+        return OrganizationAccessContext(
+            organization=organization,
+            organization_role=membership.role,
+        )
+
+    def require_organization(
+        self,
+        organization_id: uuid.UUID,
+        permission: Permission,
+    ) -> Organization:
+        return self.require_organization_context(
+            organization_id,
+            permission,
+        ).organization
 
     def require_site(
         self,
@@ -131,11 +165,11 @@ class AccessControl:
         self.require_organization(site.organization_id, permission)
         return site
 
-    def require_device(
+    def require_device_context(
         self,
         device_id: uuid.UUID,
         permission: Permission,
-    ) -> Device:
+    ) -> DeviceAccessContext:
         device = self._devices.get(device_id)
         if device is None:
             raise _not_found()
@@ -144,8 +178,22 @@ class AccessControl:
         if site is None:
             raise _not_found()
 
-        self.require_organization(site.organization_id, permission)
-        return device
+        organization_access = self.require_organization_context(
+            site.organization_id,
+            permission,
+        )
+        return DeviceAccessContext(
+            device=device,
+            organization_id=organization_access.organization.id,
+            organization_role=organization_access.organization_role,
+        )
+
+    def require_device(
+        self,
+        device_id: uuid.UUID,
+        permission: Permission,
+    ) -> Device:
+        return self.require_device_context(device_id, permission).device
 
     def require_command(
         self,
