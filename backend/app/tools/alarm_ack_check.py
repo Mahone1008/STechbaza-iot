@@ -36,7 +36,7 @@ def _identity(
 ) -> CurrentUserContext:
     user = User(
         id=uuid.uuid4(),
-        email=f"ack-check-{uuid.uuid4().hex}@example.invalid",
+        email=f"ack-check-{uuid.uuid4().hex}@example.com",
         display_name=f"Test {role or 'outsider'}",
         password_hash="test-only-no-login",
     )
@@ -167,7 +167,7 @@ def main() -> None:
             assert transition.actor_display_name == operator.user.display_name
 
             initial_email = operator.user.email
-            operator.user.email = f"changed-{uuid.uuid4().hex}@example.invalid"
+            operator.user.email = f"changed-{uuid.uuid4().hex}@example.com"
             session.commit()
             assert get_alarm(alarm_id, session, operator).acknowledged_by_email == initial_email
             assert list_alarm_transitions(
