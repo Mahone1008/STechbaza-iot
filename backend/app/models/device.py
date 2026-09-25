@@ -12,6 +12,7 @@ from app.models.mixins import TimestampMixin
 if TYPE_CHECKING:
     from app.models.capability import DeviceCapability
     from app.models.command import DeviceCommand
+    from app.models.event_alarm import DeviceAlarm, DeviceEvent
     from app.models.site import Site
     from app.models.telemetry import DeviceState, TelemetryMessage
 
@@ -68,6 +69,16 @@ class Device(TimestampMixin, Base):
         uselist=False,
     )
     commands: Mapped[list["DeviceCommand"]] = relationship(
+        back_populates="device",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+    events: Mapped[list["DeviceEvent"]] = relationship(
+        back_populates="device",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+    alarms: Mapped[list["DeviceAlarm"]] = relationship(
         back_populates="device",
         cascade="all, delete-orphan",
         passive_deletes=True,
