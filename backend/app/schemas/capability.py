@@ -2,7 +2,9 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+from app.schemas.alarm_rule import parse_alarm_rules
 
 
 class CapabilityCreate(BaseModel):
@@ -36,6 +38,29 @@ class DeviceCapabilityAssign(BaseModel):
 
     is_enabled: bool = True
     config: dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("config")
+    @classmethod
+    def validate_alarm_rules(cls, value: dict[str, Any]) -> dict[str, Any]:
+        parse_alarm_rules(value)
+        return value
+
+
+class DeviceCapabilityUpdate(BaseModel):
+    """Часткове оновлення capability assignment та його локальної конфігурації."""
+
+    is_enabled: bool | None = None
+    config: dict[str, Any] | None = None
+
+    @field_validator("config")
+    @classmethod
+    def validate_alarm_rules(
+        cls,
+        value: dict[str, Any] | None,
+    ) -> dict[str, Any] | None:
+        if value is not None:
+            parse_alarm_rules(value)
+        return value
 
 
 class DeviceCapabilityRead(BaseModel):
