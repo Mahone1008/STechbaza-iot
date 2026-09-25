@@ -6,10 +6,12 @@ from sqlalchemy.orm import Session
 
 from app.models.command import DeviceCommand
 from app.models.device import Device
+from app.models.event_alarm import DeviceEvent
 from app.models.organization import Organization
 from app.models.site import Site
 from app.repositories.commands import CommandRepository
 from app.repositories.devices import DeviceRepository
+from app.repositories.events import EventRepository
 from app.repositories.memberships import MembershipRepository
 from app.repositories.organizations import OrganizationRepository
 from app.repositories.sites import SiteRepository
@@ -74,6 +76,7 @@ class AccessControl:
         self._memberships = MembershipRepository(session)
         self._sites = SiteRepository(session)
         self._devices = DeviceRepository(session)
+        self._events = EventRepository(session)
         self._commands = CommandRepository(session)
 
     @property
@@ -206,3 +209,16 @@ class AccessControl:
 
         self.require_device(command.device_id, permission)
         return command
+
+
+    def require_event(
+        self,
+        event_id: uuid.UUID,
+        permission: Permission,
+    ) -> DeviceEvent:
+        event = self._events.get(event_id)
+        if event is None:
+            raise _not_found()
+
+        self.require_device(event.device_id, permission)
+        return event
