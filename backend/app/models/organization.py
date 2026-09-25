@@ -9,6 +9,7 @@ from app.models.base import Base
 from app.models.mixins import TimestampMixin
 
 if TYPE_CHECKING:
+    from app.models.organization_membership import OrganizationMembership
     from app.models.site import Site
 
 
@@ -26,6 +27,11 @@ class Organization(TimestampMixin, Base):
     slug: Mapped[str] = mapped_column(String(80), nullable=False, unique=True, index=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 
+    memberships: Mapped[list["OrganizationMembership"]] = relationship(
+        back_populates="organization",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
     sites: Mapped[list["Site"]] = relationship(
         back_populates="organization",
         cascade="all, delete-orphan",
