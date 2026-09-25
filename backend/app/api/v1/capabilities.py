@@ -10,6 +10,7 @@ from app.schemas.capability import (
     CapabilityRead,
     DeviceCapabilityAssign,
     DeviceCapabilityRead,
+    DeviceCapabilityUpdate,
 )
 from app.security.authorization import AccessControl
 from app.security.current_user import (
@@ -147,6 +148,53 @@ def assign_capability(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Capability уже прив'язаний до цього пристрою",
+        ) from exc
+
+    return DeviceCapabilityRead(
+        id=item.id,
+        device_id=item.device_id,
+        capability_id=item.capability_id,
+        is_enabled=item.is_enabled,
+        config=item.config,
+        capability=CapabilityRead.model_validate(item.capability),
+        created_at=item.created_at,
+        updated_at=item.updated_at,
+    )
+
+
+@router.patch(
+    "/devices/{device_id}/capabilities/{capability_id}",
+    response_model=DeviceCapabilityRead,
+)
+def update_device_capability(
+    device_id: uuid.UUID,
+    capability_id: uuid.UUID,
+    payload: DeviceCapabilityUpdate,
+    session: DbSession,
+    current: CurrentUser,
+) -> DeviceCapabilityRead:
+    """Оновити enabled/config конкретного DeviceCapability assignment."""
+
+    AccessControl(session, current).require_device(
+        device_id,
+        Permission.CAPABILITY_MANAGE,
+    )
+
+    try:
+        item = CapabilityService(session).update_assignment(
+            device_id,
+            capability_id,
+            payload,
+        )
+    except ParentDeviceNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Пристрій не знайдено",
+        ) from exc
+    except CapabilityNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Capability assignment не знайдено",
         ) from exc
 
     return DeviceCapabilityRead(
