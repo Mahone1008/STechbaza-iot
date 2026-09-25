@@ -6,7 +6,11 @@ from sqlalchemy.orm import Session
 from app.models.capability import Capability, DeviceCapability
 from app.repositories.capabilities import CapabilityRepository
 from app.repositories.devices import DeviceRepository
-from app.schemas.capability import CapabilityCreate, DeviceCapabilityAssign
+from app.schemas.capability import (
+    CapabilityCreate,
+    DeviceCapabilityAssign,
+    DeviceCapabilityUpdate,
+)
 
 
 class CapabilityAlreadyExistsError(Exception):
@@ -93,5 +97,38 @@ class CapabilityService:
         # Повторно читаємо із eager loading, щоб API-відповідь не залежала
         # від lazy loading після commit.
         result = self._capabilities.get_assignment(device_id, capability_id)
+        assert result is not None
+        return result
+
+
+    def update_assignment(
+        self,
+        device_id: uuid.UUID,
+        capability_id: uuid.UUID,
+        payload: DeviceCapabilityUpdate,
+    ) -> DeviceCapability:
+        if self._devices.get(device_id) is None:
+            raise ParentDeviceNotFoundError
+
+        assignment = self._capabilities.get_assignment(
+            device_id,
+            capability_id,
+        )
+        if assignment is None:
+            raise CapabilityNotFoundError
+
+        if payload.is_enabled is not None:
+            assignment.is_enabled = payload.is_enabled
+
+        if payload.config is not None:
+            assignment.config = payload.config
+
+        self._capabilities.update_assignment(assignment)
+        self._session.commit()
+
+        result = self._capabilities.get_assignment(
+            device_id,
+            capability_id,
+        )
         assert result is not None
         return result
