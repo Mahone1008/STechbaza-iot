@@ -34,7 +34,6 @@ class User(TimestampMixin, Base):
         String(320),
         nullable=False,
         unique=True,
-        index=True,
     )
     display_name: Mapped[str] = mapped_column(
         String(160),
