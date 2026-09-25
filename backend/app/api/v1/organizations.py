@@ -6,6 +6,12 @@ from sqlalchemy.orm import Session
 
 from app.db import get_db_session
 from app.schemas.organization import OrganizationCreate, OrganizationRead
+from app.security.authorization import AccessControl
+from app.security.current_user import (
+    CurrentUserContext,
+    get_current_user_context,
+)
+from app.security.roles import Permission, PlatformRole
 from app.services.organizations import (
     OrganizationAlreadyExistsError,
     OrganizationNotFoundError,
@@ -15,15 +21,23 @@ from app.services.organizations import (
 router = APIRouter(prefix="/organizations", tags=["organizations"])
 
 DbSession = Annotated[Session, Depends(get_db_session)]
+CurrentUser = Annotated[
+    CurrentUserContext,
+    Depends(get_current_user_context),
+]
 
 
 @router.get("", response_model=list[OrganizationRead])
 def list_organizations(
     session: DbSession,
+    current: CurrentUser,
     limit: Annotated[int, Query(ge=1, le=100)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> list[OrganizationRead]:
-    organizations = OrganizationService(session).list(
+    organizations = AccessControl(
+        session,
+        current,
+    ).list_visible_organizations(
         limit=limit,
         offset=offset,
     )
@@ -34,7 +48,13 @@ def list_organizations(
 def get_organization(
     organization_id: uuid.UUID,
     session: DbSession,
+    current: CurrentUser,
 ) -> OrganizationRead:
+    AccessControl(session, current).require_organization(
+        organization_id,
+        Permission.ORGANIZATION_READ,
+    )
+
     try:
         organization = OrganizationService(session).get(organization_id)
     except OrganizationNotFoundError as exc:
@@ -54,7 +74,13 @@ def get_organization(
 def create_organization(
     payload: OrganizationCreate,
     session: DbSession,
+    current: CurrentUser,
 ) -> OrganizationRead:
+    # Створення нового tenant — platform-level операція.
+    AccessControl(session, current).require_platform_role(
+        PlatformRole.SUPERADMIN,
+    )
+
     try:
         organization = OrganizationService(session).create(payload)
     except OrganizationAlreadyExistsError as exc:
