@@ -325,4 +325,25 @@ Organization B відсутня у tenant-scoped списку User A        ✅
 прямий GET чужого Device B → generic 404                     ✅*
 ```
 
-`* Device-level 404 остаточно рахується як isolation proof після окремої DB-перевірки, що тестовий Site B / Device B справді існують. Це відрізняє authorization 404 від звичайного not-found.
+`* DB-перевірка підтвердила, що Organization B, Site B та Device B реально існують. Отже generic 404 на API є саме authorization-hiding, а не звичайним not-found.
+
+
+### Tenant isolation — підтверджено
+
+DB join підтвердив існування повного чужого tenant tree:
+
+```text
+Organization B = Tenant B Test
+Site B         = Tenant B Site
+Device B       = TB-TENANT-B-001
+```
+
+При цьому User A:
+
+```text
+не бачить Organization B у list endpoint                 ✅
+GET Organization B напряму → generic 404                  ✅
+GET Device B напряму → generic 404                        ✅
+```
+
+tenant isolation для Organization B / Site B / Device B доведено.
