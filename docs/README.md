@@ -9,6 +9,7 @@
 - [Етап 3 — Data Model v1](dossier-v3.5-stage-3-data-model.md)
 - [Етап 4 — IoT Telemetry & Reliability](dossier-v3.5-stage-4-iot-telemetry-reliability.md)
 - [Етап 5 — Remote Command Core](dossier-v3.5-stage-5-remote-command-core.md)
+- [Етап 6 — Users, Authentication & RBAC](dossier-v3.5-stage-6-users-auth-rbac.md)
 
 ## Технічна документація
 
@@ -31,7 +32,7 @@
 - [MQTT Command Result Protocol v1](mqtt-command-result-v1.md)
 - [Command Reliability v1](command-reliability-v1.md)
 - [End-to-End Command Test v1](end-to-end-command-test-v1.md)
-- [Етап 6 — Users, Authentication & RBAC (у роботі)](stage-6-users-auth-rbac.md)
+- [Етап 6 — Users, Authentication & RBAC — завершено](stage-6-users-auth-rbac.md)
 - [Identity & RBAC Foundation v1](identity-rbac-foundation-v1.md)
 - [Authentication Token Protocol v1](auth-token-v1.md)
 - [Current User / Session Context v1](current-user-context-v1.md)
