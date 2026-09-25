@@ -38,7 +38,6 @@ class AuthSession(TimestampMixin, Base):
         String(64),
         nullable=False,
         unique=True,
-        index=True,
     )
     expires_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
