@@ -7,6 +7,7 @@ from app.models.command import DeviceCommand
 from app.repositories.commands import CommandRepository
 from app.repositories.devices import DeviceRepository
 from app.schemas.command_result import CommandResultEnvelope
+from app.services.system_alarms import SystemAlarmService
 
 
 @dataclass(frozen=True)
@@ -54,6 +55,7 @@ class CommandResultService:
         self._session = session
         self._commands = CommandRepository(session)
         self._devices = DeviceRepository(session)
+        self._system_alarms = SystemAlarmService(session)
 
     @staticmethod
     def _matches_terminal_result(
@@ -110,7 +112,16 @@ class CommandResultService:
             command.error_message = (
                 "Result без ACK надійшов після завершення TTL команди"
             )
-            self._session.commit()
+            try:
+                self._system_alarms.record_command_outcome(
+                    command=command,
+                    occurred_at=current_time,
+                    source_message_id=payload.message_id,
+                )
+                self._session.commit()
+            except Exception:
+                self._session.rollback()
+                raise
             self._session.refresh(command)
             raise CommandResultExpiredError
 
@@ -129,7 +140,16 @@ class CommandResultService:
         command.error_code = payload.error_code
         command.error_message = payload.error_message
 
-        self._session.commit()
+        try:
+            self._system_alarms.record_command_outcome(
+                command=command,
+                occurred_at=current_time,
+                source_message_id=payload.message_id,
+            )
+            self._session.commit()
+        except Exception:
+            self._session.rollback()
+            raise
         self._session.refresh(command)
 
         return CommandResultProcessing(

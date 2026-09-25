@@ -11,6 +11,7 @@ from app.repositories.commands import CommandRepository
 from app.repositories.devices import DeviceRepository
 from app.schemas.command import CommandEnvelope
 from app.services.device_presence import DevicePresenceService
+from app.services.system_alarms import SystemAlarmService
 
 
 COMMAND_RETRY_INTERVAL_SECONDS = int(
@@ -40,6 +41,7 @@ class CommandDispatchService:
         self._commands = CommandRepository(session)
         self._devices = DeviceRepository(session)
         self._presence = DevicePresenceService(session)
+        self._system_alarms = SystemAlarmService(session)
 
     def dispatch(
         self,
@@ -75,7 +77,15 @@ class CommandDispatchService:
             command.error_message = (
                 "TTL команди завершився до підтвердження доставки Device"
             )
-            self._session.commit()
+            try:
+                self._system_alarms.record_command_outcome(
+                    command=command,
+                    occurred_at=current_time,
+                )
+                self._session.commit()
+            except Exception:
+                self._session.rollback()
+                raise
             self._session.refresh(command)
             return CommandDispatchResult(
                 command=command,

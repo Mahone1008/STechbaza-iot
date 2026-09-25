@@ -22,20 +22,27 @@ from app.services.command_reliability import (
     start_command_reliability_worker,
     stop_command_reliability_worker,
 )
+from app.services.system_alarm_worker import (
+    start_system_alarm_worker,
+    stop_system_alarm_worker,
+    system_alarm_status,
+)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     start_mqtt()
     start_command_reliability_worker()
+    start_system_alarm_worker()
     yield
+    stop_system_alarm_worker()
     stop_command_reliability_worker()
     stop_mqtt()
 
 
 app = FastAPI(
     title="TechBaza Backend",
-    version="0.27.0",
+    version="0.28.0",
     description="Backend API платформи TechBaza IoT Pump Control",
     lifespan=lifespan,
 )
@@ -48,7 +55,7 @@ def health() -> dict[str, str]:
     return {
         "status": "ok",
         "service": "techbaza-backend",
-        "version": "0.27.0",
+        "version": "0.28.0",
     }
 
 
@@ -140,4 +147,12 @@ def command_reliability() -> dict[str, Any]:
     return {
         "status": "ok",
         "worker": command_reliability_status(),
+    }
+
+
+@app.get("/system/alarms/status")
+def system_alarms() -> dict[str, Any]:
+    return {
+        "status": "ok",
+        "worker": system_alarm_status(),
     }

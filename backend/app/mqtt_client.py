@@ -368,8 +368,11 @@ def _handle_heartbeat(topic: str, payload_text: str) -> None:
 
     try:
         with SessionLocal() as session:
-            seen_at = DevicePresenceService(session).mark_seen(
-                device_uid=device_uid
+            heartbeat = DevicePresenceService(session).mark_seen(
+                device_uid=device_uid,
+                session_id=envelope.session_id,
+                message_id=envelope.message_id,
+                sequence=envelope.sequence,
             )
     except PresenceDeviceNotFoundError:
         _remember_heartbeat(
@@ -396,7 +399,7 @@ def _handle_heartbeat(topic: str, payload_text: str) -> None:
         return
 
     _remember_heartbeat(
-        status="accepted",
+        status="accepted" if heartbeat.accepted else "ignored",
         topic=topic,
         device_uid=device_uid,
         message_id=str(envelope.message_id),
@@ -406,7 +409,8 @@ def _handle_heartbeat(topic: str, payload_text: str) -> None:
             else None
         ),
         sequence=envelope.sequence,
-        seen_at=seen_at.isoformat(),
+        seen_at=heartbeat.seen_at.isoformat() if heartbeat.seen_at else None,
+        reason=heartbeat.reason,
     )
 
 

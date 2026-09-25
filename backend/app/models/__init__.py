@@ -3,6 +3,7 @@ from app.models.auth_session import AuthSession
 from app.models.capability import Capability, DeviceCapability
 from app.models.command import DeviceCommand
 from app.models.device import Device
+from app.models.device_session import DeviceSession
 from app.models.event_alarm import AlarmTransition, DeviceAlarm, DeviceEvent
 from app.models.organization import Organization
 from app.models.organization_membership import OrganizationMembership
@@ -15,6 +16,7 @@ __all__ = [
     "AlarmTransition",
     "Capability",
     "Device",
+    "DeviceSession",
     "DeviceCapability",
     "DeviceCommand",
     "DeviceAlarm",

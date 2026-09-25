@@ -50,6 +50,10 @@ class Device(TimestampMixin, Base):
         DateTime(timezone=True),
         nullable=True,
     )
+    last_observed_session_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        nullable=True,
+    )
 
     site: Mapped["Site"] = relationship(back_populates="devices")
     capabilities: Mapped[list["DeviceCapability"]] = relationship(

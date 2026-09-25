@@ -9,6 +9,7 @@ from app.models import (
     AuthSession,
     Capability,
     Device,
+    DeviceSession,
     DeviceCapability,
     DeviceCommand,
     DeviceAlarm,

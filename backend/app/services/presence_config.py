@@ -1,0 +1,6 @@
+import os
+
+
+DEVICE_ONLINE_TIMEOUT_SECONDS = int(
+    os.getenv("DEVICE_ONLINE_TIMEOUT_SECONDS", "90")
+)

@@ -1,7 +1,7 @@
 # Етап 7 — Events & Alarms Core
 
-**Статус:** у роботі (операції 1–4 локально перевірено)  
-**Backend:** 0.27.0
+**Статус:** у роботі (операції 1–4 локально перевірено, 5 підготовлено до перевірки)  
+**Backend:** 0.28.0
 
 ## Мета
 
@@ -56,7 +56,7 @@ alarm: warning | critical
 Операція 2 — Events API + tenant-scoped read model        ✅ завершено
 Операція 3 — Alarm Lifecycle Service                       ✅ завершено
 Операція 4 — Rule Engine + debounce / hysteresis / anti-spam ✅ перевірено локально
-Операція 5 — System alarms: offline / reboot / command failure
+Операція 5 — System alarms: offline / reboot / command failure ⏳ локальна перевірка
 Операція 6 — Acknowledge + actor audit
 Операція 7 — Notifications foundation + final E2E
 ```
@@ -409,3 +409,19 @@ temporary rule removed; capability enabled; active=0      ✅
 Тестові завершені інциденти залишено в історії локальної БД. Формат правил, приклад і відтворювана перевірка транзакції наведені в [Alarm Rule Engine v1](alarm-rule-engine-v1.md).
 
 Перед production-використанням окремо перевірити доставку MQTT після помилки БД: тест транзакції підтвердив відкат PostgreSQL, але не повторну доставку пакета брокером. System alarms, acknowledge та notifications входять до наступних операцій.
+
+## Операція 5 — System alarms
+
+Створено Event та Alarm для `device.offline`, `device.reboot` і
+`command.failed`. Offline закривається від актуального heartbeat/telemetry,
+reboot — після другого окремого повідомлення нової boot session,
+command failure — після успішної новішої команди того самого типу.
+Старі session і повторні повідомлення не створюють повторних тривог.
+
+Міграція `20260925_0013` зберігає відомі boot sessions. У backend
+`0.28.0` фоновий цикл перевіряє offline; command і system alarm
+фіксуються атомарно. Деталі та відтворюваний локальний тест:
+[System Alarms v1](system-alarms-v1.md).
+
+Операція 5 закривається після перевірки міграції, тестового сценарію
+та статусу фонової перевірки на локальному Docker.
