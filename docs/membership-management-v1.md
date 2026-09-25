@@ -98,3 +98,21 @@ operator/viewer → membership list           403
 ```
 
 Owner/last-owner invariant перевіряється окремо.
+
+
+## Verification result
+
+Локально підтверджено:
+
+```text
+admin → list memberships                    200 ✅
+admin → add viewer                          201 ✅
+admin → viewer → operator                   200 ✅
+admin → assign owner                        403 ✅
+operator → membership list                  403 ✅
+owner → assign другого owner                200 ✅
+owner → downgrade другого owner             200 ✅
+останній active owner → downgrade           409 ✅
+```
+
+Membership Management v1 behavioral verification завершено.
