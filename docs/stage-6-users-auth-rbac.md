@@ -91,3 +91,28 @@ Migration:
 До Операції 4 локальний API залишається development API.
 
 Production exposure до завершення access-control rollout не допускається.
+
+
+## Schema verification 2026-09-25
+
+Після migration `20260925_0008` локально підтверджено:
+
+```text
+users table                                      ✅
+organization_memberships table                  ✅
+users.email UNIQUE                              ✅
+users.platform_role CHECK                       ✅
+organization_memberships role CHECK             ✅
+organization_id → organizations.id FK           ✅
+user_id → users.id FK                           ✅
+UNIQUE (organization_id, user_id)               ✅
+ON DELETE CASCADE для membership relations      ✅
+```
+
+Backend health:
+
+```text
+version = 0.18.0 ✅
+```
+
+Залишилась поведінкова перевірка DB constraints перед закриттям Операції 1.
