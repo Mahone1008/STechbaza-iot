@@ -1,7 +1,7 @@
 # Етап 6 — Users, Authentication & RBAC
 
 **Статус:** у роботі  
-**Backend:** 0.22.0+
+**Backend:** 0.23.0+
 
 ## Мета
 
@@ -43,7 +43,7 @@ Audit
 Операція 2 — Password Security + Token Auth         ✅ завершено
 Операція 3 — Current User / Session Context          ✅ завершено
 Операція 4 — RBAC + Multi-tenant Guards              ✅ завершено
-Операція 5 — Command Actor Audit
+Операція 5 — Command Actor Audit                         ← у роботі
 Операція 6 — Security End-to-End Test
 ```
 
@@ -565,3 +565,37 @@ soft revoke model через is_active                        ✅
 ```text
 Операція 5 — Command Actor Audit
 ```
+
+
+## Операція 5 — Command Actor Audit
+
+Реалізовано foundation:
+
+```text
+migration 20260925_0010                                 ✅
+actor_user_id                                           ✅
+actor_auth_session_id                                   ✅
+actor_organization_id                                   ✅
+actor_platform_role snapshot                            ✅
+actor_organization_role snapshot                        ✅
+actor_email snapshot                                    ✅
+actor_display_name snapshot                             ✅
+actor-aware request_id idempotency                      ✅
+Device access context повертає tenant role              ✅
+command GET/POST schemas експонують audit metadata      ✅
+```
+
+Backend:
+
+```text
+0.23.0
+```
+
+Документ:
+
+[Command Actor Audit v1](command-actor-audit-v1.md)
+
+Поля actor є immutable snapshot на момент створення command. Legacy commands,
+створені до migration 0010, можуть мати `null` actor metadata.
+
+Поточна задача — локальна migration + behavioral verification.
