@@ -58,3 +58,40 @@ foreign tenant remains hidden
 ```
 
 Поточний статус: verification in progress.
+
+
+## Verification result
+
+Security E2E пройдено успішно.
+
+```text
+6.1 owner login + tenant context                         ✅
+6.2 owner → device read + command execute               ✅
+6.3 persisted command actor audit                       ✅
+6.4 live role change → immediate permission change      ✅
+6.5 logout/session revoke → old tokens rejected         ✅
+6.6 foreign tenant anti-enumeration                     ✅
+6.7 final security checklist                            ✅
+```
+
+Ключовий результат:
+
+```text
+credentials
+   ↓
+auth session
+   ↓
+JWT
+   ↓
+live tenant membership / RBAC
+   ↓
+resource scope
+   ↓
+command
+   ↓
+immutable actor audit
+   ↓
+session revoke
+```
+
+Статус: PASSED.
