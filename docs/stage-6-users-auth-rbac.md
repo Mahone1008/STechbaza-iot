@@ -742,3 +742,26 @@ credentials → auth session → tenant membership → RBAC → device read
 ```
 
 Наступний крок — 6.2 owner → command execute через той самий JWT.
+
+
+### Security E2E verification — 6.3 persisted command audit
+
+Локально підтверджено через GET command:
+
+```text
+command_id = a4ceb69f-aae7-4f80-ae63-b318bcff9d16         ✅
+frequency_hz = 44                                          ✅
+actor_user_id persisted                                    ✅
+actor_auth_session_id persisted                            ✅
+actor_organization_id persisted                            ✅
+actor_platform_role = user                                 ✅
+actor_organization_role = owner                            ✅
+actor_email = viewer-test@techbaza.dev                     ✅
+actor_display_name = Viewer Test                           ✅
+```
+
+Audit metadata читається окремим GET після створення command, отже це
+не тимчасовий POST response, а durable persisted audit record.
+
+Наступний крок — 6.4 live role change та негайна зміна authorization
+без перевидачі JWT.
