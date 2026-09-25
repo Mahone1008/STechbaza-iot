@@ -38,6 +38,7 @@
 - [RBAC + Multi-tenant Guards v1](rbac-multitenant-guards-v1.md)
 - [Membership Management v1](membership-management-v1.md)
 - [Command Actor Audit v1](command-actor-audit-v1.md)
+- [Security End-to-End Test v1](security-e2e-test-v1.md)
 
 ## Запланований розвиток
 
