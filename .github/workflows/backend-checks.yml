@@ -1,0 +1,54 @@
+name: Backend checks
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - 'infrastructure/mosquitto/**'
+      - '.github/workflows/backend-checks.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  hardening:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: techbaza_test
+          POSTGRES_USER: techbaza_test
+          POSTGRES_PASSWORD: ci_test_only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd 'pg_isready -U techbaza_test -d techbaza_test'
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql+psycopg://techbaza_test:ci_test_only@127.0.0.1:5432/techbaza_test
+      MQTT_HOST: 127.0.0.1
+      MQTT_PORT: '1883'
+      TECHBAZA_RUN_DB_TESTS: '1'
+      TECHBAZA_RUN_MQTT_TESTS: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install backend dependencies
+        run: python -m pip install -r backend/requirements.txt
+      - name: Start isolated MQTT broker
+        run: >-
+          docker run -d --name test-mqtt -p 127.0.0.1:1883:1883
+          -v "$PWD/infrastructure/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro"
+          eclipse-mosquitto:2
+      - name: Apply migrations
+        working-directory: backend
+        run: python -m alembic upgrade head
+      - name: Run regression and integration checks
+        working-directory: backend
+        run: python -m unittest discover -s tests -v

@@ -1,0 +1,6 @@
+import os
+
+
+COMMAND_RESULT_TIMEOUT_SECONDS = int(os.getenv("COMMAND_RESULT_TIMEOUT_SECONDS", "120"))
+if COMMAND_RESULT_TIMEOUT_SECONDS < 1:
+    raise RuntimeError("COMMAND_RESULT_TIMEOUT_SECONDS має бути додатним")

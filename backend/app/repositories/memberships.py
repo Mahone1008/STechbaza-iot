@@ -4,6 +4,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.models.organization_membership import OrganizationMembership
+from app.models.organization import Organization
 from app.security.roles import OrganizationRole
 
 
@@ -12,6 +13,15 @@ class MembershipRepository:
 
     def __init__(self, session: Session) -> None:
         self._session = session
+
+    def lock_organization(self, organization_id: uuid.UUID) -> uuid.UUID | None:
+        """Усі зміни membership одного tenant виконуються послідовно."""
+
+        return self._session.scalar(
+            select(Organization.id)
+            .where(Organization.id == organization_id)
+            .with_for_update()
+        )
 
     def get(
         self,
@@ -36,6 +46,7 @@ class MembershipRepository:
                 OrganizationMembership.id == membership_id,
                 OrganizationMembership.organization_id == organization_id,
             )
+            .execution_options(populate_existing=True)
         )
         return self._session.scalar(statement)
 
@@ -59,7 +70,7 @@ class MembershipRepository:
             OrganizationMembership.user_id == user_id,
             OrganizationMembership.organization_id == organization_id,
             OrganizationMembership.is_active.is_(True),
-        )
+        ).execution_options(populate_existing=True)
         return self._session.scalar(statement)
 
     def list_for_organization(

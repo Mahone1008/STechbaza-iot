@@ -7,6 +7,7 @@ from typing import Any
 
 import paho.mqtt.client as mqtt
 from pydantic import ValidationError
+from sqlalchemy.exc import DataError
 
 from app.db import SessionLocal
 from app.schemas.command_ack import CommandAckEnvelope
@@ -264,10 +265,10 @@ def publish_command_message(
     return True, "published"
 
 
-def _handle_telemetry(topic: str, payload_text: str) -> None:
+def _handle_telemetry(topic: str, payload_text: str) -> bool:
     device_uid = _extract_device_uid(topic, "telemetry")
     if device_uid is None:
-        return
+        return True
 
     try:
         payload_json = json.loads(payload_text)
@@ -284,7 +285,7 @@ def _handle_telemetry(topic: str, payload_text: str) -> None:
             device_uid=device_uid,
             reason="invalid_payload",
         )
-        return
+        return True
 
     try:
         with SessionLocal() as session:
@@ -300,7 +301,7 @@ def _handle_telemetry(topic: str, payload_text: str) -> None:
             message_id=str(envelope.message_id),
             reason="unknown_device",
         )
-        return
+        return True
     except TelemetryCapabilityViolationError as exc:
         _remember_ingestion(
             status="rejected",
@@ -311,7 +312,14 @@ def _handle_telemetry(topic: str, payload_text: str) -> None:
             missing_capabilities=list(exc.missing_capabilities),
             unsupported_keys=list(exc.unsupported_keys),
         )
-        return
+        return True
+    except DataError:
+        # SQL відхилив значення payload, наприклад NaN у JSONB чи overflow.
+        # Повтор незмінного packet не виправить дані; не блокуємо ним потік.
+        logger.warning("Відхилено MQTT payload, несумісний зі схемою БД: topic=%s", topic)
+        _remember_ingestion(status="rejected", topic=topic, device_uid=device_uid,
+                 reason="invalid_database_value")
+        return True
     except Exception:
         logger.exception(
             "Помилка ingestion телеметрії: uid=%s message_id=%s",
@@ -325,7 +333,7 @@ def _handle_telemetry(topic: str, payload_text: str) -> None:
             message_id=str(envelope.message_id),
             reason="internal_error",
         )
-        return
+        return False
 
     _remember_ingestion(
         status="duplicate" if result.duplicate else "stored",
@@ -342,12 +350,13 @@ def _handle_telemetry(topic: str, payload_text: str) -> None:
         state_updated=result.state_updated,
         ordering_reason=result.ordering_reason,
     )
+    return True
 
 
-def _handle_heartbeat(topic: str, payload_text: str) -> None:
+def _handle_heartbeat(topic: str, payload_text: str) -> bool:
     device_uid = _extract_device_uid(topic, "heartbeat")
     if device_uid is None:
-        return
+        return True
 
     try:
         payload_json = json.loads(payload_text)
@@ -364,7 +373,7 @@ def _handle_heartbeat(topic: str, payload_text: str) -> None:
             device_uid=device_uid,
             reason="invalid_payload",
         )
-        return
+        return True
 
     try:
         with SessionLocal() as session:
@@ -382,7 +391,14 @@ def _handle_heartbeat(topic: str, payload_text: str) -> None:
             message_id=str(envelope.message_id),
             reason="unknown_device",
         )
-        return
+        return True
+    except DataError:
+        # SQL відхилив значення payload, наприклад NaN у JSONB чи overflow.
+        # Повтор незмінного packet не виправить дані; не блокуємо ним потік.
+        logger.warning("Відхилено MQTT payload, несумісний зі схемою БД: topic=%s", topic)
+        _remember_heartbeat(status="rejected", topic=topic, device_uid=device_uid,
+                 reason="invalid_database_value")
+        return True
     except Exception:
         logger.exception(
             "Помилка heartbeat ingestion: uid=%s message_id=%s",
@@ -396,7 +412,7 @@ def _handle_heartbeat(topic: str, payload_text: str) -> None:
             message_id=str(envelope.message_id),
             reason="internal_error",
         )
-        return
+        return False
 
     _remember_heartbeat(
         status="accepted" if heartbeat.accepted else "ignored",
@@ -412,12 +428,13 @@ def _handle_heartbeat(topic: str, payload_text: str) -> None:
         seen_at=heartbeat.seen_at.isoformat() if heartbeat.seen_at else None,
         reason=heartbeat.reason,
     )
+    return True
 
 
-def _handle_command_ack(topic: str, payload_text: str) -> None:
+def _handle_command_ack(topic: str, payload_text: str) -> bool:
     device_uid = _extract_command_event_uid(topic, "ack")
     if device_uid is None:
-        return
+        return True
 
     try:
         payload_json = json.loads(payload_text)
@@ -434,7 +451,7 @@ def _handle_command_ack(topic: str, payload_text: str) -> None:
             device_uid=device_uid,
             reason="invalid_payload",
         )
-        return
+        return True
 
     try:
         with SessionLocal() as session:
@@ -451,7 +468,7 @@ def _handle_command_ack(topic: str, payload_text: str) -> None:
             message_id=str(envelope.message_id),
             reason="unknown_device",
         )
-        return
+        return True
     except CommandAckCommandNotFoundError:
         _remember_command_ack(
             status="rejected",
@@ -461,7 +478,7 @@ def _handle_command_ack(topic: str, payload_text: str) -> None:
             message_id=str(envelope.message_id),
             reason="unknown_command",
         )
-        return
+        return True
     except CommandAckDeviceMismatchError:
         _remember_command_ack(
             status="rejected",
@@ -471,7 +488,7 @@ def _handle_command_ack(topic: str, payload_text: str) -> None:
             message_id=str(envelope.message_id),
             reason="device_mismatch",
         )
-        return
+        return True
     except CommandAckExpiredError:
         _remember_command_ack(
             status="rejected",
@@ -481,7 +498,7 @@ def _handle_command_ack(topic: str, payload_text: str) -> None:
             message_id=str(envelope.message_id),
             reason="command_expired",
         )
-        return
+        return True
     except CommandAckInvalidTransitionError as exc:
         _remember_command_ack(
             status="rejected",
@@ -492,7 +509,14 @@ def _handle_command_ack(topic: str, payload_text: str) -> None:
             reason="invalid_transition",
             command_status=exc.status,
         )
-        return
+        return True
+    except DataError:
+        # SQL відхилив значення payload, наприклад NaN у JSONB чи overflow.
+        # Повтор незмінного packet не виправить дані; не блокуємо ним потік.
+        logger.warning("Відхилено MQTT payload, несумісний зі схемою БД: topic=%s", topic)
+        _remember_command_ack(status="rejected", topic=topic, device_uid=device_uid,
+                 reason="invalid_database_value")
+        return True
     except Exception:
         logger.exception(
             "Помилка command ACK: device_uid=%s command_id=%s",
@@ -507,7 +531,7 @@ def _handle_command_ack(topic: str, payload_text: str) -> None:
             message_id=str(envelope.message_id),
             reason="internal_error",
         )
-        return
+        return False
 
     _remember_command_ack(
         status="duplicate" if result.duplicate else "accepted",
@@ -526,13 +550,13 @@ def _handle_command_ack(topic: str, payload_text: str) -> None:
             else None
         ),
     )
+    return True
 
 
-
-def _handle_command_result(topic: str, payload_text: str) -> None:
+def _handle_command_result(topic: str, payload_text: str) -> bool:
     device_uid = _extract_command_event_uid(topic, "result")
     if device_uid is None:
-        return
+        return True
 
     try:
         payload_json = json.loads(payload_text)
@@ -549,7 +573,7 @@ def _handle_command_result(topic: str, payload_text: str) -> None:
             device_uid=device_uid,
             reason="invalid_payload",
         )
-        return
+        return True
 
     try:
         with SessionLocal() as session:
@@ -566,7 +590,7 @@ def _handle_command_result(topic: str, payload_text: str) -> None:
             message_id=str(envelope.message_id),
             reason="unknown_device",
         )
-        return
+        return True
     except CommandResultCommandNotFoundError:
         _remember_command_result(
             status="rejected",
@@ -576,7 +600,7 @@ def _handle_command_result(topic: str, payload_text: str) -> None:
             message_id=str(envelope.message_id),
             reason="unknown_command",
         )
-        return
+        return True
     except CommandResultDeviceMismatchError:
         _remember_command_result(
             status="rejected",
@@ -586,7 +610,7 @@ def _handle_command_result(topic: str, payload_text: str) -> None:
             message_id=str(envelope.message_id),
             reason="device_mismatch",
         )
-        return
+        return True
     except CommandResultConflictError:
         _remember_command_result(
             status="rejected",
@@ -596,7 +620,7 @@ def _handle_command_result(topic: str, payload_text: str) -> None:
             message_id=str(envelope.message_id),
             reason="terminal_result_conflict",
         )
-        return
+        return True
     except CommandResultExpiredError:
         _remember_command_result(
             status="rejected",
@@ -606,7 +630,7 @@ def _handle_command_result(topic: str, payload_text: str) -> None:
             message_id=str(envelope.message_id),
             reason="command_expired",
         )
-        return
+        return True
     except CommandResultInvalidTransitionError as exc:
         _remember_command_result(
             status="rejected",
@@ -617,7 +641,14 @@ def _handle_command_result(topic: str, payload_text: str) -> None:
             reason="invalid_transition",
             command_status=exc.status,
         )
-        return
+        return True
+    except DataError:
+        # SQL відхилив значення payload, наприклад NaN у JSONB чи overflow.
+        # Повтор незмінного packet не виправить дані; не блокуємо ним потік.
+        logger.warning("Відхилено MQTT payload, несумісний зі схемою БД: topic=%s", topic)
+        _remember_command_result(status="rejected", topic=topic, device_uid=device_uid,
+                 reason="invalid_database_value")
+        return True
     except Exception:
         logger.exception(
             "Помилка command result: device_uid=%s command_id=%s",
@@ -632,7 +663,7 @@ def _handle_command_result(topic: str, payload_text: str) -> None:
             message_id=str(envelope.message_id),
             reason="internal_error",
         )
-        return
+        return False
 
     _remember_command_result(
         status="duplicate" if result.duplicate else "accepted",
@@ -659,6 +690,7 @@ def _handle_command_result(topic: str, payload_text: str) -> None:
         error_code=result.command.error_code,
         error_message=result.command.error_message,
     )
+    return True
 
 
 def _on_connect(client, userdata, connect_flags, reason_code, properties) -> None:
@@ -682,44 +714,91 @@ def _on_disconnect(client, userdata, disconnect_flags, reason_code, properties) 
         _connected = False
 
 
+class MQTTProcessingError(RuntimeError):
+    """Тимчасова помилка обробки: повідомлення не можна підтверджувати."""
+
+
+_stop_event = threading.Event()
+_network_thread: threading.Thread | None = None
+
+
 def _on_message(client, userdata, message) -> None:
     payload = message.payload.decode("utf-8", errors="replace")
     _remember_raw_message(message, payload)
+    processed = True
 
     if _extract_device_uid(message.topic, "telemetry") is not None:
-        _handle_telemetry(message.topic, payload)
-        return
+        processed = _handle_telemetry(message.topic, payload)
+    elif _extract_device_uid(message.topic, "heartbeat") is not None:
+        processed = _handle_heartbeat(message.topic, payload)
+    elif _extract_command_event_uid(message.topic, "ack") is not None:
+        processed = _handle_command_ack(message.topic, payload)
+    elif _extract_command_event_uid(message.topic, "result") is not None:
+        processed = _handle_command_result(message.topic, payload)
 
-    if _extract_device_uid(message.topic, "heartbeat") is not None:
-        _handle_heartbeat(message.topic, payload)
-        return
-
-    if _extract_command_event_uid(message.topic, "ack") is not None:
-        _handle_command_ack(message.topic, payload)
-        return
-
-    if _extract_command_event_uid(message.topic, "result") is not None:
-        _handle_command_result(message.topic, payload)
+    if not processed:
+        # Вихід із network loop запускає reconnect з тією самою MQTT session.
+        # Брокер повторить непідтверджений QoS 1 packet після відновлення.
+        raise MQTTProcessingError("MQTT message processing must be retried")
+    if message.qos > 0:
+        client.ack(message.mid, message.qos)
 
 
 client = mqtt.Client(
     callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
     client_id=MQTT_CLIENT_ID,
+    clean_session=False,
+    manual_ack=True,
 )
 client.on_connect = _on_connect
 client.on_disconnect = _on_disconnect
 client.on_message = _on_message
 
 
+def _mqtt_loop() -> None:
+    """Один network thread: commit перед ACK, reconnect після transient error."""
+
+    global _connected
+    while not _stop_event.is_set():
+        try:
+            client.loop_forever(retry_first_connection=True)
+        except Exception:
+            logger.exception("MQTT processing interrupted; pending QoS 1 will be redelivered")
+        if _stop_event.is_set():
+            break
+        with _lock:
+            _connected = False
+        delay = 1.0
+        while not _stop_event.wait(delay):
+            try:
+                client.reconnect()
+                break
+            except OSError:
+                logger.warning("MQTT reconnect failed; retrying", exc_info=True)
+                delay = min(delay * 2, 30)
+
+
 def start_mqtt() -> None:
+    global _network_thread
+    if _network_thread is not None and _network_thread.is_alive():
+        return
+    _stop_event.clear()
     client.reconnect_delay_set(min_delay=1, max_delay=30)
     client.connect_async(MQTT_HOST, MQTT_PORT, keepalive=30)
-    client.loop_start()
+    _network_thread = threading.Thread(target=_mqtt_loop, name="techbaza-mqtt", daemon=True)
+    _network_thread.start()
 
 
 def stop_mqtt() -> None:
+    global _network_thread, _connected
+    _stop_event.set()
     client.disconnect()
-    client.loop_stop()
+    if _network_thread is not None:
+        _network_thread.join(timeout=5)
+        if not _network_thread.is_alive():
+            _network_thread = None
+    with _lock:
+        _connected = False
 
 
 def mqtt_status() -> dict[str, Any]:
@@ -779,3 +858,4 @@ def last_command_result_result() -> dict[str, Any] | None:
             if _last_command_result is not None
             else None
         )
+

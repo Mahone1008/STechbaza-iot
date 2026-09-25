@@ -31,6 +31,13 @@ class DeviceRepository:
     def get(self, device_id: uuid.UUID) -> Device | None:
         return self._session.get(Device, device_id)
 
+    def lock_id(self, device_id: uuid.UUID) -> uuid.UUID | None:
+        """Спільне блокування для змін конфігурації та приймання телеметрії."""
+
+        return self._session.scalar(
+            select(Device.id).where(Device.id == device_id).with_for_update()
+        )
+
     def get_by_uid(self, uid: str) -> Device | None:
         statement = select(Device).where(Device.uid == uid)
         return self._session.scalar(statement)

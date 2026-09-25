@@ -7,7 +7,7 @@ from app.models.organization_membership import OrganizationMembership
 from app.repositories.memberships import MembershipRepository
 from app.repositories.users import UserRepository
 from app.schemas.membership import MembershipCreate, MembershipUpdate
-from app.security.roles import OrganizationRole
+from app.security.roles import OrganizationRole, Permission, role_has_permission
 
 
 class MembershipAlreadyExistsError(Exception):
@@ -30,6 +30,10 @@ class MembershipLastOwnerError(Exception):
     """Не можна прибрати останнього активного owner."""
 
 
+class MembershipPermissionError(Exception):
+    """Доступ відкликано до отримання блокування організації."""
+
+
 class MembershipService:
     """Бізнес-правила керування membership без privilege escalation."""
 
@@ -43,6 +47,18 @@ class MembershipService:
         organization_id: uuid.UUID,
     ) -> list[OrganizationMembership]:
         return self._memberships.list_for_organization(organization_id)
+
+    def _lock_and_authorize(
+        self, organization_id: uuid.UUID, actor_user_id: uuid.UUID,
+        actor_is_superadmin: bool,
+    ) -> None:
+        if self._memberships.lock_organization(organization_id) is None:
+            raise MembershipNotFoundError
+        if actor_is_superadmin:
+            return
+        actor = self._memberships.get_active(actor_user_id, organization_id)
+        if actor is None or not role_has_permission(actor.role, Permission.MEMBERSHIP_MANAGE):
+            raise MembershipPermissionError
 
     def _actor_is_owner(
         self,
@@ -71,6 +87,7 @@ class MembershipService:
         actor_user_id: uuid.UUID,
         actor_is_superadmin: bool,
     ) -> OrganizationMembership:
+        self._lock_and_authorize(organization_id, actor_user_id, actor_is_superadmin)
         user = self._users.get(payload.user_id)
         if user is None or not user.is_active:
             raise MembershipUserNotFoundError
@@ -118,6 +135,7 @@ class MembershipService:
         actor_user_id: uuid.UUID,
         actor_is_superadmin: bool,
     ) -> OrganizationMembership:
+        self._lock_and_authorize(organization_id, actor_user_id, actor_is_superadmin)
         membership = self._memberships.get_for_organization(
             membership_id,
             organization_id,

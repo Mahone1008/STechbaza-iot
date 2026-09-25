@@ -1,6 +1,8 @@
 import uuid
 
-from sqlalchemy import select
+from datetime import datetime, timezone
+
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.models.command import DeviceCommand
@@ -29,6 +31,7 @@ class CommandRepository:
             select(DeviceCommand)
             .where(DeviceCommand.id == command_id)
             .with_for_update()
+            .execution_options(populate_existing=True)
         )
         return self._session.scalar(statement)
 
@@ -39,8 +42,20 @@ class CommandRepository:
     ) -> list[uuid.UUID]:
         statement = (
             select(DeviceCommand.id)
-            .where(DeviceCommand.status.in_(("queued", "published")))
-            .order_by(DeviceCommand.expires_at.asc(), DeviceCommand.created_at.asc())
+            .where(or_(
+                DeviceCommand.status.in_(("queued", "published")),
+                and_(
+                    DeviceCommand.status == "acknowledged",
+                    or_(
+                        DeviceCommand.result_deadline_at <= datetime.now(timezone.utc),
+                        DeviceCommand.result_deadline_at.is_(None),
+                    ),
+                ),
+            ))
+            .order_by(
+                func.coalesce(DeviceCommand.result_deadline_at, DeviceCommand.expires_at),
+                DeviceCommand.created_at.asc(),
+            )
             .limit(limit)
         )
         return list(self._session.scalars(statement))

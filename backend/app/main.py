@@ -1,11 +1,12 @@
 from contextlib import asynccontextmanager
 from typing import Any
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.api.v1.router import api_v1_router
 from app.db import check_database
+from app.security.diagnostics import require_diagnostics_access
 from app.mqtt_client import (
     last_command_ack_result,
     last_command_publish_result,
@@ -42,7 +43,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="TechBaza Backend",
-    version="0.29.0",
+    version="0.30.0",
     description="Backend API платформи TechBaza IoT Pump Control",
     lifespan=lifespan,
 )
@@ -55,11 +56,11 @@ def health() -> dict[str, str]:
     return {
         "status": "ok",
         "service": "techbaza-backend",
-        "version": "0.29.0",
+        "version": "0.30.0",
     }
 
 
-@app.get("/health/db")
+@app.get("/health/db", dependencies=[Depends(require_diagnostics_access)])
 def database_health() -> dict[str, object]:
     try:
         database = check_database()
@@ -75,7 +76,7 @@ def database_health() -> dict[str, object]:
     }
 
 
-@app.get("/health/mqtt")
+@app.get("/health/mqtt", dependencies=[Depends(require_diagnostics_access)])
 def mqtt_health() -> dict[str, Any]:
     status = mqtt_status()
 
@@ -94,7 +95,7 @@ def mqtt_health() -> dict[str, Any]:
     }
 
 
-@app.get("/mqtt/last")
+@app.get("/mqtt/last", dependencies=[Depends(require_diagnostics_access)])
 def mqtt_last_message() -> dict[str, Any]:
     return {
         "status": "ok",
@@ -102,7 +103,7 @@ def mqtt_last_message() -> dict[str, Any]:
     }
 
 
-@app.get("/mqtt/ingestion/last")
+@app.get("/mqtt/ingestion/last", dependencies=[Depends(require_diagnostics_access)])
 def mqtt_last_ingestion() -> dict[str, Any]:
     return {
         "status": "ok",
@@ -110,7 +111,7 @@ def mqtt_last_ingestion() -> dict[str, Any]:
     }
 
 
-@app.get("/mqtt/heartbeat/last")
+@app.get("/mqtt/heartbeat/last", dependencies=[Depends(require_diagnostics_access)])
 def mqtt_last_heartbeat() -> dict[str, Any]:
     return {
         "status": "ok",
@@ -118,7 +119,7 @@ def mqtt_last_heartbeat() -> dict[str, Any]:
     }
 
 
-@app.get("/mqtt/command/last")
+@app.get("/mqtt/command/last", dependencies=[Depends(require_diagnostics_access)])
 def mqtt_last_command_publish() -> dict[str, Any]:
     return {
         "status": "ok",
@@ -126,7 +127,7 @@ def mqtt_last_command_publish() -> dict[str, Any]:
     }
 
 
-@app.get("/mqtt/command/ack/last")
+@app.get("/mqtt/command/ack/last", dependencies=[Depends(require_diagnostics_access)])
 def mqtt_last_command_ack() -> dict[str, Any]:
     return {
         "status": "ok",
@@ -134,7 +135,7 @@ def mqtt_last_command_ack() -> dict[str, Any]:
     }
 
 
-@app.get("/mqtt/command/result/last")
+@app.get("/mqtt/command/result/last", dependencies=[Depends(require_diagnostics_access)])
 def mqtt_last_command_result() -> dict[str, Any]:
     return {
         "status": "ok",
@@ -142,7 +143,7 @@ def mqtt_last_command_result() -> dict[str, Any]:
     }
 
 
-@app.get("/command/reliability/status")
+@app.get("/command/reliability/status", dependencies=[Depends(require_diagnostics_access)])
 def command_reliability() -> dict[str, Any]:
     return {
         "status": "ok",
@@ -150,9 +151,10 @@ def command_reliability() -> dict[str, Any]:
     }
 
 
-@app.get("/system/alarms/status")
+@app.get("/system/alarms/status", dependencies=[Depends(require_diagnostics_access)])
 def system_alarms() -> dict[str, Any]:
     return {
         "status": "ok",
         "worker": system_alarm_status(),
     }
+

@@ -128,8 +128,10 @@ class CommandResultService:
         if command.status == "expired":
             raise CommandResultExpiredError
 
-        if command.status not in {"published", "acknowledged"}:
+        if command.status not in {"published", "acknowledged", "result_unknown"}:
             raise CommandResultInvalidTransitionError(command.status)
+
+        was_unknown = command.status == "result_unknown"
 
         if command.acknowledged_at is None:
             command.acknowledged_at = current_time
@@ -141,6 +143,11 @@ class CommandResultService:
         command.error_message = payload.error_message
 
         try:
+            if was_unknown:
+                self._system_alarms.resolve_result_timeout(
+                    command=command, occurred_at=current_time,
+                    source_message_id=payload.message_id,
+                )
             self._system_alarms.record_command_outcome(
                 command=command,
                 occurred_at=current_time,

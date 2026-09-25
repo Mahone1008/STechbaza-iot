@@ -6,7 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 class NumericAlarmRuleConfig(BaseModel):
     """Конфігурація одного числового telemetry-rule."""
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
 
     rule_key: str = Field(
         min_length=3,

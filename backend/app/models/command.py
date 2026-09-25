@@ -33,6 +33,7 @@ class DeviceCommand(TimestampMixin, Base):
             "status",
             "expires_at",
         ),
+        Index("ix_device_commands_status_result_deadline", "status", "result_deadline_at"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -137,6 +138,12 @@ class DeviceCommand(TimestampMixin, Base):
     acknowledged_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
+    )
+    result_deadline_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True,
+    )
+    result_timed_out_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True,
     )
     completed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),

@@ -1,5 +1,7 @@
 # Command Reliability v1
 
+Актуалізовано для backend **0.30.0**. Деталі виправлень і перевірок: [окремий журнал](hardening-2026-09-25.md).
+
 ## Мета
 
 Операція 5 робить Remote Command Core стійким до:
@@ -95,7 +97,7 @@ error_code = command_expired
 status = acknowledged
 ```
 
-command уже була прийнята вчасно, тому її локальне виконання може завершитися пізніше.
+command уже була прийнята вчасно. Очікування Result має окремий `result_deadline_at` (типово 120 секунд після ACK, `COMMAND_RESULT_TIMEOUT_SECONDS`). Після нього worker записує `result_unknown` та Alarm; автоматичного повтору команди немає. Пізній Result тієї самої команди приймається і закриває її timeout Alarm.
 
 Edge-контролер також зобов'язаний перевіряти `expires_at` до початку небезпечної фізичної дії.
 
@@ -123,7 +125,7 @@ Result може бути прийнятий напряму з `published`, як�
 
 ## Row-level locking
 
-Command lifecycle transitions використовують PostgreSQL row lock.
+Command lifecycle transitions використовують PostgreSQL row lock та `populate_existing=True`, щоб уже завантажений ORM-об'єкт отримав актуальний стан.
 
 Це серіалізує конкурентні події:
 
@@ -160,13 +162,16 @@ published
 - expire due commands;
 - publish queued commands, якщо Device online;
 - retry published commands без ACK;
-- не чіпає acknowledged/succeeded/failed.
+- переводить acknowledged з минулим result deadline у result_unknown;
+- не публікує повторно acknowledged/result_unknown/succeeded/failed.
 
 Diagnostics:
 
 ```text
 GET /command/reliability/status
 ```
+
+З backend 0.30.0 глобальна діагностика потребує Bearer token користувача з platform role `superadmin`.
 
 ## Production note
 
@@ -175,3 +180,4 @@ GET /command/reliability/status
 Для production horizontal scaling цей механізм треба винести у dedicated worker/outbox architecture або додати distributed coordination.
 
 Це свідомо зафіксоване обмеження, а не прихована залежність.
+

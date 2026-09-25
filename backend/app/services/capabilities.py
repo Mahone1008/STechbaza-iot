@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.models.capability import Capability, DeviceCapability
 from app.repositories.capabilities import CapabilityRepository
 from app.repositories.devices import DeviceRepository
+from app.schemas.alarm_rule import parse_alarm_rules
 from app.schemas.capability import (
     CapabilityCreate,
     DeviceCapabilityAssign,
@@ -27,6 +28,10 @@ class ParentDeviceNotFoundError(Exception):
 
 class DeviceCapabilityAlreadyExistsError(Exception):
     """Capability уже прив'язаний до цього пристрою."""
+
+
+class DeviceAlarmRulesConflictError(Exception):
+    """Активні правила різних capabilities мають однаковий ключ."""
 
 
 class CapabilityService:
@@ -71,7 +76,7 @@ class CapabilityService:
         capability_id: uuid.UUID,
         payload: DeviceCapabilityAssign,
     ) -> DeviceCapability:
-        if self._devices.get(device_id) is None:
+        if self._devices.lock_id(device_id) is None:
             raise ParentDeviceNotFoundError
 
         if self._capabilities.get(capability_id) is None:
@@ -79,6 +84,10 @@ class CapabilityService:
 
         if self._capabilities.get_assignment(device_id, capability_id) is not None:
             raise DeviceCapabilityAlreadyExistsError
+
+        self._validate_device_rule_keys(
+            device_id, capability_id, payload.is_enabled, payload.config
+        )
 
         assignment = DeviceCapability(
             device_id=device_id,
@@ -107,7 +116,7 @@ class CapabilityService:
         capability_id: uuid.UUID,
         payload: DeviceCapabilityUpdate,
     ) -> DeviceCapability:
-        if self._devices.get(device_id) is None:
+        if self._devices.lock_id(device_id) is None:
             raise ParentDeviceNotFoundError
 
         assignment = self._capabilities.get_assignment(
@@ -116,6 +125,13 @@ class CapabilityService:
         )
         if assignment is None:
             raise CapabilityNotFoundError
+
+        self._validate_device_rule_keys(
+            device_id,
+            capability_id,
+            payload.is_enabled if payload.is_enabled is not None else assignment.is_enabled,
+            payload.config if payload.config is not None else assignment.config,
+        )
 
         if payload.is_enabled is not None:
             assignment.is_enabled = payload.is_enabled
@@ -132,3 +148,22 @@ class CapabilityService:
         )
         assert result is not None
         return result
+
+    def _validate_device_rule_keys(
+        self, device_id: uuid.UUID, capability_id: uuid.UUID,
+        is_enabled: bool, config: dict,
+    ) -> None:
+        """Перевірка під Device lock відхиляє конфлікт ще до commit."""
+
+        if not is_enabled:
+            return
+        keys = {rule.rule_key for rule in parse_alarm_rules(config) if rule.enabled}
+        for assignment in self._capabilities.get_enabled_assignments_for_device(device_id):
+            if assignment.capability_id == capability_id:
+                continue
+            other = {
+                rule.rule_key for rule in parse_alarm_rules(assignment.config)
+                if rule.enabled
+            }
+            if keys & other:
+                raise DeviceAlarmRulesConflictError

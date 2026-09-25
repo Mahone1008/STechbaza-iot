@@ -23,6 +23,7 @@ from app.services.capabilities import (
     CapabilityNotFoundError,
     CapabilityService,
     DeviceCapabilityAlreadyExistsError,
+    DeviceAlarmRulesConflictError,
     ParentDeviceNotFoundError,
 )
 
@@ -149,6 +150,11 @@ def assign_capability(
             status_code=status.HTTP_409_CONFLICT,
             detail="Capability уже прив'язаний до цього пристрою",
         ) from exc
+    except DeviceAlarmRulesConflictError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Ключ активного правила вже використано іншою capability пристрою",
+        ) from exc
 
     return DeviceCapabilityRead(
         id=item.id,
@@ -195,6 +201,11 @@ def update_device_capability(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Capability assignment не знайдено",
+        ) from exc
+    except DeviceAlarmRulesConflictError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Ключ активного правила вже використано іншою capability пристрою",
         ) from exc
 
     return DeviceCapabilityRead(

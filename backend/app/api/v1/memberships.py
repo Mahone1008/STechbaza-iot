@@ -22,6 +22,7 @@ from app.services.memberships import (
     MembershipLastOwnerError,
     MembershipNotFoundError,
     MembershipOwnerProtectedError,
+    MembershipPermissionError,
     MembershipService,
     MembershipUserNotFoundError,
 )
@@ -91,6 +92,10 @@ def create_membership(
             actor_user_id=current.user.id,
             actor_is_superadmin=access.is_superadmin,
         )
+    except MembershipNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Ресурс не знайдено") from exc
+    except MembershipPermissionError as exc:
+        raise HTTPException(status_code=403, detail="Недостатньо прав для цієї дії") from exc
     except MembershipUserNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -150,5 +155,7 @@ def update_membership(
             status_code=status.HTTP_409_CONFLICT,
             detail="Не можна прибрати останнього активного owner організації",
         ) from exc
+    except MembershipPermissionError as exc:
+        raise HTTPException(status_code=403, detail="Недостатньо прав для цієї дії") from exc
 
     return _read(item)

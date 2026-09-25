@@ -233,6 +233,53 @@ class SystemAlarmService:
         )
         return "new_session"
 
+    def record_result_timeout(
+        self, *, command: DeviceCommand, occurred_at: datetime,
+    ) -> None:
+        """Невідомий результат не означає фізичну невдачу і не запускає retry."""
+
+        device = self._alarms.lock_device(command.device_id)
+        if device is None:
+            return
+        key = f"command.result_unknown.{command.id}"
+        if self._alarms.get_active_for_update(device.id, key) is not None:
+            return
+        event = self._event(
+            device_id=device.id, event_type="command.result_unknown",
+            severity="warning", source="command",
+            title="Результат виконання команди невідомий",
+            occurred_at=_utc(occurred_at),
+            data={"command_id": str(command.id), "command_type": command.command_type},
+        )
+        self._lifecycle.raise_alarm(
+            device_id=device.id, alarm_key=key, alarm_type="command.result_unknown",
+            severity="warning", title=event.title, occurred_at=_utc(occurred_at),
+            event_id=event.id, context=event.data, commit=False,
+        )
+
+    def resolve_result_timeout(
+        self, *, command: DeviceCommand, occurred_at: datetime,
+        source_message_id: uuid.UUID | None = None,
+    ) -> None:
+        """Пізній Result закриває лише очікування цієї конкретної команди."""
+
+        device = self._alarms.lock_device(command.device_id)
+        if device is None:
+            return
+        key = f"command.result_unknown.{command.id}"
+        if self._alarms.get_active_for_update(device.id, key) is None:
+            return
+        event = self._event(
+            device_id=device.id, event_type="command.result_received",
+            severity="info", source="command", title="Отримано результат команди",
+            occurred_at=_utc(occurred_at), source_message_id=source_message_id,
+            data={"command_id": str(command.id), "status": command.status},
+        )
+        self._lifecycle.resolve_alarm(
+            device_id=device.id, alarm_key=key, occurred_at=_utc(occurred_at),
+            event_id=event.id, reason="Отримано пізній результат команди", commit=False,
+        )
+
     def record_command_outcome(
         self,
         *,

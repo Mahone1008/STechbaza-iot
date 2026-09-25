@@ -12,6 +12,7 @@ from app.repositories.devices import DeviceRepository
 from app.schemas.command import CommandEnvelope
 from app.services.device_presence import DevicePresenceService
 from app.services.system_alarms import SystemAlarmService
+from app.services.command_config import COMMAND_RESULT_TIMEOUT_SECONDS
 
 
 COMMAND_RETRY_INTERVAL_SECONDS = int(
@@ -55,6 +56,28 @@ class CommandDispatchService:
             raise CommandDispatchNotFoundError
 
         current_time = now or datetime.now(timezone.utc)
+
+        if command.status == "acknowledged":
+            if command.result_deadline_at is None:
+                command.result_deadline_at = (
+                    command.acknowledged_at or command.published_at or command.created_at
+                ) + timedelta(seconds=COMMAND_RESULT_TIMEOUT_SECONDS)
+            if command.result_deadline_at <= current_time:
+                command.status = "result_unknown"
+                command.result_timed_out_at = current_time
+                command.error_code = "command_result_timeout"
+                command.error_message = "Пристрій прийняв команду, але результат не надійшов"
+                try:
+                    self._system_alarms.record_result_timeout(
+                        command=command, occurred_at=current_time,
+                    )
+                    self._session.commit()
+                except Exception:
+                    self._session.rollback()
+                    raise
+                return CommandDispatchResult(command, False, "result_unknown")
+            self._session.commit()
+            return CommandDispatchResult(command, False, "awaiting_result")
 
         if command.status not in {"queued", "published"}:
             return CommandDispatchResult(

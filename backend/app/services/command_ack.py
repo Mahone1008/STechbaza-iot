@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.orm import Session
 
@@ -8,6 +8,7 @@ from app.repositories.commands import CommandRepository
 from app.repositories.devices import DeviceRepository
 from app.schemas.command_ack import CommandAckEnvelope
 from app.services.system_alarms import SystemAlarmService
+from app.services.command_config import COMMAND_RESULT_TIMEOUT_SECONDS
 
 
 @dataclass(frozen=True)
@@ -72,7 +73,7 @@ class CommandAckService:
             raise CommandAckDeviceMismatchError
 
         # Повторний ACK після вже прийнятого ACK/Result є idempotent.
-        if command.status in {"acknowledged", "succeeded", "failed"}:
+        if command.status in {"acknowledged", "result_unknown", "succeeded", "failed"}:
             return CommandAckResult(
                 command=command,
                 duplicate=True,
@@ -108,6 +109,7 @@ class CommandAckService:
 
         command.status = "acknowledged"
         command.acknowledged_at = current_time
+        command.result_deadline_at = current_time + timedelta(seconds=COMMAND_RESULT_TIMEOUT_SECONDS)
 
         self._session.commit()
         self._session.refresh(command)

@@ -92,6 +92,8 @@ class DeviceCommandRead(BaseModel):
     last_publish_attempt_at: datetime | None
     last_publish_error: str | None
     acknowledged_at: datetime | None
+    result_deadline_at: datetime | None
+    result_timed_out_at: datetime | None
     completed_at: datetime | None
     result: dict[str, Any]
     error_code: str | None
