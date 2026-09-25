@@ -1,7 +1,7 @@
 import uuid
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, CheckConstraint, ForeignKey, UniqueConstraint
+from sqlalchemy import Boolean, CheckConstraint, ForeignKey, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -48,6 +48,7 @@ class OrganizationMembership(TimestampMixin, Base):
         index=True,
     )
     role: Mapped[str] = mapped_column(
+        String(32),
         nullable=False,
         default="viewer",
         server_default="viewer",
