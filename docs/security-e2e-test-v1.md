@@ -57,7 +57,7 @@ old JWT is rejected after logout
 foreign tenant remains hidden
 ```
 
-Поточний статус: verification in progress.
+Поточний статус: PASSED.
 
 
 ## Verification result
