@@ -66,7 +66,7 @@ class CommandEnvelope(BaseModel):
 
 
 class DeviceCommandRead(BaseModel):
-    """Публічне представлення команди та її життєвого циклу."""
+    """Публічне представлення команди, lifecycle та actor audit."""
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -78,6 +78,15 @@ class DeviceCommandRead(BaseModel):
     status: str
     ttl_seconds: int
     expires_at: datetime
+
+    actor_user_id: uuid.UUID | None
+    actor_auth_session_id: uuid.UUID | None
+    actor_organization_id: uuid.UUID | None
+    actor_platform_role: str | None
+    actor_organization_role: str | None
+    actor_email: str | None
+    actor_display_name: str | None
+
     published_at: datetime | None
     publish_attempts: int
     last_publish_attempt_at: datetime | None
