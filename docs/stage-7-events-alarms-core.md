@@ -1,7 +1,7 @@
 # Етап 7 — Events & Alarms Core
 
-**Статус:** у роботі (операції 1–4 локально перевірено, 5 підготовлено до перевірки)  
-**Backend:** 0.28.0
+**Статус:** у роботі (операції 1–5 перевірено, 6 очікує локальної перевірки)  
+**Backend:** 0.29.0
 
 ## Мета
 
@@ -56,8 +56,8 @@ alarm: warning | critical
 Операція 2 — Events API + tenant-scoped read model        ✅ завершено
 Операція 3 — Alarm Lifecycle Service                       ✅ завершено
 Операція 4 — Rule Engine + debounce / hysteresis / anti-spam ✅ перевірено локально
-Операція 5 — System alarms: offline / reboot / command failure ⏳ локальна перевірка
-Операція 6 — Acknowledge + actor audit
+Операція 5 — System alarms: offline / reboot / command failure ✅ перевірено локально
+Операція 6 — Acknowledge + actor audit ⏳ локальна перевірка
 Операція 7 — Notifications foundation + final E2E
 ```
 
@@ -423,5 +423,28 @@ command failure — після успішної новішої команди т
 фіксуються атомарно. Деталі та відтворюваний локальний тест:
 [System Alarms v1](system-alarms-v1.md).
 
-Операція 5 закривається після перевірки міграції, тестового сценарію
-та статусу фонової перевірки на локальному Docker.
+Локально підтверджено: міграція `20260925_0013 (head)`, backend `0.28.0`,
+працює фоновий цикл без помилок; `system_alarm_check` пройшов сценарії
+відключення/відновлення, reboot, команд та підтвердив відкат тестових даних.
+
+Операція 5 — завершено.
+
+## Операція 6 — Acknowledge + actor audit
+
+Backend `0.29.0`. `POST /api/v1/alarms/{alarm_id}/acknowledge`
+позначає активну тривогу як переглянуту оператором. Лише перше підтвердження
+заповнює `acknowledged_at` і знімок автора в Alarm та додає один
+`acknowledged` transition з user/session/organization/role/email/name.
+Повторний запит повертає вже підтверджений incident без зміни автора або
+дублювання transition. Для вирішеної без підтвердження тривоги — 409;
+для чужого й відсутнього ресурсу — однаковий 404.
+
+Permission `alarm.acknowledge`: owner/admin/operator/service. Viewer має
+`alarm.read`, але підтвердження отримує 403. Device lock серіалізує
+користувацьке підтвердження з фоновим resolve/repeat. Нова міграція не потрібна:
+поля та тип transition вже існують з операції 1.
+
+Перевірка на Docker: `python -m app.tools.alarm_ack_check`. Вона перевіряє
+RBAC, tenant, повтор, immutable actor audit, resolved 409 і відкочує всю
+тестову транзакцію. До результату локальної перевірки операція 6 відкрита.
+

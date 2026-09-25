@@ -1,7 +1,7 @@
 import uuid
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.db import get_db_session
@@ -13,6 +13,12 @@ from app.security.current_user import (
     get_current_user_context,
 )
 from app.security.roles import Permission
+from app.services.alarms import (
+    AlarmActorSnapshot,
+    AlarmAlreadyResolvedError,
+    AlarmLifecycleService,
+    AlarmNotFoundError,
+)
 
 router = APIRouter(tags=["alarms"])
 
@@ -78,6 +84,50 @@ def get_alarm(
         Permission.ALARM_READ,
     )
     return DeviceAlarmRead.model_validate(alarm)
+
+
+@router.post(
+    "/alarms/{alarm_id}/acknowledge",
+    response_model=DeviceAlarmRead,
+)
+def acknowledge_alarm(
+    alarm_id: uuid.UUID,
+    session: DbSession,
+    current: CurrentUser,
+) -> DeviceAlarmRead:
+    """Підтвердити видимий активний Alarm зі збереженням авторства."""
+
+    access = AccessControl(session, current)
+    alarm = access.require_alarm(alarm_id, Permission.ALARM_ACKNOWLEDGE)
+    device_access = access.require_device_context(
+        alarm.device_id,
+        Permission.ALARM_ACKNOWLEDGE,
+    )
+    actor = AlarmActorSnapshot(
+        user_id=current.user.id,
+        auth_session_id=current.auth_session.id,
+        organization_id=device_access.organization_id,
+        organization_role=device_access.organization_role,
+        email=current.user.email,
+        display_name=current.user.display_name,
+    )
+    try:
+        confirmed = AlarmLifecycleService(session).acknowledge_alarm(
+            alarm_id=alarm_id,
+            device_id=alarm.device_id,
+            actor=actor,
+        )
+    except AlarmNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Ресурс не знайдено",
+        ) from exc
+    except AlarmAlreadyResolvedError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Вирішену тривогу не можна підтвердити",
+        ) from exc
+    return DeviceAlarmRead.model_validate(confirmed)
 
 
 @router.get(

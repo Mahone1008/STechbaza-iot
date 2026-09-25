@@ -39,6 +39,15 @@ class AlarmRepository:
     def get(self, alarm_id: uuid.UUID) -> DeviceAlarm | None:
         return self._session.get(DeviceAlarm, alarm_id)
 
+    def get_for_update(self, alarm_id: uuid.UUID) -> DeviceAlarm | None:
+        statement = (
+            select(DeviceAlarm)
+            .where(DeviceAlarm.id == alarm_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        return self._session.scalar(statement)
+
     def get_active_for_update(
         self,
         device_id: uuid.UUID,

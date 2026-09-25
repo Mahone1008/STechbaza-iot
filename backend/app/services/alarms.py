@@ -22,6 +22,26 @@ class AlarmEventDeviceMismatchError(Exception):
     """Event належить іншому Device."""
 
 
+class AlarmNotFoundError(Exception):
+    """Alarm було видалено перед зміною стану."""
+
+
+class AlarmAlreadyResolvedError(Exception):
+    """Вирішений incident більше не можна підтвердити."""
+
+
+@dataclass(frozen=True, slots=True)
+class AlarmActorSnapshot:
+    """Identity/RBAC на момент підтвердження Alarm."""
+
+    user_id: uuid.UUID
+    auth_session_id: uuid.UUID
+    organization_id: uuid.UUID
+    organization_role: str | None
+    email: str
+    display_name: str
+
+
 class AlarmInvalidSeverityError(Exception):
     """Alarm severity не входить до warning/critical."""
 
@@ -114,6 +134,61 @@ class AlarmLifecycleService:
             transition_id=transition.id,
             duplicate_event=True,
         )
+
+    def acknowledge_alarm(
+        self,
+        *,
+        alarm_id: uuid.UUID,
+        device_id: uuid.UUID,
+        actor: AlarmActorSnapshot,
+        occurred_at: datetime | None = None,
+    ) -> DeviceAlarm:
+        """Атомарно зафіксувати перше підтвердження активного incident.
+
+        Device lock упорядковує підтвердження з rule engine та resolution.
+        Повторний запит не змінює початковий actor snapshot.
+        """
+
+        try:
+            self._lock_device(device_id)
+            alarm = self._alarms.get_for_update(alarm_id)
+            if alarm is None or alarm.device_id != device_id:
+                raise AlarmNotFoundError
+
+            if alarm.acknowledged_at is not None:
+                self._session.commit()
+                return alarm
+
+            if alarm.state != "active":
+                raise AlarmAlreadyResolvedError
+
+            now = _utc(occurred_at or datetime.now(timezone.utc))
+            alarm.acknowledged_at = now
+            alarm.acknowledged_by_user_id = actor.user_id
+            alarm.acknowledged_by_email = actor.email
+            alarm.acknowledged_by_display_name = actor.display_name
+            self._alarms.add_transition(
+                AlarmTransition(
+                    alarm_id=alarm.id,
+                    transition_type="acknowledged",
+                    from_state="active",
+                    to_state="active",
+                    occurred_at=now,
+                    actor_user_id=actor.user_id,
+                    actor_auth_session_id=actor.auth_session_id,
+                    actor_organization_id=actor.organization_id,
+                    actor_organization_role=actor.organization_role,
+                    actor_email=actor.email,
+                    actor_display_name=actor.display_name,
+                    reason="operator_acknowledged",
+                    data={},
+                )
+            )
+            self._session.commit()
+            return alarm
+        except Exception:
+            self._session.rollback()
+            raise
 
     def raise_alarm(
         self,
