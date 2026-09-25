@@ -15,7 +15,7 @@ class NumericAlarmRuleConfig(BaseModel):
     )
     alarm_type: str = Field(
         min_length=3,
-        max_length=96,
+        max_length=80,
         pattern=r"^[a-z0-9]+(?:[._-][a-z0-9]+)*$",
     )
     metric: str = Field(
@@ -29,7 +29,7 @@ class NumericAlarmRuleConfig(BaseModel):
     clear_threshold: float
     debounce_samples: int = Field(default=2, ge=1, le=100)
     severity: Literal["warning", "critical"]
-    title: str = Field(min_length=2, max_length=160)
+    title: str = Field(min_length=2, max_length=140)
     description: str | None = Field(default=None, max_length=1000)
     enabled: bool = True
 
