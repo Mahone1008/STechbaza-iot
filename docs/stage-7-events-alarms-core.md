@@ -477,7 +477,9 @@ Backend `0.31.0`, migration `20260925_0015`. Додано атомарну in-ap
 
 Вісім нових PostgreSQL/JWT/MQTT сценаріїв перевіряють повний ланцюжок,
 відкати, конкурентні операції, snapshot історії та ізоляцію організацій.
-CI також перевіряє downgrade/upgrade 0015 у тимчасовій базі.
+GitHub Actions [36140650684](https://github.com/Mahone1008/STechbaza-iot/actions/runs/36140650684)
+підтвердив усі **28 tests — OK** без пропусків та downgrade/upgrade 0015
+у тимчасовій базі.
 Команди локальної перевірки одним PowerShell-блоком і межі реалізації:
 [Notifications foundation v1](notifications-foundation-v1.md).
 
