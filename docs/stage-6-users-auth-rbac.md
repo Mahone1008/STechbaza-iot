@@ -288,3 +288,17 @@ Migration не потрібна.
 [RBAC + Multi-tenant Guards v1](rbac-multitenant-guards-v1.md)
 
 Поточна задача — локальна behavioral verification ролі `operator`, після чого tenant-isolation test з окремою Organization.
+
+
+### Verification Операції 4.1 — початок
+
+Локально підтверджено:
+
+```text
+backend 0.21.0 запускається стабільно                  ✅
+Organization list без membership → []                 ✅
+operator membership успішно призначено                ✅
+Organization list після membership → TechBaza Test Farm ✅
+```
+
+Далі перевіряється live role propagation через `/auth/me`, read access operator та deny на write permission.
