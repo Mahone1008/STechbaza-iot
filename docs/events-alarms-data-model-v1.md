@@ -194,3 +194,18 @@ Actor metadata у transition зберігається snapshot-ом, як і Com
 Data Model v1 ще не генерує alarms автоматично.
 
 Rule Engine, debounce, hysteresis, offline detector та acknowledge API реалізуються наступними операціями.
+
+## 9. Verification
+
+Data Model v1 локально перевірено.
+
+```text
+Alembic head = 20260925_0011                       ✅
+device_events created                              ✅
+device_alarms created                              ✅
+alarm_transitions created                          ✅
+invalid event severity rejected by CHECK           ✅
+duplicate active alarm rejected by partial UNIQUE  ✅
+```
+
+Статус Data Model v1: VERIFIED.
