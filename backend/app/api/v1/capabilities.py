@@ -11,6 +11,12 @@ from app.schemas.capability import (
     DeviceCapabilityAssign,
     DeviceCapabilityRead,
 )
+from app.security.authorization import AccessControl
+from app.security.current_user import (
+    CurrentUserContext,
+    get_current_user_context,
+)
+from app.security.roles import Permission, PlatformRole
 from app.services.capabilities import (
     CapabilityAlreadyExistsError,
     CapabilityNotFoundError,
@@ -22,14 +28,21 @@ from app.services.capabilities import (
 router = APIRouter(tags=["capabilities"])
 
 DbSession = Annotated[Session, Depends(get_db_session)]
+CurrentUser = Annotated[
+    CurrentUserContext,
+    Depends(get_current_user_context),
+]
 
 
 @router.get("/capabilities", response_model=list[CapabilityRead])
 def list_capabilities(
     session: DbSession,
+    current: CurrentUser,
     limit: Annotated[int, Query(ge=1, le=100)] = 100,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> list[CapabilityRead]:
+    # Каталог capability не містить tenant data, але endpoint вимагає login.
+    del current
     items = CapabilityService(session).list_catalog(limit=limit, offset=offset)
     return [CapabilityRead.model_validate(item) for item in items]
 
@@ -42,7 +55,13 @@ def list_capabilities(
 def create_capability(
     payload: CapabilityCreate,
     session: DbSession,
+    current: CurrentUser,
 ) -> CapabilityRead:
+    AccessControl(session, current).require_platform_role(
+        PlatformRole.SERVICE_ADMIN,
+        PlatformRole.SUPERADMIN,
+    )
+
     try:
         item = CapabilityService(session).create_catalog_item(payload)
     except CapabilityAlreadyExistsError as exc:
@@ -61,7 +80,13 @@ def create_capability(
 def list_device_capabilities(
     device_id: uuid.UUID,
     session: DbSession,
+    current: CurrentUser,
 ) -> list[DeviceCapabilityRead]:
+    AccessControl(session, current).require_device(
+        device_id,
+        Permission.CAPABILITY_READ,
+    )
+
     try:
         items = CapabilityService(session).list_for_device(device_id)
     except ParentDeviceNotFoundError as exc:
@@ -95,7 +120,13 @@ def assign_capability(
     capability_id: uuid.UUID,
     payload: DeviceCapabilityAssign,
     session: DbSession,
+    current: CurrentUser,
 ) -> DeviceCapabilityRead:
+    AccessControl(session, current).require_device(
+        device_id,
+        Permission.CAPABILITY_MANAGE,
+    )
+
     try:
         item = CapabilityService(session).assign_to_device(
             device_id,
