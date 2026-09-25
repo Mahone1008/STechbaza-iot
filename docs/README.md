@@ -34,6 +34,7 @@
 - [Етап 6 — Users, Authentication & RBAC (у роботі)](stage-6-users-auth-rbac.md)
 - [Identity & RBAC Foundation v1](identity-rbac-foundation-v1.md)
 - [Authentication Token Protocol v1](auth-token-v1.md)
+- [Current User / Session Context v1](current-user-context-v1.md)
 
 ## Запланований розвиток
 
