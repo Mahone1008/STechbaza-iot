@@ -765,3 +765,23 @@ Audit metadata читається окремим GET після створенн
 
 Наступний крок — 6.4 live role change та негайна зміна authorization
 без перевидачі JWT.
+
+
+### Security E2E verification — 6.4 live role change
+
+Локально підтверджено:
+
+```text
+stage6-admin@techbaza.dev → owner (backup owner)            ✅
+viewer-test@techbaza.dev → owner → viewer                   ✅
+той самий access JWT використано без re-login               ✅
+/auth/me одразу повертає role=viewer                        ✅
+той самий JWT → POST command                                ✅ deny / 403
+response: "Недостатньо прав для цієї дії"                   ✅
+```
+
+Це підтверджує live authorization: tenant role не кешується в access token як
+остаточне джерело прав. Кожний захищений request перевіряє актуальний membership
+state, тому downgrade набуває сили без перевидачі JWT.
+
+Наступний крок — 6.5 logout / auth session revoke та перевірка старого access token.
