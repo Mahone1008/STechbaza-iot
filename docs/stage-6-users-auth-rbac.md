@@ -744,6 +744,33 @@ credentials → auth session → tenant membership → RBAC → device read
 Наступний крок — 6.2 owner → command execute через той самий JWT.
 
 
+### Security E2E verification — 6.2 owner command execute
+
+Локально підтверджено:
+
+```text
+owner → POST command                                      ✅
+command_id = a4ceb69f-aae7-4f80-ae63-b318bcff9d16
+request_id = c31c73cd-6820-4dfe-9359-c39bd56fd175
+command_type = vfd.frequency.set
+frequency_hz = 44                                         ✅
+actor_user_id = 8fa4670a-f551-4faa-ab9a-273936f2ff22     ✅
+actor_auth_session_id = ebf1d3cc-53ec-42e3-8991-928d7f106a1b ✅
+actor_organization_id = 2b60bce4-0d34-43f7-a5ec-2e674e64684f ✅
+actor_platform_role = user                                ✅
+actor_organization_role = owner                           ✅
+actor_email = viewer-test@techbaza.dev                    ✅
+actor_display_name = Viewer Test                          ✅
+```
+
+`actor_auth_session_id` збігається з `/auth/me` для тієї самої login session.
+
+Наскрізний flow підтверджено:
+
+```text
+JWT → CurrentUserContext → tenant RBAC → command execute → actor audit snapshot
+```
+
 ### Security E2E verification — 6.3 persisted command audit
 
 Локально підтверджено через GET command:
