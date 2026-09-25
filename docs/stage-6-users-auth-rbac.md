@@ -599,3 +599,36 @@ Backend:
 створені до migration 0010, можуть мати `null` actor metadata.
 
 Поточна задача — локальна migration + behavioral verification.
+
+
+### Command Actor Audit verification — migration + первинний snapshot
+
+Локально підтверджено:
+
+```text
+migration 20260925_0010 applied                         ✅
+backend health version = 0.23.0                         ✅
+owner /auth/me context                                  ✅
+нова command створена                                   ✅
+actor_user_id = authenticated User                      ✅
+actor_auth_session_id = current auth session            ✅
+actor_organization_id = target Organization             ✅
+actor_platform_role = user                              ✅
+actor_organization_role = owner                         ✅
+actor_email snapshot                                    ✅
+actor_display_name snapshot                             ✅
+```
+
+Verification command:
+
+```text
+command_id = d1487cfc-5880-4877-aa41-e8cf35769386
+frequency_hz = 43
+actor_user_id = 66e74c79-0b0b-44ea-9fe1-8ee3f2d0bc3d
+actor_auth_session_id = dec16d91-c869-4b2c-83c7-0c7d2fb01d3d
+actor_organization_id = 2b60bce4-0d34-43f7-a5ec-2e674e64684f
+actor_organization_role = owner
+```
+
+Наступна перевірка — змінити поточну tenant-role User після створення command
+і підтвердити, що історичний actor snapshot у старій command не змінюється.
