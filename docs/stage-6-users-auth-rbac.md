@@ -719,3 +719,26 @@ stage6-admin@techbaza.dev → admin
 Organization              → TechBaza Test Farm
 Device                    → TB-ESP32-001
 ```
+
+
+### Security E2E verification — 6.1 owner login + device access
+
+Локально підтверджено:
+
+```text
+viewer-test@techbaza.dev login                            ✅
+platform_role = user                                     ✅
+tenant membership role = owner                           ✅
+auth session created                                     ✅
+owner → GET target Device                                ✅
+device uid = TB-ESP32-001                                ✅
+device_type = controller                                 ✅
+```
+
+Це підтверджує наскрізний flow:
+
+```text
+credentials → auth session → tenant membership → RBAC → device read
+```
+
+Наступний крок — 6.2 owner → command execute через той самий JWT.
