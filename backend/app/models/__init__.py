@@ -1,3 +1,4 @@
+from app.models.auth_session import AuthSession
 from app.models.capability import Capability, DeviceCapability
 from app.models.command import DeviceCommand
 from app.models.device import Device
@@ -8,6 +9,7 @@ from app.models.telemetry import DeviceState, TelemetryMessage
 from app.models.user import User
 
 __all__ = [
+    "AuthSession",
     "Capability",
     "Device",
     "DeviceCapability",
