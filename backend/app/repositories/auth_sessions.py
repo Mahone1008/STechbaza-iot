@@ -1,3 +1,5 @@
+import uuid
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -16,7 +18,7 @@ class AuthSessionRepository:
         self._session.refresh(auth_session)
         return auth_session
 
-    def get(self, auth_session_id) -> AuthSession | None:
+    def get(self, auth_session_id: uuid.UUID) -> AuthSession | None:
         return self._session.get(AuthSession, auth_session_id)
 
     def get_by_refresh_hash_for_update(
