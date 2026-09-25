@@ -495,3 +495,17 @@ privilege escalation через admin заблоковано                ✅
 ```
 
 Наступна перевірка — operator не повинен мати membership.read / membership.manage.
+
+
+### Membership Management verification — operator access denied
+
+Локально підтверджено:
+
+```text
+viewer-test@techbaza.dev → role=operator                  ✅
+/auth/me повертає operator                               ✅
+operator → GET organization memberships                  ✅ deny / 403
+response: "Недостатньо прав для цієї дії"                 ✅
+```
+
+Отже operator не має `membership.read` та не отримує доступ до адміністративного контуру Organization.
