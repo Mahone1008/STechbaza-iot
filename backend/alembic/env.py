@@ -5,11 +5,14 @@ from sqlalchemy import engine_from_config, pool
 
 from app.db import DATABASE_URL
 from app.models import (
+    AlarmTransition,
     AuthSession,
     Capability,
     Device,
     DeviceCapability,
     DeviceCommand,
+    DeviceAlarm,
+    DeviceEvent,
     DeviceState,
     Organization,
     OrganizationMembership,
