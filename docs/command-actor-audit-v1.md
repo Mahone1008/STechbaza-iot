@@ -143,3 +143,23 @@ actor email/display name snapshot                       ✅ expected
 role change після command не змінює старий audit        ✅ expected
 інший User + reused request_id → 409                    ✅ expected
 ```
+
+
+## Verification result
+
+Локально підтверджено:
+
+```text
+migration 0010 applied                                  ✅
+health version = 0.23.0                                 ✅
+owner command → full actor snapshot                     ✅
+auth session id збігається з /auth/me                   ✅
+tenant Organization id snapshot                        ✅
+platform role snapshot                                  ✅
+organization role snapshot                              ✅
+email/display name snapshot                             ✅
+role change не змінює старий actor audit                ✅
+інший User + reused request_id → conflict               ✅
+```
+
+Command Actor Audit v1 behavioral verification завершено.
