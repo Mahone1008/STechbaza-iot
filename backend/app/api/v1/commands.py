@@ -14,6 +14,7 @@ from app.security.current_user import (
 from app.security.roles import Permission
 from app.services.command_dispatch import CommandDispatchService
 from app.services.commands import (
+    CommandActorSnapshot,
     CommandCapabilityViolationError,
     CommandDeviceNotFoundError,
     CommandNotFoundError,
@@ -42,13 +43,28 @@ def create_command(
     session: DbSession,
     current: CurrentUser,
 ) -> DeviceCommandRead:
-    AccessControl(session, current).require_device(
+    access = AccessControl(session, current)
+    device_access = access.require_device_context(
         device_id,
         Permission.COMMAND_EXECUTE,
     )
 
+    actor = CommandActorSnapshot(
+        user_id=current.user.id,
+        auth_session_id=current.auth_session.id,
+        organization_id=device_access.organization_id,
+        platform_role=current.user.platform_role,
+        organization_role=device_access.organization_role,
+        email=current.user.email,
+        display_name=current.user.display_name,
+    )
+
     try:
-        command, created = CommandService(session).create(device_id, payload)
+        command, created = CommandService(session).create(
+            device_id,
+            payload,
+            actor=actor,
+        )
     except CommandDeviceNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -66,8 +82,8 @@ def create_command(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=(
-                "request_id уже використано для іншої команди або "
-                "іншого payload"
+                "request_id уже використано для іншої команди, "
+                "іншого payload або іншого actor"
             ),
         ) from exc
 
