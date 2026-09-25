@@ -16,6 +16,9 @@ class AuthSessionRepository:
         self._session.refresh(auth_session)
         return auth_session
 
+    def get(self, auth_session_id) -> AuthSession | None:
+        return self._session.get(AuthSession, auth_session_id)
+
     def get_by_refresh_hash_for_update(
         self,
         refresh_token_hash: str,
