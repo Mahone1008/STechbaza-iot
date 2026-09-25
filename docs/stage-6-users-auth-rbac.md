@@ -40,8 +40,8 @@ Audit
 
 ```text
 Операція 1 — Identity & Membership Foundation      ✅ завершено
-Операція 2 — Password Security + Token Auth         ← у роботі
-Операція 3 — Current User / Session Context
+Операція 2 — Password Security + Token Auth         ✅ завершено
+Операція 3 — Current User / Session Context          ← у роботі
 Операція 4 — RBAC + Multi-tenant Guards
 Операція 5 — Command Actor Audit
 Операція 6 — Security End-to-End Test
@@ -175,4 +175,27 @@ Backend:
 
 [Authentication Token Protocol v1](auth-token-v1.md)
 
-Поточна задача — застосувати migration та пройти login/refresh/logout verification.
+Verification завершено.
+
+
+## Verification Операції 2
+
+Локально підтверджено:
+
+```text
+Argon2id password hash у PostgreSQL                  ✅
+raw password у PostgreSQL відсутній                  ✅
+Login → access + refresh token                       ✅
+access TTL = 900 s                                   ✅
+refresh TTL = 30 days                                ✅
+у БД зберігається SHA-256(refresh_token), 64 hex     ✅
+refresh rotation                                     ✅
+старий refresh token після rotation → 401            ✅
+absolute refresh expiry не продовжується             ✅
+logout → revoked_at                                  ✅
+refresh після logout → 401                           ✅
+wrong password → generic invalid-credentials error   ✅
+unknown email → та сама generic error                ✅
+```
+
+Операція 2 — Password Security + Token Auth завершена.
