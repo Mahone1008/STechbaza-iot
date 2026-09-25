@@ -54,7 +54,7 @@ alarm: warning | critical
 ```text
 Операція 1 — Events & Alarms Data Model Foundation        ✅ завершено
 Операція 2 — Events API + tenant-scoped read model        ✅ завершено
-Операція 3 — Alarm Lifecycle Service                         ← у роботі
+Операція 3 — Alarm Lifecycle Service                         ← у роботі                         ← у роботі
 Операція 4 — Rule Engine + debounce / hysteresis / anti-spam
 Операція 5 — System alarms: offline / reboot / command failure
 Операція 6 — Acknowledge + actor audit
