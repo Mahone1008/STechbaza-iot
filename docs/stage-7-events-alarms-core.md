@@ -54,7 +54,7 @@ alarm: warning | critical
 ```text
 Операція 1 — Events & Alarms Data Model Foundation        ✅ завершено
 Операція 2 — Events API + tenant-scoped read model        ✅ завершено
-Операція 3 — Alarm Lifecycle Service
+Операція 3 — Alarm Lifecycle Service                         ← у роботі
 Операція 4 — Rule Engine + debounce / hysteresis / anti-spam
 Операція 5 — System alarms: offline / reboot / command failure
 Операція 6 — Acknowledge + actor audit
@@ -258,3 +258,56 @@ missing Event      → 404
 Отже Events API не розкриває існування ресурсів іншого tenant.
 
 Операція 2 — завершено.
+
+
+## Операція 3 — Alarm Lifecycle Service
+
+Додано backend 0.26.0.
+
+### Lifecycle semantics
+
+```text
+first raise       → new ACTIVE incident + raised transition
+repeat raise      → same ACTIVE incident + occurrence_count + repeated
+resolve           → RESOLVED + resolved transition
+raise after close → new ACTIVE incident
+```
+
+Acknowledge навмисно не входить до Операції 3 і буде окремою user-driven дією в Операції 6.
+
+### Reliability
+
+```text
+Device row FOR UPDATE lock                       ✅ code
+same-event idempotency                           ✅ code
+stale raise snapshot protection                  ✅ code
+stale resolve protection                         ✅ code
+severity_changed transition                      ✅ code
+one-active-alarm DB invariant                    ✅ existing
+```
+
+### Read API
+
+```text
+GET /api/v1/devices/{device_id}/alarms
+GET /api/v1/alarms/{alarm_id}
+GET /api/v1/alarms/{alarm_id}/transitions
+```
+
+Додано permission:
+
+```text
+alarm.read
+```
+
+### Local verification
+
+```text
+backend 0.26.0                                   ⏳
+first raise → active / count=1                   ⏳
+repeat raise → same alarm / count=2              ⏳
+resolve → resolved                               ⏳
+transition history raised/repeated/resolved       ⏳
+raise after resolve → new alarm id               ⏳
+tenant-scoped Alarm API                          ⏳
+```
