@@ -301,4 +301,14 @@ operator membership успішно призначено                ✅
 Organization list після membership → TechBaza Test Farm ✅
 ```
 
-Далі перевіряється live role propagation через `/auth/me`, read access operator та deny на write permission.
+Додатково локально підтверджено:
+
+```text
+/auth/me одразу бачить role=operator без перевидачі JWT   ✅
+operator → device.read                                    ✅
+operator → site.create                                    ✅ deny / 403
+```
+
+Це підтверджує live role propagation з PostgreSQL та централізовану permission matrix.
+
+Наступна перевірка — tenant isolation: User з membership у Organization A не повинен бачити Organization B, Site B або Device B.
