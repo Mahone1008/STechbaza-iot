@@ -1,3 +1,4 @@
+from app.models.alarm_rule_state import DeviceAlarmRuleState
 from app.models.auth_session import AuthSession
 from app.models.capability import Capability, DeviceCapability
 from app.models.command import DeviceCommand
@@ -17,6 +18,7 @@ __all__ = [
     "DeviceCapability",
     "DeviceCommand",
     "DeviceAlarm",
+    "DeviceAlarmRuleState",
     "DeviceEvent",
     "DeviceState",
     "Organization",
