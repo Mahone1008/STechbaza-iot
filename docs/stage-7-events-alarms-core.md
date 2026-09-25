@@ -103,8 +103,23 @@ one active alarm per device+alarm_key       ✅ code
 actor fields for future acknowledge audit   ✅ code
 migration 20260925_0011                     ✅ code
 backend version 0.24.0                      ✅ code
-local migration verification                ⏳
+local migration verification                ✅
+DB tables verification                      ✅
 DB constraints verification                 ⏳
 ```
 
 Після локальної перевірки Операція 1 буде закрита.
+
+### Локальна verification Операції 1
+
+Підтверджено локально:
+
+```text
+GET /health → backend 0.24.0                     ✅
+alembic_version = 20260925_0011                 ✅
+device_events table exists                     ✅
+device_alarms table exists                     ✅
+alarm_transitions table exists                 ✅
+```
+
+Залишилось перевірити DB constraints та one-active-alarm invariant.
