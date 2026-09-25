@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.models.command import DeviceCommand
 from app.models.device import Device
 from app.models.event_alarm import DeviceAlarm, DeviceEvent
+from app.models.notification import AlarmNotification
 from app.models.organization import Organization
 from app.models.site import Site
 from app.repositories.alarms import AlarmRepository
@@ -14,6 +15,7 @@ from app.repositories.commands import CommandRepository
 from app.repositories.devices import DeviceRepository
 from app.repositories.events import EventRepository
 from app.repositories.memberships import MembershipRepository
+from app.repositories.notifications import NotificationRepository
 from app.repositories.organizations import OrganizationRepository
 from app.repositories.sites import SiteRepository
 from app.security.current_user import CurrentUserContext
@@ -237,3 +239,15 @@ class AccessControl:
 
         self.require_device(alarm.device_id, permission)
         return alarm
+
+    def require_notification(
+        self, notification_id: uuid.UUID, permission: Permission,
+    ) -> AlarmNotification:
+        item = NotificationRepository(self._session).get(notification_id)
+        if item is None:
+            raise _not_found()
+        self.require_organization(item.organization_id, permission)
+        device = self.require_device_context(item.device_id, permission)
+        if device.organization_id != item.organization_id:
+            raise _not_found()
+        return item

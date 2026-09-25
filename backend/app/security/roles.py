@@ -34,6 +34,7 @@ class Permission(StrEnum):
     TELEMETRY_READ = "telemetry.read"
     EVENT_READ = "event.read"
     ALARM_READ = "alarm.read"
+    NOTIFICATION_READ = "notification.read"
     ALARM_ACKNOWLEDGE = "alarm.acknowledge"
     COMMAND_READ = "command.read"
     COMMAND_EXECUTE = "command.execute"
@@ -55,6 +56,7 @@ ORGANIZATION_ROLE_PERMISSIONS: dict[OrganizationRole, frozenset[Permission]] = {
             Permission.TELEMETRY_READ,
             Permission.EVENT_READ,
             Permission.ALARM_READ,
+            Permission.NOTIFICATION_READ,
             Permission.ALARM_ACKNOWLEDGE,
             Permission.COMMAND_READ,
             Permission.COMMAND_EXECUTE,
@@ -72,6 +74,7 @@ ORGANIZATION_ROLE_PERMISSIONS: dict[OrganizationRole, frozenset[Permission]] = {
             Permission.TELEMETRY_READ,
             Permission.EVENT_READ,
             Permission.ALARM_READ,
+            Permission.NOTIFICATION_READ,
             Permission.ALARM_ACKNOWLEDGE,
             Permission.COMMAND_READ,
             Permission.COMMAND_EXECUTE,
@@ -86,6 +89,7 @@ ORGANIZATION_ROLE_PERMISSIONS: dict[OrganizationRole, frozenset[Permission]] = {
             Permission.TELEMETRY_READ,
             Permission.EVENT_READ,
             Permission.ALARM_READ,
+            Permission.NOTIFICATION_READ,
             Permission.COMMAND_READ,
             Permission.CAPABILITY_READ,
         }
@@ -99,6 +103,7 @@ ORGANIZATION_ROLE_PERMISSIONS: dict[OrganizationRole, frozenset[Permission]] = {
             Permission.TELEMETRY_READ,
             Permission.EVENT_READ,
             Permission.ALARM_READ,
+            Permission.NOTIFICATION_READ,
             Permission.ALARM_ACKNOWLEDGE,
             Permission.COMMAND_READ,
             Permission.COMMAND_EXECUTE,
@@ -121,3 +126,4 @@ def role_has_permission(
         return False
 
     return permission in ORGANIZATION_ROLE_PERMISSIONS[normalized_role]
+

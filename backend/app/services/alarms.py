@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.models.event_alarm import AlarmTransition, DeviceAlarm, DeviceEvent
 from app.repositories.alarms import AlarmRepository
 from app.repositories.events import EventRepository
+from app.services.notifications import NotificationService
 
 
 class AlarmDeviceNotFoundError(Exception):
@@ -66,11 +67,11 @@ def _utc(value: datetime) -> datetime:
 
 
 class AlarmLifecycleService:
-    """Atomic lifecycle engine без rule-логіки та notification side effects.
+    """Atomic lifecycle engine з durable in-app notifications.
 
     За замовчуванням lifecycle operation сама завершує transaction.
     Trusted orchestration services можуть передати commit=False, щоб
-    Event + Rule state + Alarm transition комітилися одним transaction.
+    Event + Rule state + Alarm transition + notification комітилися разом.
     """
 
     _ALLOWED_SEVERITIES = {"warning", "critical"}
@@ -79,6 +80,12 @@ class AlarmLifecycleService:
         self._session = session
         self._alarms = AlarmRepository(session)
         self._events = EventRepository(session)
+
+    def _record_transition(self, alarm: DeviceAlarm, transition: AlarmTransition) -> None:
+        self._alarms.add_transition(transition)
+        NotificationService(self._session).record_alarm_transition(
+            alarm=alarm, transition=transition,
+        )
 
     def _commit_if_requested(self, commit: bool) -> None:
         if commit:
@@ -256,7 +263,7 @@ class AlarmLifecycleService:
                     occurred_at=occurred_at,
                     data={"severity": severity},
                 )
-                self._alarms.add_transition(transition)
+                self._record_transition(alarm, transition)
                 self._commit_if_requested(commit)
 
                 return AlarmLifecycleResult(
@@ -305,7 +312,8 @@ class AlarmLifecycleService:
                 and previous_severity != severity
             )
             if severity_changed:
-                self._alarms.add_transition(
+                self._record_transition(
+                    active,
                     AlarmTransition(
                         alarm_id=active.id,
                         event_id=event_id,
@@ -415,7 +423,7 @@ class AlarmLifecycleService:
                 reason=reason,
                 data={},
             )
-            self._alarms.add_transition(transition)
+            self._record_transition(active, transition)
             self._commit_if_requested(commit)
 
             return AlarmLifecycleResult(

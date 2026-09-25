@@ -47,6 +47,7 @@
 - [Етап 7 — Events & Alarms Core — у роботі](stage-7-events-alarms-core.md)
 - [Events & Alarms Data Model v1](events-alarms-data-model-v1.md)
 - [Alarm Lifecycle v1](alarm-lifecycle-v1.md)
+- [Notifications foundation v1 — in-app стрічка та наскрізні перевірки](notifications-foundation-v1.md)
 
 ## Запланований розвиток
 
@@ -56,5 +57,3 @@
 - MQTT-топіки та формати повідомлень;
 - API-контракти;
 - інструкції з розгортання та обслуговування.
-
-

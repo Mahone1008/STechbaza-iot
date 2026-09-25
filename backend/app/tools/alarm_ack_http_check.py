@@ -8,6 +8,7 @@ import asyncio
 import json
 import uuid
 from datetime import datetime, timedelta, timezone
+from urllib.parse import urlsplit
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -47,16 +48,18 @@ async def _asgi_request(
     if token is not None:
         headers.append((b"authorization", f"Bearer {token}".encode("ascii")))
 
+    target = urlsplit(path)
+
     scope = {
         "type": "http",
         "asgi": {"version": "3.0"},
         "http_version": "1.1",
         "scheme": "http",
         "method": method,
-        "path": path,
-        "raw_path": path.encode("ascii"),
+        "path": target.path,
+        "raw_path": target.path.encode("ascii"),
         "root_path": "",
-        "query_string": b"",
+        "query_string": target.query.encode("ascii"),
         "headers": headers,
         "client": ("127.0.0.1", 0),
         "server": ("127.0.0.1", 8000),

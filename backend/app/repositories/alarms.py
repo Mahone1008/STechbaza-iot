@@ -61,6 +61,7 @@ class AlarmRepository:
                 DeviceAlarm.state == "active",
             )
             .with_for_update()
+            .execution_options(populate_existing=True)
         )
         return self._session.scalar(statement)
 

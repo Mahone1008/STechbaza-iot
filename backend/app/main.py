@@ -43,7 +43,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="TechBaza Backend",
-    version="0.30.0",
+    version="0.31.0",
     description="Backend API платформи TechBaza IoT Pump Control",
     lifespan=lifespan,
 )
@@ -56,7 +56,7 @@ def health() -> dict[str, str]:
     return {
         "status": "ok",
         "service": "techbaza-backend",
-        "version": "0.30.0",
+        "version": "0.31.0",
     }
 
 
@@ -157,4 +157,3 @@ def system_alarms() -> dict[str, Any]:
         "status": "ok",
         "worker": system_alarm_status(),
     }
-

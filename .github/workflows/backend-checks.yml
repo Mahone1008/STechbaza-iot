@@ -49,6 +49,11 @@ jobs:
       - name: Apply migrations
         working-directory: backend
         run: python -m alembic upgrade head
+      - name: Verify notification migration rollback and upgrade
+        working-directory: backend
+        run: |
+          python -m alembic downgrade 20260925_0014
+          python -m alembic upgrade head
       - name: Run regression and integration checks
         working-directory: backend
         run: python -m unittest discover -s tests -v

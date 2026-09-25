@@ -1,11 +1,12 @@
 # Етап 7 — Events & Alarms Core
 
-**Статус:** у роботі (операції 1–6 перевірено; наступна — операція 7)  
-**Backend:** 0.30.0
+**Статус:** у роботі (операції 1–6 перевірено; операція 7 очікує локальної перевірки)
+**Backend:** 0.31.0
 
 Окремий блок [виправлень надійності та доступу](hardening-2026-09-25.md)
 та HTTP-перевірку операції 6 користувач підтвердив локально 25.09.2026.
-Операцію 6 закрито; операція 7 ще не реалізована.
+Операцію 6 закрито; реалізація операції 7 описана в
+[Notifications foundation v1](notifications-foundation-v1.md).
 
 ## Мета
 
@@ -62,7 +63,7 @@ alarm: warning | critical
 Операція 4 — Rule Engine + debounce / hysteresis / anti-spam ✅ перевірено локально
 Операція 5 — System alarms: offline / reboot / command failure ✅ перевірено локально
 Операція 6 — Acknowledge + actor audit ✅ перевірено локально
-Операція 7 — Notifications foundation + final E2E
+Операція 7 — Notifications foundation + final E2E ⏳ код, очікує перевірки
 ```
 
 ## Перші alarm types
@@ -465,5 +466,22 @@ acknowledge, історію переходів і відкликання сес�
 не надано. Скриншотами окремо підтверджено migration 0014 та `/health` 0.30.0.
 
 Операція 6 — завершено. Наступна — Операція 7: Notifications foundation + final E2E.
+
+## Операція 7 — Notifications foundation + final E2E
+
+Backend `0.31.0`, migration `20260925_0015`. Додано атомарну in-app стрічку
+організації для raised/severity_changed/resolved та персональні read receipts.
+Повтори вимірювань і acknowledge не створюють спам у стрічці; одне повідомлення
+відповідає одному значущому transition. Read, acknowledge та resolve мають
+окрему семантику. Tenant guards використовуються на list/detail/count/read.
+
+Вісім нових PostgreSQL/JWT/MQTT сценаріїв перевіряють повний ланцюжок,
+відкати, конкурентні операції, snapshot історії та ізоляцію організацій.
+CI також перевіряє downgrade/upgrade 0015 у тимчасовій базі.
+Команди локальної перевірки одним PowerShell-блоком і межі реалізації:
+[Notifications foundation v1](notifications-foundation-v1.md).
+
+Telegram/email/push та UI є наступними окремими блоками. Операція 7 і весь
+Етап 7 залишаються відкритими до локального підтвердження користувачем.
 
 
