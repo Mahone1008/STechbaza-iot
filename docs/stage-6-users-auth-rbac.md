@@ -428,3 +428,12 @@ Migration не потрібна.
 [Membership Management v1](membership-management-v1.md)
 
 Поточна задача — локальна verification admin membership-management flow.
+
+Перший крок підтверджено:
+
+```text
+backend 0.22.0                                          ✅
+admin → GET organization memberships                   ✅
+відповідь містить user/email/display_name/role/active  ✅
+```
+
