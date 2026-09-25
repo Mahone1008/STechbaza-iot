@@ -32,6 +32,7 @@ class Permission(StrEnum):
     DEVICE_READ = "device.read"
     DEVICE_CREATE = "device.create"
     TELEMETRY_READ = "telemetry.read"
+    EVENT_READ = "event.read"
     COMMAND_READ = "command.read"
     COMMAND_EXECUTE = "command.execute"
     CAPABILITY_READ = "capability.read"
@@ -50,6 +51,7 @@ ORGANIZATION_ROLE_PERMISSIONS: dict[OrganizationRole, frozenset[Permission]] = {
             Permission.DEVICE_READ,
             Permission.DEVICE_CREATE,
             Permission.TELEMETRY_READ,
+            Permission.EVENT_READ,
             Permission.COMMAND_READ,
             Permission.COMMAND_EXECUTE,
             Permission.CAPABILITY_READ,
@@ -64,6 +66,7 @@ ORGANIZATION_ROLE_PERMISSIONS: dict[OrganizationRole, frozenset[Permission]] = {
             Permission.SITE_READ,
             Permission.DEVICE_READ,
             Permission.TELEMETRY_READ,
+            Permission.EVENT_READ,
             Permission.COMMAND_READ,
             Permission.COMMAND_EXECUTE,
             Permission.CAPABILITY_READ,
@@ -75,6 +78,7 @@ ORGANIZATION_ROLE_PERMISSIONS: dict[OrganizationRole, frozenset[Permission]] = {
             Permission.SITE_READ,
             Permission.DEVICE_READ,
             Permission.TELEMETRY_READ,
+            Permission.EVENT_READ,
             Permission.COMMAND_READ,
             Permission.CAPABILITY_READ,
         }
@@ -86,6 +90,7 @@ ORGANIZATION_ROLE_PERMISSIONS: dict[OrganizationRole, frozenset[Permission]] = {
             Permission.DEVICE_READ,
             Permission.DEVICE_CREATE,
             Permission.TELEMETRY_READ,
+            Permission.EVENT_READ,
             Permission.COMMAND_READ,
             Permission.COMMAND_EXECUTE,
             Permission.CAPABILITY_READ,
