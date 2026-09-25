@@ -1,7 +1,7 @@
 # Етап 6 — Users, Authentication & RBAC
 
 **Статус:** у роботі  
-**Backend:** 0.20.0+
+**Backend:** 0.21.0+
 
 ## Мета
 
@@ -42,7 +42,7 @@ Audit
 Операція 1 — Identity & Membership Foundation      ✅ завершено
 Операція 2 — Password Security + Token Auth         ✅ завершено
 Операція 3 — Current User / Session Context          ✅ завершено
-Операція 4 — RBAC + Multi-tenant Guards              ← наступна
+Операція 4 — RBAC + Multi-tenant Guards              ← у роботі
 Операція 5 — Command Actor Audit
 Операція 6 — Security End-to-End Test
 ```
@@ -250,3 +250,41 @@ logout → server-side session revoked                  ✅
 
 
 Операція 3 — Current User / Session Context завершена.
+
+
+## Операція 4 — RBAC + Multi-tenant Guards
+
+### Операція 4.1 — Permission Matrix + Existing API Guards
+
+Реалізовано:
+
+```text
+централізований Permission enum                         ✅
+role → permission matrix                                ✅
+AccessControl                                           ✅
+active membership lookup                                ✅
+tenant-scoped Organization listing                      ✅
+Organization guards                                     ✅
+Site guards                                             ✅
+Device + availability guards                            ✅
+Telemetry + state guards                                ✅
+Command read / execute guards                           ✅
+Capability read / manage guards                         ✅
+foreign tenant anti-enumeration через generic 404       ✅
+superadmin platform bypass                              ✅
+service_admin лише explicit tenant memberships          ✅
+```
+
+Backend:
+
+```text
+0.21.0
+```
+
+Migration не потрібна.
+
+Документ:
+
+[RBAC + Multi-tenant Guards v1](rbac-multitenant-guards-v1.md)
+
+Поточна задача — локальна behavioral verification ролі `operator`, після чого tenant-isolation test з окремою Organization.
