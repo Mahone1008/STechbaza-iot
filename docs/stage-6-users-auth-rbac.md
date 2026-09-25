@@ -231,3 +231,19 @@ Migration не потрібна.
 [Current User / Session Context v1](current-user-context-v1.md)
 
 Поточна задача — локально перевірити valid access token, missing token та revoked-session behavior.
+
+
+### Verification Операції 3
+
+Локально підтверджено:
+
+```text
+GET /api/v1/auth/me з valid access JWT              ✅
+Current User визначається правильно                  ✅
+auth_session_id читається з JWT/session context      ✅
+memberships повертаються як active membership list    ✅
+logout → server-side session revoked                  ✅
+той самий access JWT після logout → 401               ✅
+```
+
+Залишилась фінальна перевірка: `/auth/me` без Bearer token → 401.
