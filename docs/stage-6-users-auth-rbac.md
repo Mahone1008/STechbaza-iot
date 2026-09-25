@@ -41,8 +41,8 @@ Audit
 ```text
 Операція 1 — Identity & Membership Foundation      ✅ завершено
 Операція 2 — Password Security + Token Auth         ✅ завершено
-Операція 3 — Current User / Session Context          ← у роботі
-Операція 4 — RBAC + Multi-tenant Guards
+Операція 3 — Current User / Session Context          ✅ завершено
+Операція 4 — RBAC + Multi-tenant Guards              ← наступна
 Операція 5 — Command Actor Audit
 Операція 6 — Security End-to-End Test
 ```
@@ -246,4 +246,7 @@ logout → server-side session revoked                  ✅
 той самий access JWT після logout → 401               ✅
 ```
 
-Залишилась фінальна перевірка: `/auth/me` без Bearer token → 401.
+Фінальну перевірку завершено: `/auth/me` без Bearer token → 401 ✅.
+
+
+Операція 3 — Current User / Session Context завершена.
