@@ -437,3 +437,16 @@ admin → GET organization memberships                   ✅
 відповідь містить user/email/display_name/role/active  ✅
 ```
 
+
+
+### Membership Management verification — test User created
+
+Локально створено другого User для API verification:
+
+```text
+email         = viewer-test@techbaza.dev
+user_id       = 8fa4670a-f551-4faa-ab9a-273936f2ff22
+platform_role = user
+```
+
+Membership для цього User ще не створено. Наступний крок — додати його до TechBaza Test Farm через POST memberships API з role=viewer.
