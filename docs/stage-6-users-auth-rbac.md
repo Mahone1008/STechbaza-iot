@@ -509,3 +509,21 @@ response: "Недостатньо прав для цієї дії"              
 ```
 
 Отже operator не має `membership.read` та не отримує доступ до адміністративного контуру Organization.
+
+
+### Membership Management verification — owner bootstrap
+
+Локально підтверджено:
+
+```text
+stage6-admin@techbaza.dev → role=owner                     ✅
+/auth/me без перевидачі JWT одразу повертає owner          ✅
+```
+
+Поточний owner membership:
+```text
+membership_id = 33333333-3333-4333-8333-333333333333
+user_id       = 66e74c79-0b0b-44ea-9fe1-8ee3f2d0bc3d
+```
+
+Наступна перевірка — owner може призначити другого owner, а останнього active owner неможливо понизити або деактивувати.
