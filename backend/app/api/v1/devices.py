@@ -7,6 +7,12 @@ from sqlalchemy.orm import Session
 from app.db import get_db_session
 from app.schemas.availability import DeviceAvailabilityRead
 from app.schemas.device import DeviceCreate, DeviceRead
+from app.security.authorization import AccessControl
+from app.security.current_user import (
+    CurrentUserContext,
+    get_current_user_context,
+)
+from app.security.roles import Permission
 from app.services.device_presence import (
     DevicePresenceService,
     PresenceDeviceNotFoundError,
@@ -21,6 +27,10 @@ from app.services.devices import (
 router = APIRouter(tags=["devices"])
 
 DbSession = Annotated[Session, Depends(get_db_session)]
+CurrentUser = Annotated[
+    CurrentUserContext,
+    Depends(get_current_user_context),
+]
 
 
 @router.get(
@@ -30,9 +40,15 @@ DbSession = Annotated[Session, Depends(get_db_session)]
 def list_devices(
     site_id: uuid.UUID,
     session: DbSession,
+    current: CurrentUser,
     limit: Annotated[int, Query(ge=1, le=100)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> list[DeviceRead]:
+    AccessControl(session, current).require_site(
+        site_id,
+        Permission.DEVICE_READ,
+    )
+
     try:
         devices = DeviceService(session).list_for_site(
             site_id,
@@ -57,7 +73,13 @@ def create_device(
     site_id: uuid.UUID,
     payload: DeviceCreate,
     session: DbSession,
+    current: CurrentUser,
 ) -> DeviceRead:
+    AccessControl(session, current).require_site(
+        site_id,
+        Permission.DEVICE_CREATE,
+    )
+
     try:
         device = DeviceService(session).create(site_id, payload)
     except ParentSiteNotFoundError as exc:
@@ -78,7 +100,13 @@ def create_device(
 def get_device(
     device_id: uuid.UUID,
     session: DbSession,
+    current: CurrentUser,
 ) -> DeviceRead:
+    AccessControl(session, current).require_device(
+        device_id,
+        Permission.DEVICE_READ,
+    )
+
     try:
         device = DeviceService(session).get(device_id)
     except DeviceNotFoundError as exc:
@@ -97,7 +125,13 @@ def get_device(
 def get_device_availability(
     device_id: uuid.UUID,
     session: DbSession,
+    current: CurrentUser,
 ) -> DeviceAvailabilityRead:
+    AccessControl(session, current).require_device(
+        device_id,
+        Permission.DEVICE_READ,
+    )
+
     try:
         availability = DevicePresenceService(session).get_availability(
             device_id=device_id
