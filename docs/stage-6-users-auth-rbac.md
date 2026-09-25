@@ -465,3 +465,20 @@ membership створено без прямого SQL                      ✅
 ```
 
 Наступний крок — GET memberships і PATCH viewer → operator через API.
+
+
+### Membership Management verification — GET + PATCH
+
+Локально підтверджено:
+
+```text
+GET memberships повертає 2 memberships                    ✅
+stage6-admin@techbaza.dev → admin                          ✅
+viewer-test@techbaza.dev → viewer                          ✅
+PATCH viewer → operator через Membership API               ✅
+оновлений role=operator повернуто у response                ✅
+is_active залишився true                                   ✅
+```
+
+Керування tenant-role через API працює без прямого SQL.
+Наступна перевірка — protection від privilege escalation: admin не повинен мати можливості призначити role=owner.
