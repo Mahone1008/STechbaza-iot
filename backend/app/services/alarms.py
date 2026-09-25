@@ -48,9 +48,9 @@ def _utc(value: datetime) -> datetime:
 class AlarmLifecycleService:
     """Atomic lifecycle engine без rule-логіки та notification side effects.
 
-    Операція 3 відповідає лише за правильний стан Alarm:
-    raise/repeat/resolve, transition history, ordering та idempotency по Event.
-    Яка саме умова має створити Alarm, визначатиме Rule Engine Операції 4.
+    За замовчуванням lifecycle operation сама завершує transaction.
+    Trusted orchestration services можуть передати commit=False, щоб
+    Event + Rule state + Alarm transition комітилися одним transaction.
     """
 
     _ALLOWED_SEVERITIES = {"warning", "critical"}
@@ -59,6 +59,10 @@ class AlarmLifecycleService:
         self._session = session
         self._alarms = AlarmRepository(session)
         self._events = EventRepository(session)
+
+    def _commit_if_requested(self, commit: bool) -> None:
+        if commit:
+            self._session.commit()
 
     def _lock_device(self, device_id: uuid.UUID) -> None:
         if self._alarms.lock_device(device_id) is None:
@@ -123,6 +127,7 @@ class AlarmLifecycleService:
         event_id: uuid.UUID | None = None,
         description: str | None = None,
         context: dict[str, Any] | None = None,
+        commit: bool = True,
     ) -> AlarmLifecycleResult:
         """Створити новий incident або зафіксувати repeat active Alarm."""
 
@@ -133,7 +138,6 @@ class AlarmLifecycleService:
         incoming_context = dict(context or {})
 
         try:
-            # Device row lock серіалізує конкурентні raise/resolve для Device.
             self._lock_device(device_id)
             self._get_event(event_id=event_id, device_id=device_id)
 
@@ -142,7 +146,7 @@ class AlarmLifecycleService:
                 alarm_key=alarm_key,
             )
             if duplicate is not None:
-                self._session.commit()
+                self._commit_if_requested(commit)
                 return duplicate
 
             active = self._alarms.get_active_for_update(
@@ -178,7 +182,7 @@ class AlarmLifecycleService:
                     data={"severity": severity},
                 )
                 self._alarms.add_transition(transition)
-                self._session.commit()
+                self._commit_if_requested(commit)
 
                 return AlarmLifecycleResult(
                     alarm_id=alarm.id,
@@ -241,7 +245,7 @@ class AlarmLifecycleService:
                     )
                 )
 
-            self._session.commit()
+            self._commit_if_requested(commit)
 
             return AlarmLifecycleResult(
                 alarm_id=active.id,
@@ -265,6 +269,7 @@ class AlarmLifecycleService:
         event_id: uuid.UUID | None = None,
         reason: str | None = None,
         context: dict[str, Any] | None = None,
+        commit: bool = True,
     ) -> AlarmLifecycleResult:
         """Закрити active incident, не дозволяючи stale recovery його знищити."""
 
@@ -280,7 +285,7 @@ class AlarmLifecycleService:
                 alarm_key=alarm_key,
             )
             if duplicate is not None:
-                self._session.commit()
+                self._commit_if_requested(commit)
                 return duplicate
 
             active = self._alarms.get_active_for_update(
@@ -292,7 +297,7 @@ class AlarmLifecycleService:
                     device_id,
                     alarm_key,
                 )
-                self._session.commit()
+                self._commit_if_requested(commit)
                 return AlarmLifecycleResult(
                     alarm_id=latest.id if latest is not None else None,
                     action="already_resolved",
@@ -307,7 +312,7 @@ class AlarmLifecycleService:
                 )
 
             if occurred_at < active.last_raised_at:
-                self._session.commit()
+                self._commit_if_requested(commit)
                 return AlarmLifecycleResult(
                     alarm_id=active.id,
                     action="ignored_stale_resolution",
@@ -336,7 +341,7 @@ class AlarmLifecycleService:
                 data={},
             )
             self._alarms.add_transition(transition)
-            self._session.commit()
+            self._commit_if_requested(commit)
 
             return AlarmLifecycleResult(
                 alarm_id=active.id,
