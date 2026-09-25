@@ -44,7 +44,7 @@ Audit
 Операція 3 — Current User / Session Context          ✅ завершено
 Операція 4 — RBAC + Multi-tenant Guards              ✅ завершено
 Операція 5 — Command Actor Audit                         ✅ завершено
-Операція 6 — Security End-to-End Test                         ← у роботі
+Операція 6 — Security End-to-End Test                         ✅ завершено
 ```
 
 ## Операція 1 — Identity & Membership Foundation
@@ -804,3 +804,46 @@ response: "Refresh token недійсний або завершився"        
 
 Наступний крок — 6.6 foreign tenant anti-enumeration:
 автентифікований User не повинен відрізняти чужий tenant/resource від неіснуючого.
+
+
+### Security E2E verification — 6.6 foreign tenant anti-enumeration
+
+Локально підтверджено:
+
+```text
+чужа Organization aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa   → 404 ✅
+чужий Device cccccccc-cccc-4ccc-8ccc-cccccccccccc        → 404 ✅
+неіснуюча Organization 99999999-9999-4999-8999-999999999999 → 404 ✅
+response для всіх: "Ресурс не знайдено"                     ✅
+```
+
+Це підтверджує anti-enumeration: автентифікований User не може відрізнити
+чужий tenant/resource від реально неіснуючого UUID лише за API response.
+
+### Security E2E verification — 6.7 фінальний checklist
+
+Підсумковий security-контур перевірено:
+
+```text
+login + password verification                              ✅
+auth session creation                                      ✅
+access JWT bound to active server-side session             ✅
+refresh token hashing/storage                              ✅
+refresh rotation / old refresh rejection                  ✅
+logout revokes session                                     ✅
+old access JWT after logout → 401                          ✅
+old refresh token after logout → 401                       ✅
+tenant membership resolution                              ✅
+live role change without re-login                          ✅
+viewer command.execute → 403                               ✅
+owner/admin membership management rules                    ✅
+last active owner protection → 409                         ✅
+foreign tenant/resource anti-enumeration → 404             ✅
+command actor snapshot persisted                           ✅
+actor snapshot immutable after role change                 ✅
+foreign actor reused request_id → conflict                 ✅
+```
+
+### Операція 6 — Security End-to-End Test ✅ завершено
+
+Етап 6 — Users, Authentication & RBAC завершено.
