@@ -78,12 +78,6 @@ def upgrade() -> None:
         unique=False,
     )
     op.create_index(
-        "ix_auth_sessions_refresh_token_hash",
-        "auth_sessions",
-        ["refresh_token_hash"],
-        unique=True,
-    )
-    op.create_index(
         "ix_auth_sessions_expires_at",
         "auth_sessions",
         ["expires_at"],
@@ -94,10 +88,6 @@ def upgrade() -> None:
 def downgrade() -> None:
     op.drop_index(
         "ix_auth_sessions_expires_at",
-        table_name="auth_sessions",
-    )
-    op.drop_index(
-        "ix_auth_sessions_refresh_token_hash",
         table_name="auth_sessions",
     )
     op.drop_index(
