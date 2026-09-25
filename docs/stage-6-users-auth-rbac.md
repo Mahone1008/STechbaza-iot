@@ -1,7 +1,7 @@
 # Етап 6 — Users, Authentication & RBAC
 
 **Статус:** у роботі  
-**Backend:** 0.18.0+
+**Backend:** 0.20.0+
 
 ## Мета
 
@@ -199,3 +199,35 @@ unknown email → та сама generic error                ✅
 ```
 
 Операція 2 — Password Security + Token Auth завершена.
+
+
+## Операція 3 — Current User / Session Context
+
+Реалізовано:
+
+```text
+Bearer access token dependency
+JWT signature / issuer / audience / expiry validation
+sub → user_id
+sid → auth_session_id
+server-side auth session lookup
+revoked session guard
+expired session guard
+inactive User guard
+GET /api/v1/auth/me
+active organization memberships у /me
+```
+
+Backend:
+
+```text
+0.20.0
+```
+
+Migration не потрібна.
+
+Документ:
+
+[Current User / Session Context v1](current-user-context-v1.md)
+
+Поточна задача — локально перевірити valid access token, missing token та revoked-session behavior.
