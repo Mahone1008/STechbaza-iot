@@ -12,6 +12,7 @@ from app.models import (
     DeviceCapability,
     DeviceCommand,
     DeviceAlarm,
+    DeviceAlarmRuleState,
     DeviceEvent,
     DeviceState,
     Organization,
