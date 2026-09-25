@@ -59,6 +59,23 @@ class CapabilityRepository:
         )
         return set(self._session.scalars(statement))
 
+    def get_enabled_assignments_for_device(
+        self,
+        device_id: uuid.UUID,
+    ) -> list[DeviceCapability]:
+        """Повертає enabled assignments разом із capability metadata."""
+
+        statement = (
+            select(DeviceCapability)
+            .options(selectinload(DeviceCapability.capability))
+            .where(
+                DeviceCapability.device_id == device_id,
+                DeviceCapability.is_enabled.is_(True),
+            )
+            .order_by(DeviceCapability.created_at.asc())
+        )
+        return list(self._session.scalars(statement))
+
     def get_assignment(
         self,
         device_id: uuid.UUID,
@@ -78,4 +95,12 @@ class CapabilityRepository:
         self._session.add(assignment)
         self._session.flush()
         self._session.refresh(assignment)
+        return assignment
+
+    def update_assignment(
+        self,
+        assignment: DeviceCapability,
+    ) -> DeviceCapability:
+        self._session.add(assignment)
+        self._session.flush()
         return assignment
