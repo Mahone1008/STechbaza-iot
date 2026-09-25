@@ -80,6 +80,42 @@ class DeviceCommand(TimestampMixin, Base):
         DateTime(timezone=True),
         nullable=False,
     )
+
+    # Audit snapshot того, хто створив command.
+    # Поля nullable для legacy-команд, створених до migration 0010.
+    # FK навмисно відсутні: audit metadata має переживати видалення account/session.
+    actor_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        nullable=True,
+        index=True,
+    )
+    actor_auth_session_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        nullable=True,
+        index=True,
+    )
+    actor_organization_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        nullable=True,
+        index=True,
+    )
+    actor_platform_role: Mapped[str | None] = mapped_column(
+        String(32),
+        nullable=True,
+    )
+    actor_organization_role: Mapped[str | None] = mapped_column(
+        String(32),
+        nullable=True,
+    )
+    actor_email: Mapped[str | None] = mapped_column(
+        String(320),
+        nullable=True,
+    )
+    actor_display_name: Mapped[str | None] = mapped_column(
+        String(160),
+        nullable=True,
+    )
+
     published_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
