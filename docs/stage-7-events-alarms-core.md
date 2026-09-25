@@ -52,7 +52,7 @@ alarm: warning | critical
 ## Planned operations
 
 ```text
-Операція 1 — Events & Alarms Data Model Foundation        ← у роботі
+Операція 1 — Events & Alarms Data Model Foundation        ✅ завершено
 Операція 2 — Events API + tenant-scoped read model
 Операція 3 — Alarm Lifecycle Service
 Операція 4 — Rule Engine + debounce / hysteresis / anti-spam
@@ -105,7 +105,8 @@ migration 20260925_0011                     ✅ code
 backend version 0.24.0                      ✅ code
 local migration verification                ✅
 DB tables verification                      ✅
-DB constraints verification                 ⏳
+DB constraints verification                 ✅
+one-active-alarm invariant                  ✅
 ```
 
 Після локальної перевірки Операція 1 буде закрита.
@@ -123,3 +124,31 @@ alarm_transitions table exists                 ✅
 ```
 
 Залишилось перевірити DB constraints та one-active-alarm invariant.
+
+
+### Verification result — Операція 1
+
+Локально підтверджено:
+
+```text
+device_events structure                         ✅
+device_alarms structure                         ✅
+alarm_transitions structure                     ✅
+
+ck_device_events_severity                       ✅
+invalid severity = banana → rejected            ✅
+
+uq_device_alarms_active_key                     ✅
+first active alarm insert                       ✅
+second active alarm with same key → rejected    ✅
+```
+
+Ключовий DB invariant підтверджено:
+
+```text
+(device_id, alarm_key)
+WHERE state = 'active'
+→ максимум одна active Alarm для конкретного alarm_key
+```
+
+Операція 1 — завершено.
