@@ -42,7 +42,7 @@ Audit
 Операція 1 — Identity & Membership Foundation      ✅ завершено
 Операція 2 — Password Security + Token Auth         ✅ завершено
 Операція 3 — Current User / Session Context          ✅ завершено
-Операція 4 — RBAC + Multi-tenant Guards              ← у роботі
+Операція 4 — RBAC + Multi-tenant Guards              ✅ завершено
 Операція 5 — Command Actor Audit
 Операція 6 — Security End-to-End Test
 ```
@@ -527,3 +527,41 @@ user_id       = 66e74c79-0b0b-44ea-9fe1-8ee3f2d0bc3d
 ```
 
 Наступна перевірка — owner може призначити другого owner, а останнього active owner неможливо понизити або деактивувати.
+
+
+### Membership Management verification — last-owner invariant
+
+Локально підтверджено:
+
+```text
+owner → призначити другого owner                         ✅
+другий owner → повернути в operator                      ✅
+останній active owner → downgrade в admin                ✅ deny / 409
+response: "Не можна прибрати останнього активного owner організації" ✅
+```
+
+Це підтверджує owner-protection та last-active-owner invariant.
+
+### Операція 4.2 — завершено
+
+Повна behavioral verification:
+
+```text
+admin → GET memberships                                  ✅
+admin → POST membership                                  ✅
+admin → PATCH viewer → operator                          ✅
+admin → assign owner                                     ✅ deny / 403
+operator → GET memberships                               ✅ deny / 403
+owner → assign другого owner                             ✅
+owner → downgrade другого owner                          ✅
+останній active owner → downgrade/deactivate             ✅ deny / 409
+soft revoke model через is_active                        ✅
+```
+
+Операція 4 — RBAC + Multi-tenant Guards завершена.
+
+Наступна операція Етапу 6:
+
+```text
+Операція 5 — Command Actor Audit
+```
