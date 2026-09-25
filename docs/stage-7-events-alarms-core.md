@@ -311,3 +311,15 @@ transition history raised/repeated/resolved       ⏳
 raise after resolve → new alarm id               ⏳
 tenant-scoped Alarm API                          ⏳
 ```
+
+
+### Часткова verification — raise/repeat
+
+Локально підтверджено:
+
+```text
+backend 0.26.0                                      ✅
+first raise → action=raised, state=active, count=1   ✅
+repeat raise → same alarm_id, count=2               ✅
+duplicate active Alarm не створюється                ✅
+```
