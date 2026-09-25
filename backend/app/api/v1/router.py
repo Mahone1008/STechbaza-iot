@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 
+from app.api.v1.alarms import router as alarms_router
 from app.api.v1.auth import router as auth_router
 from app.api.v1.capabilities import router as capabilities_router
 from app.api.v1.commands import router as commands_router
@@ -19,4 +20,5 @@ api_v1_router.include_router(devices_router)
 api_v1_router.include_router(capabilities_router)
 api_v1_router.include_router(telemetry_router)
 api_v1_router.include_router(events_router)
+api_v1_router.include_router(alarms_router)
 api_v1_router.include_router(commands_router)
