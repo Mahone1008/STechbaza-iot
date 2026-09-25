@@ -11,8 +11,10 @@ from app.models import (
     DeviceCommand,
     DeviceState,
     Organization,
+    OrganizationMembership,
     Site,
     TelemetryMessage,
+    User,
 )
 from app.models.base import Base
 
