@@ -360,3 +360,15 @@ viewer → device.read                                    ✅
 ```
 
 Залишилось підтвердити, що `viewer` не має `command.execute` і отримує 403.
+
+
+### Verification viewer role — завершено
+
+Локально підтверджено:
+
+```text
+viewer → device.read                                      ✅
+viewer → command.execute                                  ✅ deny / 403
+```
+
+Роль `viewer` підтверджена: read-only доступ працює, керуючі команди блокуються permission layer.
