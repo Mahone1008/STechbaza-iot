@@ -632,3 +632,23 @@ actor_organization_role = owner
 
 Наступна перевірка — змінити поточну tenant-role User після створення command
 і підтвердити, що історичний actor snapshot у старій command не змінюється.
+
+
+### Command Actor Audit verification — immutable snapshot після role change
+
+Локально підтверджено:
+
+```text
+viewer-test@techbaza.dev тимчасово призначений owner      ✅
+stage6-admin@techbaza.dev понижений owner → admin         ✅
+/auth/me одразу повертає role=admin                       ✅
+стара command d1487cfc-5880-4877-aa41-e8cf35769386       ✅
+actor_organization_role у старій command = owner          ✅
+actor snapshot immutable після role change                ✅
+```
+
+Це доводить, що command audit не обчислюється з поточної membership role,
+а зберігає authorization context на момент створення команди.
+
+Наступна перевірка — actor-aware idempotency:
+інший User не повинен мати можливості повторно використати чужий request_id.
