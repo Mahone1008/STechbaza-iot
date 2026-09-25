@@ -132,3 +132,47 @@ ON DELETE CASCADE не блокує видалення                 ✅
 ```
 
 Операція 1 — Identity & Membership Foundation завершена.
+
+
+## Операція 2 — Password Security + Token Auth
+
+Реалізовано:
+
+```text
+Argon2id password hashing
+short-lived JWT access token
+opaque random refresh token
+SHA-256 refresh-token storage
+auth_sessions
+refresh rotation
+server-side revoke
+idempotent logout
+inactive-user guard
+development create-user CLI
+```
+
+Endpoints:
+
+```text
+POST /api/v1/auth/login
+POST /api/v1/auth/refresh
+POST /api/v1/auth/logout
+```
+
+Migration:
+
+```text
+20260925_0009_auth_sessions
+```
+
+Backend:
+
+```text
+0.19.0
+```
+
+Документ:
+
+[Authentication Token Protocol v1](auth-token-v1.md)
+
+Поточна задача — застосувати migration та пройти login/refresh/logout verification.
