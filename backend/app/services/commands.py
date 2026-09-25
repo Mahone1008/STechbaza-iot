@@ -1,4 +1,5 @@
 import uuid
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.exc import IntegrityError
@@ -18,6 +19,19 @@ COMMAND_REQUIRED_CAPABILITY: dict[str, str] = {
 }
 
 
+@dataclass(frozen=True)
+class CommandActorSnapshot:
+    """Незмінний identity/RBAC snapshot автора command."""
+
+    user_id: uuid.UUID
+    auth_session_id: uuid.UUID
+    organization_id: uuid.UUID
+    platform_role: str
+    organization_role: str | None
+    email: str
+    display_name: str
+
+
 class CommandDeviceNotFoundError(Exception):
     """Пристрій для команди не знайдено."""
 
@@ -35,11 +49,11 @@ class CommandCapabilityViolationError(Exception):
 
 
 class CommandRequestConflictError(Exception):
-    """request_id повторно використано для іншої команди."""
+    """request_id повторно використано для іншої команди або actor."""
 
 
 class CommandService:
-    """Створює durable-команди та гарантує ідемпотентність HTTP retry."""
+    """Створює durable-команди, audit snapshot та HTTP idempotency."""
 
     def __init__(self, session: Session) -> None:
         self._session = session
@@ -52,12 +66,17 @@ class CommandService:
         command: DeviceCommand,
         device_id: uuid.UUID,
         payload: DeviceCommandCreate,
+        actor: CommandActorSnapshot,
     ) -> bool:
+        # Actor session/role snapshots не входять в idempotency key:
+        # той самий User може легітимно повторити request після token refresh.
+        # Але інший User не може "успадкувати" чужий request_id.
         return (
             command.device_id == device_id
             and command.command_type == payload.command_type
             and command.payload == payload.payload
             and command.ttl_seconds == payload.ttl_seconds
+            and command.actor_user_id == actor.user_id
         )
 
     def create(
@@ -65,6 +84,7 @@ class CommandService:
         device_id: uuid.UUID,
         payload: DeviceCommandCreate,
         *,
+        actor: CommandActorSnapshot,
         now: datetime | None = None,
     ) -> tuple[DeviceCommand, bool]:
         device = self._devices.get(device_id)
@@ -78,7 +98,7 @@ class CommandService:
 
         existing = self._commands.get_by_request_id(payload.request_id)
         if existing is not None:
-            if not self._matches_request(existing, device_id, payload):
+            if not self._matches_request(existing, device_id, payload, actor):
                 raise CommandRequestConflictError
             return existing, False
 
@@ -91,6 +111,13 @@ class CommandService:
             status="queued",
             ttl_seconds=payload.ttl_seconds,
             expires_at=created_at + timedelta(seconds=payload.ttl_seconds),
+            actor_user_id=actor.user_id,
+            actor_auth_session_id=actor.auth_session_id,
+            actor_organization_id=actor.organization_id,
+            actor_platform_role=actor.platform_role,
+            actor_organization_role=actor.organization_role,
+            actor_email=actor.email,
+            actor_display_name=actor.display_name,
             created_at=created_at,
             updated_at=created_at,
         )
@@ -106,7 +133,12 @@ class CommandService:
             if existing is None:
                 raise
 
-            if not self._matches_request(existing, device_id, payload):
+            if not self._matches_request(
+                existing,
+                device_id,
+                payload,
+                actor,
+            ):
                 raise CommandRequestConflictError from exc
 
             return existing, False
