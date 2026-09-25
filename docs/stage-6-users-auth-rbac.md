@@ -372,3 +372,18 @@ viewer → command.execute                                  ✅ deny / 403
 ```
 
 Роль `viewer` підтверджена: read-only доступ працює, керуючі команди блокуються permission layer.
+
+
+### Verification admin role — завершено
+
+Локально підтверджено:
+
+```text
+membership role змінено на admin                         ✅
+/auth/me повертає role=admin                             ✅
+admin → site.create                                      ✅
+admin → command.execute                                  ✅
+command створена зі status=queued                        ✅
+```
+
+Це підтверджує, що RBAC не лише блокує заборонені дії, а й коректно пропускає дозволені write operations.
