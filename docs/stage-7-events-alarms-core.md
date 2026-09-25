@@ -446,5 +446,10 @@ Permission `alarm.acknowledge`: owner/admin/operator/service. Viewer має
 
 Перевірка на Docker: `python -m app.tools.alarm_ack_check`. Вона перевіряє
 RBAC, tenant, повтор, immutable actor audit, resolved 409 і відкочує всю
-тестову транзакцію. До результату локальної перевірки операція 6 відкрита.
+тестову транзакцію. Додатковий сценарій
+`python -m app.tools.alarm_ack_http_check` проходить через справжні ASGI
+маршрути та перевірку Bearer JWT: 401, 403, 404, 409, перший/повторний
+acknowledge, історію переходів і відкликання сесії. Він також відкочує
+тимчасові Device, Alarm, User та AuthSession. До локальної перевірки
+HTTP-сценарію операція 6 залишається відкритою.
 
