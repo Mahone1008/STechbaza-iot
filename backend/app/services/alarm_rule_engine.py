@@ -48,8 +48,8 @@ class RuleEngineResult:
 class TelemetryAlarmRuleEngine:
     """Config-driven numeric alarm engine з durable debounce та hysteresis.
 
-    Rule Engine запускається лише для telemetry, яка пройшла ordering policy
-    та стала current snapshot. Сирі або stale пакети не можуть змінити Alarm.
+    Rule Engine викликається лише для current snapshot.
+    TelemetryService передає commit=False та комітить усю операцію разом.
     """
 
     def __init__(self, session: Session) -> None:
@@ -196,6 +196,7 @@ class TelemetryAlarmRuleEngine:
         state: dict[str, Any],
         source_message_id: uuid.UUID,
         occurred_at: datetime,
+        commit: bool = True,
     ) -> RuleEngineResult:
         rules = self._load_rules(device_id)
         if not rules:
@@ -371,9 +372,11 @@ class TelemetryAlarmRuleEngine:
                     )
                 )
 
-            self._session.commit()
+            if commit:
+                self._session.commit()
         except Exception:
-            self._session.rollback()
+            if commit:
+                self._session.rollback()
             raise
 
         return RuleEngineResult(

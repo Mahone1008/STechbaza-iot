@@ -10,6 +10,7 @@ from app.repositories.capabilities import CapabilityRepository
 from app.repositories.devices import DeviceRepository
 from app.repositories.telemetry import TelemetryRepository
 from app.schemas.telemetry import TelemetryEnvelope
+from app.services.alarm_rule_engine import TelemetryAlarmRuleEngine
 from app.services.telemetry_ordering import decide_snapshot_update
 from app.services.telemetry_policy import validate_telemetry_capabilities
 
@@ -50,6 +51,7 @@ class TelemetryService:
         self._devices = DeviceRepository(session)
         self._capabilities = CapabilityRepository(session)
         self._telemetry = TelemetryRepository(session)
+        self._alarm_rules = TelemetryAlarmRuleEngine(session)
 
     def ingest(
         self,
@@ -58,7 +60,9 @@ class TelemetryService:
         payload: TelemetryEnvelope,
         received_at: datetime | None = None,
     ) -> TelemetryIngestResult:
-        device = self._devices.get_by_uid(device_uid)
+        # Lock before reading the snapshot: concurrent packets must decide
+        # ordering against the latest committed state of this Device.
+        device = self._devices.get_by_uid_for_update(device_uid)
         if device is None:
             raise TelemetryDeviceNotFoundError
 
@@ -144,6 +148,14 @@ class TelemetryService:
                     values=payload.values,
                     state=payload.state,
                 )
+                self._alarm_rules.evaluate(
+                    device_id=device.id,
+                    values=payload.values,
+                    state=payload.state,
+                    source_message_id=saved_message.id,
+                    occurred_at=server_received_at,
+                    commit=False,
+                )
 
             # Валідний новий MQTT-пакет підтверджує зв'язок із Device,
             # навіть якщо старіша session не може переписати current state.
@@ -160,6 +172,9 @@ class TelemetryService:
                     state_updated=False,
                     ordering_reason="duplicate_message_id_race",
                 )
+            raise
+        except Exception:
+            self._session.rollback()
             raise
 
         return TelemetryIngestResult(

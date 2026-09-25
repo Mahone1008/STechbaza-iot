@@ -1,7 +1,7 @@
 # Етап 7 — Events & Alarms Core
 
-**Статус:** у роботі  
-**Backend:** 0.24.0+
+**Статус:** у роботі (операції 1–4 локально перевірено)  
+**Backend:** 0.27.0
 
 ## Мета
 
@@ -54,8 +54,8 @@ alarm: warning | critical
 ```text
 Операція 1 — Events & Alarms Data Model Foundation        ✅ завершено
 Операція 2 — Events API + tenant-scoped read model        ✅ завершено
-Операція 3 — Alarm Lifecycle Service                         ✅ завершено                         ← у роботі
-Операція 4 — Rule Engine + debounce / hysteresis / anti-spam
+Операція 3 — Alarm Lifecycle Service                       ✅ завершено
+Операція 4 — Rule Engine + debounce / hysteresis / anti-spam ✅ перевірено локально
 Операція 5 — System alarms: offline / reboot / command failure
 Операція 6 — Acknowledge + actor audit
 Операція 7 — Notifications foundation + final E2E
@@ -381,3 +381,31 @@ tenant anti-enumeration preserved                       ✅
 ```
 
 Операція 3 — завершено.
+
+
+
+## Операція 4 — Rule Engine + telemetry integration
+
+Реалізовано конфігурацію числових правил у `DeviceCapability.config.alarm_rules` з перевіркою порогів, debounce і hysteresis. Стан правила зберігається у `device_alarm_rule_states` (міграція `20260925_0012`). Правила працюють лише для enabled capabilities конкретного пристрою.
+
+`TelemetryService` оцінює правила лише для нового актуального snapshot. Один PostgreSQL Device lock впорядковує пакети пристрою; telemetry message, DeviceState, rule state, Event, Alarm і transition записуються однією транзакцією. При помилці зміни відкочуються разом.
+
+### Локальна перевірка Операції 4
+
+```text
+Alembic head = 20260925_0012                              ✅
+50 → normal; 85 → pending raise; 90 → ACTIVE              ✅
+92, 75 → same ACTIVE alarm, no repeated Event             ✅
+68 → pending resolve; 65 → RESOLVED                       ✅
+85, 90 → second ACTIVE alarm with new id                   ✅
+duplicate message_id → no extra transition                ✅
+stale sequence / old session → no rule evaluation         ✅
+new session → state updated, old session stays ignored    ✅
+disabled vfd.frequency.read → capability_violation        ✅
+forced failure after Event+Alarm write → full rollback    ✅
+temporary rule removed; capability enabled; active=0      ✅
+```
+
+Тестові завершені інциденти залишено в історії локальної БД. Формат правил, приклад і відтворювана перевірка транзакції наведені в [Alarm Rule Engine v1](alarm-rule-engine-v1.md).
+
+Перед production-використанням окремо перевірити доставку MQTT після помилки БД: тест транзакції підтвердив відкат PostgreSQL, але не повторну доставку пакета брокером. System alarms, acknowledge та notifications входять до наступних операцій.

@@ -35,6 +35,12 @@ class DeviceRepository:
         statement = select(Device).where(Device.uid == uid)
         return self._session.scalar(statement)
 
+    def get_by_uid_for_update(self, uid: str) -> Device | None:
+        """Серіалізує ingestion, ordering і alarm rules одного Device."""
+
+        statement = select(Device).where(Device.uid == uid).with_for_update()
+        return self._session.scalar(statement)
+
     def add(self, device: Device) -> Device:
         self._session.add(device)
         self._session.flush()
