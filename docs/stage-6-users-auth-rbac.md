@@ -39,8 +39,8 @@ Audit
 ## План операцій
 
 ```text
-Операція 1 — Identity & Membership Foundation      ← у роботі
-Операція 2 — Password Security + Token Auth
+Операція 1 — Identity & Membership Foundation      ✅ завершено
+Операція 2 — Password Security + Token Auth         ← у роботі
 Операція 3 — Current User / Session Context
 Операція 4 — RBAC + Multi-tenant Guards
 Операція 5 — Command Actor Audit
@@ -115,4 +115,20 @@ Backend health:
 version = 0.18.0 ✅
 ```
 
-Залишилась поведінкова перевірка DB constraints перед закриттям Операції 1.
+Поведінкову перевірку DB constraints завершено.
+
+
+## Behavioral constraint verification
+
+Локально перевірено:
+
+```text
+коректний User INSERT                                  ✅
+platform_role='king_of_pumps' → CHECK violation       ✅
+коректний Membership INSERT                            ✅
+role='king_of_pumps' → CHECK violation                ✅
+DELETE User при існуючому Membership                  ✅
+ON DELETE CASCADE не блокує видалення                 ✅
+```
+
+Операція 1 — Identity & Membership Foundation завершена.
