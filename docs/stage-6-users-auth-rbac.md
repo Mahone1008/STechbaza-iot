@@ -482,3 +482,16 @@ is_active залишився true                                   ✅
 
 Керування tenant-role через API працює без прямого SQL.
 Наступна перевірка — protection від privilege escalation: admin не повинен мати можливості призначити role=owner.
+
+
+### Membership Management verification — owner protection
+
+Локально підтверджено:
+
+```text
+admin → PATCH membership role=owner                         ✅ deny / 403
+response: "Лише owner може керувати роллю owner"            ✅
+privilege escalation через admin заблоковано                ✅
+```
+
+Наступна перевірка — operator не повинен мати membership.read / membership.manage.
