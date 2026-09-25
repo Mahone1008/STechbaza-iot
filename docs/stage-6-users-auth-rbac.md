@@ -347,3 +347,16 @@ GET Device B напряму → generic 404                        ✅
 ```
 
 tenant isolation для Organization B / Site B / Device B доведено.
+
+
+### Verification viewer role — проміжний результат
+
+Локально підтверджено:
+
+```text
+membership role змінено на viewer                       ✅
+/auth/me одразу повертає role=viewer                    ✅
+viewer → device.read                                    ✅
+```
+
+Залишилось підтвердити, що `viewer` не має `command.execute` і отримує 403.
