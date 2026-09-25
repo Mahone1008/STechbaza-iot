@@ -56,10 +56,11 @@ class NotificationRepository:
         )
         if unread_only:
             query = query.where(NotificationRead.notification_id.is_(None))
-        return list(self._session.execute(
+        rows = self._session.execute(
             query.order_by(AlarmNotification.created_at.desc(), AlarmNotification.id.desc())
             .limit(limit).offset(offset)
-        ).tuples())
+        )
+        return [(item, read_at) for item, read_at in rows]
 
     def unread_count(self, organization_id: uuid.UUID, user_id: uuid.UUID) -> int:
         query = self._visible_with_reader(user_id).where(
