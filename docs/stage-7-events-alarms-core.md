@@ -53,7 +53,7 @@ alarm: warning | critical
 
 ```text
 Операція 1 — Events & Alarms Data Model Foundation        ✅ завершено
-Операція 2 — Events API + tenant-scoped read model        ← у роботі
+Операція 2 — Events API + tenant-scoped read model        ✅ завершено
 Операція 3 — Alarm Lifecycle Service
 Операція 4 — Rule Engine + debounce / hysteresis / anti-spam
 Операція 5 — System alarms: offline / reboot / command failure
@@ -227,7 +227,34 @@ filters + pagination                             ✅ code
 event.read permission                            ✅ code
 tenant-scoped AccessControl.require_event        ✅ code
 backend 0.25.0                                   ✅ code
-local endpoint verification                      ⏳
-foreign tenant anti-enumeration verification     ⏳
-filter verification                              ⏳
+local endpoint verification                      ✅
+foreign tenant anti-enumeration verification     ✅
+filter verification                              ✅
 ```
+
+
+### Verification result — Операція 2
+
+Локально підтверджено:
+
+```text
+GET /health → backend 0.25.0                                  ✅
+insert own tenant test Event                                  ✅
+insert foreign tenant test Event                              ✅
+GET /devices/{device_id}/events                               ✅
+severity/source/event_type filters                            ✅
+GET /events/{event_id} для свого tenant                       ✅
+GET /events/{foreign_event_id} → 404 "Ресурс не знайдено"     ✅
+GET /events/{missing_event_id} → 404 "Ресурс не знайдено"     ✅
+```
+
+Anti-enumeration invariant підтверджено:
+
+```text
+foreign Event      → 404
+missing Event      → 404
+```
+
+Отже Events API не розкриває існування ресурсів іншого tenant.
+
+Операція 2 — завершено.
