@@ -82,18 +82,31 @@ def decode_access_token(token: str) -> dict[str, Any]:
     )
 
 
-def create_refresh_token() -> RefreshTokenData:
-    """Створює opaque refresh token; у БД зберігається лише hash."""
+def create_refresh_token(
+    *,
+    expires_at: datetime | None = None,
+) -> RefreshTokenData:
+    """Створює opaque refresh token; у БД зберігається лише hash.
+
+    Під час rotation можна передати існуючий absolute expiry, щоб refresh
+    не продовжував session безкінечно.
+    """
 
     token = secrets.token_urlsafe(48)
     now = utc_now()
-    expires_at = now + timedelta(seconds=AUTH_REFRESH_TOKEN_TTL_SECONDS)
+    effective_expires_at = expires_at or (
+        now + timedelta(seconds=AUTH_REFRESH_TOKEN_TTL_SECONDS)
+    )
+    expires_in = max(
+        0,
+        int((effective_expires_at - now).total_seconds()),
+    )
 
     return RefreshTokenData(
         token=token,
         token_hash=hash_refresh_token(token),
-        expires_at=expires_at,
-        expires_in=AUTH_REFRESH_TOKEN_TTL_SECONDS,
+        expires_at=effective_expires_at,
+        expires_in=expires_in,
     )
 
 
