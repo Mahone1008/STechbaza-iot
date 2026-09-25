@@ -33,6 +33,7 @@
 - [End-to-End Command Test v1](end-to-end-command-test-v1.md)
 - [Етап 6 — Users, Authentication & RBAC (у роботі)](stage-6-users-auth-rbac.md)
 - [Identity & RBAC Foundation v1](identity-rbac-foundation-v1.md)
+- [Authentication Token Protocol v1](auth-token-v1.md)
 
 ## Запланований розвиток
 
