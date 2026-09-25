@@ -43,7 +43,7 @@ Audit
 Операція 2 — Password Security + Token Auth         ✅ завершено
 Операція 3 — Current User / Session Context          ✅ завершено
 Операція 4 — RBAC + Multi-tenant Guards              ✅ завершено
-Операція 5 — Command Actor Audit                         ← у роботі
+Операція 5 — Command Actor Audit                         ✅ завершено
 Операція 6 — Security End-to-End Test
 ```
 
@@ -652,3 +652,44 @@ actor snapshot immutable після role change                ✅
 
 Наступна перевірка — actor-aware idempotency:
 інший User не повинен мати можливості повторно використати чужий request_id.
+
+
+### Command Actor Audit verification — чужий request_id
+
+Локально підтверджено:
+
+```text
+viewer-test@techbaza.dev → role=owner                     ✅
+другий User повторно використав request_id
+a3e1961a-eaf5-4f47-bea9-c46218462f1c                    ✅
+backend повернув conflict                                 ✅
+response:
+"request_id уже використано для іншої команди, іншого payload або іншого actor"
+                                                             ✅
+```
+
+Це підтверджує actor-aware idempotency: чужий User не може "успадкувати"
+request_id іншого actor навіть якщо device, command_type, payload і TTL збігаються.
+
+### Операція 5 — Command Actor Audit ✅ завершено
+
+Повна behavioral verification:
+
+```text
+migration 20260925_0010 applied                           ✅
+backend 0.23.0                                            ✅
+actor_user_id snapshot                                    ✅
+actor_auth_session_id snapshot                            ✅
+actor_organization_id snapshot                            ✅
+actor_platform_role snapshot                              ✅
+actor_organization_role snapshot                          ✅
+actor_email/display_name snapshot                         ✅
+role change не змінює старий audit                        ✅
+інший User + reused request_id → conflict                 ✅
+```
+
+Наступна операція:
+
+```text
+Операція 6 — Security End-to-End Test
+```
