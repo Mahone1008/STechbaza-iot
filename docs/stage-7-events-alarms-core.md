@@ -336,3 +336,17 @@ resolved_at встановлено                               ✅
 transition history містить raised/repeated/resolved    ✅
 resolved transition з reason=Pressure restored         ✅
 ```
+
+
+### Часткова verification — new incident after resolve
+
+Локально підтверджено:
+
+```text
+resolved incident id = 6e625e36-3b95-4d26-83bc-e615bdf72e7b ✅
+new incident id      = 722a99e1-8a1b-412f-a486-2c811aa9c7b0 ✅
+new incident state   = active                              ✅
+new occurrence_count = 1                                   ✅
+old incident remains resolved                               ✅
+device alarm list contains both incidents                    ✅
+```
