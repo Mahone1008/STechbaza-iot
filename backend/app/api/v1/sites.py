@@ -6,6 +6,12 @@ from sqlalchemy.orm import Session
 
 from app.db import get_db_session
 from app.schemas.site import SiteCreate, SiteRead
+from app.security.authorization import AccessControl
+from app.security.current_user import (
+    CurrentUserContext,
+    get_current_user_context,
+)
+from app.security.roles import Permission
 from app.services.sites import (
     ParentOrganizationNotFoundError,
     SiteAlreadyExistsError,
@@ -16,6 +22,10 @@ from app.services.sites import (
 router = APIRouter(tags=["sites"])
 
 DbSession = Annotated[Session, Depends(get_db_session)]
+CurrentUser = Annotated[
+    CurrentUserContext,
+    Depends(get_current_user_context),
+]
 
 
 @router.get(
@@ -25,9 +35,15 @@ DbSession = Annotated[Session, Depends(get_db_session)]
 def list_sites(
     organization_id: uuid.UUID,
     session: DbSession,
+    current: CurrentUser,
     limit: Annotated[int, Query(ge=1, le=100)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> list[SiteRead]:
+    AccessControl(session, current).require_organization(
+        organization_id,
+        Permission.SITE_READ,
+    )
+
     try:
         sites = SiteService(session).list_for_organization(
             organization_id,
@@ -52,7 +68,13 @@ def create_site(
     organization_id: uuid.UUID,
     payload: SiteCreate,
     session: DbSession,
+    current: CurrentUser,
 ) -> SiteRead:
+    AccessControl(session, current).require_organization(
+        organization_id,
+        Permission.SITE_CREATE,
+    )
+
     try:
         site = SiteService(session).create(organization_id, payload)
     except ParentOrganizationNotFoundError as exc:
@@ -73,7 +95,13 @@ def create_site(
 def get_site(
     site_id: uuid.UUID,
     session: DbSession,
+    current: CurrentUser,
 ) -> SiteRead:
+    AccessControl(session, current).require_site(
+        site_id,
+        Permission.SITE_READ,
+    )
+
     try:
         site = SiteService(session).get(site_id)
     except SiteNotFoundError as exc:
