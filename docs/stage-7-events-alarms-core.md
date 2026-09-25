@@ -54,7 +54,7 @@ alarm: warning | critical
 ```text
 Операція 1 — Events & Alarms Data Model Foundation        ✅ завершено
 Операція 2 — Events API + tenant-scoped read model        ✅ завершено
-Операція 3 — Alarm Lifecycle Service                         ← у роботі                         ← у роботі
+Операція 3 — Alarm Lifecycle Service                         ✅ завершено                         ← у роботі
 Операція 4 — Rule Engine + debounce / hysteresis / anti-spam
 Операція 5 — System alarms: offline / reboot / command failure
 Операція 6 — Acknowledge + actor audit
@@ -359,5 +359,25 @@ device alarm list contains both incidents                    ✅
 ```text
 foreign tenant Alarm id = ea80920e-fc8b-4a99-9d52-3bd7b185cd90 ✅
 GET foreign Alarm під tenant A user → 404 "Ресурс не знайдено" ✅
-missing Alarm comparison                                      ⏳
+missing Alarm comparison                                      ✅
 ```
+
+
+### Verification result — Операція 3
+
+Alarm Lifecycle Service локально підтверджено повністю:
+
+```text
+backend 0.26.0                                         ✅
+first raise → ACTIVE / occurrence_count=1              ✅
+repeat raise → same alarm_id / occurrence_count=2      ✅
+resolve → RESOLVED                                     ✅
+transition history raised/repeated/resolved             ✅
+raise after resolve → new alarm_id / count=1            ✅
+old incident remains resolved                           ✅
+foreign Alarm → 404                                     ✅
+missing Alarm → 404                                     ✅
+tenant anti-enumeration preserved                       ✅
+```
+
+Операція 3 — завершено.
