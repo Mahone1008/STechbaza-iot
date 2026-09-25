@@ -350,3 +350,14 @@ new occurrence_count = 1                                   ✅
 old incident remains resolved                               ✅
 device alarm list contains both incidents                    ✅
 ```
+
+
+### Часткова verification — foreign Alarm anti-enumeration
+
+Локально підтверджено:
+
+```text
+foreign tenant Alarm id = ea80920e-fc8b-4a99-9d52-3bd7b185cd90 ✅
+GET foreign Alarm під tenant A user → 404 "Ресурс не знайдено" ✅
+missing Alarm comparison                                      ⏳
+```
