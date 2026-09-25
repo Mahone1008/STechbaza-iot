@@ -312,3 +312,17 @@ operator → site.create                                    ✅ deny / 403
 Це підтверджує live role propagation з PostgreSQL та централізовану permission matrix.
 
 Наступна перевірка — tenant isolation: User з membership у Organization A не повинен бачити Organization B, Site B або Device B.
+
+
+### Verification tenant isolation — проміжний результат
+
+Локально підтверджено:
+
+```text
+Organization B створена в PostgreSQL                         ✅
+Organization B відсутня у tenant-scoped списку User A        ✅
+прямий GET чужої Organization B → generic 404                ✅
+прямий GET чужого Device B → generic 404                     ✅*
+```
+
+`* Device-level 404 остаточно рахується як isolation proof після окремої DB-перевірки, що тестовий Site B / Device B справді існують. Це відрізняє authorization 404 від звичайного not-found.
