@@ -13,7 +13,7 @@ backend 0.31.0, migration 20260925_0015.
 | 3 | Панель і графіки | Закрито 26.09.2026 — CI та локальне приймання пройдено |
 | 4 | Демонстраційний стенд | Закрито 26.09.2026 — CI та локальне приймання пройдено |
 | 5 | Комплексні перевірки | Закрито 26.09.2026 — CI та локальне приймання пройдено |
-| 6 | Приймання тестової збірки | Реалізовано 0.37.0; очікує повного CI та локального приймання |
+| 6 | Приймання тестової збірки | Реалізовано 0.37.0; повний CI пройдено, очікує локального приймання |
 
 ## Операція 1
 
@@ -604,6 +604,72 @@ Backend **0.37.0**, міграція без змін: **20260926_0017**.
 Нові перевірки охоплюють пошкоджений bundle, SQLite WAL, відмову
 перезапису, opt-in, транзакційність та ідемпотентність restore policy.
 
-Повний GitHub Actions і локальне приймання користувачем ще не зафіксовані.
+### Невдалі спроби CI та виправлення
+
+Перші прогони зупинилися на порівнянні restore; як приймання їх не зараховано:
+
+- [36268246247](https://github.com/Mahone1008/STechbaza-iot/actions/runs/36268246247), commit 3f61b79;
+- [36268559498](https://github.com/Mahone1008/STechbaza-iot/actions/runs/36268559498), commit f87e216;
+- [36268669333](https://github.com/Mahone1008/STechbaza-iot/actions/runs/36268669333), commit 08d949f.
+
+Діагностика третього прогону підтвердила: **вміст і кількість рядків усіх
+20 таблиць збіглися**. Відмінність стосувалася SQL-запису CHECK у семи
+таблицях: після pg_dump/restore PostgreSQL переносить cast varchar[] →
+text[] на окремі елементи масиву. Логічне обмеження при цьому те саме.
+Порівняння цього точного еквівалентного запису нормалізовано; самі
+constraints не пропускаються і дозволені значення не вилучаються.
+PostgreSQL regression test перевіряє round-trip, а також те, що додавання
+нової дозволеної ролі або зміна timestamp timezone все одно виявляються.
+
+Окремо перед фінальним прийманням усунено втрату точності у fingerprint:
+числа PostgreSQL/JSONB більше не проходять через Python float. Тест
+розрізняє numeric і JSONB значення, що відрізняються за межами точності
+float. Загальний набір збільшено з 107 до **109 tests**.
+
+### Повний CI — підтверджено 26.09.2026
+
+Перевірений код: commit
+[38d231a](https://github.com/Mahone1008/STechbaza-iot/commit/38d231ae691c966cc6b8e6d41e2f6317fd929c83).
+[Backend checks — run 36269123220](https://github.com/Mahone1008/STechbaza-iot/actions/runs/36269123220):
+**success**, обидва jobs завершилися успішно; переглянуто їх журнали.
+
+| Перевірка | Результат |
+|---|---|
+| Hardening job 108479575336: Python 3.13/PostgreSQL 16/Mosquitto 2 | 109 tests in 8.438s — OK, zero skips |
+| Міграції порожньої БД та downgrade/upgrade | PASS, head 20260926_0017 |
+| Chromium login/cookie/rotation/CSRF/CORS/logout/revocation | PASS |
+| Demo job 108479774508: зібраний Docker image | 109 tests in 7.864s — OK, zero skips |
+| Попередні live demo, simulator/backend restart, broker outage/recovery | PASS |
+| Чистий git archive, build без cache, порожні volumes, всі міграції | PASS |
+| Regression suite на чистій установці | 109 tests in 8.044s — OK, zero skips |
+| Seed і живі HTTP/MQTT на чистій установці | PASS |
+| Backup реального CI demo: PostgreSQL + SQLite + environment + source | PASS |
+| Розміри та SHA-256 усіх файлів bundle | PASS |
+| Restore у порожню БД: усі 20 таблиць, усі рядки, схема | PASS, точне порівняння до recovery policy |
+| SQLite device state, command ledger і pending rows | PASS, усі рядки збігаються до boot |
+| Нові boot sessions зі збереженням стану та ledger | PASS |
+| Відкликання sessions і заборона автоматичного command replay | PASS |
+| Старі access/refresh після restore | HTTP 401, двічі: до та після live test |
+| Контрольна queued STOP із backup | expired, 0 publish attempts; повтор request_id не відновив доставку |
+| Новий login і повний HTTP/MQTT test на відновленому стенді | PASS |
+| Звичайний demo після перевірки | health ok, backend 0.37.0; quick HTTP PASS |
+| Acceptance report і cleanup лише тимчасових projects/volumes | PASS |
+
+Фінальний console result:
+`PASS: Stage 8 operation 6 - clean install, exact backup/restore, safe recovery, demo 0.37.0`.
+
+CI перевірив актуальний PowerShell сценарій повністю. Неуспішні попередні
+прогони не підмінено цим результатом: їх причину й виправлення наведено вище.
+Приватні dump/environment/canary files як CI artifacts не публікувалися.
+
+### Локальне приймання — очікується
+
+Користувачу передається один блок PowerShell для Windows: оновлення main,
+повний сценарій операції 6, потім перевірка фінальних PASS.
+Очікуються 109 tests без skips, 20 відновлених таблиць, SQLite/recovery/live
+PASS, міграція 0017 head, health 0.37.0 та фінальний зелений результат.
+Резервна копія і acceptance-report.json залишаються у локальному backups/.
+До отримання результатів або явного підтвердження користувача локальне
+приймання не зараховано.
 **Операцію 6 та Етап 8 не закрито. До переходу на фронтенд залишається
 приймання цієї операції за погодженою поетапною схемою.**
