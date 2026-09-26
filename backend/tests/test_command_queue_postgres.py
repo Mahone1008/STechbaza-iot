@@ -58,8 +58,8 @@ class CommandQueueTests(unittest.TestCase):
         with SessionLocal() as session:
             for _ in range(count):
                 fields = dict(id=uuid.uuid4(), request_id=uuid.uuid4(), device_id=self.online,
-                    command_type="vfd.start", status="queued", ttl_seconds=600,
-                    created_at=self.now, expires_at=self.now + timedelta(seconds=600))
+                    command_type="vfd.start", status="queued", ttl_seconds=300,
+                    created_at=self.now, expires_at=self.now + timedelta(seconds=300))
                 fields.update(changes)
                 command = DeviceCommand(**fields)
                 session.add(command)
@@ -77,7 +77,7 @@ class CommandQueueTests(unittest.TestCase):
         return worker.run_command_reliability_cycle(now=now or self.now)
 
     def test_150_offline_commands_do_not_hide_online_command(self):
-        blocked = self.commands(150, device_id=self.offline, expires_at=self.now+timedelta(seconds=300))
+        blocked = self.commands(150, device_id=self.offline, expires_at=self.now+timedelta(seconds=150))
         ready = self.commands()[0]
         self.assertEqual(self.candidates(), [ready])
         with patch("app.services.command_dispatch.publish_command_message", return_value=(True, "published")) as publish:
@@ -90,7 +90,7 @@ class CommandQueueTests(unittest.TestCase):
     def test_150_backoff_commands_do_not_hide_fresh_command(self):
         for status in ("queued", "published"):
             self.commands(75, status=status, last_publish_attempt_at=self.now,
-                          publish_attempts=1, expires_at=self.now+timedelta(seconds=300))
+                          publish_attempts=1, expires_at=self.now+timedelta(seconds=150))
         ready = self.commands()[0]
         self.assertEqual(self.candidates(), [ready])
         with patch("app.services.command_dispatch.publish_command_message", return_value=(True, "published")) as publish:
