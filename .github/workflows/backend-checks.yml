@@ -7,6 +7,8 @@ on:
       - 'backend/**'
       - 'infrastructure/mosquitto/**'
       - '.github/workflows/backend-checks.yml'
+      - 'compose.demo.yml'
+      - 'scripts/check-stage8-op4.ps1'
   workflow_dispatch:
 
 permissions:
@@ -70,3 +72,35 @@ jobs:
         env:
           TECHBAZA_RUN_BROWSER_TESTS: '1'
         run: python -m app.tools.browser_auth_check
+
+  demo:
+    needs: hardening
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create ephemeral demo credentials
+        run: python3 backend/app/demo/config.py --output .env.demo
+      - name: Build and prepare isolated demo
+        run: |
+          docker compose -p techbaza-demo --env-file .env.demo -f compose.demo.yml build backend
+          docker compose -p techbaza-demo --env-file .env.demo -f compose.demo.yml up -d postgres mosquitto
+          docker compose -p techbaza-demo --env-file .env.demo -f compose.demo.yml run --rm -T backend alembic upgrade head
+          docker compose -p techbaza-demo --env-file .env.demo -f compose.demo.yml run --rm -T -e TECHBAZA_RUN_DB_TESTS=1 -e TECHBAZA_RUN_MQTT_TESTS=1 backend python -m unittest discover -s tests -v
+          docker compose -p techbaza-demo --env-file .env.demo -f compose.demo.yml run --rm -T backend python -m app.demo.seed
+          docker compose -p techbaza-demo --env-file .env.demo -f compose.demo.yml run --rm -T backend python -m app.demo.seed
+          docker compose -p techbaza-demo --env-file .env.demo -f compose.demo.yml up -d --wait --wait-timeout 90 backend simulator
+      - name: Verify real HTTP and MQTT demo scenarios
+        run: docker compose -p techbaza-demo --env-file .env.demo -f compose.demo.yml exec -T backend python -m app.demo.check
+      - name: Verify durable simulator restart
+        run: |
+          docker compose -p techbaza-demo --env-file .env.demo -f compose.demo.yml exec -T simulator python -m app.demo.simulator checkpoint
+          docker compose -p techbaza-demo --env-file .env.demo -f compose.demo.yml restart simulator
+          docker compose -p techbaza-demo --env-file .env.demo -f compose.demo.yml exec -T simulator python -m app.demo.simulator verify-restart
+          docker compose -p techbaza-demo --env-file .env.demo -f compose.demo.yml exec -T backend python -m app.demo.check --quick
+      - name: Demo logs on failure
+        if: failure()
+        run: docker compose -p techbaza-demo --env-file .env.demo -f compose.demo.yml logs --tail 120 backend simulator
+      - name: Stop isolated CI demo
+        if: always()
+        run: docker compose -p techbaza-demo --env-file .env.demo -f compose.demo.yml down

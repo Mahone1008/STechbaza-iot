@@ -1,0 +1,152 @@
+"""Durable стан симулятора та outbox відповідей; жодного підключення до PostgreSQL."""
+
+import hashlib
+import json
+import math
+import sqlite3
+import uuid
+from datetime import datetime, timezone
+from pathlib import Path
+
+from app.demo.catalog import LIVE_DEVICES
+from app.schemas.command import CommandEnvelope, DeviceCommandCreate
+
+MODES = {
+    "pump": ("normal", "fault", "offline"),
+    "pressure": ("normal", "alarm", "gap", "offline"),
+    "stale": ("normal", "offline"),
+    "other": ("normal", "offline"),
+}
+
+
+class DemoState:
+    def __init__(self, path):
+        Path(path).parent.mkdir(parents=True, exist_ok=True)
+        self.db = sqlite3.connect(path, timeout=10)
+        self.db.row_factory = sqlite3.Row
+        self.db.execute("PRAGMA journal_mode=WAL")
+        self.db.executescript("""
+            CREATE TABLE IF NOT EXISTS devices (
+                key TEXT PRIMARY KEY, session TEXT NOT NULL, sequence INTEGER NOT NULL DEFAULT 0,
+                running INTEGER NOT NULL DEFAULT 0, frequency REAL NOT NULL DEFAULT 40,
+                mode TEXT NOT NULL DEFAULT 'normal', executions INTEGER NOT NULL DEFAULT 0
+            );
+            CREATE TABLE IF NOT EXISTS commands (
+                id TEXT PRIMARY KEY, device TEXT NOT NULL, fingerprint TEXT NOT NULL,
+                ack TEXT NOT NULL, result TEXT NOT NULL, pending INTEGER NOT NULL DEFAULT 1
+            );
+        """)
+        with self.db:
+            for key in LIVE_DEVICES:
+                self.db.execute("INSERT OR IGNORE INTO devices (key, session) VALUES (?, ?)", (key, str(uuid.uuid4())))
+
+    def close(self):
+        self.db.close()
+
+    def boot(self):
+        with self.db:
+            for key in LIVE_DEVICES:
+                self.db.execute("UPDATE devices SET session=?, sequence=0 WHERE key=?", (str(uuid.uuid4()), key))
+
+    def device(self, key):
+        row = self.db.execute("SELECT * FROM devices WHERE key=?", (key,)).fetchone()
+        if row is None:
+            raise ValueError("Невідомий live demo device")
+        return dict(row)
+
+    def mode(self, key, mode):
+        if mode not in MODES.get(key, ()):
+            raise ValueError("Непідтримуваний demo scenario")
+        with self.db:
+            self.db.execute("UPDATE devices SET mode=?, running=CASE WHEN ?='fault' THEN 0 ELSE running END WHERE key=?",
+                            (mode, mode, key))
+
+    def envelope(self, key):
+        with self.db:
+            self.db.execute("UPDATE devices SET sequence=sequence+1 WHERE key=?", (key,))
+            item = self.device(key)
+        return {"schema_version": 1, "message_id": str(uuid.uuid4()), "session_id": item["session"],
+                "sequence": item["sequence"], "sent_at": datetime.now(timezone.utc).isoformat()}
+
+    def telemetry(self, key):
+        item = self.device(key)
+        if item["mode"] == "offline" or key == "stale":
+            return None
+        packet = self.envelope(key)
+        wave = round(math.sin(packet["sequence"] / 8) * 0.15, 3)
+        values, state = {}, {}
+        if key == "pump":
+            running = bool(item["running"]) and item["mode"] != "fault"
+            values = {"vfd.frequency_hz": item["frequency"] if running else 0,
+                      "vfd.current_a": round(item["frequency"] * 0.15, 2) if running else 0,
+                      "pressure.bar": round(2.5 + wave, 3) if running else 0}
+            state = {"pump_running": running, "vfd_fault_code": 42 if item["mode"] == "fault" else 0,
+                     "local_mode": False, "emergency_stop": False}
+        elif item["mode"] != "gap":
+            values = {"pressure.bar": 0.4 if item["mode"] == "alarm" else round(2.5 + wave, 3)}
+        return {**packet, "values": values, "state": state}
+
+    def command(self, key, raw, *, now=None):
+        if key != "pump":
+            raise ValueError("Цей demo device не має vfd.control")
+        envelope = CommandEnvelope.model_validate(raw)
+        DeviceCommandCreate(request_id=envelope.request_id, command_type=envelope.command_type,
+                            payload=envelope.payload, ttl_seconds=envelope.ttl_seconds)
+        if envelope.expires_at.tzinfo is None or envelope.issued_at.tzinfo is None:
+            raise ValueError("Command timestamps потребують timezone")
+        encoded = envelope.model_dump(mode="json")
+        fingerprint = hashlib.sha256(json.dumps(encoded, sort_keys=True).encode()).hexdigest()
+        command_id = str(envelope.command_id)
+        self.db.execute("BEGIN IMMEDIATE")
+        try:
+            stored = self.db.execute("SELECT * FROM commands WHERE id=?", (command_id,)).fetchone()
+            if stored:
+                if stored["device"] != key or stored["fingerprint"] != fingerprint:
+                    raise ValueError("Той самий command_id має інший envelope")
+                self.db.execute("UPDATE commands SET pending=1 WHERE id=?", (command_id,))
+                self.db.commit()
+                return False
+            item = self.device(key)
+            current = now or datetime.now(timezone.utc)
+            if current >= envelope.expires_at or envelope.issued_at > current:
+                raise ValueError("Команда прострочена або ще не видана")
+            if item["mode"] == "offline":
+                raise ValueError("Demo device offline")
+            failed = item["mode"] == "fault" and envelope.command_type != "vfd.stop"
+            result = {}
+            if not failed:
+                if envelope.command_type == "vfd.frequency.set":
+                    value = float(envelope.payload["frequency_hz"])
+                    self.db.execute("UPDATE devices SET frequency=? WHERE key=?", (value, key))
+                    result = {"frequency_hz": value}
+                else:
+                    running = envelope.command_type == "vfd.start"
+                    self.db.execute("UPDATE devices SET running=? WHERE key=?", (int(running), key))
+                    result = {"pump_running": running}
+                self.db.execute("UPDATE devices SET executions=executions+1 WHERE key=?", (key,))
+            common = {"schema_version": 1, "command_id": command_id, "session_id": item["session"],
+                      "sent_at": current.isoformat()}
+            ack = {**common, "message_id": str(uuid.uuid4())}
+            terminal = {**common, "message_id": str(uuid.uuid4()), "status": "failed" if failed else "succeeded",
+                        "result": result, "error_code": "demo_vfd_fault" if failed else None,
+                        "error_message": "Demo VFD fault scenario" if failed else None}
+            self.db.execute("INSERT INTO commands (id, device, fingerprint, ack, result) VALUES (?, ?, ?, ?, ?)",
+                            (command_id, key, fingerprint, json.dumps(ack), json.dumps(terminal)))
+            # Стан віртуального пристрою і відповіді фіксуються до першого publish.
+            self.db.commit()
+            return True
+        except Exception:
+            self.db.rollback()
+            raise
+
+    def pending(self):
+        return [dict(row) for row in self.db.execute("SELECT * FROM commands WHERE pending=1 ORDER BY rowid LIMIT 100")]
+
+    def delivered(self, command_id):
+        with self.db:
+            self.db.execute("UPDATE commands SET pending=0 WHERE id=?", (command_id,))
+
+    def checkpoint(self):
+        records = [tuple(row) for row in self.db.execute("SELECT id, device, fingerprint, ack, result FROM commands ORDER BY id")]
+        return {"devices": {key: self.device(key) for key in LIVE_DEVICES},
+                "ledger_digest": hashlib.sha256(json.dumps(records).encode()).hexdigest()}

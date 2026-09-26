@@ -1,0 +1,80 @@
+# Окремий проект: docker compose -p techbaza-demo --env-file .env.demo -f compose.demo.yml ...
+name: techbaza-demo
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: techbaza_demo
+      POSTGRES_USER: techbaza_demo
+      POSTGRES_PASSWORD: ${DEMO_DB_PASSWORD:?Create .env.demo first}
+    volumes:
+      - demo_postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U techbaza_demo -d techbaza_demo"]
+      interval: 2s
+      timeout: 5s
+      retries: 20
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+    restart: unless-stopped
+    volumes:
+      - ./infrastructure/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - demo_mqtt:/mosquitto/data
+
+  backend:
+    image: techbaza-demo-backend:local
+    build:
+      context: ./backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+psycopg://techbaza_demo:${DEMO_DB_PASSWORD:?Create .env.demo first}@postgres:5432/techbaza_demo
+      AUTH_ACCESS_TOKEN_SECRET: ${DEMO_JWT_SECRET:?Create .env.demo first}
+      AUTH_BROWSER_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
+      AUTH_COOKIE_SECURE: 'false'
+      MQTT_HOST: mosquitto
+      MQTT_PORT: '1883'
+      MQTT_CLIENT_ID: techbaza-demo-backend
+      DEVICE_ONLINE_TIMEOUT_SECONDS: '15'
+      TELEMETRY_STALE_AFTER_SECONDS: '20'
+      SYSTEM_ALARM_POLL_SECONDS: '2'
+      COMMAND_RELIABILITY_POLL_SECONDS: '1'
+      TECHBAZA_DEMO_MODE: '1'
+      DEMO_OWNER_PASSWORD: ${DEMO_OWNER_PASSWORD:?Create .env.demo first}
+      DEMO_OPERATOR_PASSWORD: ${DEMO_OPERATOR_PASSWORD:?Create .env.demo first}
+      DEMO_VIEWER_PASSWORD: ${DEMO_VIEWER_PASSWORD:?Create .env.demo first}
+      DEMO_OTHER_PASSWORD: ${DEMO_OTHER_PASSWORD:?Create .env.demo first}
+    ports:
+      - "127.0.0.1:8001:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mosquitto:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+      interval: 3s
+      timeout: 5s
+      retries: 20
+      start_period: 5s
+
+  simulator:
+    image: techbaza-demo-backend:local
+    restart: unless-stopped
+    command: ["python", "-m", "app.demo.simulator", "run"]
+    environment:
+      TECHBAZA_DEMO_MODE: '1'
+      MQTT_HOST: mosquitto
+      MQTT_PORT: '1883'
+      DEMO_STATE_PATH: /state/demo.sqlite3
+    volumes:
+      - demo_simulator:/state
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  demo_postgres:
+  demo_mqtt:
+  demo_simulator:
