@@ -10,7 +10,7 @@
 | Операція | Мета | Стан |
 |---|---|---|
 | H-01 | Некоректні MQTT packets не блокують потік; transient failure зберігає retry | Закрито 27.09.2026 — CI та Windows-приймання PASS |
-| H-02 | Справедливий відбір і повторна доставка команд | Реалізовано; очікує CI та приймання користувачем |
+| H-02 | Справедливий відбір і повторна доставка команд | Реалізовано; CI PASS, очікує приймання користувачем |
 | H-03 | Розділення системних та користувацьких ключів аварій | Заплановано |
 | H-04 | Узгодження module/channel контракту перших екранів | Заплановано |
 | H-05 | Повна регресія та фіксація прийнятої версії | Заплановано |
@@ -223,7 +223,8 @@ HTTP API, MQTT envelope, command_id, правила ACK/Result та TTL не з�
    як expired, а не використовує застарілий час початку пачки.
 10. Час між циклами просувається на retry interval: усі 205 команд отримують
     першу спробу до повторної відправки старої пачки; загалом три цикли по 100
-    публікацій, з яких останні 95 — дозволені retry.
+    публікацій, з яких останні 95 — дозволені retry. Heartbeat підтримує online
+    Device при кожному просуванні часу, також із demo timeout 15 секунд.
 
 У цих десяти тестах справжні PostgreSQL transactions і locks; MQTT publisher
 контрольовано підмінено для перевірки кількості спроб та envelope. Справжні
@@ -260,5 +261,34 @@ CI виконує H-02 скрипт замість H-01, включаючи вс
 
 Очікується `PASS: 135 backend tests, zero skips`, health `ok / 0.37.2`
 та фінальний `PASS: H-02 acceptance; demo 0.37.2 is running...`.
+
+### Підтвердження CI — 27.09.2026
+
+Код приймання: `544edad6ce2ebbd33edd778e7f04515e7f3ed6a8`, backend **0.37.2**.
+[GitHub Actions run 36275911324](https://github.com/Mahone1008/STechbaza-iot/actions/runs/36275911324)
+завершився `completed / success`; jobs `hardening` і `demo` — success.
+
+| Перевірка | Підтверджений результат |
+|---|---|
+| PostgreSQL/Mosquitto suite | 135 tests, zero skips; усі десять H-02 регресій — ok |
+| Міграції | Head 20260926_0017; наявні downgrade/upgrade перевірки — PASS |
+| Chromium | Login, HttpOnly cookie, rotation, CSRF/CORS, logout/revocation — PASS |
+| Живий HTTP/MQTT | Команди, ACK/Result, дедуплікація, telemetry, alarms, notifications — PASS |
+| Simulator/backend restart | Стан і queue збережені; expired command не публікується — PASS |
+| Broker outage/reconnect | HTTP доступний, queued command збережена; доставка і telemetry відновлені — PASS |
+| Clean install | Tracked source, порожня БД, міграції, 135 tests без skips, live demo — PASS |
+| Exact backup/restore | Схема і всі 20 PostgreSQL tables збігаються; SQLite device/command rows збігаються |
+| Restore safety | Старі sessions відхиляються, відновлені queued/published не оживають автоматично — PASS |
+| H-02 PowerShell script | 135 tests, zero skips; demo health ok / 0.37.2; фінальний PASS H-02 acceptance |
+
+Допоміжний локальний прогін без PostgreSQL/MQTT: 64 пройдено, 71 skipped.
+Повне підтвердження дає наведений CI-прогін, де пропуски заборонені.
+PowerShell-скрипт перевірено у CI на PowerShell 7; користувацьке Windows
+приймання ще очікується.
+
+Підготовчі прогони виявили дві помилки нових fixtures: TTL 600 замість
+дозволених 5..300 секунд та просування часу без heartbeat при короткому
+demo timeout. Fixtures виправлено без послаблення перевірок і без зміни
+протокольних лімітів. Після цього весь CI повторно пройдено на наведеному commit.
 
 **H-02 не закрито до підтвердження користувача. Етап H: закрито 1 із 5.**
