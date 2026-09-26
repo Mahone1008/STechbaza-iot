@@ -14,6 +14,7 @@
 - [Етап 4 — IoT Telemetry & Reliability](dossier-v3.5-stage-4-iot-telemetry-reliability.md)
 - [Етап 5 — Remote Command Core](dossier-v3.5-stage-5-remote-command-core.md)
 - [Етап 6 — Users, Authentication & RBAC](dossier-v3.5-stage-6-users-auth-rbac.md)
+- [Етап 7 — Events & Alarms Core — загальне підсумкове досьє](dossier-v3.5-stage-7-events-alarms-core.md)
 
 ## Технічна документація
 
