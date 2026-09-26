@@ -18,7 +18,7 @@
 
 ## Технічна документація
 
-- [Етап 8 — Підготовка тестової версії backend — у роботі](stage-8-test-backend.md)
+- [Етап 8 — Підготовка тестової версії backend — завершено](stage-8-test-backend.md)
 - [Browser authentication v1 — Етап 8, операція 2](browser-auth-v1.md)
 - [Frontend API contract v1 — API перших екранів, backend 0.37.0](frontend-api-contract-v1.md)
 - [Показання панелі та графіки v1 — Етап 8, операція 3](telemetry-panel-charts-v1.md)
