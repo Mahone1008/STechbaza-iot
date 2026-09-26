@@ -12,7 +12,7 @@ backend 0.31.0, migration 20260925_0015.
 | 2 | Авторизація в браузері | Закрито 26.09.2026 — CI та локальне приймання пройдено |
 | 3 | Панель і графіки | Закрито 26.09.2026 — CI та локальне приймання пройдено |
 | 4 | Демонстраційний стенд | Закрито 26.09.2026 — CI та локальне приймання пройдено |
-| 5 | Комплексні перевірки | Реалізовано; очікуються повний CI та локальне приймання |
+| 5 | Комплексні перевірки | Реалізовано; повний CI пройдено, очікується локальне приймання |
 | 6 | Приймання тестової збірки | Не розпочато |
 
 ## Операція 1
@@ -488,7 +488,38 @@ Backend **0.36.0**, міграція без змін: **20260926_0017**.
 Unittest discovery: **98 tests in 1.209s — OK (skipped=56)**;
 фактично виконано 42, 56 integration tests тут не запускалися.
 Цей частковий запуск не зараховано як повне приймання.
-Повний CI зі справжніми PostgreSQL/MQTT/Chromium/Compose ще очікується.
+Повний CI підтверджено на commit
+[9b84fa2](https://github.com/Mahone1008/STechbaza-iot/commit/9b84fa2f2fc2e23b57c4b180835a7b14bf774225).
+
+- [Backend checks — run 36267006983](https://github.com/Mahone1008/STechbaza-iot/actions/runs/36267006983): **success**, обидва jobs успішні.
+- Hardening job **108473501647**: Python 3.13, PostgreSQL 16, Mosquitto 2,
+  міграції та rollback/upgrade 0017/0016/0015/0014 — успішні;
+  **Ran 98 tests in 7.657s — OK, zero skips**.
+- Chromium: login, HttpOnly cookie, reload/refresh rotation, CSRF/CORS rejection,
+  logout та access revocation — **PASS**.
+- Demo job **108473691531**: справжня Docker image і Compose environment;
+  **Ran 98 tests in 8.064s — OK, zero skips**.
+- Seed created, потім already exists зі збереженням даних/паролів — **PASS**.
+- Живі HTTP/MQTT сценарії операції 4 та фактичний restart simulator — **PASS**.
+- Offline/stale/одна active offline alarm, дві queued commands — **PASS**.
+- Фактичний restart backend зберіг IDs, created_at/expires_at та чергу.
+  Коротка команда expired з нульовими publish, довга succeeded після
+  normal/reconnect; повтор HTTP не створив нової команди — **PASS**.
+- Фактичний stop broker: HTTP продовжує читати дані, device offline,
+  readings stale, нова команда queued — **PASS**.
+- Start broker: telemetry/commands відновлено, offline incident resolved
+  рівно один раз, перевірено Start/показання/Stop; насос зупинено — **PASS**.
+- Фінальна quick HTTP-перевірка — **PASS**. CI demo зупинено після перевірок.
+
+Переглянуто журнали обох jobs, підсумки тестів і всі live PASS.
+Навмисні MQTT Traceback належать тесту повторної доставки після тимчасової
+помилки БД. PostgreSQL duplicate-key log у конкурентному тесті очікуваний:
+unique constraint відхиляє другий INSERT, сервіс повертає первинну команду;
+HTTP відповіді 201/200, один record і один publish підтверджені тестом.
+Ці записи не були приховані або зараховані як неперевірені помилки.
+
+CI підтверджує автоматичне приймання в його середовищі.
+Локальне приймання користувачем ще не виконане.
 
 ### Локальне приймання
 

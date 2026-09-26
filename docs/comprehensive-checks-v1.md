@@ -114,3 +114,13 @@ normal mode, друкує останні logs і зберігає початко
   firmware після зникнення живлення потребують окремого приймання.
 - Browser security перевіряється окремим реальним Chromium job; нові HTTP
   fixtures використовують ASGI з JWT і PostgreSQL, не видаються за browser UI.
+
+## Зафіксоване CI-приймання — 26.09.2026
+
+[Run 36267006983](https://github.com/Mahone1008/STechbaza-iot/actions/runs/36267006983),
+код 9b84fa2: обидва jobs success. Hardening — **98 tests in 7.657s**,
+Compose demo — **98 tests in 8.064s**, обидва **OK без пропусків**.
+Chromium auth, simulator restart, backend restart/queue/TTL,
+broker stop/start та фінальна quick HTTP-перевірка — **PASS**.
+Повні журнали перевірено; деталі — у журналі Етапу 8.
+Локальне приймання користувачем залишається умовою закриття операції 5.
