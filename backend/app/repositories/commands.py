@@ -2,7 +2,7 @@ import uuid
 
 from datetime import datetime
 
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import and_, case, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.models.command import DeviceCommand
@@ -50,6 +50,14 @@ class CommandRepository:
             .where(Device.id == DeviceCommand.device_id, Device.last_seen_at >= online_since)
             .exists()
         )
+        deadline = func.coalesce(DeviceCommand.result_deadline_at, DeviceCommand.expires_at)
+        # Завершення TTL/очікування результату має пріоритет. Для доставки
+        # спроба пересуває ready_at уперед, тому due retry не монополізує пачку.
+        maintenance = or_(DeviceCommand.expires_at <= now, DeviceCommand.status == "acknowledged")
+        ready_at = func.coalesce(
+            DeviceCommand.last_publish_attempt_at + (now - retry_before),
+            DeviceCommand.created_at,
+        )
         statement = (
             select(DeviceCommand.id)
             .where(or_(
@@ -75,7 +83,9 @@ class CommandRepository:
                 ),
             ))
             .order_by(
-                func.coalesce(DeviceCommand.result_deadline_at, DeviceCommand.expires_at),
+                case((maintenance, 0), else_=1),
+                case((maintenance, deadline), else_=ready_at),
+                deadline,
                 DeviceCommand.created_at.asc(),
                 DeviceCommand.id.asc(),
             )

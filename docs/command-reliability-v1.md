@@ -169,8 +169,11 @@ published
 Перед `LIMIT` worker відсіює команди до offline Device та команди, для яких
 ще не минув retry interval. Прострочені queued/published і acknowledged
 з минулим/відсутнім result deadline відбираються незалежно від online/backoff.
-Порядок стабільний: deadline, created_at, id. Час retry обчислюється зі
-збереженого `last_publish_attempt_at`; restart не обнуляє очікування.
+Завершення TTL/result timeout має пріоритет. Решта відбирається за
+`ready_at = last_publish_attempt_at + retry interval`, а до першої спроби —
+за `created_at`. Кожна спроба пересуває ready_at вперед, тому вже дозволені
+retry не монополізують пачку. Deadline, created_at та id стабілізують порядок
+при однаковому ready_at. Restart не обнуляє збережене очікування.
 
 Відбір є лише списком кандидатів. Перед publish стан, TTL, retry interval
 та availability повторно перевіряються після command row lock. Production

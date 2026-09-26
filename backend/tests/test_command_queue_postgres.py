@@ -124,6 +124,18 @@ class CommandQueueTests(unittest.TestCase):
         with SessionLocal() as session:
             self.assertEqual(session.get(DeviceCommand, command_id).publish_attempts, 2)
 
+    def test_due_retries_do_not_starve_205_waiting_commands_across_cycles(self):
+        ids = self.commands(205)
+        with patch("app.services.command_dispatch.publish_command_message", return_value=(True, "published")) as publish:
+            for cycle in range(3):
+                self.assertEqual(self.cycle(self.now+self.retry*cycle)["published_count"], 100)
+            # До першого retry усі 205 команд отримують свою першу спробу,
+            # навіть якщо retry попередньої пачки вже дозволений за часом.
+            sent = [call.kwargs["command_id"] for call in publish.call_args_list]
+            self.assertCountEqual(sent[:205], ids)
+            self.assertEqual(len(set(sent[:205])), 205)
+            self.assertEqual(len(sent), 300)
+
     def test_offline_expiry_and_ack_timeout_bypass_retry_backoff(self):
         expired = [self.commands(device_id=self.offline, status=status, expires_at=self.now,
                                 last_publish_attempt_at=self.now)[0] for status in ("queued", "published")]

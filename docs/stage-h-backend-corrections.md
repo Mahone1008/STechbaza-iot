@@ -188,8 +188,12 @@ backoff перевірялися тільки у dispatch. Ті самі неп�
 Online boundary (`last_seen_at >= now - timeout`) та retry boundary
 (`last_publish_attempt_at <= now - interval`) узгоджені з dispatch.
 Час наступної спроби обчислюється зі збережених metadata. Додаткове поле
-`next_attempt_at` не дублює вже наявну інформацію. Сортування: deadline,
-created_at, id — стабільний порядок навіть при однаковому часі записів.
+`next_attempt_at` не дублює вже наявну інформацію. Спочатку обробляються
+expiry/result timeout за deadline; потім — доставка за найдавнішим ready_at.
+Ready_at першої спроби дорівнює created_at, наступної —
+`last_publish_attempt_at + retry interval`. Кожна спроба пересуває ready_at вперед. Це запобігає повторному
+вибору тільки старої пачки, коли її retry вже настав, але інші команди ще не
+отримали першої спроби. Deadline, created_at та id забезпечують стабільні ties.
 
 Dispatch зберігає row lock і `populate_existing`, повторно перевіряє статус,
 TTL, backoff та presence. Список кандидатів не є distributed claim.
@@ -201,7 +205,7 @@ Retry interval винесено до спільного `command_config`. Неп
 batch size, poll та нескінченний/NaN poll відхиляються при старті.
 HTTP API, MQTT envelope, command_id, правила ACK/Result та TTL не змінені.
 
-### Дев'ять нових PostgreSQL-регресій
+### Десять нових PostgreSQL-регресій
 
 1. 150 offline-команд із раннім deadline не приховують наступну online-команду.
 2. 150 queued/published у backoff не приховують нову команду.
@@ -217,11 +221,14 @@ HTTP API, MQTT envelope, command_id, правила ACK/Result та TTL не з�
 8. Зміна presence, TTL або lifecycle після SQL-відбору блокує publish.
 9. Якщо TTL минув між відбором та dispatch, production-цикл завершує команду
    як expired, а не використовує застарілий час початку пачки.
+10. Час між циклами просувається на retry interval: усі 205 команд отримують
+    першу спробу до повторної відправки старої пачки; загалом три цикли по 100
+    публікацій, з яких останні 95 — дозволені retry.
 
-У цих дев'яти тестах справжні PostgreSQL transactions і locks; MQTT publisher
+У цих десяти тестах справжні PostgreSQL transactions і locks; MQTT publisher
 контрольовано підмінено для перевірки кількості спроб та envelope. Справжні
 Mosquitto, redelivery, restart/outage та HTTP сценарії залишаються у спільній
-регресії. Загальна кількість тестів після зміни: **134**, CI вимагає zero skips.
+регресії. Загальна кількість тестів після зміни: **135**, CI вимагає zero skips.
 
 ### Межі виправлення
 
@@ -251,7 +258,7 @@ Backup manifest 0.37.2 також приймає bundles 0.37.0 та 0.37.1 з �
 схемою; попередні acceptance-скрипти оновлені на актуальний image.
 CI виконує H-02 скрипт замість H-01, включаючи всі тести H-01.
 
-Очікується `PASS: 134 backend tests, zero skips`, health `ok / 0.37.2`
+Очікується `PASS: 135 backend tests, zero skips`, health `ok / 0.37.2`
 та фінальний `PASS: H-02 acceptance; demo 0.37.2 is running...`.
 
 **H-02 не закрито до підтвердження користувача. Етап H: закрито 1 із 5.**
