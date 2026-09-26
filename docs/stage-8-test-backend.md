@@ -11,7 +11,7 @@ backend 0.31.0, migration 20260925_0015.
 | 1 | API для перших екранів: права, модулі, запити, відповіді й помилки | Закрито 26.09.2026 — CI та локальне приймання пройдено |
 | 2 | Авторизація в браузері | Закрито 26.09.2026 — CI та локальне приймання пройдено |
 | 3 | Панель і графіки | Закрито 26.09.2026 — CI та локальне приймання пройдено |
-| 4 | Демонстраційний стенд | Реалізовано; перевірки та локальне приймання тривають |
+| 4 | Демонстраційний стенд | Реалізовано; повний CI і Compose demo пройдено, очікується локальне приймання |
 | 5 | Комплексні перевірки | Не розпочато |
 | 6 | Приймання тестової збірки | Не розпочато |
 
@@ -382,7 +382,31 @@ Traceback `Injected temporary database processing failure` та
 
 Локально у середовищі підготовки: **Ran 86 tests in 1.200s — OK (skipped=44)**.
 42 виконано; 44 DB/MQTT tests тут пропущено, вони потребують повного CI.
-Compileall пройшов. Результат повного CI й живого Compose demo ще очікується.
+Compileall пройшов.
+
+Повний CI підтверджено на коді
+[047feaf](https://github.com/Mahone1008/STechbaza-iot/commit/047feaf6a4f37a1fcab0e55e69b8bba85af55625):
+
+- [Backend checks — run 36265982282](https://github.com/Mahone1008/STechbaza-iot/actions/runs/36265982282): обидва jobs **success**.
+- Job hardening: Python 3.13, PostgreSQL 16, Mosquitto 2;
+  міграції/rollback/upgrade до 0017, **86 tests in 6.411s — OK без пропусків**,
+  окремий Chromium login/cookie/rotation/CSRF/CORS/logout/revocation — PASS.
+- Job demo: справжня збірка Docker image з compose.demo.yml;
+  **86 tests in 6.563s — OK без пропусків** у конфігурації demo.
+- Seed created, потім seed already exists; дані й паролі збережено.
+- PASS: чотири login, tenant isolation, viewer 403, модульні/live/stale/offline/new стани.
+- PASS: HTTP commands → MQTT ACK/Result, request_id deduplication, telemetry і actor audit.
+- PASS: графік, low-pressure alarm, acknowledge, персональне прочитання,
+  recovery, gap і повернення показань.
+- PASS: VFD failure повертає failed; Stop дозволений; normal відновлено.
+- PASS: реальний restart simulator зберіг стан і command ledger,
+  boot sessions змінилися; HTTP-перевірка після restart успішна.
+- Переглянуто журнали jobs **108470612379** і **108470800426**,
+  включно з підсумками тестів та всіма PASS, не лише статусами jobs.
+
+Навмисні MQTT Traceback у regression tests завершилися успішною повторною
+доставкою та OK. CI demo зупинено після перевірки; локальний користувацький
+demo сценарій залишає контейнери запущеними для подальшої роботи.
 
 ### Локальне приймання
 

@@ -4,7 +4,7 @@
 реалізовано в `backend/app/demo/`. Він використовує той самий Python image,
 але працює окремим контейнером з власним SQLite volume і без PostgreSQL.
 
-Стенд має два demo tenants, чотири ролі/облікові записи, шість пристроїв
+Стенд має два demo tenants, чотири облікові записи з різними tenant-ролями, шість пристроїв
 з різними capabilities, heartbeat, живу телеметрію, ACK/Result команд,
 сценарії аварії/відновлення/пропуску та durable command deduplication.
 
