@@ -28,6 +28,8 @@ async def _asgi_request(
     method: str,
     path: str,
     token: str | None,
+    *,
+    body: dict | None = None,
 ) -> tuple[int, object]:
     """Викликати FastAPI маршрут разом із Bearer/JWT dependencies."""
 
@@ -38,13 +40,16 @@ async def _asgi_request(
         nonlocal request_delivered
         if not request_delivered:
             request_delivered = True
-            return {"type": "http.request", "body": b"", "more_body": False}
+            payload = json.dumps(body).encode("utf-8") if body is not None else b""
+            return {"type": "http.request", "body": payload, "more_body": False}
         return {"type": "http.disconnect"}
 
     async def send(message: dict) -> None:
         messages.append(message)
 
     headers = [(b"host", b"localhost")]
+    if body is not None:
+        headers.append((b"content-type", b"application/json"))
     if token is not None:
         headers.append((b"authorization", f"Bearer {token}".encode("ascii")))
 
@@ -80,8 +85,10 @@ def _request(
     method: str,
     path: str,
     token: str | None = None,
+    *,
+    body: dict | None = None,
 ) -> tuple[int, object]:
-    return asyncio.run(_asgi_request(method, path, token))
+    return asyncio.run(_asgi_request(method, path, token, body=body))
 
 
 def main() -> None:
@@ -239,4 +246,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

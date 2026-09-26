@@ -1,0 +1,102 @@
+"""Збирає read model з наявних джерел істини без записів у БД."""
+
+import uuid
+from datetime import datetime, timezone
+
+from sqlalchemy.orm import Session
+
+from app.repositories.capabilities import CapabilityRepository
+from app.repositories.telemetry import TelemetryRepository
+from app.schemas.availability import DeviceAvailabilityRead
+from app.schemas.capability import CapabilityRead
+from app.schemas.device import DeviceRead
+from app.schemas.frontend import DeviceOverviewRead, OrganizationAccessRead
+from app.schemas.telemetry import DeviceStateRead
+from app.security.authorization import AccessControl
+from app.security.current_user import CurrentUserContext
+from app.security.roles import Permission, role_has_permission
+from app.services.commands import COMMAND_REQUIRED_CAPABILITY
+from app.services.device_presence import DevicePresenceService
+from app.services.telemetry_policy import (
+    STATE_CAPABILITY_REQUIREMENTS,
+    VALUE_CAPABILITY_REQUIREMENTS,
+)
+
+
+class OverviewPermissionError(Exception):
+    """Агрегат не повинен обходити права окремих джерел даних."""
+
+
+class FrontendReadService:
+    def __init__(self, session: Session, current: CurrentUserContext) -> None:
+        self._session = session
+        self._current = current
+        self._access = AccessControl(session, current)
+
+    def _access_snapshot(
+        self, organization_id: uuid.UUID, role: str | None,
+    ) -> OrganizationAccessRead:
+        # Та сама таблиця прав, яку використовують серверні authorization guards.
+        permissions = [
+            permission for permission in Permission
+            if self._access.is_superadmin
+            or (role is not None and role_has_permission(role, permission))
+        ]
+        return OrganizationAccessRead(
+            organization_id=organization_id,
+            platform_role=self._current.user.platform_role,
+            organization_role=role,
+            permissions=sorted(permissions),
+        )
+
+    def organization_access(self, organization_id: uuid.UUID) -> OrganizationAccessRead:
+        context = self._access.require_organization_context(
+            organization_id, Permission.ORGANIZATION_READ,
+        )
+        return self._access_snapshot(context.organization.id, context.organization_role)
+
+    def device_overview(self, device_id: uuid.UUID) -> DeviceOverviewRead:
+        context = self._access.require_device_context(device_id, Permission.DEVICE_READ)
+        access = self._access_snapshot(context.organization_id, context.organization_role)
+        if not {Permission.CAPABILITY_READ, Permission.TELEMETRY_READ}.issubset(access.permissions):
+            raise OverviewPermissionError
+
+        assignments = CapabilityRepository(self._session).get_enabled_assignments_for_device(device_id)
+        capabilities = sorted(
+            (CapabilityRead.model_validate(item.capability) for item in assignments),
+            key=lambda item: item.code,
+        )
+        codes = {item.code for item in capabilities}
+        value_keys = sorted(key for key, code in VALUE_CAPABILITY_REQUIREMENTS.items() if code in codes)
+        state_keys = sorted(key for key, code in STATE_CAPABILITY_REQUIREMENTS.items() if code in codes)
+        command_types = sorted(key for key, code in COMMAND_REQUIRED_CAPABILITY.items() if code in codes)
+
+        stored = TelemetryRepository(self._session).get_state(device_id)
+        snapshot = DeviceStateRead.model_validate(stored) if stored is not None else None
+        if snapshot is not None:
+            # Старі показники вимкненого модуля не повертають віджет на екран.
+            # Фільтруємо DTO, не змінюємо збережений snapshot або історію.
+            snapshot = snapshot.model_copy(update={
+                "values": {key: value for key, value in snapshot.values.items() if key in value_keys},
+                "state": {key: value for key, value in snapshot.state.items() if key in state_keys},
+            })
+
+        generated_at = datetime.now(timezone.utc)
+        availability = DevicePresenceService(self._session).get_availability(
+            device_id=device_id, now=generated_at,
+        )
+        return DeviceOverviewRead(
+            generated_at=generated_at,
+            device=DeviceRead.model_validate(context.device),
+            access=access,
+            availability=DeviceAvailabilityRead(
+                device_id=availability.device_id, uid=availability.uid,
+                online=availability.online, last_seen_at=availability.last_seen_at,
+                timeout_seconds=availability.timeout_seconds,
+                seconds_since_seen=availability.seconds_since_seen,
+            ),
+            capabilities=capabilities, value_keys=value_keys, state_keys=state_keys,
+            command_types=command_types,
+            allowed_commands=command_types if Permission.COMMAND_EXECUTE in access.permissions else [],
+            snapshot=snapshot,
+        )

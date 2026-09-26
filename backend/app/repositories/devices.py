@@ -22,7 +22,7 @@ class DeviceRepository:
         statement = (
             select(Device)
             .where(Device.site_id == site_id)
-            .order_by(Device.created_at.desc())
+            .order_by(Device.created_at.desc(), Device.id.desc())
             .limit(limit)
             .offset(offset)
         )

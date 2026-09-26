@@ -18,6 +18,8 @@
 
 ## Технічна документація
 
+- [Етап 8 — Підготовка тестової версії backend — у роботі](stage-8-test-backend.md)
+- [Frontend API contract v1 — API перших екранів, backend 0.32.0](frontend-api-contract-v1.md)
 - [Technology Stack](technology-stack.md)
 - [Development Standards](development-standards.md)
 - [Backend Development](backend-development.md)

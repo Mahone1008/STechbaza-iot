@@ -6,6 +6,7 @@ from app.api.v1.capabilities import router as capabilities_router
 from app.api.v1.commands import router as commands_router
 from app.api.v1.devices import router as devices_router
 from app.api.v1.events import router as events_router
+from app.api.v1.frontend import router as frontend_router
 from app.api.v1.memberships import router as memberships_router
 from app.api.v1.notifications import router as notifications_router
 from app.api.v1.organizations import router as organizations_router
@@ -24,3 +25,4 @@ api_v1_router.include_router(events_router)
 api_v1_router.include_router(alarms_router)
 api_v1_router.include_router(notifications_router)
 api_v1_router.include_router(commands_router)
+api_v1_router.include_router(frontend_router)

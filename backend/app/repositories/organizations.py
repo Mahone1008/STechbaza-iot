@@ -18,7 +18,7 @@ class OrganizationRepository:
     def list(self, *, limit: int, offset: int) -> list[Organization]:
         statement = (
             select(Organization)
-            .order_by(Organization.created_at.desc())
+            .order_by(Organization.created_at.desc(), Organization.id.desc())
             .limit(limit)
             .offset(offset)
         )
@@ -42,7 +42,7 @@ class OrganizationRepository:
                 OrganizationMembership.is_active.is_(True),
                 Organization.is_active.is_(True),
             )
-            .order_by(Organization.created_at.desc())
+            .order_by(Organization.created_at.desc(), Organization.id.desc())
             .limit(limit)
             .offset(offset)
         )

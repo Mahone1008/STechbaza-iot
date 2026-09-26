@@ -22,7 +22,7 @@ class SiteRepository:
         statement = (
             select(Site)
             .where(Site.organization_id == organization_id)
-            .order_by(Site.created_at.desc())
+            .order_by(Site.created_at.desc(), Site.id.desc())
             .limit(limit)
             .offset(offset)
         )
