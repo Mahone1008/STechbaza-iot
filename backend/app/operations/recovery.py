@@ -61,7 +61,7 @@ def database_fingerprint(engine):
             migration = list(connection.execute(text("SELECT version_num FROM alembic_version ORDER BY version_num")).scalars())
             if migration != ["20260926_0017"]:
                 raise ValueError("Очікується migration 0017 head")
-            return {"migration": migration, "tables": result,
+            return {"migration": migration, "tables": result, "schema": structure,
                     "schema_sha256": hashlib.sha256(json.dumps(structure, sort_keys=True, default=str).encode()).hexdigest()}
 
 

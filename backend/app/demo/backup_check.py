@@ -83,7 +83,15 @@ def source_resume():
 def compare_database():
     expected = json.loads((ROOT / "source.json").read_text())
     actual = database_fingerprint(engine)
-    ensure(actual == expected, "Restored schema/row counts/content differ from source snapshot")
+    if actual != expected:
+        # Лише names/counts/hashes та DDL із репозиторію; жодного row content.
+        names = sorted(set(actual["tables"]) | set(expected["tables"]))
+        differences = {name: {"source": expected["tables"].get(name), "restored": actual["tables"].get(name)}
+                       for name in names if actual["tables"].get(name) != expected["tables"].get(name)}
+        schemas = {name: {"source": expected["schema"].get(name), "restored": actual["schema"].get(name)}
+                   for name in names if actual["schema"].get(name) != expected["schema"].get(name)}
+        print("Restore comparison differences: " + json.dumps({"tables": differences, "schema": schemas}, default=str), flush=True)
+        raise RuntimeError("Restored schema/row counts/content differ from source snapshot")
     return actual
 
 
