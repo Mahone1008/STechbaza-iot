@@ -9,7 +9,7 @@
 
 | Операція | Мета | Стан |
 |---|---|---|
-| H-01 | Некоректні MQTT packets не блокують потік; transient failure зберігає retry | Код і CI — PASS; очікує приймання користувачем |
+| H-01 | Некоректні MQTT packets не блокують потік; transient failure зберігає retry | Закрито 27.09.2026 — CI та Windows-приймання PASS |
 | H-02 | Справедливий відбір і повторна доставка команд | Заплановано |
 | H-03 | Розділення системних та користувацьких ключів аварій | Заплановано |
 | H-04 | Узгодження module/channel контракту перших екранів | Заплановано |
@@ -113,7 +113,7 @@ rollback залишаються в загальному прогоні. `app.too
 - Живі demo HTTP/MQTT, restart simulator/backend, broker outage/reconnect — PASS.
 - Clean install із tracked source та exact backup/restore — PASS.
 - Той самий `scripts/check-stage-h-op1.ps1` виконано у CI PowerShell 7 — PASS;
-  перевірене demo успішно оновлено до 0.37.1. Windows-приймання виконує користувач.
+  перевірене demo успішно оновлено до 0.37.1. Windows-приймання підтверджене нижче.
 - Локальний допоміжний прогін у середовищі розробки: 64 пройдено, 61 пропущено
   без PostgreSQL/MQTT. Це не підміняє наведений повний CI-прогін без пропусків.
 
@@ -138,4 +138,29 @@ credentials та стан simulator зберігаються. Повторний
 Очікується `PASS: ... backend tests, zero skips`, health `ok / 0.37.1`
 та фінальний `PASS: H-01 acceptance; demo 0.37.1 is running...`.
 
-**Локальне приймання користувачем ще не підтверджене. H-01 не закрито.**
+## Підтверджене локальне приймання — 27.09.2026
+
+Користувач надав п'ять скриншотів виконання `check-stage-h-op1.ps1`
+у Windows PowerShell. Прийнята ревізія `77a17e4` містить код `f5a1e12`
+та запис результатів CI.
+
+| Скриншот | Підтверджений результат |
+|---|---|
+| image(20260926-220309).png | Fast-forward main до 77a17e4; образ techbaza-acceptance-backend:0.37.1 зібрано |
+| image(20260926-220321).png | Створено окреме тестове оточення; міграції порожньої БД застосовано до 20260926_0017; розпочато regression suite |
+| image(20260926-220333).png | Попередні регресії проходять; для перевірки повторної доставки навмисно викликано Injected temporary database processing failure |
+| image(20260926-220345).png | Тест після transient failure завершився ok; нові H-01 перевірки пройдено; Ran 125 tests in 9.170s, OK |
+| image(20260926-220353).png | PASS: 125 backend tests, zero skips; тимчасове оточення прибрано; demo-перевірка ролей/tenant isolation та модульних станів PASS; health ok / 0.37.1; фінальний PASS H-01 acceptance |
+
+Traceback `MQTTProcessingError: MQTT message processing must be retried`
+у цьому прогоні є очікуваною частиною тесту transient failure.
+Він підтверджує відсутність передчасного ACK; наступний `ok` та підсумковий
+`zero skips` підтверджують успішне відновлення.
+
+Demo backend доступний на `127.0.0.1:8001`; PostgreSQL і backend healthy,
+broker та simulator запущені. Ці скриншоти не є окремим локальним повтором
+Chromium або повного backup/restore: відповідні результати наведені у CI вище.
+
+**H-01 прийнято та закрито. Етап H: завершено 1 із 5 операцій.**
+Наступна операція — H-02, справедливий відбір і повторна доставка команд.
+
