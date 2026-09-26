@@ -123,4 +123,8 @@ Compose demo — **98 tests in 8.064s**, обидва **OK без пропуск
 Chromium auth, simulator restart, backend restart/queue/TTL,
 broker stop/start та фінальна quick HTTP-перевірка — **PASS**.
 Повні журнали перевірено; деталі — у журналі Етапу 8.
-Локальне приймання користувачем залишається умовою закриття операції 5.
+Локальне приймання підтверджено 26.09.2026 за шістьма скриншотами:
+**98 tests in 7.630s — OK, zero skips**, migration 0017 head, усі live
+та simulator/backend/broker recovery сценарії — PASS, health 0.36.0 на 8001.
+Дані та паролі збережено. **Операцію 5 закрито**; повна прив'язка
+скриншотів до результатів — у [журналі Етапу 8](stage-8-test-backend.md).

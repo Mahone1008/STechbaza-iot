@@ -12,7 +12,7 @@ backend 0.31.0, migration 20260925_0015.
 | 2 | Авторизація в браузері | Закрито 26.09.2026 — CI та локальне приймання пройдено |
 | 3 | Панель і графіки | Закрито 26.09.2026 — CI та локальне приймання пройдено |
 | 4 | Демонстраційний стенд | Закрито 26.09.2026 — CI та локальне приймання пройдено |
-| 5 | Комплексні перевірки | Реалізовано; повний CI пройдено, очікується локальне приймання |
+| 5 | Комплексні перевірки | Закрито 26.09.2026 — CI та локальне приймання пройдено |
 | 6 | Приймання тестової збірки | Не розпочато |
 
 ## Операція 1
@@ -518,13 +518,56 @@ unique constraint відхиляє другий INSERT, сервіс повер�
 HTTP відповіді 201/200, один record і один publish підтверджені тестом.
 Ці записи не були приховані або зараховані як неперевірені помилки.
 
-CI підтверджує автоматичне приймання в його середовищі.
-Локальне приймання користувачем ще не виконане.
+CI підтверджує автоматичне приймання у своєму середовищі.
+Окреме локальне приймання користувачем наведено нижче.
 
-### Локальне приймання
+### Локальне приймання — підтверджено 26.09.2026
 
-Очікуються **98 tests — OK без пропусків**, **0017 (head)**,
-PASS живих сценаріїв та simulator/backend/broker recovery,
-health **0.36.0** на **8001** і фінальний зелений PASS.
+Переглянуто всі шість скриншотів користувача з Windows PowerShell:
 
-**Операцію 5 ще не закрито. Операція 6 не розпочата. Етап 8 триває.**
+| Файл | Що підтверджує |
+|---|---|
+| image(20260926-194947).png | Fast-forward main до 2f3c45a; зупинка demo workers, успішна збірка image та запуск залежностей |
+| image(20260926-194958).png | 20260926_0017 (head); browser auth, усі 12 нових comprehensive tests, demo та frontend tests проходять |
+| image(20260926-195013).png | Regression PostgreSQL/MQTT tests; навмисний збій обробки, повторна доставка і завершення відповідного тесту ok |
+| image(20260926-195025).png | Ran 98 tests in 7.630s — OK; PASS: 98 backend tests, zero skips; seed already exists, дані й паролі збережено |
+| image(20260926-195041).png | Маніфест різних модулів шести demo-пристроїв; запуск стенду; PASS живих прав, HTTP/MQTT, графіків, аварій та VFD failure |
+| image(20260926-195138).png | Simulator restart, backend restart/queue/TTL, broker stop/start/recovery — PASS; health 0.36.0, compose ps та фінальний зелений PASS |
+
+Підтверджені результати:
+
+- Прийнято код із main на commit
+  [2f3c45a](https://github.com/Mahone1008/STechbaza-iot/commit/2f3c45adbb2d706709fb0f092fbe3f7699a3918f);
+  реалізація операції — 9b84fa2.
+- **Ran 98 tests in 7.630s — OK, без пропусків.**
+  Строгий runner окремо вивів **PASS: 98 backend tests, zero skips**.
+- Міграція: **20260926_0017 (head)**.
+- Повторний seed зберіг існуючі demo-дані й паролі.
+- Права/tenant isolation, модульні стани, HTTP commands → MQTT ACK/Result,
+  request_id deduplication, actor audit, графік, аварія/acknowledge,
+  персональне прочитання, recovery/gap і VFD fault/Stop — **PASS**.
+- Фактичний restart simulator зберіг стан пристроїв і command ledger;
+  boot sessions змінилися — **PASS**.
+- Offline/stale та одна активна offline alarm; дві команди залишилися queued.
+- Фактичний restart backend зберіг чергу й TTL. Діюча команда виконалася
+  після відновлення; прострочена не була опублікована — **PASS**.
+- При зупиненому MQTT broker HTTP залишався доступним, API показав
+  offline/stale/alarm, нова команда лишилася queued — **PASS**.
+- Після запуску broker відновилися telemetry/commands, offline incident
+  закрився; demo-насос зупинено. Фінальна quick HTTP-перевірка — **PASS**.
+- `/health`: status `ok`, service `techbaza-backend`, version **0.36.0**.
+- Backend і PostgreSQL healthy; broker і simulator запущені.
+  Demo API — **http://127.0.0.1:8001**, Swagger — **http://127.0.0.1:8001/docs**.
+- Фінальний зелений **PASS: Stage 8 operation 5 — 98 tests, zero skips,
+  live scenarios and recovery verified**.
+
+Traceback `Injected temporary database processing failure` та
+`MQTT message processing must be retried` належать навмисній відмові
+в regression test. Повторна доставка і весь набір завершилися успішно.
+Повідомлення `Stage 8 operation 4 — live demo acceptance complete`
+означає повторення попередніх demo-сценаріїв усередині операції 5.
+
+**Операцію 5 закрито. Прийнято 5 з 6 операцій Етапу 8.
+Залишилася операція 6 — приймання тестової збірки: чисте встановлення,
+резервне копіювання та відновлення. Операція 6 ще не розпочата;
+Етап 8 триває.**
