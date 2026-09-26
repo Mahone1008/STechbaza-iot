@@ -1,6 +1,6 @@
 # Демонстраційний стенд v1
 
-Стенд створено в Етапі 8, операції 4 (0.35.0). Поточний backend **0.36.0**; міграція залишається
+Стенд створено в Етапі 8, операції 4 (0.35.0). Поточний backend **0.37.0**; міграція залишається
 **20260926_0017**. Статус CI і локального приймання — у
 [журналі Етапу 8](stage-8-test-backend.md).
 
@@ -88,8 +88,10 @@ durable deduplication та правил відновлення після зни
 
 ## 4. Запуск та повторення перевірки
 
-Для поточного main використовується [check-stage8-op5.ps1](../scripts/check-stage8-op5.ps1):
-98 tests без пропусків та [комплексні recovery сценарії](comprehensive-checks-v1.md).
+Для поточного main використовується [check-stage8-op6.ps1](../scripts/check-stage8-op6.ps1):
+107 tests без пропусків, чисте встановлення та [backup/restore](backup-restore-v1.md).
+Операція 5 на 0.36.0 підтвердила 98 tests і [комплексні recovery сценарії](comprehensive-checks-v1.md);
+її PowerShell файл збережено як історичну інструкцію для тієї версії.
 Потрібен .env.demo з операції 4; для нового стенду credentials можна створити
 командою `python backend/app/demo/config.py --output .env.demo`.
 
@@ -125,7 +127,7 @@ docker compose -p techbaza-demo --env-file .env.demo -f compose.demo.yml up -d
 
 Основний compose.yml не запускається і не зупиняється цим сценарієм.
 Його вже запущений backend може залишатися 0.34.0 на 8000 до окремого
-оновлення контейнера; поточний demo backend — 0.36.0 на 8001.
+оновлення контейнера; поточний demo backend — 0.37.0 на 8001.
 
 ## 5. Ручні сценарії
 

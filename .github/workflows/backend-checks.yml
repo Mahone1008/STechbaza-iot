@@ -10,6 +10,8 @@ on:
       - 'compose.demo.yml'
       - 'scripts/check-stage8-op4.ps1'
       - 'scripts/check-stage8-op5.ps1'
+      - 'scripts/check-stage8-op6.ps1'
+      - 'compose.acceptance.yml'
   workflow_dispatch:
 
 permissions:
@@ -77,7 +79,7 @@ jobs:
   demo:
     needs: hardening
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - name: Create ephemeral demo credentials
@@ -111,6 +113,9 @@ jobs:
           docker compose -p techbaza-demo --env-file .env.demo -f compose.demo.yml start mosquitto
           docker compose -p techbaza-demo --env-file .env.demo -f compose.demo.yml exec -T backend python -m app.demo.resilience broker-recovered
           docker compose -p techbaza-demo --env-file .env.demo -f compose.demo.yml exec -T backend python -m app.demo.check --quick
+      - name: Clean install and exact backup restore acceptance
+        shell: pwsh
+        run: ./scripts/check-stage8-op6.ps1
       - name: Demo logs on failure
         if: failure()
         run: docker compose -p techbaza-demo --env-file .env.demo -f compose.demo.yml logs --tail 120 backend simulator

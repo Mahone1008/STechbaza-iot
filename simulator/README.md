@@ -10,7 +10,8 @@
 
 - [Повна інструкція стенда](../docs/demo-stand-v1.md)
 - [Окремий Compose](../compose.demo.yml)
-- [Поточна PowerShell перевірка операції 5](../scripts/check-stage8-op5.ps1)
+- [Поточна PowerShell перевірка операції 6](../scripts/check-stage8-op6.ps1)
+- [Backup/restore та чисте встановлення](../docs/backup-restore-v1.md)
 - [Комплексні перевірки та recovery](../docs/comprehensive-checks-v1.md)
 
 Основний API залишається на 8000; demo API доступний на 127.0.0.1:8001.

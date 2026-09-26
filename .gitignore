@@ -34,3 +34,6 @@ Desktop.ini
 # Local certificates and private keys
 *.pem
 *.key
+
+# Private database backups, clean checkouts and acceptance reports
+/backups/
