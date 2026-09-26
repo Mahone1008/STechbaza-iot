@@ -1,13 +1,16 @@
 import logging
+import math
 import os
 import threading
 from collections import Counter
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from app.db import SessionLocal
 from app.repositories.commands import CommandRepository
 from app.services.command_dispatch import CommandDispatchService
+from app.services.command_config import COMMAND_RETRY_INTERVAL_SECONDS
+from app.services.presence_config import DEVICE_ONLINE_TIMEOUT_SECONDS
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +20,10 @@ COMMAND_RELIABILITY_POLL_SECONDS = float(
 COMMAND_RELIABILITY_BATCH_SIZE = int(
     os.getenv("COMMAND_RELIABILITY_BATCH_SIZE", "100")
 )
+if not math.isfinite(COMMAND_RELIABILITY_POLL_SECONDS) or COMMAND_RELIABILITY_POLL_SECONDS <= 0:
+    raise RuntimeError("COMMAND_RELIABILITY_POLL_SECONDS має бути скінченним і додатним")
+if COMMAND_RELIABILITY_BATCH_SIZE < 1:
+    raise RuntimeError("COMMAND_RELIABILITY_BATCH_SIZE має бути додатним")
 
 _stop_event = threading.Event()
 _worker_thread: threading.Thread | None = None
@@ -33,12 +40,16 @@ def _remember_cycle(**data: Any) -> None:
         }
 
 
-def run_command_reliability_cycle() -> dict[str, Any]:
+def run_command_reliability_cycle(*, now: datetime | None = None) -> dict[str, Any]:
     """Один цикл: expire, publish queued та retry published без ACK."""
 
+    selection_time = now or datetime.now(timezone.utc)
     with SessionLocal() as session:
         candidate_ids = CommandRepository(session).list_delivery_candidate_ids(
-            limit=COMMAND_RELIABILITY_BATCH_SIZE
+            now=selection_time,
+            retry_before=selection_time - timedelta(seconds=COMMAND_RETRY_INTERVAL_SECONDS),
+            online_since=selection_time - timedelta(seconds=DEVICE_ONLINE_TIMEOUT_SECONDS),
+            limit=COMMAND_RELIABILITY_BATCH_SIZE,
         )
 
     reasons: Counter[str] = Counter()
@@ -49,6 +60,9 @@ def run_command_reliability_cycle() -> dict[str, Any]:
             with SessionLocal() as session:
                 result = CommandDispatchService(session).dispatch(
                     command_id,
+                    # У production now=None: TTL перевіряється заново після row lock,
+                    # а не за часом початку всієї пачки. Явний now — для тестів.
+                    now=now,
                     allow_retry=True,
                 )
         except Exception:

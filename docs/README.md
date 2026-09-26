@@ -4,7 +4,7 @@
 
 ## Виправлення та перевірки
 
-- [Етап H — коригування перед frontend; H-01 — захист MQTT](stage-h-backend-corrections.md)
+- [Етап H — коригування перед frontend; H-01 MQTT, H-02 черга команд](stage-h-backend-corrections.md)
 - [Виправлення надійності та доступу — 25.09.2026, backend 0.30.0](hardening-2026-09-25.md)
 
 ## Досьє V3.5

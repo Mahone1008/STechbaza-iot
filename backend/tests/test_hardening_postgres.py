@@ -36,6 +36,8 @@ from app.schemas.command_result import CommandResultEnvelope
 from app.schemas.membership import MembershipUpdate
 from app.services.capabilities import CapabilityService, DeviceAlarmRulesConflictError
 from app.services.command_dispatch import CommandDispatchService
+from app.services.command_config import COMMAND_RETRY_INTERVAL_SECONDS
+from app.services.presence_config import DEVICE_ONLINE_TIMEOUT_SECONDS
 from app.services.command_result import CommandResultService
 from app.services.memberships import MembershipService, MembershipLastOwnerError
 
@@ -148,17 +150,20 @@ class PostgreSQLHardeningTests(unittest.TestCase):
 
     def test_timeout_alarm_and_late_result_commit_together(self):
         now = datetime.now(timezone.utc)
+        selection = dict(now=now,
+            retry_before=now-timedelta(seconds=COMMAND_RETRY_INTERVAL_SECONDS),
+            online_since=now-timedelta(seconds=DEVICE_ONLINE_TIMEOUT_SECONDS), limit=10000)
         with SessionLocal() as session:
             command = self.new_command(session, status="acknowledged",
                 acknowledged_at=now-timedelta(minutes=3), result_deadline_at=now-timedelta(seconds=1))
-            self.assertIn(command.id, CommandRepository(session).list_delivery_candidate_ids(limit=10000))
+            self.assertIn(command.id, CommandRepository(session).list_delivery_candidate_ids(**selection))
             CommandDispatchService(session).dispatch(command.id, now=now, allow_retry=True)
             key = f"command.result_unknown.{command.id}"
             alarm = session.scalar(select(DeviceAlarm).where(DeviceAlarm.device_id == self.device_id,
                                                               DeviceAlarm.alarm_key == key))
             self.assertEqual((command.status, alarm.state), ("result_unknown", "active"))
             self.assertIsNone(command.completed_at)
-            self.assertNotIn(command.id, CommandRepository(session).list_delivery_candidate_ids(limit=10000))
+            self.assertNotIn(command.id, CommandRepository(session).list_delivery_candidate_ids(**selection))
             payload = CommandResultEnvelope(schema_version=1, message_id=uuid.uuid4(),
                 session_id=uuid.uuid4(), command_id=command.id, status="succeeded", result={})
             CommandResultService(session).complete(device_uid=self.uid, payload=payload, now=now)

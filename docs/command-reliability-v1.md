@@ -1,6 +1,7 @@
 # Command Reliability v1
 
-Актуалізовано для backend **0.30.0**. Деталі виправлень і перевірок: [окремий журнал](hardening-2026-09-25.md).
+Актуалізовано для backend **0.37.2**. Деталі: [етап H, H-02](stage-h-backend-corrections.md).
+Попередні виправлення: [журнал 0.30.0](hardening-2026-09-25.md).
 
 ## Мета
 
@@ -165,6 +166,20 @@ published
 - переводить acknowledged з минулим result deadline у result_unknown;
 - не публікує повторно acknowledged/result_unknown/succeeded/failed.
 
+Перед `LIMIT` worker відсіює команди до offline Device та команди, для яких
+ще не минув retry interval. Прострочені queued/published і acknowledged
+з минулим/відсутнім result deadline відбираються незалежно від online/backoff.
+Порядок стабільний: deadline, created_at, id. Час retry обчислюється зі
+збереженого `last_publish_attempt_at`; restart не обнуляє очікування.
+
+Відбір є лише списком кандидатів. Перед publish стан, TTL, retry interval
+та availability повторно перевіряються після command row lock. Production
+dispatch отримує поточний час після lock для кожної команди, тому затримка
+попередніх команд пачки не подовжує TTL наступної.
+
+Нульові/від'ємні retry interval, batch size і невалідний poll interval
+відхиляються при запуску, щоб уникнути порожніх або безперервних циклів.
+
 Diagnostics:
 
 ```text
@@ -180,4 +195,3 @@ GET /command/reliability/status
 Для production horizontal scaling цей механізм треба винести у dedicated worker/outbox architecture або додати distributed coordination.
 
 Це свідомо зафіксоване обмеження, а не прихована залежність.
-

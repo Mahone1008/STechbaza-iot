@@ -66,7 +66,7 @@ try {
     Write-Host 'PASS: clean tracked-source installation, migrations, full tests and live HTTP/MQTT' -ForegroundColor Green
 
     # Перевірений image використовується для звичного demo на 8001.
-    docker image tag techbaza-acceptance-backend:0.37.1 techbaza-demo-backend:local
+    docker image tag techbaza-acceptance-backend:0.37.2 techbaza-demo-backend:local
     Assert-Step 'Promote verified backend image'
     Demo stop backend simulator
     $sourcePaused = $true
@@ -117,7 +117,7 @@ try {
     Demo exec -T backend python -m app.demo.check --quick
 
     $health = Invoke-RestMethod 'http://127.0.0.1:8001/health' -TimeoutSec 10
-    if ($health.status -ne 'ok' -or $health.version -ne '0.37.1') { throw 'Expected demo backend 0.37.1 on 8001' }
+    if ($health.status -ne 'ok' -or $health.version -ne '0.37.2') { throw 'Expected demo backend 0.37.2 on 8001' }
     $health | Format-Table
     Backup-Tool report
     $completed = $true
@@ -138,6 +138,6 @@ finally {
     Isolated $restoreProject down --volumes
 }
 Demo ps
-Write-Host 'PASS: Stage 8 operation 6 - clean install, exact backup/restore, safe recovery, demo 0.37.1' -ForegroundColor Green
+Write-Host 'PASS: Stage 8 operation 6 - clean install, exact backup/restore, safe recovery, demo 0.37.2' -ForegroundColor Green
 Write-Host "Private backup and report: $backupPath"
 Write-Host 'Demo API: http://127.0.0.1:8001/docs'

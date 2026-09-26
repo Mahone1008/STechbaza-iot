@@ -1,11 +1,12 @@
 import uuid
 
-from datetime import datetime, timezone
+from datetime import datetime
 
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.models.command import DeviceCommand
+from app.models.device import Device
 
 
 class CommandRepository:
@@ -38,16 +39,37 @@ class CommandRepository:
     def list_delivery_candidate_ids(
         self,
         *,
+        now: datetime,
+        retry_before: datetime,
+        online_since: datetime,
         limit: int = 100,
     ) -> list[uuid.UUID]:
+        """Відсіює offline/backoff до LIMIT; dispatch повторює перевірки під lock."""
+        device_online = (
+            select(Device.id)
+            .where(Device.id == DeviceCommand.device_id, Device.last_seen_at >= online_since)
+            .exists()
+        )
         statement = (
             select(DeviceCommand.id)
             .where(or_(
-                DeviceCommand.status.in_(("queued", "published")),
+                and_(
+                    DeviceCommand.status.in_(("queued", "published")),
+                    or_(
+                        DeviceCommand.expires_at <= now,
+                        and_(
+                            device_online,
+                            or_(
+                                DeviceCommand.last_publish_attempt_at.is_(None),
+                                DeviceCommand.last_publish_attempt_at <= retry_before,
+                            ),
+                        ),
+                    ),
+                ),
                 and_(
                     DeviceCommand.status == "acknowledged",
                     or_(
-                        DeviceCommand.result_deadline_at <= datetime.now(timezone.utc),
+                        DeviceCommand.result_deadline_at <= now,
                         DeviceCommand.result_deadline_at.is_(None),
                     ),
                 ),
@@ -55,6 +77,7 @@ class CommandRepository:
             .order_by(
                 func.coalesce(DeviceCommand.result_deadline_at, DeviceCommand.expires_at),
                 DeviceCommand.created_at.asc(),
+                DeviceCommand.id.asc(),
             )
             .limit(limit)
         )

@@ -1,4 +1,3 @@
-import os
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -12,11 +11,9 @@ from app.repositories.devices import DeviceRepository
 from app.schemas.command import CommandEnvelope
 from app.services.device_presence import DevicePresenceService
 from app.services.system_alarms import SystemAlarmService
-from app.services.command_config import COMMAND_RESULT_TIMEOUT_SECONDS
-
-
-COMMAND_RETRY_INTERVAL_SECONDS = int(
-    os.getenv("COMMAND_RETRY_INTERVAL_SECONDS", "10")
+from app.services.command_config import (
+    COMMAND_RESULT_TIMEOUT_SECONDS,
+    COMMAND_RETRY_INTERVAL_SECONDS,
 )
 
 

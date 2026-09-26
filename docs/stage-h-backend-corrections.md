@@ -10,7 +10,7 @@
 | Операція | Мета | Стан |
 |---|---|---|
 | H-01 | Некоректні MQTT packets не блокують потік; transient failure зберігає retry | Закрито 27.09.2026 — CI та Windows-приймання PASS |
-| H-02 | Справедливий відбір і повторна доставка команд | Заплановано |
+| H-02 | Справедливий відбір і повторна доставка команд | Реалізовано; очікує CI та приймання користувачем |
 | H-03 | Розділення системних та користувацьких ключів аварій | Заплановано |
 | H-04 | Узгодження module/channel контракту перших екранів | Заплановано |
 | H-05 | Повна регресія та фіксація прийнятої версії | Заплановано |
@@ -164,3 +164,94 @@ Chromium або повного backup/restore: відповідні резуль
 **H-01 прийнято та закрито. Етап H: завершено 1 із 5 операцій.**
 Наступна операція — H-02, справедливий відбір і повторна доставка команд.
 
+## H-02 — черга команд, backend 0.37.2
+
+База операції: `6e7445f` (H-01 прийнято). Схема БД залишається
+`20260926_0017`; нова міграція для цього виправлення не потрібна.
+
+### Проблема та рішення
+
+Раніше SQL повертав перші 100 queued/published за deadline, а offline і retry
+backoff перевірялися тільки у dispatch. Ті самі непридатні до відправки записи
+займали пачку кожного циклу і затримували придатні команди далі у черзі.
+
+Новий SQL застосовує eligibility до `LIMIT`:
+
+| Стан / умова | Відбір |
+|---|---|
+| queued/published, TTL завершено | Так, незалежно від Device online та backoff |
+| queued/published, TTL ще діє | Лише online Device та відсутня попередня спроба або retry interval уже минув |
+| acknowledged, result deadline минув | Так, навіть для offline Device; результат стає unknown без publish |
+| acknowledged, deadline відсутній | Так, для відновлення deadline legacy-команди |
+| acknowledged до deadline; terminal statuses | Ні |
+
+Online boundary (`last_seen_at >= now - timeout`) та retry boundary
+(`last_publish_attempt_at <= now - interval`) узгоджені з dispatch.
+Час наступної спроби обчислюється зі збережених metadata. Додаткове поле
+`next_attempt_at` не дублює вже наявну інформацію. Сортування: deadline,
+created_at, id — стабільний порядок навіть при однаковому часі записів.
+
+Dispatch зберігає row lock і `populate_existing`, повторно перевіряє статус,
+TTL, backoff та presence. Список кандидатів не є distributed claim.
+Production-цикл передає dispatch `now=None`: час читається заново після lock,
+щоб очікування попередніх команд не дозволяло відправити прострочену.
+Явний `now` доступний для детермінованих тестів без sleep.
+
+Retry interval винесено до спільного `command_config`. Непозитивні retry,
+batch size, poll та нескінченний/NaN poll відхиляються при старті.
+HTTP API, MQTT envelope, command_id, правила ACK/Result та TTL не змінені.
+
+### Дев'ять нових PostgreSQL-регресій
+
+1. 150 offline-команд із раннім deadline не приховують наступну online-команду.
+2. 150 queued/published у backoff не приховують нову команду.
+3. 205 придатних команд проходять пачками 100, 100, 5; четвертий цикл порожній,
+   кожна команда має рівно одну спробу до настання retry.
+4. Невдалий publish зберігає backoff між DB-сесіями; на точній межі interval
+   повторюється той самий envelope, request_id та command_id.
+5. Offline expiry, acknowledged timeout і legacy deadline обробляються;
+   повторний цикл не дублює аварії і нічого не публікує.
+6. Перевірено точну online boundary, NULL last_seen та повернення online.
+7. Два цикли одночасно відбирають одну команду; row lock дозволяє одну
+   публікацію, другий цикл бачить retry_not_due.
+8. Зміна presence, TTL або lifecycle після SQL-відбору блокує publish.
+9. Якщо TTL минув між відбором та dispatch, production-цикл завершує команду
+   як expired, а не використовує застарілий час початку пачки.
+
+У цих дев'яти тестах справжні PostgreSQL transactions і locks; MQTT publisher
+контрольовано підмінено для перевірки кількості спроб та envelope. Справжні
+Mosquitto, redelivery, restart/outage та HTTP сценарії залишаються у спільній
+регресії. Загальна кількість тестів після зміни: **134**, CI вимагає zero skips.
+
+### Межі виправлення
+
+Виправлено блокування пачки непридатними командами. Це не гарантія
+tenant-fair scheduling або SLA при необмеженому вхідному потоці.
+MQTT publish поки відбувається всередині command transaction; зайнятий lock
+або повільний broker можуть затримати цикл. Production-перехід до окремого
+worker/outbox, коректного claim/lease, quotas та load tests залишається
+окремою роботою. Продуктивність на 10 000 контролерів цією операцією не доведена.
+At-least-once та обов'язкова edge-дедуплікація за command_id збережені:
+збій між MQTT publish і DB commit може спричинити повторну доставку.
+
+### Відтворюване приймання
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-stage-h-op2.ps1
+```
+
+Скрипт використовує поточний `.env.demo` і новий випадковий Compose project,
+збирає backend, застосовує міграції до порожньої БД та запускає весь suite.
+Після успіху перевірений image оновлює demo на `127.0.0.1:8001` до **0.37.2**.
+Demo backend/simulator коротко перезапускаються. Користувачі, паролі, demo
+volumes і SQLite-стан simulator зберігаються; seed не повторюється.
+Видаляються лише тестові volumes поточного випадкового project.
+
+Backup manifest 0.37.2 також приймає bundles 0.37.0 та 0.37.1 з тією самою
+схемою; попередні acceptance-скрипти оновлені на актуальний image.
+CI виконує H-02 скрипт замість H-01, включаючи всі тести H-01.
+
+Очікується `PASS: 134 backend tests, zero skips`, health `ok / 0.37.2`
+та фінальний `PASS: H-02 acceptance; demo 0.37.2 is running...`.
+
+**H-02 не закрито до підтвердження користувача. Етап H: закрито 1 із 5.**

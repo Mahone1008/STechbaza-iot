@@ -4,14 +4,14 @@ $repoRoot = Split-Path -Parent $PSScriptRoot
 Set-Location -LiteralPath $repoRoot
 $demoEnv = Join-Path $repoRoot '.env.demo'
 $acceptanceCompose = Join-Path $repoRoot 'compose.acceptance.yml'
-$h01Project = 'techbaza-h01-' + [guid]::NewGuid().ToString('N').Substring(0, 12)
+$h02Project = 'techbaza-h02-' + [guid]::NewGuid().ToString('N').Substring(0, 12)
 
 function Assert-Step([string]$Name) {
     if ($LASTEXITCODE -ne 0) { throw "Failed: $Name (exit $LASTEXITCODE)" }
 }
 function Isolated {
-    & docker compose -p $h01Project --env-file $demoEnv -f $acceptanceCompose @args
-    Assert-Step 'H-01 isolated command'
+    & docker compose -p $h02Project --env-file $demoEnv -f $acceptanceCompose @args
+    Assert-Step 'H-02 isolated command'
 }
 function Demo {
     & docker compose -p techbaza-demo --env-file $demoEnv -f (Join-Path $repoRoot 'compose.demo.yml') @args
@@ -30,7 +30,7 @@ try {
     Isolated up -d --wait --wait-timeout 90 postgres mosquitto
     Isolated run --rm -T backend alembic upgrade head
     Isolated run --rm -T -e TECHBAZA_RUN_DB_TESTS=1 -e TECHBAZA_RUN_MQTT_TESTS=1 backend python -m app.tools.backend_check
-    Write-Host 'PASS: H-01 poison packets, real MQTT/PostgreSQL, retry and full regression; zero skips' -ForegroundColor Green
+    Write-Host 'PASS: H-02 command queue >100, retry, concurrent dispatch and full regression; zero skips' -ForegroundColor Green
 }
 finally {
     # Only this run's random project; accepted demo volumes are never removed.
@@ -39,7 +39,7 @@ finally {
 
 # Promote the exact tested image; keep demo database, users and simulator state.
 docker image tag techbaza-acceptance-backend:0.37.2 techbaza-demo-backend:local
-Assert-Step 'Promote H-01 image'
+Assert-Step 'Promote H-02 image'
 Demo stop backend simulator
 Demo up -d --no-build --wait --wait-timeout 90 backend simulator
 Demo exec -T backend python -m app.demo.check --quick
@@ -50,4 +50,4 @@ if ($health.status -ne 'ok' -or $health.version -ne '0.37.2') {
 }
 $health | Format-Table
 Demo ps
-Write-Host 'PASS: H-01 acceptance; demo 0.37.2 is running. Send this result for operation closure.' -ForegroundColor Green
+Write-Host 'PASS: H-02 acceptance; demo 0.37.2 is running. Send this result for operation closure.' -ForegroundColor Green
