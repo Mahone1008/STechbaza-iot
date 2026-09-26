@@ -6,6 +6,7 @@ restore стенді. Викликач володіє транзакцією; HT
 
 import hashlib
 import json
+import re
 from datetime import datetime, timezone
 
 from sqlalchemy import delete, inspect, select, text
@@ -14,6 +15,22 @@ from app.models.auth_rate_limit import AuthRateLimit
 from app.models.auth_session import AuthSession
 from app.models.command import DeviceCommand
 from app.services.system_alarms import SystemAlarmService
+
+
+_VARCHAR_LITERAL = r"'(?:[^']|'')*'::character varying"
+_VARCHAR_ARRAY_TO_TEXT = re.compile(
+    r"\(ARRAY\[(" + _VARCHAR_LITERAL + r"(?:, " + _VARCHAR_LITERAL + r")*)\]\)::text\[\]"
+)
+
+
+def canonical_constraint(definition):
+    # pg_dump/restore переносить text cast з varchar[] на окремі literals.
+    # Нормалізуємо тільки цю точну еквівалентність; literals, порядок,
+    # оператори, null guards та будь-які інші casts залишаються незмінними.
+    return _VARCHAR_ARRAY_TO_TEXT.sub(
+        lambda match: "ARRAY[" + ", ".join(
+            "(" + literal + ")::text" for literal in re.findall(_VARCHAR_LITERAL, match.group(1))
+        ) + "]", definition)
 
 
 def database_fingerprint(engine):
@@ -33,9 +50,9 @@ def database_fingerprint(engine):
             for name in sorted(tables):
                 columns = inspector.get_columns(name, schema="public")
                 structure[name] = {
-                    "columns": [{k: str(c[k]) if k == "type" else c.get(k)
+                    "columns": [{k: c[k].compile(dialect=connection.dialect) if k == "type" else c.get(k)
                                  for k in ("name", "type", "nullable", "default")} for c in columns],
-                    "constraints": [list(row) for row in connection.execute(text("""
+                    "constraints": [[row[0], canonical_constraint(row[1])] for row in connection.execute(text("""
                         SELECT conname, pg_get_constraintdef(c.oid) FROM pg_constraint c
                         JOIN pg_class t ON t.oid=c.conrelid
                         JOIN pg_namespace n ON n.oid=t.relnamespace

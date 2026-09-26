@@ -113,3 +113,39 @@ class RestorePostgresTests(unittest.TestCase):
         finally:
             with engine.begin() as connection:
                 connection.execute(text(f'DROP TABLE IF EXISTS "{table}"'))
+
+    def test_constraint_round_trip_is_equivalent_but_rule_and_timezone_changes_are_not(self):
+        from sqlalchemy import text
+        from app.db import engine
+        from app.operations.recovery import database_fingerprint
+        table = "restore_constraint_" + uuid.uuid4().hex
+        try:
+            with engine.begin() as connection:
+                connection.execute(text(f'''CREATE TABLE "{table}" (
+                    role varchar(32), created_at timestamptz,
+                    CONSTRAINT role_guard CHECK (role IN ('owner', 'viewer', 'a,b', 'it''s')))
+                '''))
+                definition = connection.scalar(text('''
+                    SELECT pg_get_constraintdef(c.oid) FROM pg_constraint c
+                    JOIN pg_class t ON t.oid=c.conrelid
+                    WHERE t.relname=:table AND c.conname='role_guard'
+                '''), {"table": table})
+            before = database_fingerprint(engine)
+            with engine.begin() as connection:
+                connection.execute(text(f'ALTER TABLE "{table}" DROP CONSTRAINT role_guard'))
+                connection.execute(text(f'ALTER TABLE "{table}" ADD CONSTRAINT role_guard {definition}'))
+            restored = database_fingerprint(engine)
+            self.assertEqual(before, restored)
+            with engine.begin() as connection:
+                connection.execute(text(f'ALTER TABLE "{table}" DROP CONSTRAINT role_guard'))
+                connection.execute(text(f'''ALTER TABLE "{table}" ADD CONSTRAINT role_guard
+                    CHECK (role IN ('owner', 'viewer', 'a,b', 'it''s', 'operator'))'''))
+            changed_rule = database_fingerprint(engine)
+            self.assertNotEqual(restored["schema_sha256"], changed_rule["schema_sha256"])
+            with engine.begin() as connection:
+                connection.execute(text(f'ALTER TABLE "{table}" ALTER COLUMN created_at TYPE timestamp without time zone'))
+            changed_type = database_fingerprint(engine)
+            self.assertNotEqual(changed_rule["schema_sha256"], changed_type["schema_sha256"])
+        finally:
+            with engine.begin() as connection:
+                connection.execute(text(f'DROP TABLE IF EXISTS "{table}"'))

@@ -581,7 +581,7 @@ Backend **0.37.0**, міграція без змін: **20260926_0017**.
 
 - Окремий Compose без host ports і з унікальними projects/volumes.
 - Чистий `git archive HEAD`, збірка без cache, усі міграції,
-  **108 regression tests** і живий demo test на чистому стенді.
+  **109 regression tests** і живий demo test на чистому стенді.
 - Backup PostgreSQL, SQLite стану simulator, environment і Git source;
   SHA-256 manifest. Звичайний demo зупиняється лише на узгоджений знімок.
 - Restore у нову порожню БД; точне порівняння схеми й усіх public rows
@@ -598,8 +598,8 @@ Backend **0.37.0**, міграція без змін: **20260926_0017**.
 
 ### Перевірки розробки
 
-Локальний discovery: **Ran 108 tests in 1.202s — OK (skipped=59)**.
-Фактично виконано 49; 59 PostgreSQL/MQTT integration tests потребують
+Локальний discovery: **Ran 109 tests in 1.204s — OK (skipped=60)**.
+Фактично виконано 49; 60 PostgreSQL/MQTT integration tests потребують
 оточення CI. Частковий запуск не є повним прийманням.
 Нові перевірки охоплюють пошкоджений bundle, SQLite WAL, відмову
 перезапису, opt-in, транзакційність та ідемпотентність restore policy.
