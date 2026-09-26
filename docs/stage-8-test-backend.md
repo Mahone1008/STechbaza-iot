@@ -49,65 +49,108 @@ backend 0.31.0, migration 20260925_0015.
 Це підтверджує автоматичні сценарії, але не замінює локальне приймання
 користувачем, браузерні перевірки наступної операції чи фізичний пілот.
 
+### Перша локальна спроба — 26.09.2026
+
+За трьома скриншотами блок запущено з домашньої папки користувача.
+Git повернув `not a git repository`, Docker Compose —
+`no configuration file provided: not found`. Оновлення, збірка та тести
+не виконалися; ці результати не є прийманням операції.
+
+Початковий блок складався з окремих інтерактивних команд: `throw` не
+зупинив наступні команди, які термінал продовжив отримувати зі вставки.
+Інструкцію виправлено: перевіряється папка проєкту, виконується явний
+`Set-Location`, увесь сценарій обгорнуто в один виклик `& { ... }`.
+Потрібна повторна локальна перевірка. Backend-код цією поправкою не змінено.
+
 ### Локальне приймання користувачем
 
-Виконати наступний блок у PowerShell з кореня локального STechbaza-iot.
-Він перевіряє репозиторій, оновлює main, збирає backend, перевіряє
+Якщо попередній блок ще працює, спочатку натиснути Ctrl+C. Вставити
+весь блок нижче разом з першим `& {` і останнім `}`.
+Він сам переходить до `%USERPROFILE%\Documents\TechBaza\techbaza-iot`
+і перевіряє наявність `.git` та `compose.yml`. Якщо проєкт перенесено,
+потрібно змінити лише `$repoPath`. Назва локальної папки `techbaza-iot`
+залишається правильною після зміни origin на `STechbaza-iot`.
+
+Далі блок перевіряє репозиторій, оновлює main, збирає backend, перевіряє
 міграцію, запускає всі тести й піднімає сервіс. База не видаляється.
+Помилка припиняє виконання решти єдиного script block.
 
 ```powershell
-$ErrorActionPreference = 'Stop'
+& {
+    $ErrorActionPreference = 'Stop'
 
-function Assert-Step([string]$Name) {
-    if ($LASTEXITCODE -ne 0) { throw "Помилка: $Name (exit $LASTEXITCODE)" }
-}
+    $repoPath = Join-Path $env:USERPROFILE 'Documents\TechBaza\techbaza-iot'
+    if (-not (Test-Path -LiteralPath $repoPath -PathType Container)) {
+        throw "Не знайдено папку проєкту: $repoPath"
+    }
+    Set-Location -LiteralPath $repoPath
+    if (-not (Test-Path -LiteralPath '.git') -or -not (Test-Path -LiteralPath 'compose.yml' -PathType Leaf)) {
+        throw 'У вибраній папці немає .git або compose.yml'
+    }
+    Write-Host "Папка проєкту: $repoPath" -ForegroundColor Cyan
 
-$branch = git branch --show-current
-Assert-Step 'git branch'
-if ($branch.Trim() -ne 'main') { throw 'Потрібна гілка main' }
-$remote = git remote get-url origin
-Assert-Step 'git remote'
-if ($remote.Trim() -notmatch '^https://github\.com/Mahone1008/STechbaza-iot(?:\.git)?/?$') {
-    throw "Неочікуваний origin: $remote"
-}
-$changes = git status --porcelain
-Assert-Step 'git status'
-if ($changes) { throw 'Є локальні зміни. Надішли git status --short перед оновленням.' }
 
-git pull --ff-only origin main
-Assert-Step 'git pull'
-git log -1 --oneline
-Assert-Step 'git log'
-docker compose stop backend
-Assert-Step 'stop backend'
-docker compose build backend
-Assert-Step 'build backend'
-docker compose run --rm -T backend alembic upgrade head
-Assert-Step 'alembic upgrade'
-docker compose run --rm -T backend alembic current
-Assert-Step 'alembic current'
-docker compose run --rm -T -e TECHBAZA_RUN_DB_TESTS=1 -e TECHBAZA_RUN_MQTT_TESTS=1 backend python -m unittest discover -s tests -v
-Assert-Step '38 tests'
-docker compose up -d backend
-Assert-Step 'start backend'
+    function Assert-Step([string]$Name) {
+        if ($LASTEXITCODE -ne 0) { throw "Помилка: $Name (exit $LASTEXITCODE)" }
+    }
 
-$health = $null
-for ($attempt = 0; $attempt -lt 20; $attempt++) {
-    try {
-        $health = Invoke-RestMethod 'http://127.0.0.1:8000/health' -TimeoutSec 5
-        break
-    } catch { Start-Sleep -Seconds 1 }
+    $branch = git branch --show-current
+    Assert-Step 'git branch'
+    if ($branch.Trim() -ne 'main') { throw 'Потрібна гілка main' }
+    $remote = git remote get-url origin
+    Assert-Step 'git remote'
+    if ($remote.Trim() -notmatch '^https://github\.com/Mahone1008/STechbaza-iot(?:\.git)?/?
+
+Очікується migration `20260925_0015 (head)`, **Ran 38 tests ... OK без
+skipped**, `/health` — `ok` / `0.32.0`, фінальний зелений PASS.
+Traceback `Injected temporary database processing failure` у MQTT-тесті
+навмисний; оцінювати слід підсумковий статус тесту й усього набору.
+При помилці блок припиняється: потрібно розібрати її до наступної операції.
+
+**Операцію 1 не закрито:** очікується результат користувача або «є/есть»,
+якщо всі очікувані перевірки пройшли. Операція 2 до цього не починається.
+) {
+        throw "Неочікуваний origin: $remote"
+    }
+    $changes = git status --porcelain
+    Assert-Step 'git status'
+    if ($changes) { throw 'Є локальні зміни. Надішли git status --short перед оновленням.' }
+
+    git pull --ff-only origin main
+    Assert-Step 'git pull'
+    git log -1 --oneline
+    Assert-Step 'git log'
+    docker compose stop backend
+    Assert-Step 'stop backend'
+    docker compose build backend
+    Assert-Step 'build backend'
+    docker compose run --rm -T backend alembic upgrade head
+    Assert-Step 'alembic upgrade'
+    docker compose run --rm -T backend alembic current
+    Assert-Step 'alembic current'
+    docker compose run --rm -T -e TECHBAZA_RUN_DB_TESTS=1 -e TECHBAZA_RUN_MQTT_TESTS=1 backend python -m unittest discover -s tests -v
+    Assert-Step '38 tests'
+    docker compose up -d backend
+    Assert-Step 'start backend'
+
+    $health = $null
+    for ($attempt = 0; $attempt -lt 20; $attempt++) {
+        try {
+            $health = Invoke-RestMethod 'http://127.0.0.1:8000/health' -TimeoutSec 5
+            break
+        } catch { Start-Sleep -Seconds 1 }
+    }
+    if (-not $health -or $health.status -ne 'ok' -or $health.version -ne '0.32.0') {
+        throw 'Очікується /health: ok, version 0.32.0. Надішли docker compose logs --tail 80 backend.'
+    }
+    $spec = Invoke-RestMethod 'http://127.0.0.1:8000/openapi.json' -TimeoutSec 10
+    $paths = $spec.paths.PSObject.Properties.Name
+    foreach ($path in @('/api/v1/organizations/{organization_id}/access', '/api/v1/devices/{device_id}/overview')) {
+        if ($paths -notcontains $path) { throw "Немає нового маршруту: $path" }
+    }
+    $health | Format-Table
+    Write-Host 'PASS: Stage 8 operation 1 — tests and backend 0.32.0 ready' -ForegroundColor Green
 }
-if (-not $health -or $health.status -ne 'ok' -or $health.version -ne '0.32.0') {
-    throw 'Очікується /health: ok, version 0.32.0. Надішли docker compose logs --tail 80 backend.'
-}
-$spec = Invoke-RestMethod 'http://127.0.0.1:8000/openapi.json' -TimeoutSec 10
-$paths = $spec.paths.PSObject.Properties.Name
-foreach ($path in @('/api/v1/organizations/{organization_id}/access', '/api/v1/devices/{device_id}/overview')) {
-    if ($paths -notcontains $path) { throw "Немає нового маршруту: $path" }
-}
-$health | Format-Table
-Write-Host 'PASS: Stage 8 operation 1 — tests and backend 0.32.0 ready' -ForegroundColor Green
 ```
 
 Очікується migration `20260925_0015 (head)`, **Ran 38 tests ... OK без
