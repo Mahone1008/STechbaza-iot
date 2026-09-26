@@ -9,6 +9,7 @@ from app.models import (
     NotificationRead,
     AlarmTransition,
     AuthSession,
+    AuthRateLimit,
     Capability,
     Device,
     DeviceSession,

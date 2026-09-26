@@ -16,7 +16,7 @@
 
 | Екран або дія | Запити | Важлива поведінка |
 |---|---|---|
-| Вхід | `POST /auth/login`, `GET /auth/me` | JWT перевіряється разом із server-side session |
+| Вхід | `POST /auth/browser/login`, `GET /auth/me` | Browser flow 0.33.0: [cookie, refresh та CORS](browser-auth-v1.md); JWT перевіряється разом із server-side session |
 | Вибір клієнта | `GET /organizations` | Лише доступні організації; superadmin має глобальний доступ |
 | Меню клієнта | `GET /organizations/{id}/access` | Поточні permissions, без копії таблиці ролей у UI |
 | Об'єкти | `GET /organizations/{id}/sites` | Tenant isolation на сервері |

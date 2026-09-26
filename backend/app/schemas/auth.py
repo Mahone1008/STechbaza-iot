@@ -30,3 +30,12 @@ class TokenResponse(BaseModel):
     expires_in: int
     refresh_token: str
     refresh_expires_in: int
+
+
+class BrowserTokenResponse(BaseModel):
+    """Refresh secret залишається лише в HttpOnly cookie, access — у пам'яті UI."""
+
+    access_token: str
+    token_type: Literal["bearer"] = "bearer"
+    expires_in: int
+    session_expires_in: int

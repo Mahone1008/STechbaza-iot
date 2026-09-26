@@ -1,5 +1,6 @@
 from app.models.alarm_rule_state import DeviceAlarmRuleState
 from app.models.auth_session import AuthSession
+from app.models.auth_rate_limit import AuthRateLimit
 from app.models.capability import Capability, DeviceCapability
 from app.models.command import DeviceCommand
 from app.models.device import Device
@@ -16,6 +17,7 @@ __all__ = [
     "AlarmNotification",
     "NotificationRead",
     "AuthSession",
+    "AuthRateLimit",
     "AlarmTransition",
     "Capability",
     "Device",

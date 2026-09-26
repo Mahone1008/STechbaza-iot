@@ -1,12 +1,18 @@
 from contextlib import asynccontextmanager
 from typing import Any
 
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.exception_handlers import request_validation_exception_handler
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.api.v1.router import api_v1_router
 from app.db import check_database
 from app.security.diagnostics import require_diagnostics_access
+from app.security.browser_config import AUTH_BROWSER_ORIGINS, CSRF_HEADER
+from app.security.browser_auth import AuthNoStoreMiddleware
 from app.mqtt_client import (
     last_command_ack_result,
     last_command_publish_result,
@@ -43,12 +49,27 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="TechBaza Backend",
-    version="0.32.0",
+    version="0.33.0",
     description="Backend API платформи TechBaza IoT Pump Control",
     lifespan=lifespan,
 )
 
 app.include_router(api_v1_router, prefix="/api/v1")
+
+app.add_middleware(CORSMiddleware, allow_origins=list(AUTH_BROWSER_ORIGINS),
+                   allow_credentials=True, allow_methods=["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
+                   allow_headers=["Authorization", "Content-Type", CSRF_HEADER],
+                   expose_headers=["Retry-After"])
+app.add_middleware(AuthNoStoreMiddleware)
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_error(request: Request, exc: RequestValidationError):
+    if request.url.path.startswith("/api/v1/auth/"):
+        # Стандартна validation response містить input: password/refresh не
+        # повинні повертатися клієнту чи потрапляти до журналів його помилок.
+        return JSONResponse({"detail": "Некоректний формат auth-запиту"}, status_code=422)
+    return await request_validation_exception_handler(request, exc)
 
 
 @app.get("/health")
@@ -56,7 +77,7 @@ def health() -> dict[str, str]:
     return {
         "status": "ok",
         "service": "techbaza-backend",
-        "version": "0.32.0",
+        "version": "0.33.0",
     }
 
 

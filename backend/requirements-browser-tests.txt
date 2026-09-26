@@ -1,0 +1,2 @@
+# Лише ізольована CI-перевірка; не входить до backend Docker image.
+playwright==1.55.0
