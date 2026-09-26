@@ -128,7 +128,13 @@ class CommandQueueTests(unittest.TestCase):
         ids = self.commands(205)
         with patch("app.services.command_dispatch.publish_command_message", return_value=(True, "published")) as publish:
             for cycle in range(3):
-                self.assertEqual(self.cycle(self.now+self.retry*cycle)["published_count"], 100)
+                cycle_time = self.now+self.retry*cycle
+                # Device продовжує heartbeat, зокрема при короткому demo timeout.
+                with SessionLocal() as session:
+                    session.get(Device, self.online).last_seen_at = cycle_time
+                    session.commit()
+                result = self.cycle(cycle_time)
+                self.assertEqual(result["published_count"], 100, result)
             # До першого retry усі 205 команд отримують свою першу спробу,
             # навіть якщо retry попередньої пачки вже дозволений за часом.
             sent = [call.kwargs["command_id"] for call in publish.call_args_list]
