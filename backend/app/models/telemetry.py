@@ -30,6 +30,7 @@ class TelemetryMessage(Base):
             "ix_telemetry_messages_device_received_at",
             "device_id",
             "received_at",
+            "id",
         ),
         Index(
             "ix_telemetry_messages_device_session_id",

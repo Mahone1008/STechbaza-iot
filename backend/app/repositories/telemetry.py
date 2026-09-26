@@ -93,7 +93,7 @@ class TelemetryRepository:
         statement = (
             select(TelemetryMessage)
             .where(TelemetryMessage.device_id == device_id)
-            .order_by(TelemetryMessage.received_at.desc())
+            .order_by(TelemetryMessage.received_at.desc(), TelemetryMessage.id.desc())
             .limit(limit)
             .offset(offset)
         )

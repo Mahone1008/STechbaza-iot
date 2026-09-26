@@ -17,6 +17,7 @@ from app.security.current_user import CurrentUserContext
 from app.security.roles import Permission, role_has_permission
 from app.services.commands import COMMAND_REQUIRED_CAPABILITY
 from app.services.device_presence import DevicePresenceService
+from app.services.telemetry_quality import freshness, readings, json_safe
 from app.services.telemetry_policy import (
     STATE_CAPABILITY_REQUIREMENTS,
     VALUE_CAPABILITY_REQUIREMENTS,
@@ -82,6 +83,15 @@ class FrontendReadService:
             })
 
         generated_at = datetime.now(timezone.utc)
+        quality = freshness(snapshot, device_session_id=context.device.last_observed_session_id, now=generated_at)
+        metric_readings = readings(value_keys, snapshot, quality)
+        if snapshot is not None:
+            # Некоректне історичне числове поле не ламає JSON і не стає нулем.
+            numeric = {item.key: item.value for item in metric_readings}
+            snapshot = snapshot.model_copy(update={
+                "values": {key: numeric[key] for key in snapshot.values},
+                "state": json_safe(snapshot.state),
+            })
         availability = DevicePresenceService(self._session).get_availability(
             device_id=device_id, now=generated_at,
         )
@@ -99,4 +109,5 @@ class FrontendReadService:
             command_types=command_types,
             allowed_commands=command_types if Permission.COMMAND_EXECUTE in access.permissions else [],
             snapshot=snapshot,
+            telemetry_freshness=quality, readings=metric_readings,
         )

@@ -9,6 +9,7 @@ from app.schemas.availability import DeviceAvailabilityRead
 from app.schemas.capability import CapabilityRead
 from app.schemas.device import DeviceRead
 from app.schemas.telemetry import DeviceStateRead
+from app.schemas.telemetry_read import MetricReadingRead, TelemetryFreshnessRead
 from app.security.roles import OrganizationRole, Permission, PlatformRole
 
 
@@ -37,6 +38,10 @@ class DeviceOverviewRead(BaseModel):
     )
     snapshot: DeviceStateRead | None = Field(
         description="null до першої телеметрії; values/state відфільтровані за enabled capabilities.",
+    )
+    telemetry_freshness: TelemetryFreshnessRead
+    readings: list[MetricReadingRead] = Field(
+        description="Числові віджети enabled capabilities: значення, одиниці та якість; missing не дорівнює zero.",
     )
 
 
