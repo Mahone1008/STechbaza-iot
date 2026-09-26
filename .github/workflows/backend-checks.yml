@@ -9,6 +9,7 @@ on:
       - '.github/workflows/backend-checks.yml'
       - 'compose.demo.yml'
       - 'scripts/check-stage8-op4.ps1'
+      - 'scripts/check-stage8-op5.ps1'
   workflow_dispatch:
 
 permissions:
@@ -62,7 +63,7 @@ jobs:
           python -m alembic upgrade head
       - name: Run regression and integration checks
         working-directory: backend
-        run: python -m unittest discover -s tests -v
+        run: python -m app.tools.backend_check
       - name: Install isolated browser test dependencies
         run: |
           python -m pip install -r backend/requirements-browser-tests.txt
@@ -86,7 +87,7 @@ jobs:
           docker compose -p techbaza-demo --env-file .env.demo -f compose.demo.yml build backend
           docker compose -p techbaza-demo --env-file .env.demo -f compose.demo.yml up -d postgres mosquitto
           docker compose -p techbaza-demo --env-file .env.demo -f compose.demo.yml run --rm -T backend alembic upgrade head
-          docker compose -p techbaza-demo --env-file .env.demo -f compose.demo.yml run --rm -T -e TECHBAZA_RUN_DB_TESTS=1 -e TECHBAZA_RUN_MQTT_TESTS=1 backend python -m unittest discover -s tests -v
+          docker compose -p techbaza-demo --env-file .env.demo -f compose.demo.yml run --rm -T -e TECHBAZA_RUN_DB_TESTS=1 -e TECHBAZA_RUN_MQTT_TESTS=1 backend python -m app.tools.backend_check
           docker compose -p techbaza-demo --env-file .env.demo -f compose.demo.yml run --rm -T backend python -m app.demo.seed
           docker compose -p techbaza-demo --env-file .env.demo -f compose.demo.yml run --rm -T backend python -m app.demo.seed
           docker compose -p techbaza-demo --env-file .env.demo -f compose.demo.yml up -d --wait --wait-timeout 90 backend simulator
@@ -97,6 +98,18 @@ jobs:
           docker compose -p techbaza-demo --env-file .env.demo -f compose.demo.yml exec -T simulator python -m app.demo.simulator checkpoint
           docker compose -p techbaza-demo --env-file .env.demo -f compose.demo.yml restart simulator
           docker compose -p techbaza-demo --env-file .env.demo -f compose.demo.yml exec -T simulator python -m app.demo.simulator verify-restart
+          docker compose -p techbaza-demo --env-file .env.demo -f compose.demo.yml exec -T backend python -m app.demo.check --quick
+      - name: Verify backend restart with offline commands and TTL expiry
+        run: |
+          docker compose -p techbaza-demo --env-file .env.demo -f compose.demo.yml exec -T backend python -m app.demo.resilience prepare-restart
+          docker compose -p techbaza-demo --env-file .env.demo -f compose.demo.yml restart backend
+          docker compose -p techbaza-demo --env-file .env.demo -f compose.demo.yml exec -T backend python -m app.demo.resilience verify-restart
+      - name: Verify real broker outage and reconnect
+        run: |
+          docker compose -p techbaza-demo --env-file .env.demo -f compose.demo.yml stop mosquitto
+          docker compose -p techbaza-demo --env-file .env.demo -f compose.demo.yml exec -T backend python -m app.demo.resilience broker-down
+          docker compose -p techbaza-demo --env-file .env.demo -f compose.demo.yml start mosquitto
+          docker compose -p techbaza-demo --env-file .env.demo -f compose.demo.yml exec -T backend python -m app.demo.resilience broker-recovered
           docker compose -p techbaza-demo --env-file .env.demo -f compose.demo.yml exec -T backend python -m app.demo.check --quick
       - name: Demo logs on failure
         if: failure()
