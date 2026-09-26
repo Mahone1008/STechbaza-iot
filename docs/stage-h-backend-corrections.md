@@ -9,7 +9,7 @@
 
 | Операція | Мета | Стан |
 |---|---|---|
-| H-01 | Некоректні MQTT packets не блокують потік; transient failure зберігає retry | Реалізовано; очікує результатів CI та приймання користувачем |
+| H-01 | Некоректні MQTT packets не блокують потік; transient failure зберігає retry | Код і CI — PASS; очікує приймання користувачем |
 | H-02 | Справедливий відбір і повторна доставка команд | Заплановано |
 | H-03 | Розділення системних та користувацьких ключів аварій | Заплановано |
 | H-04 | Узгодження module/channel контракту перших екранів | Заплановано |
@@ -101,6 +101,23 @@ rollback залишаються в загальному прогоні. `app.too
 окремою регресією. Версії залежностей не змінені.
 
 ## Приймання користувачем
+
+### Підтвердження CI — 27.09.2026
+
+- Код: `f5a1e127d52ed47770ef91ef572ce084f1923dfe`, backend **0.37.1**.
+- [GitHub Actions run 36274424609](https://github.com/Mahone1008/STechbaza-iot/actions/runs/36274424609):
+  `completed / success`, обидва jobs `hardening` і `demo` успішні.
+- **125 backend tests, zero skips**: PostgreSQL, Mosquitto, нова poison-packet
+  регресія та збережена повторна доставка після тимчасового збою.
+- Chromium: login, HttpOnly cookie, reload/rotation, CSRF/CORS, logout/revocation — PASS.
+- Живі demo HTTP/MQTT, restart simulator/backend, broker outage/reconnect — PASS.
+- Clean install із tracked source та exact backup/restore — PASS.
+- Той самий `scripts/check-stage-h-op1.ps1` виконано у CI PowerShell 7 — PASS;
+  перевірене demo успішно оновлено до 0.37.1. Windows-приймання виконує користувач.
+- Локальний допоміжний прогін у середовищі розробки: 64 пройдено, 61 пропущено
+  без PostgreSQL/MQTT. Це не підміняє наведений повний CI-прогін без пропусків.
+
+### Команда та очікуваний результат
 
 Існуючий `.env.demo` потрібно зберегти. Не генерувати нові demo passwords.
 У корені оновленого репозиторію виконати:
