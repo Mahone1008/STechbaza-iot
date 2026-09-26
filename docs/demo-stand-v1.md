@@ -89,7 +89,7 @@ durable deduplication та правил відновлення після зни
 ## 4. Запуск та повторення перевірки
 
 Для поточного main використовується [check-stage8-op6.ps1](../scripts/check-stage8-op6.ps1):
-107 tests без пропусків, чисте встановлення та [backup/restore](backup-restore-v1.md).
+108 tests без пропусків, чисте встановлення та [backup/restore](backup-restore-v1.md).
 Операція 5 на 0.36.0 підтвердила 98 tests і [комплексні recovery сценарії](comprehensive-checks-v1.md);
 її PowerShell файл збережено як історичну інструкцію для тієї версії.
 Потрібен .env.demo з операції 4; для нового стенду credentials можна створити

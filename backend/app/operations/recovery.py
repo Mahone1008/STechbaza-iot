@@ -21,6 +21,8 @@ def database_fingerprint(engine):
         with connection.begin():
             connection.execute(text("SET TRANSACTION READ ONLY"))
             connection.execute(text("SET LOCAL timezone = 'UTC'"))
+            connection.execute(text("SET LOCAL DateStyle = 'ISO, YMD'"))
+            connection.execute(text("SET LOCAL extra_float_digits = 3"))
             connection.execute(text("SET LOCAL statement_timeout = '30s'"))
             inspector = inspect(connection)
             tables = inspector.get_table_names(schema="public")
@@ -48,8 +50,9 @@ def database_fingerprint(engine):
                 rows = connection.execution_options(stream_results=True).execute(text(
                     f"SELECT row_to_json(t)::text FROM public.{quote(name)} t ORDER BY row_to_json(t)::text"))
                 for (raw,) in rows:
-                    canonical = json.dumps(json.loads(raw), sort_keys=True, separators=(",", ":"), ensure_ascii=False)
-                    digest.update(canonical.encode() + b"\n")
+                    # PostgreSQL JSON text зберігає точність numeric/JSONB numbers.
+                    # Python float normalization могла б приховати зміну значення.
+                    digest.update(raw.encode("utf-8") + b"\n")
                     count += 1
                 rows.close()
                 # Наступні catalog statements не повинні успадковувати server cursor.

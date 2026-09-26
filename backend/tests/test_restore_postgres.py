@@ -86,3 +86,30 @@ class RestorePostgresTests(unittest.TestCase):
         for status, command_id in self.ids.items():
             self.assertEqual(self.session.get(DeviceCommand, command_id).status, status)
         self.assertEqual(list(self.session.scalars(select(DeviceAlarm).where(DeviceAlarm.device_id == self.device))), [])
+
+    def test_fingerprint_detects_numeric_and_json_changes_below_float_precision(self):
+        from sqlalchemy import text
+        from app.db import engine
+        from app.operations.recovery import database_fingerprint
+        table = "restore_precision_" + uuid.uuid4().hex
+        try:
+            with engine.begin() as connection:
+                connection.execute(text(f'CREATE TABLE "{table}" (id int PRIMARY KEY, value numeric, payload jsonb)'))
+                connection.execute(text(f'''INSERT INTO "{table}" VALUES
+                    (1, 1.00000000000000000001, CAST(:payload AS jsonb))'''),
+                    {"payload": '{"x":1.00000000000000000001}'})
+            before = database_fingerprint(engine)
+            with engine.begin() as connection:
+                connection.execute(text(f'UPDATE "{table}" SET value=1.00000000000000000002'))
+            numeric = database_fingerprint(engine)
+            self.assertEqual(before["schema_sha256"], numeric["schema_sha256"])
+            self.assertEqual(numeric["tables"][table]["rows"], 1)
+            self.assertNotEqual(before["tables"][table]["sha256"], numeric["tables"][table]["sha256"])
+            with engine.begin() as connection:
+                connection.execute(text(f'UPDATE "{table}" SET payload=CAST(:payload AS jsonb)'),
+                                   {"payload": '{"x":1.00000000000000000002}'})
+            changed_json = database_fingerprint(engine)
+            self.assertNotEqual(numeric["tables"][table]["sha256"], changed_json["tables"][table]["sha256"])
+        finally:
+            with engine.begin() as connection:
+                connection.execute(text(f'DROP TABLE IF EXISTS "{table}"'))

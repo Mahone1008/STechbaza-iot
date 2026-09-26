@@ -38,7 +38,7 @@
 1. `git archive HEAD`: tracked source експортується в окремий каталог.
    Docker image збирається з цього експорту з `--no-cache`.
 2. Новий PostgreSQL проходить усі міграції, строгий regression suite
-   **107 tests, zero skips**, seed і живий HTTP/MQTT demo test.
+   **108 tests, zero skips**, seed і живий HTTP/MQTT demo test.
 3. Перевірений backend image використовується для звичайного demo.
    Seed повторно перевіряє identities/паролі, не перестворює користувачів.
 4. Створюються дві контрольні сутності: активний login та queued STOP
@@ -125,12 +125,13 @@ request_id не оживляє команду. Перевірка повторю
 
 Нові 7 unit tests: пошкодження/відсутність файлу, allowlist manifest,
 невірний формат, відмова перезапису, SQLite WAL round-trip, пошкоджена SQLite,
-opt-in guard. Нові 2 PostgreSQL tests: транзакційність, rollback та
+opt-in guard. Нові 3 PostgreSQL tests: точність PostgreSQL numeric/JSONB fingerprint, транзакційність, rollback та
 ідемпотентність recovery policy зі збереженням terminal history.
-Разом із попередніми сценаріями — **107 regression tests**.
+Разом із попередніми сценаріями — **108 regression tests**.
 
 Fingerprint читає всі public tables у read-only REPEATABLE READ, UTC;
-порівнює canonical row content, columns/defaults/nullability/types,
+порівнює PostgreSQL JSON row text без перетворення чисел на Python float,
+columns/defaults/nullability/types,
 constraints та indexes. Поточна схема використовує UUID keys. Перевірка
 не претендує на універсальний аудит extensions, roles, functions, views,
 sequences та інших об'єктів довільної PostgreSQL інсталяції.
