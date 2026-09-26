@@ -10,6 +10,15 @@ from pydantic import ValidationError
 from sqlalchemy.exc import DataError
 
 from app.db import SessionLocal
+from app.mqtt_payload import (
+    MAX_JSON_DEPTH,
+    MAX_JSON_NODES,
+    MAX_PAYLOAD_BYTES,
+    MAX_STRING_LENGTH,
+    InvalidMQTTPayload,
+    decode_payload,
+    load_json_object,
+)
 from app.schemas.command_ack import CommandAckEnvelope
 from app.schemas.command_result import CommandResultEnvelope
 from app.schemas.heartbeat import HeartbeatEnvelope
@@ -79,6 +88,8 @@ _last_heartbeat: dict[str, Any] | None = None
 _last_command_publish: dict[str, Any] | None = None
 _last_command_ack: dict[str, Any] | None = None
 _last_command_result: dict[str, Any] | None = None
+_payload_rejections: dict[str, int] = {}
+_last_payload_rejection: dict[str, Any] | None = None
 
 
 def _extract_device_uid(topic: str, expected_suffix: str) -> str | None:
@@ -117,12 +128,14 @@ def command_topic(device_uid: str) -> str:
     return MQTT_COMMAND_TOPIC_TEMPLATE.format(device_uid=device_uid)
 
 
-def _remember_raw_message(message: mqtt.MQTTMessage, payload: str) -> None:
+def _remember_raw_message(message: mqtt.MQTTMessage, payload: str | None) -> None:
     global _last_message
     with _lock:
         _last_message = {
-            "topic": message.topic,
-            "payload": payload,
+            "topic": message.topic[:256],
+            "payload": payload[:2048] if payload is not None else None,
+            "payload_bytes": len(message.payload),
+            "payload_truncated": payload is not None and len(payload) > 2048,
             "qos": message.qos,
             "retain": bool(message.retain),
             "received_at": datetime.now(timezone.utc).isoformat(),
@@ -172,6 +185,31 @@ def _remember_command_result(**data: Any) -> None:
             **data,
             "processed_at": datetime.now(timezone.utc).isoformat(),
         }
+
+
+def _reject_payload(topic: str, reason: str) -> None:
+    """Відхилення до DB: bounded diagnostics без вмісту пакета/ValidationError."""
+
+    global _last_payload_rejection
+    logger.warning("MQTT payload rejected: topic=%r reason=%s", topic[:256], reason)
+    with _lock:
+        _payload_rejections[reason] = _payload_rejections.get(reason, 0) + 1
+        _last_payload_rejection = {
+            "topic": topic[:256],
+            "reason": reason,
+            "processed_at": datetime.now(timezone.utc).isoformat(),
+        }
+    routes = (
+        (_extract_device_uid(topic, "telemetry"), _remember_ingestion),
+        (_extract_device_uid(topic, "heartbeat"), _remember_heartbeat),
+        (_extract_command_event_uid(topic, "ack"), _remember_command_ack),
+        (_extract_command_event_uid(topic, "result"), _remember_command_result),
+    )
+    for device_uid, remember in routes:
+        if device_uid is not None:
+            remember(status="rejected", topic=topic[:256], device_uid=device_uid[:160],
+                     reason="invalid_payload", payload_error=reason)
+            break
 
 
 def publish_command_message(
@@ -271,20 +309,10 @@ def _handle_telemetry(topic: str, payload_text: str) -> bool:
         return True
 
     try:
-        payload_json = json.loads(payload_text)
+        payload_json = load_json_object(payload_text)
         envelope = TelemetryEnvelope.model_validate(payload_json)
-    except (json.JSONDecodeError, ValidationError) as exc:
-        logger.warning(
-            "Відхилено невалідну телеметрію: topic=%s error=%s",
-            topic,
-            exc,
-        )
-        _remember_ingestion(
-            status="rejected",
-            topic=topic,
-            device_uid=device_uid,
-            reason="invalid_payload",
-        )
+    except (InvalidMQTTPayload, ValidationError) as exc:
+        _reject_payload(topic, exc.reason if isinstance(exc, InvalidMQTTPayload) else "invalid_envelope")
         return True
 
     try:
@@ -359,20 +387,10 @@ def _handle_heartbeat(topic: str, payload_text: str) -> bool:
         return True
 
     try:
-        payload_json = json.loads(payload_text)
+        payload_json = load_json_object(payload_text)
         envelope = HeartbeatEnvelope.model_validate(payload_json)
-    except (json.JSONDecodeError, ValidationError) as exc:
-        logger.warning(
-            "Відхилено невалідний heartbeat: topic=%s error=%s",
-            topic,
-            exc,
-        )
-        _remember_heartbeat(
-            status="rejected",
-            topic=topic,
-            device_uid=device_uid,
-            reason="invalid_payload",
-        )
+    except (InvalidMQTTPayload, ValidationError) as exc:
+        _reject_payload(topic, exc.reason if isinstance(exc, InvalidMQTTPayload) else "invalid_envelope")
         return True
 
     try:
@@ -437,20 +455,10 @@ def _handle_command_ack(topic: str, payload_text: str) -> bool:
         return True
 
     try:
-        payload_json = json.loads(payload_text)
+        payload_json = load_json_object(payload_text)
         envelope = CommandAckEnvelope.model_validate(payload_json)
-    except (json.JSONDecodeError, ValidationError) as exc:
-        logger.warning(
-            "Відхилено невалідний command ACK: topic=%s error=%s",
-            topic,
-            exc,
-        )
-        _remember_command_ack(
-            status="rejected",
-            topic=topic,
-            device_uid=device_uid,
-            reason="invalid_payload",
-        )
+    except (InvalidMQTTPayload, ValidationError) as exc:
+        _reject_payload(topic, exc.reason if isinstance(exc, InvalidMQTTPayload) else "invalid_envelope")
         return True
 
     try:
@@ -559,20 +567,10 @@ def _handle_command_result(topic: str, payload_text: str) -> bool:
         return True
 
     try:
-        payload_json = json.loads(payload_text)
+        payload_json = load_json_object(payload_text)
         envelope = CommandResultEnvelope.model_validate(payload_json)
-    except (json.JSONDecodeError, ValidationError) as exc:
-        logger.warning(
-            "Відхилено невалідний command result: topic=%s error=%s",
-            topic,
-            exc,
-        )
-        _remember_command_result(
-            status="rejected",
-            topic=topic,
-            device_uid=device_uid,
-            reason="invalid_payload",
-        )
+    except (InvalidMQTTPayload, ValidationError) as exc:
+        _reject_payload(topic, exc.reason if isinstance(exc, InvalidMQTTPayload) else "invalid_envelope")
         return True
 
     try:
@@ -723,7 +721,14 @@ _network_thread: threading.Thread | None = None
 
 
 def _on_message(client, userdata, message) -> None:
-    payload = message.payload.decode("utf-8", errors="replace")
+    try:
+        payload = decode_payload(message.payload)
+    except InvalidMQTTPayload as exc:
+        _remember_raw_message(message, None)
+        _reject_payload(message.topic, exc.reason)
+        if message.qos > 0:
+            client.ack(message.mid, message.qos)
+        return
     _remember_raw_message(message, payload)
     processed = True
 
@@ -815,6 +820,15 @@ def mqtt_status() -> dict[str, Any]:
             "command_topic_template": MQTT_COMMAND_TOPIC_TEMPLATE,
             "command_qos": 1,
             "command_retain": False,
+            "ingress_policy": "H-01",
+            "max_payload_bytes": MAX_PAYLOAD_BYTES,
+            "max_json_depth": MAX_JSON_DEPTH,
+            "max_json_nodes": MAX_JSON_NODES,
+            "max_json_string_length": MAX_STRING_LENGTH,
+            "payload_rejections": dict(_payload_rejections),
+            "last_payload_rejection": (
+                dict(_last_payload_rejection) if _last_payload_rejection else None
+            ),
         }
 
 
@@ -858,4 +872,3 @@ def last_command_result_result() -> dict[str, Any] | None:
             if _last_command_result is not None
             else None
         )
-

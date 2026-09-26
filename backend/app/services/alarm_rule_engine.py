@@ -1,5 +1,4 @@
 import logging
-import math
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -9,6 +8,7 @@ from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
 from app.models.event_alarm import DeviceEvent
+from app.numeric import finite_number
 from app.repositories.alarm_rules import AlarmRuleStateRepository
 from app.repositories.alarms import AlarmRepository
 from app.repositories.capabilities import CapabilityRepository
@@ -96,12 +96,7 @@ class TelemetryAlarmRuleEngine:
 
     @staticmethod
     def _numeric_value(raw: Any) -> float | None:
-        if isinstance(raw, bool):
-            return None
-        if isinstance(raw, (int, float)):
-            value = float(raw)
-            return value if math.isfinite(value) else None
-        return None
+        return finite_number(raw)
 
     @staticmethod
     def _candidate_action(

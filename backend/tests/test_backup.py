@@ -53,6 +53,17 @@ class BackupTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             verify_bundle(self.root)
 
+    def test_patch_release_keeps_previous_backup_compatible(self):
+        manifest = self.bundle()
+        self.assertEqual(manifest["backend"], "0.37.1")
+        manifest["backend"] = "0.37.0"
+        (self.root / "manifest.json").write_text(json.dumps(manifest))
+        self.assertEqual(verify_bundle(self.root)["backend"], "0.37.0")
+        manifest["backend"] = "0.36.0"
+        (self.root / "manifest.json").write_text(json.dumps(manifest))
+        with self.assertRaises(ValueError):
+            verify_bundle(self.root)
+
     def test_sqlite_backup_includes_uncheckpointed_wal_and_round_trip(self):
         source = self.root / "source.sqlite3"
         connection = sqlite3.connect(source)

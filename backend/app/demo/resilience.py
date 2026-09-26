@@ -22,7 +22,7 @@ PUMP = f"/api/v1/devices/{identity('device:pump')}"
 def ready():
     try:
         with urlopen(API + "/health", timeout=2) as response:
-            return json.load(response)["version"] == "0.37.0"
+            return json.load(response)["version"] == "0.37.1"
     except (URLError, TimeoutError, ConnectionError):
         return False
 
@@ -87,7 +87,7 @@ def recover(owner, operator, data):
 
 def run(phase):
     require_demo()
-    wait_for("backend 0.37.0", ready, timeout=60)
+    wait_for("backend 0.37.1", ready, timeout=60)
     clients = []
     try:
         owner = Client("owner")

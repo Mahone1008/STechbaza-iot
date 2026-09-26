@@ -14,7 +14,7 @@ class TelemetryEnvelope(BaseModel):
     message_id: uuid.UUID
     session_id: uuid.UUID | None = None
     sent_at: datetime | None = None
-    sequence: int | None = Field(default=None, ge=0)
+    sequence: int | None = Field(default=None, ge=0, le=2**63 - 1)
     values: dict[str, Any] = Field(default_factory=dict, max_length=128)
     state: dict[str, Any] = Field(default_factory=dict, max_length=128)
 

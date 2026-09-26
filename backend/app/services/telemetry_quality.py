@@ -1,6 +1,7 @@
 import math
 from datetime import datetime
 
+from app.numeric import finite_number
 from app.schemas.telemetry_read import MetricReadingRead, TelemetryFreshnessRead
 from app.services.telemetry_read_config import (
     METRIC_UNITS, REPORTED_CLOCK_TOLERANCE_SECONDS, TELEMETRY_STALE_AFTER_SECONDS,
@@ -8,14 +9,7 @@ from app.services.telemetry_read_config import (
 
 
 def numeric_value(value) -> float | None:
-    # bool є підкласом int у Python, але не числовою телеметрією.
-    if isinstance(value, bool) or not isinstance(value, (int, float)):
-        return None
-    try:
-        number = float(value)
-    except (ValueError, OverflowError):
-        return None
-    return number if math.isfinite(number) else None
+    return finite_number(value)
 
 
 def freshness(snapshot, *, device_session_id, now: datetime) -> TelemetryFreshnessRead:
