@@ -1,5 +1,6 @@
 "use client";
 
+import type { Route } from "next";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { CSSProperties, ReactNode } from "react";
@@ -9,11 +10,18 @@ import { useAuthSession, type AuthSessionSnapshot } from "@/features/auth-sessio
 import { organizationRoleLabel, type PermissionCode } from "@/lib/api";
 
 type NavigationItem = Readonly<{
-  href: string;
+  href: Route;
   label: string;
   icon: "devices" | "alarm" | "components";
   permission: PermissionCode;
   count?: number;
+}>;
+
+type MobileNavigationItem = Readonly<{
+  href: Route;
+  label: string;
+  icon: "devices" | "alarm" | "components" | "more";
+  permission: PermissionCode;
 }>;
 
 const navigation: readonly NavigationItem[] = [
@@ -133,11 +141,11 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
 
   const presentation = sessionPresentation(session, snapshot);
   const visibleNavigation = navigation.filter((item) => hasPermission(item.permission));
-  const mobileNavigation = [
-    { href: "/devices/north-pump", label: "Панель", icon: "components" as const, permission: "device.read" as const },
-    { href: "/devices", label: "Пристрої", icon: "devices" as const, permission: "device.read" as const },
-    { href: "/alarms", label: "Аварії", icon: "alarm" as const, permission: "alarm.read" as const },
-    { href: "/ui-kit", label: "Ще", icon: "more" as const, permission: "capability.read" as const },
+  const mobileNavigation: readonly MobileNavigationItem[] = [
+    { href: "/devices/north-pump", label: "Панель", icon: "components", permission: "device.read" },
+    { href: "/devices", label: "Пристрої", icon: "devices", permission: "device.read" },
+    { href: "/alarms", label: "Аварії", icon: "alarm", permission: "alarm.read" },
+    { href: "/ui-kit", label: "Ще", icon: "more", permission: "capability.read" },
   ].filter((item) => hasPermission(item.permission));
   const mobileStyle: CSSProperties = {
     gridTemplateColumns: `repeat(${Math.max(1, mobileNavigation.length)}, minmax(0, 1fr))`,
