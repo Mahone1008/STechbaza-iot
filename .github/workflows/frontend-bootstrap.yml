@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   frontend:
@@ -24,6 +24,15 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22.16.0'
+      - name: Detect tracked package lock
+        id: lock
+        shell: bash
+        run: |
+          if git ls-files --error-unmatch package-lock.json >/dev/null 2>&1; then
+            echo "tracked=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "tracked=false" >> "$GITHUB_OUTPUT"
+          fi
       - name: Install dependencies
         shell: bash
         run: |
@@ -38,7 +47,17 @@ jobs:
         run: npm run lint
       - name: Production build
         run: npm run build
-      - name: Upload generated package lock
+      - name: Commit generated package lock
+        if: steps.lock.outputs.tracked != 'true' && github.ref == 'refs/heads/main'
+        working-directory: .
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add frontend/package-lock.json
+          git commit -m "Pin frontend dependencies for Stage 9.2"
+          git push origin HEAD:main
+      - name: Upload package lock
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
         with:
