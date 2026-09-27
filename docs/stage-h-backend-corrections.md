@@ -12,8 +12,8 @@
 | H-01 | Некоректні MQTT packets не блокують потік; transient failure зберігає retry | Закрито 27.09.2026 — CI та Windows-приймання PASS |
 | H-02 | Справедливий відбір і повторна доставка команд | Закрито 27.09.2026 — CI та Windows-приймання PASS |
 | H-03 | Розділення системних та користувацьких ключів аварій | Закрито 27.09.2026 — CI та Windows-приймання PASS |
-| H-04 | Узгодження module/channel контракту перших екранів | Реалізовано; спільне CI та приймання з H-05 очікуються |
-| H-05 | Повна регресія та фіксація прийнятої версії | Підготовлено; CI та приймання користувачем очікуються |
+| H-04 | Узгодження module/channel контракту перших екранів | CI PASS 27.09.2026; очікує спільного Windows-приймання |
+| H-05 | Повна регресія та фіксація прийнятої версії | CI PASS 27.09.2026; очікує спільного Windows-приймання |
 
 Операція закривається після автоматичних перевірок і підтвердження користувача.
 Робота виконується без додаткових гілок, невеликими змінами в `main`.
@@ -617,6 +617,35 @@ PowerShell-скрипт виконується CI PowerShell 7 і користу
 **20260926_0017**. Backup verification приймає також 0.37.0–0.37.3
 із цією схемою. Контракт перших екранів, release notes та backend README
 оновлені; історія приймання попередніх версій збережена.
+
+### Підтверджений фінальний CI — 27.09.2026
+
+H-04: `f8cfd53e2dc58f0c0a72ba36ad33feb3c0bda56f`.
+H-05: `eb19e9d039702db97405354b2a94dd9478efffd0`.
+Фінальна перевірена ревізія з виправленим PostgreSQL expectation і без
+dangling gitlink: **`04966f54e79f55a5cd0971a0f0df9e98eafcbdb0`**.
+
+[GitHub Actions run 36307064503](https://github.com/Mahone1008/STechbaza-iot/actions/runs/36307064503)
+завершено `completed / success`. Обидва jobs, hardening і demo, успішні.
+
+| Gate | Підтверджений результат |
+|---|---|
+| PostgreSQL/Mosquitto regression | 158 tests in 12.198s, OK, zero skips |
+| Clean-install regression | 158 tests in 11.553s, OK, zero skips |
+| Migration rollback/upgrade | Контрольні downgrade/upgrade та head 20260926_0017 — PASS |
+| Chromium | Login, HttpOnly cookie, reload/rotation, CSRF/CORS, logout/revocation — PASS |
+| Module/channel contract | Units, підтримка графіків, typed state readings і role-aware commands на різних demo Device — PASS |
+| Live HTTP/MQTT | ACK/Result, request_id deduplication, telemetry/audit, chart, alarm acknowledge, personal reads, recovery/gaps, VFD failure/Stop — PASS |
+| Restart/outage | Simulator ledger/state, backend queue/TTL, broker outage/reconnect — PASS |
+| Existing-data preflight | Зарезервованих rules/активних legacy collisions не знайдено — PASS |
+| Exact PostgreSQL restore | Схема та всі 20 таблиць збігаються |
+| SQLite restore | Всі device/command rows збігаються; ledger збережено після restart |
+| Restore access/delivery guards | Старі access/refresh відхилені; queued STOP не публікується повторно — PASS |
+| Спільний PowerShell script | Фінальні H-04 PASS, H-05 PASS, demo 0.38.0 і H-04/H-05 acceptance PASS |
+
+Цей CI повністю замінює невдалий попередній прогін як доказ приймання
+автоматичної частини. Windows-приймання користувача ще очікується.
+Документальні commits після цієї ревізії не змінюють перевірений код.
 
 ### Спільне приймання користувачем
 

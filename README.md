@@ -8,7 +8,7 @@ Backend: Python/FastAPI, PostgreSQL, SQLAlchemy/Alembic, Mosquitto.
 Реалізовано telemetry, command ACK/Result, browser auth, tenant RBAC,
 аварії та in-app notifications. Перший frontend ще не реалізовано.
 
-Кандидат backend **0.38.0** проходить фінальне приймання H-04/H-05.
+Кандидат backend **0.38.0** пройшов повний CI H-04/H-05 та очікує локального приймання.
 Актуальний стан і докази: [Етап H](docs/stage-h-backend-corrections.md).
 
 - [Backend: структура й запуск перевірок](backend/README.md).

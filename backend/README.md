@@ -5,7 +5,7 @@
 ## Поточний стан
 
 Кандидат **0.38.0**, схема **20260926_0017**. Етапи 1–8 і H-01/H-02/H-03
-прийняті. H-04/H-05 очікують остаточного CI та Windows-приймання.
+прийняті. H-04/H-05 пройшли повний CI та очікують Windows-приймання.
 Актуальні докази й статус: [досьє Етапу H](../docs/stage-h-backend-corrections.md).
 
 Реалізовано organization/site/device model, memberships/RBAC, browser auth,

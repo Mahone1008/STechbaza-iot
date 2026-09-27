@@ -5,7 +5,11 @@
 Backend **0.38.0**, migration **20260926_0017**, **158 tests**.
 H-01/H-02/H-03 прийняті користувачем. H-04/H-05 виконуються спільно за його
 вказівкою: [досьє та поточні результати](stage-h-backend-corrections.md).
-Статус кандидата: **очікує CI та локального приймання; Етап H ще не закрито**.
+Статус кандидата: **CI PASS; очікує локального приймання, Етап H ще не закрито**.
+[CI 36307064503](https://github.com/Mahone1008/STechbaza-iot/actions/runs/36307064503)
+на коді `04966f54e79f55a5cd0971a0f0df9e98eafcbdb0` завершено успішно:
+158 tests без skips, Chromium, live recovery, exact restore 20 таблиць/SQLite
+і спільний фінальний скрипт H-04/H-05 — PASS.
 
 Додано спільний [module/channel контракт](module-channel-contract-v1.md),
 типізовані state readings та 422 замість OverflowError для надмірного

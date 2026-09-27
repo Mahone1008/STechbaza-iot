@@ -5,6 +5,11 @@
 109 tests без skips, відновлено 20 таблиць і SQLite, live recovery — PASS.
 Операцію 6 та Етап 8 закрито; докази — у [журналі](stage-8-test-backend.md).
 
+Поточний сценарій оновлено в H-05 для backend **0.38.0**: **158 tests**,
+H-03 preflight перед promotion, без повторного seed наявного demo або
+restored copy. Схема 20260926_0017 та принципи ізоляції незмінні.
+Статус спільного приймання H-04/H-05 — у [досьє Етапу H](stage-h-backend-corrections.md).
+
 ## 1. Що доводить перевірка
 
 Збірка з tracked source запускається на порожніх volumes. Резервна копія
@@ -31,17 +36,20 @@
   `TECHBAZA_ACCEPTANCE_MODE=1` і для дій з БД — назву `techbaza_demo`.
   Звичайний HTTP startup ці дії не виконує.
 
-Запуск: [scripts/check-stage8-op6.ps1](../scripts/check-stage8-op6.ps1).
-Той самий файл запускає GitHub Actions через PowerShell.
+Спільний запуск H-04/H-05: [scripts/check-stage-h-final.ps1](../scripts/check-stage-h-final.ps1).
+Він використовує [check-stage8-op6.ps1](../scripts/check-stage8-op6.ps1)
+як спільну реалізацію. Той самий фінальний сценарій виконує CI PowerShell.
 
 ## 3. Послідовність
 
 1. `git archive HEAD`: tracked source експортується в окремий каталог.
    Docker image збирається з цього експорту з `--no-cache`.
 2. Новий PostgreSQL проходить усі міграції, строгий regression suite
-   **109 tests, zero skips**, seed і живий HTTP/MQTT demo test.
-3. Перевірений backend image використовується для звичайного demo.
-   Seed повторно перевіряє identities/паролі, не перестворює користувачів.
+   **158 tests, zero skips**, seed і живий HTTP/MQTT demo test.
+3. Наявний demo коротко зупиняється. Новий image виконує read-only preflight
+   його правил/аварій; тільки після PASS image використовується для demo.
+   При відмові перевірки відновлюється попередній image. Seed на наявному
+   demo не повторюється; користувачі, паролі та модулі збережені.
 4. Створюються дві контрольні сутності: активний login та queued STOP
    для тимчасово offline програмного насоса. Вони потрібні, щоб фактично
    перевірити захист від повернення старого доступу й повторної доставки.
@@ -128,7 +136,8 @@ request_id не оживляє команду. Перевірка повторю
 невірний формат, відмова перезапису, SQLite WAL round-trip, пошкоджена SQLite,
 opt-in guard. Нові 4 PostgreSQL tests: round-trip CHECK та виявлення зміни правил/timezone, точність PostgreSQL numeric/JSONB fingerprint, транзакційність, rollback та
 ідемпотентність recovery policy зі збереженням terminal history.
-Разом із попередніми сценаріями — **109 regression tests**.
+Історичний підсумок Етапу 8 — **109 regression tests**.
+Після H-01–H-05 набір містить **158 tests**; актуальні докази в досьє Етапу H.
 
 Fingerprint читає всі public tables у read-only REPEATABLE READ, UTC;
 порівнює PostgreSQL JSON row text без перетворення чисел на Python float,
