@@ -90,18 +90,19 @@ export function WorkspaceGuard({ children }: Readonly<{ children: ReactNode }>) 
   const loginUrl = `/login?returnTo=${encodeURIComponent(pathname || "/devices")}` as Route;
   const loggedOutUrl = "/login?loggedOut=1" as Route;
   const redirectTargetRef = useRef<string | null>(null);
+  const anonymousReason = session.status === "anonymous" ? session.reason : null;
 
   useEffect(() => {
-    if (session.status !== "anonymous") {
+    if (anonymousReason === null) {
       redirectTargetRef.current = null;
       return;
     }
 
-    const target = session.reason === "logout" ? loggedOutUrl : loginUrl;
+    const target = anonymousReason === "logout" ? loggedOutUrl : loginUrl;
     if (redirectTargetRef.current === target) return;
     redirectTargetRef.current = target;
     router.replace(target);
-  }, [loggedOutUrl, loginUrl, router, session.reason, session.status]);
+  }, [anonymousReason, loggedOutUrl, loginUrl, router]);
 
   if (session.status === "logging-out") {
     return (
