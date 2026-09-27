@@ -2,9 +2,9 @@
 
 Дата: 27.09.2026. База: backend **0.38.0**, Етап H завершено 5/5.
 
-**Статус: прийнято 5 із 24 операцій. Етап 9 завершено 4/4.
-Етап 10: 1/4. Операцію 10.2 реалізовано й автоматично перевірено;
-очікується локальне користувацьке приймання.**
+**Статус: прийнято 6 із 24 операцій. Етап 9 завершено 4/4.
+Етап 10: 2/4. Операцію 10.2 закрито після CI та локального Windows-приймання.
+Поточна точка — 10.3: permissions, organization access і route guards.**
 
 Frontend поділено на Етапи 9–14. Кожен етап має чотири операції. Наступна
 операція не закривається автоматично після реалізації: потрібні CI та локальне
@@ -69,13 +69,13 @@ Frontend поділено на Етапи 9–14. Кожен етап має ч�
 
 ## 5. Етап 10 — вхід, сесія та права
 
-**Статус Етапу 10: прийнято 1/4; 10.2 очікує локального приймання.**
+**Статус Етапу 10: прийнято 2/4. Наступна операція — 10.3.**
 
 | Операція | Результат | Статус |
 |---|---|---|
 | 10.1 — Login | email/password, CSRF, credentials include, HttpOnly cookie, memory-only access, 401/403/422/429/network UI | **Закрито 27.09.2026** |
-| 10.2 — Відновлення session | F5 recovery, proactive refresh, memory access token, single-flight і cross-tab coordination | **Реалізовано; CI PASS; локальне приймання очікується** |
-| 10.3 — Permissions/guards | `/auth/me`, organization access, cache isolation, route guards | Заплановано |
+| 10.2 — Відновлення session | F5 recovery, proactive refresh, memory access token, single-flight і cross-tab coordination | **Закрито 27.09.2026; CI і Windows PASS** |
+| 10.3 — Permissions/guards | `/auth/me`, organization access, cache isolation, route guards | **Наступна операція** |
 | 10.4 — Logout і збої | coordinated revoke, cancel pending requests, no session resurrection | Заплановано |
 
 Досьє:
@@ -85,8 +85,9 @@ Frontend поділено на Етапи 9–14. Кожен етап має ч�
 
 Access token не persist-иться. Refresh token не читається JavaScript.
 Temporary network failure не прирівнюється до logout; write requests не
-повторюються автоматично після невизначеного результату. 10.2 не закривається
-до локального Windows PASS користувача.
+повторюються автоматично після невизначеного результату. Відкриття `/login`
+із чинною HttpOnly session автоматично відновлює access і переводить
+користувача на `/devices` без повторного password.
 
 ## 6. Етап 11 — організації, пристрої та модульна панель
 
@@ -144,5 +145,5 @@ Start/frequency не накопичуються локально для відп
 10. Cross-tab lock metadata не містить token.
 11. Route guards не вважаються готовими до операції 10.3.
 
-**Поточна точка: локальне приймання 10.2 — F5 recovery, proactive refresh,
-single-flight і coordination між вкладками.**
+**Поточна точка: 10.3 — отримання реального `/auth/me`, актуальних
+permissions та organization access, ізоляція cache і захист маршрутів.**
