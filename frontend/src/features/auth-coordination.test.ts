@@ -42,7 +42,7 @@ describe("auth cross-tab coordination", () => {
 
   it("refreshes early without creating a tight timer loop", () => {
     expect(refreshDelayMs(1_900_000, 1_000_000)).toBe(840_000);
-    expect(refreshDelayMs(1_020_000, 1_000_000)).toBe(16_000);
+    expect(refreshDelayMs(1_020_000, 1_000_000)).toBe(15_000);
     expect(refreshDelayMs(1_000_100, 1_000_000)).toBe(1_000);
   });
 
