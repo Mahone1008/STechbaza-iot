@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="dark" />
+  <title>KERUMO — UX-макет Етапу 9.1</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="prototype-bar">
+    <div class="prototype-label"><span class="pulse-dot"></span> UX-макет 9.1 · демонстраційні дані</div>
+    <nav class="prototype-nav" aria-label="Екрани макета">
+      <button data-target="login">Вхід</button>
+      <button data-target="devices">Пристрої</button>
+      <button data-target="device" class="is-active">Панель</button>
+      <button data-target="alarms">Аварії</button>
+      <button data-target="states">Стани UI</button>
+    </nav>
+  </div>
+
+  <main id="screen-login" class="screen login-screen" data-screen="login" hidden>
+    <section class="login-brand-panel">
+      <div class="brand-lockup brand-lockup--large">
+        <svg class="brand-mark" viewBox="0 0 64 64" aria-hidden="true">
+          <path d="M10 10h12v44H10z"/>
+          <path d="M27 11h25L34 31H22z"/>
+          <path d="M22 33h14l18 20H29z"/>
+        </svg>
+        <div><strong>KERUMO</strong><span>Industrial IoT control</span></div>
+      </div>
+      <div class="login-copy">
+        <p class="eyebrow">Керуйте віддалено. Контролюйте локально.</p>
+        <h1>Насоси, частотники та модулі — в одному захищеному кабінеті.</h1>
+        <p>Живі показники, підтверджені команди, аварії та історія для кожного об’єкта.</p>
+      </div>
+      <div class="login-visual">
+        <div class="device-mini">
+          <div class="device-mini__top"><span class="mini-logo">K</span><strong>KERUMO</strong><small>V5</small></div>
+          <div class="mini-leds"><i></i><i></i><i></i><i></i></div>
+          <div class="mini-ports"><span></span><span></span><span></span><span></span></div>
+        </div>
+        <div class="signal-ring signal-ring--1"></div>
+        <div class="signal-ring signal-ring--2"></div>
+      </div>
+      <div class="security-note"><span>●</span> Захищена сесія · ролі та права перевіряє сервер</div>
+    </section>
+    <section class="login-form-panel">
+      <div class="login-card">
+        <div class="brand-lockup brand-lockup--mobile">
+          <svg class="brand-mark" viewBox="0 0 64 64" aria-hidden="true">
+            <path d="M10 10h12v44H10z"/><path d="M27 11h25L34 31H22z"/><path d="M22 33h14l18 20H29z"/>
+          </svg>
+          <div><strong>KERUMO</strong><span>Industrial IoT control</span></div>
+        </div>
+        <p class="eyebrow">Вхід до кабінету</p>
+        <h2>Вітаємо знову</h2>
+        <p class="muted">Використайте корпоративний обліковий запис.</p>
+        <label>Email<input value="operator@demo.kerumo.ua" aria-label="Email" /></label>
+        <label>Пароль<div class="password-wrap"><input value="••••••••••••" aria-label="Пароль" /><button aria-label="Показати пароль">◉</button></div></label>
+        <button class="btn btn-primary btn-full">Увійти</button>
+        <div class="login-meta"><span>Потрібна допомога?</span><a href="#">Звернутися до адміністратора</a></div>
+      </div>
+    </section>
+  </main>
+
+  <main id="screen-devices" class="screen app-shell" data-screen="devices" hidden>
+    <aside class="sidebar">
+      <div class="brand-lockup">
+        <svg class="brand-mark" viewBox="0 0 64 64" aria-hidden="true"><path d="M10 10h12v44H10z"/><path d="M27 11h25L34 31H22z"/><path d="M22 33h14l18 20H29z"/></svg>
+        <div><strong>KERUMO</strong><span>Control Cloud</span></div>
+      </div>
+      <nav class="side-nav">
+        <a class="active" href="#devices"><span>▦</span> Пристрої</a>
+        <a href="#alarms"><span>△</span> Аварії <b>2</b></a>
+        <a href="#"><span>◌</span> Повідомлення <b>5</b></a>
+        <a href="#"><span>⌁</span> Об’єкти</a>
+        <a href="#"><span>⚙</span> Налаштування</a>
+      </nav>
+      <div class="sidebar-footer"><div class="avatar">ОП</div><div><strong>Олег Петренко</strong><span>Оператор</span></div><button>⋮</button></div>
+    </aside>
+    <section class="workspace">
+      <header class="topbar">
+        <div><p class="eyebrow">ТОВ «АгроПоле»</p><h1>Пристрої</h1></div>
+        <div class="top-actions"><button class="icon-btn">⌕</button><button class="icon-btn">◔<i class="notification-dot"></i></button><button class="btn btn-primary">＋ Додати пристрій</button></div>
+      </header>
+      <div class="content-area">
+        <div class="summary-grid summary-grid--compact">
+          <article class="summary-card"><span>Усього</span><strong>12</strong><small>на 4 об’єктах</small></article>
+          <article class="summary-card"><span>Онлайн</span><strong class="success">9</strong><small>75% парку</small></article>
+          <article class="summary-card"><span>Потребують уваги</span><strong class="warning">2</strong><small>stale / alarm</small></article>
+          <article class="summary-card"><span>Офлайн</span><strong class="danger">1</strong><small>18 хв тому</small></article>
+        </div>
+        <div class="toolbar card"><div class="search-box">⌕ <span>Пошук за назвою або UID</span></div><button class="filter active">Усі</button><button class="filter">Онлайн</button><button class="filter">Аварії</button><button class="filter">Офлайн</button><button class="icon-btn">⇅</button></div>
+        <div class="device-list card">
+          <div class="device-row device-row--head"><span>Пристрій</span><span>Об’єкт</span><span>Стан</span><span>Останні дані</span><span>Модулі</span><span></span></div>
+          <a class="device-row" href="#device"><span class="device-identity"><i class="device-icon online">K</i><span><strong>Свердловина №3</strong><small>TB-DEMO-VFD-01</small></span></span><span><strong>Поле «Північ»</strong><small>Насосна станція</small></span><span><em class="status status-online">● Онлайн</em><small>Дистанційний режим</small></span><span><strong>щойно</strong><small>42.5 Hz · 3.6 bar</small></span><span class="module-pills"><i>VFD</i><i>P</i><i>L</i></span><span>›</span></a>
+          <div class="device-row"><span class="device-identity"><i class="device-icon warning">K</i><span><strong>Поливна лінія 2</strong><small>TB-DEMO-VFD-02</small></span></span><span><strong>Поле «Схід»</strong><small>Крапельний полив</small></span><span><em class="status status-warning">● Застарілі дані</em><small>Онлайн, telemetry stale</small></span><span><strong>4 хв тому</strong><small>37.0 Hz · 2.9 bar</small></span><span class="module-pills"><i>VFD</i><i>P</i></span><span>›</span></div>
+          <div class="device-row"><span class="device-identity"><i class="device-icon danger">K</i><span><strong>Резервна свердловина</strong><small>TB-DEMO-VFD-04</small></span></span><span><strong>Склад води</strong><small>Резерв</small></span><span><em class="status status-danger">● Офлайн</em><small>Причина невідома</small></span><span><strong>18 хв тому</strong><small>Останнє: насос зупинено</small></span><span class="module-pills"><i>VFD</i><i>L</i></span><span>›</span></div>
+          <div class="device-row"><span class="device-identity"><i class="device-icon neutral">K</i><span><strong>Новий контролер</strong><small>TB-DEMO-NEW-06</small></span></span><span><strong>Без об’єкта</strong><small>Не призначено</small></span><span><em class="status status-neutral">○ Немає даних</em><small>Ще не виходив на зв’язок</small></span><span><strong>—</strong><small>Очікування першого heartbeat</small></span><span class="module-pills"><i>VFD</i></span><span>›</span></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <main id="screen-device" class="screen app-shell" data-screen="device">
+    <aside class="sidebar">
+      <div class="brand-lockup">
+        <svg class="brand-mark" viewBox="0 0 64 64" aria-hidden="true"><path d="M10 10h12v44H10z"/><path d="M27 11h25L34 31H22z"/><path d="M22 33h14l18 20H29z"/></svg>
+        <div><strong>KERUMO</strong><span>Control Cloud</span></div>
+      </div>
+      <nav class="side-nav">
+        <a class="active" href="#devices"><span>▦</span> Пристрої</a>
+        <a href="#alarms"><span>△</span> Аварії <b>2</b></a>
+        <a href="#"><span>◌</span> Повідомлення <b>5</b></a>
+        <a href="#"><span>⌁</span> Об’єкти</a>
+        <a href="#"><span>⚙</span> Налаштування</a>
+      </nav>
+      <div class="sidebar-footer"><div class="avatar">ОП</div><div><strong>Олег Петренко</strong><span>Оператор</span></div><button>⋮</button></div>
+    </aside>
+    <section class="workspace">
+      <header class="topbar topbar--device">
+        <div class="mobile-brand"><svg class="brand-mark" viewBox="0 0 64 64" aria-hidden="true"><path d="M10 10h12v44H10z"/><path d="M27 11h25L34 31H22z"/><path d="M22 33h14l18 20H29z"/></svg><strong>KERUMO</strong></div>
+        <div><p class="breadcrumbs"><a href="#devices">Пристрої</a><span>›</span>Поле «Північ»<span>›</span>Свердловина №3</p><div class="device-title-line"><h1>Свердловина №3</h1><span class="status status-online">● Онлайн</span></div><p class="device-subline">KERUMO V5 · TB-DEMO-VFD-01 · дані 8 с тому</p></div>
+        <div class="top-actions"><button class="icon-btn">◔<i class="notification-dot"></i></button><button class="btn btn-secondary">Журнал</button><button class="icon-btn">⋮</button></div>
+      </header>
+      <div class="content-area device-dashboard">
+        <section class="notice-strip"><span class="notice-icon">✓</span><div><strong>Зв’язок стабільний</strong><small>MQTT, Modbus та телеметрія працюють. Остання повна синхронізація 8 с тому.</small></div><span class="mode-chip">ДИСТАНЦІЙНО</span></section>
+
+        <section class="metric-grid">
+          <article class="metric-card"><div class="metric-icon">ƒ</div><div><span>Частота</span><strong>42.5 <small>Hz</small></strong><em>Задано 42.5 Hz</em></div><svg viewBox="0 0 90 34"><polyline points="0,26 10,22 20,24 30,15 40,17 50,9 60,12 70,8 90,10"/></svg></article>
+          <article class="metric-card"><div class="metric-icon">A</div><div><span>Струм</span><strong>7.8 <small>A</small></strong><em>Норма 4–11 A</em></div><svg viewBox="0 0 90 34"><polyline points="0,23 10,20 20,22 30,18 40,19 50,14 60,15 70,13 90,14"/></svg></article>
+          <article class="metric-card"><div class="metric-icon">P</div><div><span>Тиск</span><strong>3.6 <small>bar</small></strong><em class="positive">+0.2 за 10 хв</em></div><svg viewBox="0 0 90 34"><polyline points="0,25 12,25 24,22 36,19 48,18 60,14 72,11 90,9"/></svg></article>
+          <article class="metric-card"><div class="metric-icon">≋</div><div><span>Рівень води</span><strong>76 <small>%</small></strong><em>Резерв достатній</em></div><div class="level-gauge"><i style="height:76%"></i></div></article>
+        </section>
+
+        <section class="dashboard-grid">
+          <article class="card control-card">
+            <div class="card-header"><div><p class="eyebrow">Керування насосом</p><h2>Працює</h2></div><span class="pump-state"><i></i> RUN</span></div>
+            <div class="frequency-control"><div class="field-label"><span>Робоча частота</span><strong>42.5 Hz</strong></div><div class="slider"><i style="width:70%"></i><b style="left:70%"></b></div><div class="slider-marks"><span>0</span><span>25</span><span>50 Hz</span></div></div>
+            <div class="frequency-stepper"><button>−</button><div><strong>42.5</strong><span>Hz</span></div><button>＋</button></div>
+            <div class="control-actions"><button class="btn btn-danger btn-large"><span>■</span> Зупинити насос</button><button class="btn btn-secondary btn-large">Змінити частоту</button></div>
+            <div class="safety-hint"><span>i</span> Команда буде надіслана лише в режимі «Дистанційно». ACK не вважається фізичним виконанням.</div>
+          </article>
+
+          <article class="card chart-card">
+            <div class="card-header"><div><p class="eyebrow">Історія показань</p><h2>Тиск і частота</h2></div><div class="segmented"><button class="active">6 год</button><button>24 год</button><button>7 днів</button></div></div>
+            <div class="chart-legend"><span><i class="legend-pressure"></i> Тиск, bar</span><span><i class="legend-frequency"></i> Частота, Hz</span><em>UTC+3</em></div>
+            <svg class="line-chart" viewBox="0 0 680 230" preserveAspectRatio="none" aria-label="Графік тиску та частоти">
+              <g class="grid-lines"><line x1="0" y1="35" x2="680" y2="35"/><line x1="0" y1="90" x2="680" y2="90"/><line x1="0" y1="145" x2="680" y2="145"/><line x1="0" y1="200" x2="680" y2="200"/></g>
+              <path class="area-path" d="M0,170 C50,165 75,156 115,160 S185,135 225,139 S290,118 340,123 S405,103 450,110 S520,78 565,84 S625,65 680,72 L680,230 L0,230 Z"/>
+              <path class="pressure-path" d="M0,170 C50,165 75,156 115,160 S185,135 225,139 S290,118 340,123 S405,103 450,110 S520,78 565,84 S625,65 680,72"/>
+              <path class="frequency-path" d="M0,114 C42,112 80,112 120,112 S180,96 225,97 S290,95 340,95 S410,83 455,83 S520,82 565,82 S625,70 680,70"/>
+            </svg>
+            <div class="chart-axis"><span>08:00</span><span>10:00</span><span>12:00</span><span>14:00</span><span>16:00</span></div>
+          </article>
+
+          <article class="card modules-card">
+            <div class="card-header"><div><p class="eyebrow">Конфігурація</p><h2>Активні модулі</h2></div><button class="text-btn">Переглянути всі</button></div>
+            <div class="module-list">
+              <div><i class="module-icon">V</i><span><strong>Керування VFD</strong><small>Start · Stop · Frequency</small></span><em class="status status-online">Доступний</em></div>
+              <div><i class="module-icon">P</i><span><strong>Датчик тиску</strong><small>pressure.bar · RS485-2</small></span><em class="status status-online">Fresh</em></div>
+              <div><i class="module-icon">L</i><span><strong>Рівень води</strong><small>water_level.percent</small></span><em class="status status-warning">Stale 2 хв</em></div>
+            </div>
+          </article>
+
+          <article class="card activity-card">
+            <div class="card-header"><div><p class="eyebrow">Остання команда</p><h2>Зміна частоти</h2></div><span class="success-badge">ВИКОНАНО</span></div>
+            <div class="command-timeline">
+              <div class="done"><i>✓</i><span><strong>Створено</strong><small>Олег Петренко · 12:41:08</small></span></div>
+              <div class="done"><i>✓</i><span><strong>Доставлено до контролера</strong><small>ACK · 12:41:09</small></span></div>
+              <div class="done"><i>✓</i><span><strong>Підтверджено частотником</strong><small>Result succeeded · 12:41:11</small></span></div>
+            </div>
+            <button class="text-btn full-width">Відкрити журнал команд →</button>
+          </article>
+
+          <article class="card alarm-card">
+            <div class="card-header"><div><p class="eyebrow">Увага</p><h2>1 активне попередження</h2></div><span class="warning-badge">MEDIUM</span></div>
+            <div class="alarm-item"><i>!</i><div><strong>Рівень води давно не оновлювався</strong><p>Останнє достовірне значення отримано 2 хв 14 с тому. Насос продовжує працювати.</p><small>Виникло о 12:39 · не підтверджено</small></div></div>
+            <div class="alarm-actions"><button class="btn btn-secondary">Деталі</button><button class="btn btn-primary">Підтвердити</button></div>
+          </article>
+        </section>
+      </div>
+      <nav class="mobile-nav"><a class="active" href="#device">▦<span>Панель</span></a><a href="#">⌁<span>Графіки</span></a><a href="#alarms">△<span>Аварії</span></a><a href="#">⋯<span>Ще</span></a></nav>
+    </section>
+  </main>
+
+  <main id="screen-alarms" class="screen app-shell" data-screen="alarms" hidden>
+    <aside class="sidebar">
+      <div class="brand-lockup"><svg class="brand-mark" viewBox="0 0 64 64" aria-hidden="true"><path d="M10 10h12v44H10z"/><path d="M27 11h25L34 31H22z"/><path d="M22 33h14l18 20H29z"/></svg><div><strong>KERUMO</strong><span>Control Cloud</span></div></div>
+      <nav class="side-nav"><a href="#devices"><span>▦</span> Пристрої</a><a class="active" href="#alarms"><span>△</span> Аварії <b>2</b></a><a href="#"><span>◌</span> Повідомлення <b>5</b></a><a href="#"><span>⌁</span> Об’єкти</a><a href="#"><span>⚙</span> Налаштування</a></nav>
+      <div class="sidebar-footer"><div class="avatar">ОП</div><div><strong>Олег Петренко</strong><span>Оператор</span></div><button>⋮</button></div>
+    </aside>
+    <section class="workspace"><header class="topbar"><div><p class="eyebrow">ТОВ «АгроПоле»</p><h1>Аварії та події</h1></div><div class="top-actions"><button class="btn btn-secondary">Експорт</button><button class="icon-btn">◔</button></div></header>
+      <div class="content-area"><div class="summary-grid summary-grid--compact"><article class="summary-card"><span>Активні</span><strong class="danger">2</strong><small>потребують реакції</small></article><article class="summary-card"><span>Не підтверджено</span><strong class="warning">1</strong><small>нове попередження</small></article><article class="summary-card"><span>Вирішено сьогодні</span><strong class="success">6</strong><small>без повтору</small></article><article class="summary-card"><span>Критичні</span><strong>0</strong><small>за 24 години</small></article></div>
+        <div class="toolbar card"><button class="filter active">Активні</button><button class="filter">Усі</button><button class="filter">Критичні</button><button class="filter">Мої непідтверджені</button><div class="toolbar-spacer"></div><button class="btn btn-secondary">Період: 24 години</button></div>
+        <div class="alarm-table card"><div class="alarm-row alarm-row--head"><span>Рівень</span><span>Подія</span><span>Пристрій</span><span>Час</span><span>Стан</span><span></span></div><div class="alarm-row"><span><em class="severity severity-medium">MEDIUM</em></span><span><strong>Рівень води давно не оновлювався</strong><small>water_level.percent · stale</small></span><span><strong>Свердловина №3</strong><small>Поле «Північ»</small></span><span><strong>2 хв тому</strong><small>12:39:02</small></span><span><em class="status status-warning">Не підтверджено</em><small>Причина активна</small></span><span>›</span></div><div class="alarm-row"><span><em class="severity severity-high">HIGH</em></span><span><strong>Низький тиск після запуску</strong><small>pressure.bar &lt; 1.2</small></span><span><strong>Поливна лінія 2</strong><small>Поле «Схід»</small></span><span><strong>11 хв тому</strong><small>12:30:17</small></span><span><em class="status status-online">Підтверджено</em><small>Причина активна</small></span><span>›</span></div><div class="alarm-row resolved"><span><em class="severity severity-low">LOW</em></span><span><strong>Пристрій був офлайн</strong><small>device.offline</small></span><span><strong>Резервна свердловина</strong><small>Склад води</small></span><span><strong>48 хв тому</strong><small>Відновлено 12:11</small></span><span><em class="status status-neutral">Вирішено</em><small>Тривалість 4 хв</small></span><span>›</span></div></div>
+      </div>
+    </section>
+  </main>
+
+  <main id="screen-states" class="screen states-screen" data-screen="states" hidden>
+    <header class="states-header"><div class="brand-lockup"><svg class="brand-mark" viewBox="0 0 64 64"><path d="M10 10h12v44H10z"/><path d="M27 11h25L34 31H22z"/><path d="M22 33h14l18 20H29z"/></svg><div><strong>KERUMO</strong><span>UX state matrix · 9.1</span></div></div><div><p class="eyebrow">Обов’язкові стани першого UI</p><h1>Не плутати відсутність даних із нулем, а ACK — із виконанням</h1></div></header>
+    <section class="state-grid">
+      <article class="state-card"><span class="state-code">LOADING</span><div class="skeleton"><i></i><i></i><i></i></div><h3>Завантаження</h3><p>Попередній Device не показується під час переходу.</p></article>
+      <article class="state-card"><span class="state-code">EMPTY</span><div class="state-symbol">＋</div><h3>Пристроїв ще немає</h3><p>Пояснення наступного кроку, а не порожня біла сторінка.</p></article>
+      <article class="state-card state-card--danger"><span class="state-code">OFFLINE</span><div class="state-symbol">⊘</div><h3>Контролер офлайн</h3><p>Останній зв’язок 18 хв тому. Старі показники мають час.</p></article>
+      <article class="state-card state-card--warning"><span class="state-code">STALE</span><div class="state-symbol">◷</div><h3>Дані застаріли</h3><p>Пристрій online, але telemetry не є достовірно свіжою.</p></article>
+      <article class="state-card"><span class="state-code">MISSING</span><div class="state-reading">—<small>bar</small></div><h3>Значення відсутнє</h3><p>Не перетворюється на 0 і не малюється на графіку.</p></article>
+      <article class="state-card state-card--danger"><span class="state-code">INVALID</span><div class="state-reading">!<small>type</small></div><h3>Некоректне значення</h3><p>Наприклад, рядок “false” замість boolean.</p></article>
+      <article class="state-card state-card--danger"><span class="state-code">403</span><div class="state-symbol">⌧</div><h3>Доступ відкликано</h3><p>Кеш tenant очищується, кнопка повтору не обходить права.</p></article>
+      <article class="state-card state-card--warning"><span class="state-code">409</span><div class="state-symbol">↯</div><h3>Модуль вимкнено</h3><p>Команда недоступна через зміну capabilities.</p></article>
+      <article class="state-card"><span class="state-code">QUEUED</span><div class="command-state"><i></i><i></i><i></i></div><h3>Команда в черзі</h3><p>Створена сервером, але ще не доставлена контролеру.</p></article>
+      <article class="state-card"><span class="state-code">ACK</span><div class="state-symbol accent">✓</div><h3>ACK отримано</h3><p>Контролер прийняв envelope. Це ще не виконання VFD.</p></article>
+      <article class="state-card state-card--success"><span class="state-code">SUCCEEDED</span><div class="state-symbol">✓</div><h3>Команду виконано</h3><p>Отримано остаточний Result із контролера.</p></article>
+      <article class="state-card state-card--warning"><span class="state-code">UNKNOWN</span><div class="state-symbol">?</div><h3>Результат невідомий</h3><p>Не повторювати Start автоматично — спочатку перевірити стан.</p></article>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

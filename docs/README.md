@@ -2,10 +2,14 @@
 
 Документація проєкту TechBaza IoT Pump Control.
 
+## Frontend
+
+- [Етап 9, операція 1 — сценарії, карта сторінок і макети KERUMO — підготовлено до приймання](stage-9-op1-ux-and-mockups.md)
+- [План frontend v1 — Етапи 9–14, 24 операції](frontend-roadmap-v1.md)
+
 ## Виправлення та перевірки
 
 - [Повторний огляд backend після H — оцінка, межі та backlog, 27.09.2026](backend-review-after-h-2026-09-27.md)
-- [План frontend v1 — Етапи 9–14, 24 операції](frontend-roadmap-v1.md)
 - [Етап H — завершено 5/5: MQTT, команди, аварії, модулі та фінальне приймання](stage-h-backend-corrections.md)
 - [Виправлення надійності та доступу — 25.09.2026, backend 0.30.0](hardening-2026-09-25.md)
 
