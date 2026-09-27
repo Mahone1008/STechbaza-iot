@@ -108,7 +108,7 @@ test("invalid credentials stay on login and do not disclose account existence", 
   await page.getByRole("button", { name: "Увійти" }).click();
 
   await expect(page).toHaveURL(/\/login$/u);
-  await expect(page.getByRole("alert")).toContainText("Невірний email або пароль");
+  await expect(page.locator(".login-alert")).toContainText("Невірний email або пароль");
   await expect(page.getByLabel("Пароль")).toHaveValue("");
 });
 
@@ -125,7 +125,7 @@ test("rate limit disables repeat login for Retry-After duration", async ({ page 
   await fillLogin(page);
   await page.getByRole("button", { name: "Увійти" }).click();
 
-  await expect(page.getByRole("alert")).toContainText(/Повторіть через [123] с/u);
+  await expect(page.locator(".login-alert")).toContainText(/Повторіть через [123] с/u);
   await expect(page.getByRole("button", { name: /Спробуйте через/u })).toBeDisabled();
 });
 
@@ -136,6 +136,6 @@ test("network failure is not rendered as invalid credentials or an empty state",
   await fillLogin(page);
   await page.getByRole("button", { name: "Увійти" }).click();
 
-  await expect(page.getByRole("alert")).toContainText("Backend недоступний");
+  await expect(page.locator(".login-alert")).toContainText("Backend недоступний");
   await expect(page.getByLabel("Пароль")).toHaveValue("valid-test-password");
 });
