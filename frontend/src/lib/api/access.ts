@@ -163,7 +163,7 @@ export function parseOrganizationAccessResponse(
 
 export function organizationRoleLabel(
   role: OrganizationRole | null,
-  platformRole: PlatformRole = "user",
+  platformRole: string = "user",
 ): string {
   if (role === "owner") return "Власник";
   if (role === "admin") return "Адміністратор";
