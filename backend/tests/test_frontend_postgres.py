@@ -382,6 +382,9 @@ class FrontendPostgresTests(unittest.TestCase):
                 {"state": '{"vfd_fault_code": 1e1000}', "id": self.devices[0]})
             session.commit()
         result = self.request(self.overview)
-        self.assertIsNone(result["snapshot"]["state"]["vfd_fault_code"])
+        # PostgreSQL JSONB нормалізує 1e1000 у точне ціле; raw snapshot сумісний.
+        self.assertEqual(result["snapshot"]["state"]["vfd_fault_code"], 10**1000)
         fault = next(item for item in result["state_readings"] if item["key"] == "vfd_fault_code")
         self.assertEqual((fault["value"], fault["status"]), (None, "invalid"))
+        with SessionLocal() as session:
+            self.assertEqual(session.get(DeviceState, self.devices[0]).state["vfd_fault_code"], 10**1000)

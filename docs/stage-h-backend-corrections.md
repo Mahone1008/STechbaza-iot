@@ -573,6 +573,18 @@ MQTT/simulator сценарії продовжують виконуватися 
 **75 пройдено, 83 пропущено** без PostgreSQL/MQTT; це не повне приймання.
 Повний CI і фінальний скрипт вимагають zero skips.
 
+Перший [CI 36306907060](https://github.com/Mahone1008/STechbaza-iot/actions/runs/36306907060)
+зупинився на одному неправильному очікуванні нового тесту: PostgreSQL JSONB
+нормалізує 1e1000 у точне ціле, а raw snapshot за контрактом зберігає його.
+Очікування виправлено; тест вимагає invalid/null у state_readings і незмінні
+raw snapshot/БД. Це не прийнятий прогін; після правки виконується новий CI.
+
+Також прибрано непрацездатний gitlink `techbaza-iot` з індексу репозиторію:
+для нього не було `.gitmodules`, посилань у build/scripts чи придатної
+конфігурації submodule. Він викликав попередження checkout cleanup і заважав
+коректному recursive clone. Видаляється лише gitlink, а не backend,
+demo volumes чи дані користувача.
+
 `scripts/check-stage-h-final.ps1` використовує спільний acceptance сценарій
 Етапу 8/операції 6, щоб не дублювати backup/restore логіку. Він виконує:
 
