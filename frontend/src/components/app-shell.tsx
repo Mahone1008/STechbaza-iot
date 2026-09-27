@@ -31,7 +31,7 @@ const navigation: readonly NavigationItem[] = [
 ];
 
 const mobileNavigationItems: readonly MobileNavigationItem[] = [
-  { href: "/devices/north-pump", label: "Панель", icon: "components", permission: "device.read" },
+  { href: "/devices/north-pump" as Route, label: "Панель", icon: "components", permission: "device.read" },
   { href: "/devices", label: "Пристрої", icon: "devices", permission: "device.read" },
   { href: "/alarms", label: "Аварії", icon: "alarm", permission: "alarm.read" },
   { href: "/ui-kit", label: "Ще", icon: "more", permission: "capability.read" },
