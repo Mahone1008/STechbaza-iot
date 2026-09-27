@@ -1,13 +1,13 @@
 # Етап 10, операція 1 — справжній browser login KERUMO
 
 Дата реалізації: 27.09.2026.  
+Дата приймання: 27.09.2026.  
 Backend base: **0.38.0**.  
 Вхідний статус: Етап 9 завершено 4/4, frontend roadmap **4/24**.
 
-> **Статус: реалізацію завершено, автоматичний CI пройдено.**
+> **Статус: операцію 10.1 прийнято користувачем і закрито 27.09.2026.**
 >
-> Операція 10.1 ще не закрита: очікується локальне Windows-приймання
-> користувачем. Етап 10 залишається 0/4, frontend roadmap — 4/24.
+> Етап 10: **1/4**. Frontend roadmap: **5/24**. Наступна операція — **10.2**.
 
 ---
 
@@ -264,7 +264,7 @@ Real browser tests — **2 passed**:
 
 ## 9. Локальна Windows-перевірка
 
-Перед запуском зупинити попередній Next.js через `Ctrl+C`, потім:
+Користувач виконав:
 
 ```powershell
 Set-Location "C:\Users\seraf\Documents\TechBaza\techbaza-iot"
@@ -272,67 +272,58 @@ git pull
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-stage10-op1.ps1 -Start
 ```
 
-Скрипт:
+Підтверджено на локальному Windows-середовищі:
 
-1. повторює повний accepted Stage 9 gate;
-2. перевіряє Docker Desktop Linux containers;
-3. зберігає існуючі demo credentials і volumes;
-4. застосовує migrations і idempotent seed;
-5. запускає backend 0.38.0 на `127.0.0.1:8001`;
-6. читає demo password без друку;
-7. виконує real Chromium login і wrong-password test;
-8. запускає KERUMO на `http://127.0.0.1:3000/login`.
+- Node.js **24.21.0**;
+- OpenAPI 0.38.0 / 47 paths;
+- TypeScript strict і ESLint;
+- Vitest — **11 passed**;
+- production build;
+- mocked Chromium — **9 passed**;
+- Docker demo PostgreSQL, Mosquitto і backend — Healthy;
+- real Chromium login — **2 passed**;
+- фінальний рядок `PASS: Stage 10.1 real browser login...`;
+- запуск KERUMO на `http://127.0.0.1:3000/login`.
 
-Очікуваний фінал:
+Demo password було скопійовано з `.env.demo` до clipboard без виведення у
+PowerShell. На наданому screenshot пароль видно лише як стандартні masked dots.
+Відкритого password, refresh secret або access token у console, URL чи screenshot
+не зафіксовано.
 
-```text
-PASS: Stage 10.1 real browser login, CSRF, HttpOnly cookie, memory-only access token and auth error states.
-```
-
-Для ручного входу email відомий:
+Користувач вручну увійшов як:
 
 ```text
 owner@techbaza-demo.example.com
 ```
 
-Password можна безпечно скопіювати до clipboard без виведення у консоль:
-
-```powershell
-$line = Get-Content .env.demo | Where-Object { $_ -like 'DEMO_OWNER_PASSWORD=*' } | Select-Object -First 1
-$line.Substring($line.IndexOf('=') + 1) | Set-Clipboard
-```
-
-Після входу перевірити:
+Після натискання `Увійти` підтверджено:
 
 - redirect на `/devices`;
 - email у sidebar;
 - `Сесія підтверджена · demo data` у topbar;
-- password не залишився у полі;
-- refresh сторінки поки повертає anonymous memory-state — це буде виправлено в 10.2.
+- password не відображається у workspace;
+- demo fleet залишається явно позначеним як demo data.
 
 ---
 
-## 10. Критерії закриття
+## 10. Критерії закриття — виконано
 
-Операція 10.1 закривається після локального підтвердження:
+1. Acceptance script завершився PASS.
+2. Live Playwright показав 2 passed.
+3. Реальний правильний login перевів на `/devices`.
+4. Wrong-password behavior автоматично перевірено generic error.
+5. Email і session status відображаються.
+6. Password/token не опубліковані у screenshot або console.
+7. Користувач надав screenshots і підтвердив результат.
 
-1. acceptance script завершується PASS;
-2. live Playwright показує 2 passed;
-3. реальний правильний login переводить на `/devices`;
-4. неправильний password показує generic error;
-5. email і session status відображаються;
-6. password/token не публікуються у screenshot або console;
-7. користувач підтверджує результат.
-
-До цього моменту status залишається **реалізовано, CI PASS, очікується
-користувацьке приймання**.
+**Операцію 10.1 закрито. Етап 10: 1/4. Frontend roadmap: 5/24.**
 
 ---
 
 ## 11. Наступні операції
 
-- **10.2** — refresh coordinator, session recovery після F5, single-flight і
-  coordination між вкладками;
+- **10.2 — наступна:** refresh coordinator, session recovery після F5,
+  single-flight і coordination між вкладками;
 - **10.3** — `/auth/me`, permissions, organization access і route guards;
 - **10.4** — logout, revoke, cancel pending requests і no session resurrection.
 
