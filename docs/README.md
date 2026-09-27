@@ -4,7 +4,7 @@
 
 ## Frontend
 
-- [План frontend v1 — 24 операції; прийнято 7/24](frontend-roadmap-v1.md)
+- [План frontend v1 — 24 операції; прийнято 8/24](frontend-roadmap-v1.md)
 - [Етап 9.1 — UX-сценарії та макети KERUMO — закрито](stage-9-op1-ux-and-mockups.md)
 - [Етап 9.2 — Next.js/TypeScript foundation — закрито](stage-9-op2-frontend-foundation.md)
 - [Етап 9.3 — API adapter і контракти — закрито](stage-9-op3-api-adapter.md)
@@ -12,9 +12,9 @@
 - [Етап 10.1 — справжній browser login — закрито](stage-10-op1-browser-login.md)
 - [Етап 10.2 — відновлення browser session — закрито](stage-10-op2-session-recovery.md)
 - [Етап 10.3 — профіль, permissions і route guards — закрито після CI та Windows-приймання](stage-10-op3-permissions-and-guards.md)
-- [Етап 10.4 — logout, revoke і захист від session resurrection — реалізовано, CI PASS, очікується локальне приймання](stage-10-op4-logout-and-failures.md)
+- [Етап 10.4 — logout, revoke і захист від session resurrection — закрито після CI та Windows-приймання](stage-10-op4-logout-and-failures.md)
 
-Поточна точка: **локальне Windows-приймання Етапу 10, операції 10.4**.
+Поточна точка: **Етап 11, операція 11.1 — організації, об'єкти і tenant context**.
 
 ## Backend: виправлення та перевірки
 
@@ -33,6 +33,7 @@
 - [Етап 7 — Events & Alarms Core](dossier-v3.5-stage-7-events-alarms-core.md)
 - [Етап 8 — Test backend](dossier-v3.5-stage-8-test-backend.md)
 - [Етап 9 — Frontend Foundation KERUMO — загальне підсумкове досьє](dossier-v3.5-stage-9-frontend-foundation.md)
+- [Етап 10 — Browser Authentication, Session Recovery, RBAC & Logout KERUMO — загальне підсумкове досьє](dossier-v3.5-stage-10-browser-auth-session-rbac.md)
 
 ## Чинні технічні контракти
 
