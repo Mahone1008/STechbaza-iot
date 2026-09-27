@@ -1,13 +1,14 @@
 # Етап 10, операція 3 — профіль, permissions і route guards KERUMO
 
-Дата реалізації: 27.09.2026.  
+Дата реалізації та приймання: 27.09.2026.  
 Backend base: **0.38.0**.  
 Вхідний статус: операції 10.1–10.2 закрито, Етап 10 — **2/4**, frontend roadmap — **6/24**.
 
-> **Статус: реалізацію завершено, автоматичний CI пройдено.**
+> **Статус: операцію 10.3 прийнято користувачем і закрито 27.09.2026.**
 >
-> Операція 10.3 ще не закрита: очікується локальне Windows-приймання
-> користувачем. До цього моменту Етап 10 залишається 2/4, roadmap — 6/24.
+> Автоматичний CI та локальне Windows-приймання пройдено. Етап 10 — **3/4**,
+> frontend roadmap — **7/24**. Наступна операція — **10.4: logout, revoke і
+> захист від session resurrection**.
 
 ---
 
@@ -342,8 +343,7 @@ Owner і viewer passwords були masked. Isolated containers, network і volum
 
 ## 12. Локальна Windows-перевірка
 
-Перед запуском зупинити попередній Next.js через `Ctrl+C`, Docker Desktop
-залишити запущеним у Linux containers mode.
+Користувач виконав перевірку на Windows 11 / Node.js 24.21.0 командою:
 
 ```powershell
 Set-Location "C:\Users\seraf\Documents\TechBaza\techbaza-iot"
@@ -351,98 +351,115 @@ git pull
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-stage10-op3.ps1 -Start
 ```
 
-Очікуваний фінал:
+Перший локальний запуск виявив сумісність Windows PowerShell 5.1 із UTF-8
+без BOM: український текст у скрипті був інтерпретований як smart quote і
+спричинив parser error. Скрипт переведено на ASCII-compatible service messages
+у commit:
 
 ```text
-PASS: Stage 10.3 /auth/me profile, organization access, permission-aware UI, cache isolation and route guards.
-Starting KERUMO at http://127.0.0.1:3000/login
+51ce7a20cc7cf9244bfe950831442898d5a4e7f6
+Fix Windows PowerShell parsing in Stage 10.3 check
 ```
 
-Скрипт не друкує owner/viewer passwords і не видаляє прийняті demo volumes.
+Після `git pull` повторна перевірка завершилась успішно.
+
+Локально підтверджено:
+
+```text
+OpenAPI 0.38.0 / 47 paths — PASS
+TypeScript strict — PASS
+ESLint — PASS
+Vitest — 6 files, 22 passed
+Next.js production build — PASS
+Mocked Chromium — 19 passed
+PostgreSQL / Mosquitto / FastAPI — Healthy
+Real Chromium owner/viewer/session/guards — 6 passed
+PASS: Stage 10.1+ authentication, HttpOnly session and real role checks.
+PASS: Stage 10.2 HttpOnly session recovery, proactive refresh, single-flight and cross-tab coordination.
+PASS: Stage 10.3 /auth/me profile, organization access, permission-aware UI, cache isolation and route guards.
+```
+
+Після gate KERUMO успішно запущено на:
+
+```text
+http://127.0.0.1:3000/login
+```
+
+Скрипт не друкував owner/viewer passwords і не видаляв прийняті demo volumes.
 
 ---
 
-## 13. Ручне приймання
+## 13. Ручне приймання — фактичний результат
 
-### A. Anonymous guard
+### A. Anonymous guard — PASS
 
-У приватному/Incognito вікні відкрити:
+У приватному/Incognito вікні користувач відкрив:
 
 ```text
 http://127.0.0.1:3000/devices
 ```
 
-Очікується:
+Браузер перейшов на:
 
 ```text
 http://127.0.0.1:3000/login?returnTo=%2Fdevices
 ```
 
-До redirect не повинні з’являтися fleet, sidebar або назва організації.
+До login було показано лише нейтральний стан `Перевіряємо сесію`; fleet,
+sidebar, назва організації та інші tenant data не з’являлися.
 
-### B. Owner context
+### B. Owner context — PASS
 
-У звичайному вікні відновити owner session або увійти як:
-
-```text
-owner@techbaza-demo.example.com
-```
-
-Очікується:
+Після відновлення owner session UI показав:
 
 - organization `DEMO: клієнт A`;
-- email owner у sidebar;
-- `DEMO: owner · Власник`;
-- Start/Stop доступні для online remote demo Device.
+- `owner@techbaza-demo.example.com` у sidebar;
+- role `DEMO: owner · Власник`;
+- сторінку `/devices` лише після завершення session/profile/access resolution;
+- кнопку `Додати пристрій`, доступну відповідно до owner permissions.
 
-### C. Viewer restrictions
+### C. Viewer restrictions — PASS
 
-У приватному вікні перейти безпосередньо на:
+У приватному вікні користувач перейшов на:
 
 ```text
 http://127.0.0.1:3000/devices/north-pump
 ```
 
-та увійти як:
+і увійшов як:
 
 ```text
 viewer@techbaza-demo.example.com
 ```
 
-Viewer password безпечно копіюється з `.env.demo`:
+Після login safe `returnTo` повернув браузер на requested Device route. UI
+показав:
 
-```powershell
-$line = Get-Content .env.demo |
-    Where-Object { $_ -like 'DEMO_VIEWER_PASSWORD=*' } |
-    Select-Object -First 1
+- organization `DEMO: клієнт A`;
+- viewer email у sidebar;
+- role `DEMO: viewer · Спостерігач`;
+- disabled `Запустити` і `Зупинити`;
+- disabled frequency apply;
+- disabled `Налаштування`;
+- explicit warning: поточна роль не має permission `command.execute`.
 
-$line.Substring($line.IndexOf('=') + 1) | Set-Clipboard
-```
-
-Очікується:
-
-- повернення на `/devices/north-pump`;
-- `DEMO: viewer · Спостерігач`;
-- Start/Stop/frequency disabled;
-- settings disabled;
-- видима причина про відсутній `command.execute`.
+На наданих screenshots passwords і access/refresh tokens не розкриті.
 
 ---
 
 ## 14. Критерії закриття
 
-Операція 10.3 закривається після підтвердження:
+| Критерій | Результат |
+|---|---|
+| cumulative Windows script завершується Stage 10.3 PASS | **PASS** |
+| anonymous `/devices` redirect без tenant-data flash | **PASS** |
+| owner бачить реальні profile, organization і роль | **PASS** |
+| viewer бачить реальну роль | **PASS** |
+| viewer не може активувати command/capability controls | **PASS** |
+| screenshots не містять passwords або tokens | **PASS** |
+| користувач прийняв результат | **PASS** |
 
-1. cumulative Windows script завершується Stage 10.3 PASS;
-2. anonymous `/devices` redirect-иться на login без tenant-data flash;
-3. owner бачить реальні profile, organization і роль;
-4. viewer бачить свою реальну роль;
-5. viewer не може активувати command/capability controls;
-6. screenshots не містять passwords або access/refresh token;
-7. користувач приймає результат.
-
-До цього моменту status залишається **реалізовано, CI PASS, очікується
-локальне користувацьке приймання**.
+**Операцію 10.3 закрито.**
 
 ---
 
@@ -452,6 +469,21 @@ $line.Substring($line.IndexOf('=') + 1) | Set-Clipboard
   live domain data починаються в Етапі 11;
 - frontend guard не замінює backend authorization;
 - organization switcher для кількох memberships належить 11.1;
-- **10.4 — наступна після приймання:** справжній browser logout/revoke,
-  coordinated cleanup між вкладками, cancel pending requests і захист від
-  session resurrection.
+- server-side logout/revoke ще не підключено до user action;
+- **наступна операція 10.4:** справжній browser logout/revoke, coordinated
+  cleanup між вкладками, cancel pending requests і захист від session
+  resurrection після виходу.
+
+## 16. Підсумковий вердикт
+
+Операція 10.3 створила професійну межу між session authentication і доступом
+до tenant workspace. KERUMO перевіряє `/auth/me`, активну організацію та
+точні backend permissions до рендерингу даних, ізолює cache за user/session,
+не допускає open redirect і не показує заборонені controls як доступні.
+
+```text
+Етап 9: 4/4
+Етап 10: 3/4
+Frontend roadmap: 7/24
+Наступна операція: 10.4
+```
