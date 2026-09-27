@@ -5,6 +5,9 @@ param(
 $ErrorActionPreference = "Stop"
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $frontend = Join-Path $repoRoot "frontend"
+$backendRequirements = Join-Path $repoRoot "backend\requirements.txt"
+$venvRoot = Join-Path $repoRoot ".venv"
+$venvPython = Join-Path $venvRoot "Scripts\python.exe"
 
 $nodeCommand = Get-Command node.exe -ErrorAction SilentlyContinue
 if (-not $nodeCommand) { $nodeCommand = Get-Command node -ErrorAction SilentlyContinue }
@@ -17,12 +20,17 @@ $pythonCommand = Get-Command python.exe -ErrorAction SilentlyContinue
 if (-not $pythonCommand) { $pythonCommand = Get-Command python -ErrorAction SilentlyContinue }
 if (-not $pythonCommand) { throw "Python was not found in PATH." }
 
+function Assert-LastExit {
+    param([Parameter(Mandatory = $true)][string]$Step)
+    if ($LASTEXITCODE -ne 0) {
+        throw "$Step failed with exit code $LASTEXITCODE."
+    }
+}
+
 function Invoke-Npm {
     param([Parameter(Mandatory = $true)][string[]]$Arguments)
     & $npmCommand.Source @Arguments
-    if ($LASTEXITCODE -ne 0) {
-        throw "npm $($Arguments -join ' ') failed with exit code $LASTEXITCODE."
-    }
+    Assert-LastExit "npm $($Arguments -join ' ')"
 }
 
 Set-Location $repoRoot
@@ -30,12 +38,25 @@ Write-Host "Repository: $repoRoot" -ForegroundColor Cyan
 Write-Host "Frontend: $frontend" -ForegroundColor Cyan
 Write-Host "Node.js $((& $nodeCommand.Source --version).Trim())" -ForegroundColor Cyan
 
+# OpenAPI export imports the real FastAPI application. Keep its Python
+# dependencies in an ignored project-local virtual environment rather than
+# changing the user's global Python installation.
+if (-not (Test-Path -LiteralPath $venvPython -PathType Leaf)) {
+    Write-Host "Creating isolated Python environment: $venvRoot" -ForegroundColor Cyan
+    & $pythonCommand.Source -m venv $venvRoot
+    Assert-LastExit "Python virtual environment creation"
+}
+
+Write-Host "Preparing backend schema dependencies in .venv" -ForegroundColor Cyan
+& $venvPython -m pip install --disable-pip-version-check --no-input -r $backendRequirements
+Assert-LastExit "Backend schema dependency installation"
+
 Set-Location $frontend
 Invoke-Npm -Arguments @("ci", "--no-audit", "--no-fund")
 
 Set-Location $repoRoot
-& $pythonCommand.Source ".\scripts\export_openapi.py"
-if ($LASTEXITCODE -ne 0) { throw "OpenAPI export failed." }
+& $venvPython ".\scripts\export_openapi.py"
+Assert-LastExit "OpenAPI export"
 
 Set-Location $frontend
 Invoke-Npm -Arguments @("run", "api:generate")
