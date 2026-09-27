@@ -74,6 +74,12 @@
 .user-menu-action-danger { color: var(--danger); }
 .user-menu-action-danger small { color: #9a6062; }
 
+/* Desktop sidebar menu must stay fully inside the fixed navigation rail. */
+.sidebar .user-menu-popover {
+  width: min(calc(var(--sidebar-width) - 28px), calc(100vw - 24px));
+  max-width: calc(var(--sidebar-width) - 28px);
+}
+
 .topbar-actions { display: flex; align-items: center; gap: 8px; }
 .topbar-user-menu { display: none; }
 .topbar-account-button {
