@@ -3,7 +3,8 @@
 Дата: 27.09.2026. База: backend **0.38.0**, Етап H завершено 5/5.
 
 **Статус: прийнято 5 із 24 операцій. Етап 9 завершено 4/4.
-Етап 10: 1/4. Поточна точка — 10.2.**
+Етап 10: 1/4. Операцію 10.2 реалізовано й автоматично перевірено;
+очікується локальне користувацьке приймання.**
 
 Frontend поділено на Етапи 9–14. Кожен етап має чотири операції. Наступна
 операція не закривається автоматично після реалізації: потрібні CI та локальне
@@ -29,6 +30,7 @@ Frontend поділено на Етапи 9–14. Кожен етап має ч�
 - shared API adapter із timeout/cancel/normalized errors;
 - TanStack Query із user/session/tenant/device scoped keys;
 - access token лише в memory, refresh token лише в HttpOnly cookie;
+- browser session recovery із single-flight і cross-tab coordination;
 - bounded polling тільки видимих даних;
 - Vitest component/unit tests і Playwright Chromium smoke/full E2E;
 - UI `http://127.0.0.1:3000`, demo API `http://127.0.0.1:8001`.
@@ -67,21 +69,24 @@ Frontend поділено на Етапи 9–14. Кожен етап має ч�
 
 ## 5. Етап 10 — вхід, сесія та права
 
-**Статус Етапу 10: 1/4.**
+**Статус Етапу 10: прийнято 1/4; 10.2 очікує локального приймання.**
 
 | Операція | Результат | Статус |
 |---|---|---|
 | 10.1 — Login | email/password, CSRF, credentials include, HttpOnly cookie, memory-only access, 401/403/422/429/network UI | **Закрито 27.09.2026** |
-| 10.2 — Відновлення session | refresh cookie, memory access token, single-flight і tab coordination | **Наступна операція** |
+| 10.2 — Відновлення session | F5 recovery, proactive refresh, memory access token, single-flight і cross-tab coordination | **Реалізовано; CI PASS; локальне приймання очікується** |
 | 10.3 — Permissions/guards | `/auth/me`, organization access, cache isolation, route guards | Заплановано |
 | 10.4 — Logout і збої | coordinated revoke, cancel pending requests, no session resurrection | Заплановано |
 
 Досьє:
 
 - [10.1 — справжній browser login KERUMO](stage-10-op1-browser-login.md)
+- [10.2 — відновлення browser session KERUMO](stage-10-op2-session-recovery.md)
 
-Автоматичний повтор write/login mutation після 401 або network uncertainty не
-допускається. Access token не persist-иться; recovery після F5 є scope 10.2.
+Access token не persist-иться. Refresh token не читається JavaScript.
+Temporary network failure не прирівнюється до logout; write requests не
+повторюються автоматично після невизначеного результату. 10.2 не закривається
+до локального Windows PASS користувача.
 
 ## 6. Етап 11 — організації, пристрої та модульна панель
 
@@ -136,7 +141,8 @@ Start/frequency не накопичуються локально для відп
 7. Mock data не маскують збій live API.
 8. Frontend CI не замінює backend suite.
 9. Access token не persist-иться; refresh token не читається JavaScript.
-10. Route guards не вважаються готовими до операції 10.3.
+10. Cross-tab lock metadata не містить token.
+11. Route guards не вважаються готовими до операції 10.3.
 
-**Поточна точка: 10.2 — refresh coordinator, відновлення browser session після
-F5, single-flight refresh і coordination між вкладками.**
+**Поточна точка: локальне приймання 10.2 — F5 recovery, proactive refresh,
+single-flight і coordination між вкладками.**
