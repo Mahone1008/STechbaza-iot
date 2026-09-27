@@ -35,7 +35,7 @@ import {
 } from "@/lib/api";
 
 const DOCUMENT_TAB_ID = createAuthTabId();
-const PEER_RESPONSE_WINDOW_MS = 250;
+const PEER_RESPONSE_WINDOW_MS = 350;
 const MIN_ACCESS_VALIDITY_MS = 30_000;
 const MIN_PEER_TOKEN_VALIDITY_MS = 5_000;
 
@@ -74,32 +74,46 @@ type RefreshOutcome =
   | Readonly<{ kind: "peer"; snapshot: AuthSessionSnapshotMessage }>
   | Readonly<{ kind: "api"; response: BrowserLoginResponse; issuedAt: number }>;
 
+type PeerSnapshotResolver = (snapshot: AuthSessionSnapshotMessage | null) => void;
+
 let sameDocumentRefreshPromise: Promise<RefreshOutcome> | null = null;
 
+function isNewUsablePeerSnapshot(
+  snapshot: AuthSessionSnapshotMessage | null,
+  baselineEventAt: number,
+): snapshot is AuthSessionSnapshotMessage {
+  return snapshot !== null
+    && snapshot.issuedAt > baselineEventAt
+    && isSnapshotUsable(snapshot, Date.now(), MIN_PEER_TOKEN_VALIDITY_MS);
+}
+
 async function coordinatedBrowserRefresh(
-  requestedAt: number,
+  baselineEventAt: number,
   getLatestPeerSnapshot: () => AuthSessionSnapshotMessage | null,
-  announceRefresh: (response: BrowserLoginResponse, issuedAt: number) => void,
+  requestPeerSnapshot: () => Promise<AuthSessionSnapshotMessage | null>,
+  commitApiRefresh: (response: BrowserLoginResponse, issuedAt: number) => void,
 ): Promise<RefreshOutcome> {
   if (sameDocumentRefreshPromise) return sameDocumentRefreshPromise;
 
   const promise = withCrossTabAuthLock(DOCUMENT_TAB_ID, async () => {
-    const peerSnapshot = getLatestPeerSnapshot();
-    if (
-      peerSnapshot
-      && peerSnapshot.issuedAt >= requestedAt
-      && isSnapshotUsable(peerSnapshot, Date.now(), MIN_PEER_TOKEN_VALIDITY_MS)
-    ) {
-      return { kind: "peer", snapshot: peerSnapshot } as const;
+    const cachedPeer = getLatestPeerSnapshot();
+    if (isNewUsablePeerSnapshot(cachedPeer, baselineEventAt)) {
+      return { kind: "peer", snapshot: cachedPeer } as const;
+    }
+
+    const requestedPeer = await requestPeerSnapshot();
+    if (isNewUsablePeerSnapshot(requestedPeer, baselineEventAt)) {
+      return { kind: "peer", snapshot: requestedPeer } as const;
     }
 
     const response = await browserRefresh();
     const issuedAt = Date.now();
-    announceRefresh(response, issuedAt);
+    commitApiRefresh(response, issuedAt);
     return { kind: "api", response, issuedAt } as const;
   }).finally(() => {
     sameDocumentRefreshPromise = null;
   });
+
   sameDocumentRefreshPromise = promise;
   return promise;
 }
@@ -137,7 +151,7 @@ export function AuthSessionProvider({ children }: Readonly<{ children: ReactNode
   const latestPeerSnapshotRef = useRef<AuthSessionSnapshotMessage | null>(null);
   const lastEventAtRef = useRef(0);
   const refreshPromiseRef = useRef<Promise<boolean> | null>(null);
-  const peerWaitersRef = useRef(new Set<(found: boolean) => void>());
+  const peerWaitersRef = useRef(new Set<PeerSnapshotResolver>());
   const retryTimerRef = useRef<ReturnType<typeof globalThis.setTimeout> | null>(null);
   const retryAttemptRef = useRef(0);
   const refreshSessionRef = useRef<(reason?: RefreshReason) => Promise<boolean>>(async () => false);
@@ -211,22 +225,6 @@ export function AuthSessionProvider({ children }: Readonly<{ children: ReactNode
     return true;
   }, [clearRetryTimer, commitSession, publishSnapshot]);
 
-  const announceRefresh = useCallback((response: BrowserLoginResponse, issuedAt: number) => {
-    const current = sessionRef.current;
-    postMessage({
-      version: 1,
-      type: "session-snapshot",
-      sourceTab: DOCUMENT_TAB_ID,
-      targetTab: null,
-      issuedAt,
-      sessionOrigin: "refresh",
-      email: current.status === "authenticated" ? current.email : null,
-      accessToken: response.access_token,
-      accessExpiresAt: issuedAt + response.expires_in * 1_000,
-      sessionExpiresAt: issuedAt + response.session_expires_in * 1_000,
-    });
-  }, [postMessage]);
-
   const applyPeerSnapshot = useCallback((snapshot: AuthSessionSnapshotMessage): boolean => {
     if (!isSnapshotUsable(snapshot, Date.now(), MIN_PEER_TOKEN_VALIDITY_MS)) return false;
     if (snapshot.issuedAt < lastEventAtRef.current) return false;
@@ -248,8 +246,6 @@ export function AuthSessionProvider({ children }: Readonly<{ children: ReactNode
     retryAttemptRef.current = 0;
     clearRetryTimer();
     commitSession(next);
-    for (const resolve of peerWaitersRef.current) resolve(true);
-    peerWaitersRef.current.clear();
     return true;
   }, [clearRetryTimer, commitSession]);
 
@@ -278,6 +274,33 @@ export function AuthSessionProvider({ children }: Readonly<{ children: ReactNode
     }
   }, [clearRetryTimer, commitSession, postMessage]);
 
+  const requestPeerSnapshot = useCallback((): Promise<AuthSessionSnapshotMessage | null> => {
+    const channel = channelRef.current;
+    if (!channel) return Promise.resolve(null);
+
+    return new Promise((resolve) => {
+      let settled = false;
+      let timeout: ReturnType<typeof globalThis.setTimeout> | null = null;
+
+      const complete: PeerSnapshotResolver = (snapshot) => {
+        if (settled) return;
+        settled = true;
+        if (timeout !== null) globalThis.clearTimeout(timeout);
+        peerWaitersRef.current.delete(complete);
+        resolve(snapshot);
+      };
+
+      peerWaitersRef.current.add(complete);
+      channel.postMessage({
+        version: 1,
+        type: "session-request",
+        sourceTab: DOCUMENT_TAB_ID,
+        issuedAt: Date.now(),
+      } satisfies AuthChannelMessage);
+      timeout = globalThis.setTimeout(() => complete(null), PEER_RESPONSE_WINDOW_MS);
+    });
+  }, []);
+
   const scheduleRetry = useCallback((error: unknown) => {
     clearRetryTimer();
     const retryAfterSeconds = isApiError(error) ? error.retryAfterSeconds : null;
@@ -303,17 +326,28 @@ export function AuthSessionProvider({ children }: Readonly<{ children: ReactNode
     }, delay);
   }, [clearRetryTimer, commitSession]);
 
+  const commitApiRefresh = useCallback((response: BrowserLoginResponse, issuedAt: number) => {
+    const current = sessionRef.current;
+    applyTokenResponse(response, {
+      email: current.status === "authenticated" ? current.email : null,
+      source: "refresh",
+      issuedAt,
+      broadcast: true,
+    });
+  }, [applyTokenResponse]);
+
   const refreshSession = useCallback((reason: RefreshReason = "demand"): Promise<boolean> => {
     void reason;
     if (refreshPromiseRef.current) return refreshPromiseRef.current;
 
-    const requestedAt = Date.now();
+    const baselineEventAt = lastEventAtRef.current;
     const request = (async () => {
       try {
         const outcome = await coordinatedBrowserRefresh(
-          requestedAt,
+          baselineEventAt,
           () => latestPeerSnapshotRef.current,
-          announceRefresh,
+          requestPeerSnapshot,
+          commitApiRefresh,
         );
 
         if (outcome.kind === "peer") {
@@ -329,11 +363,7 @@ export function AuthSessionProvider({ children }: Readonly<{ children: ReactNode
         });
       } catch (error) {
         const newerPeer = latestPeerSnapshotRef.current;
-        if (
-          newerPeer
-          && newerPeer.issuedAt >= requestedAt
-          && isSnapshotUsable(newerPeer, Date.now(), MIN_PEER_TOKEN_VALIDITY_MS)
-        ) {
+        if (isNewUsablePeerSnapshot(newerPeer, baselineEventAt)) {
           return applyPeerSnapshot(newerPeer);
         }
 
@@ -352,7 +382,14 @@ export function AuthSessionProvider({ children }: Readonly<{ children: ReactNode
 
     refreshPromiseRef.current = request;
     return request;
-  }, [announceRefresh, applyPeerSnapshot, applyTokenResponse, clearSessionInternal, scheduleRetry]);
+  }, [
+    applyPeerSnapshot,
+    applyTokenResponse,
+    clearSessionInternal,
+    commitApiRefresh,
+    requestPeerSnapshot,
+    scheduleRetry,
+  ]);
 
   useEffect(() => {
     refreshSessionRef.current = refreshSession;
@@ -414,30 +451,6 @@ export function AuthSessionProvider({ children }: Readonly<{ children: ReactNode
     }
   }, [getAccessToken, refreshSession]);
 
-  const waitForPeerSnapshot = useCallback((): Promise<boolean> => {
-    const channel = channelRef.current;
-    if (!channel) return Promise.resolve(false);
-
-    return new Promise((resolve) => {
-      let settled = false;
-      const complete = (found: boolean) => {
-        if (settled) return;
-        settled = true;
-        peerWaitersRef.current.delete(complete);
-        resolve(found);
-      };
-
-      peerWaitersRef.current.add(complete);
-      channel.postMessage({
-        version: 1,
-        type: "session-request",
-        sourceTab: DOCUMENT_TAB_ID,
-        issuedAt: Date.now(),
-      } satisfies AuthChannelMessage);
-      globalThis.setTimeout(() => complete(false), PEER_RESPONSE_WINDOW_MS);
-    });
-  }, []);
-
   useEffect(() => {
     mountedRef.current = true;
     const peerWaiters = peerWaitersRef.current;
@@ -477,6 +490,8 @@ export function AuthSessionProvider({ children }: Readonly<{ children: ReactNode
         if (message.type === "session-snapshot") {
           if (message.targetTab !== null && message.targetTab !== DOCUMENT_TAB_ID) return;
           latestPeerSnapshotRef.current = message;
+          for (const resolve of peerWaitersRef.current) resolve(message);
+          peerWaitersRef.current.clear();
           applyPeerSnapshot(message);
           return;
         }
@@ -491,9 +506,9 @@ export function AuthSessionProvider({ children }: Readonly<{ children: ReactNode
     }
 
     void (async () => {
-      const restoredFromPeer = await waitForPeerSnapshot();
+      const peerSnapshot = await requestPeerSnapshot();
       if (!mountedRef.current) return;
-      if (restoredFromPeer && sessionRef.current.status === "authenticated") return;
+      if (peerSnapshot && applyPeerSnapshot(peerSnapshot)) return;
       await refreshSession("startup");
     })();
 
@@ -501,11 +516,17 @@ export function AuthSessionProvider({ children }: Readonly<{ children: ReactNode
       mountedRef.current = false;
       channel?.close();
       if (channelRef.current === channel) channelRef.current = null;
-      for (const resolve of peerWaiters) resolve(false);
+      for (const resolve of peerWaiters) resolve(null);
       peerWaiters.clear();
       clearRetryTimer();
     };
-  }, [applyPeerSnapshot, clearRetryTimer, clearSessionInternal, refreshSession, waitForPeerSnapshot]);
+  }, [
+    applyPeerSnapshot,
+    clearRetryTimer,
+    clearSessionInternal,
+    refreshSession,
+    requestPeerSnapshot,
+  ]);
 
   useEffect(() => {
     if (session.status !== "authenticated") return;
