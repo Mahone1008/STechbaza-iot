@@ -424,3 +424,16 @@ desktop user-menu bounds та type-safe deduplicated logout redirect.
 4. TypeScript narrowing для `session.reason`.
 
 **Вердикт: 10.4 закрито. Етап 10 завершено 4/4.**
+
+
+---
+
+## 16. Локальне приймання 27.09.2026
+
+Користувач повторно виконав cumulative Windows gate після виправлення desktop user-menu bounds та type-safe logout redirect.
+
+Підтверджено: OpenAPI 0.38.0 / 47 paths, TypeScript strict, ESLint, 23 unit tests, 23 mocked Chromium tests, 8 real backend Chromium tests, healthy PostgreSQL/Mosquitto/FastAPI та фінальний Stage 10.4 PASS. Desktop user menu повністю залишається всередині sidebar; logout переводить browser на `/login?loggedOut=1`; показується `Сесію завершено`; завершена session не відновлюється після F5; secrets у screenshots не розкрито.
+
+Додатково під час приймання виправлено popover bounds, regression test геометрії menu, deduplication повторного protected-route redirect і TypeScript narrowing для `session.reason`.
+
+**Вердикт: 10.4 закрито. Етап 10 завершено 4/4.**
