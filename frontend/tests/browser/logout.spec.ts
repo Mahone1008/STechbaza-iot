@@ -193,7 +193,7 @@ test("logout rate limit respects Retry-After before allowing another attempt", a
     if (logoutCalls === 1) {
       await route.fulfill({
         status: 429,
-        headers: { ...corsHeaders, "content-type": "application/json", "retry-after": "1" },
+        headers: { ...corsHeaders, "content-type": "application/json", "retry-after": "3" },
         body: JSON.stringify({ detail: "Забагато auth-спроб" }),
       });
       return;
@@ -205,9 +205,9 @@ test("logout rate limit respects Retry-After before allowing another attempt", a
   await openUserMenuAndLogout(page);
 
   const retry = page.getByRole("button", { name: /Повторити/u });
-  await expect(retry).toBeDisabled();
-  await expect(retry).toContainText("через");
-  await expect(retry).toBeEnabled({ timeout: 3_000 });
+  await expect(retry).toBeDisabled({ timeout: 1_000 });
+  await expect(retry).toContainText(/через [1-3] с/u);
+  await expect(retry).toBeEnabled({ timeout: 5_000 });
   await retry.click();
   await expect(page).toHaveURL(/\/login\?loggedOut=1$/u);
   expect(logoutCalls).toBe(2);
