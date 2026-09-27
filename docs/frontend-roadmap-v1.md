@@ -88,6 +88,7 @@ Frontend поділено на Етапи 9–14. Кожен етап має ч�
 - [10.2 — відновлення browser session KERUMO](stage-10-op2-session-recovery.md)
 - [10.3 — профіль, permissions і route guards KERUMO](stage-10-op3-permissions-and-guards.md)
 - [10.4 — logout, revoke і захист від session resurrection](stage-10-op4-logout-and-failures.md)
+- [Досьє V3.5 — Етап 10 — Browser Authentication, Session Recovery, RBAC & Logout KERUMO](dossier-v3.5-stage-10-browser-auth-session-rbac.md)
 
 Access token не persist-иться. Refresh token не читається JavaScript.
 Temporary network failure не прирівнюється до logout; write requests не
