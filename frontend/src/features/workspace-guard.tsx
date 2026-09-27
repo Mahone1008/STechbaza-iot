@@ -3,7 +3,7 @@
 import type { Route } from "next";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import { Button } from "@/components/ui";
 import { useAccessContext } from "@/features/access-context";
@@ -89,11 +89,19 @@ export function WorkspaceGuard({ children }: Readonly<{ children: ReactNode }>) 
   const { snapshot, retryAccess } = useAccessContext();
   const loginUrl = `/login?returnTo=${encodeURIComponent(pathname || "/devices")}` as Route;
   const loggedOutUrl = "/login?loggedOut=1" as Route;
+  const redirectTargetRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (session.status !== "anonymous") return;
-    router.replace(session.reason === "logout" ? loggedOutUrl : loginUrl);
-  }, [loggedOutUrl, loginUrl, router, session]);
+    if (session.status !== "anonymous") {
+      redirectTargetRef.current = null;
+      return;
+    }
+
+    const target = session.reason === "logout" ? loggedOutUrl : loginUrl;
+    if (redirectTargetRef.current === target) return;
+    redirectTargetRef.current = target;
+    router.replace(target);
+  }, [loggedOutUrl, loginUrl, router, session.reason, session.status]);
 
   if (session.status === "logging-out") {
     return (
