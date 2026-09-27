@@ -1,5 +1,6 @@
 "use client";
 
+import type { Route } from "next";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 
@@ -26,7 +27,7 @@ function withoutFieldError(errors: LoginFieldErrors, field: keyof LoginFieldErro
   return next;
 }
 
-function currentLoginDestination(): string {
+function currentLoginDestination(): Route {
   if (typeof window === "undefined") return "/devices";
   return safeLoginReturnTo(new URLSearchParams(window.location.search).get("returnTo"));
 }
