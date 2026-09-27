@@ -12,9 +12,9 @@
 - [Етап 10.1 — справжній browser login — закрито](stage-10-op1-browser-login.md)
 - [Етап 10.2 — відновлення browser session — закрито](stage-10-op2-session-recovery.md)
 - [Етап 10.3 — профіль, permissions і route guards — закрито після CI та Windows-приймання](stage-10-op3-permissions-and-guards.md)
+- [Етап 10.4 — logout, revoke і захист від session resurrection — реалізовано, CI PASS, очікується локальне приймання](stage-10-op4-logout-and-failures.md)
 
-Поточна точка: **Етап 10, операція 10.4 — browser logout/revoke,
-coordinated cleanup і захист від session resurrection**.
+Поточна точка: **локальне Windows-приймання Етапу 10, операції 10.4**.
 
 ## Backend: виправлення та перевірки
 
