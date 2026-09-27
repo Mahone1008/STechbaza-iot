@@ -11,7 +11,7 @@
 |---|---|---|
 | H-01 | Некоректні MQTT packets не блокують потік; transient failure зберігає retry | Закрито 27.09.2026 — CI та Windows-приймання PASS |
 | H-02 | Справедливий відбір і повторна доставка команд | Закрито 27.09.2026 — CI та Windows-приймання PASS |
-| H-03 | Розділення системних та користувацьких ключів аварій | Реалізовано; очікує CI та приймання користувачем |
+| H-03 | Розділення системних та користувацьких ключів аварій | CI PASS 27.09.2026; очікує приймання користувачем |
 | H-04 | Узгодження module/channel контракту перших екранів | Заплановано |
 | H-05 | Повна регресія та фіксація прийнятої версії | Заплановано |
 
@@ -421,6 +421,30 @@ runtime guard і preflight не є заміною прав доступу до P
 Повний CI також виконує попередні MQTT/PostgreSQL suites, Chromium, demo,
 restart/outage, clean install, exact backup/restore та PowerShell H-03.
 Backup manifest 0.37.3 приймає 0.37.0, 0.37.1, 0.37.2 з тією самою схемою.
+
+### Підтвердження CI H-03 — 27.09.2026
+
+Код: `5c3185564d84acee97e5965e42fd33fc6bd65a18`, backend **0.37.3**.
+[GitHub Actions run 36304929898](https://github.com/Mahone1008/STechbaza-iot/actions/runs/36304929898)
+завершено зі статусом `completed / success`; jobs `hardening` і `demo` успішні.
+
+| Перевірка | Результат |
+|---|---|
+| Backend із PostgreSQL/Mosquitto | 145 tests, zero skips; hardening — 10.830 s |
+| Нові H-03 регресії | Усі 10 успішні, включно з HTTP 422/401/403/404, legacy config, незалежністю системних incidents та read-only preflight failure |
+| Міграції | Upgrade і контрольні downgrade/upgrade до head 20260926_0017 — PASS |
+| Chromium | Login, HttpOnly cookie, reload/rotation, CSRF/CORS rejection, logout/revocation — PASS |
+| Live HTTP/MQTT demo | Команди, ACK/Result, дедуплікація, телеметрія, audit, аварії та notifications — PASS |
+| Restart / outage | Стан simulator, queue/TTL після restart backend, broker outage/reconnect — PASS |
+| Clean install | Окремий стенд із tracked source, міграції, повні тести та live scenarios — PASS |
+| Exact backup/restore | Схема та всі 20 PostgreSQL-таблиць збігаються; SQLite device/command rows збігаються |
+| Захист відновленого стенда | Старі access/refresh відхилені; відновлена queued STOP не публікується повторно — PASS |
+| Скрипт check-stage-h-op3.ps1 у PowerShell 7 | 145 tests, zero skips за 10.942 s; preflight PASS; demo health ok / 0.37.3; фінальний H-03 acceptance PASS |
+
+Локальний допоміжний прогін у середовищі розробки: 67 пройдено, 78 пропущено
+через відсутність PostgreSQL/MQTT. Повний CI вище виконав усі 145 без пропусків.
+CI перевірив успішний шлях скрипта оновлення; відмова preflight без зміни даних
+окремо перевірена PostgreSQL-регресією. Windows-приймання користувача ще очікується.
 
 ### Приймання користувачем
 
