@@ -14,19 +14,19 @@ Backend **0.38.0** прийнято 27.09.2026 після повного CI та
 Frontend Foundation KERUMO:
 
 - Етап 9 завершено **4/4**;
-- Етап 10 прийнято **2/4**;
-- frontend roadmap — прийнято **6/24**;
+- Етап 10 прийнято **3/4**;
+- frontend roadmap — прийнято **7/24**;
 - Next.js/TypeScript strict foundation;
 - design system і responsive shell;
 - OpenAPI 0.38.0 / 47 paths;
-- shared API adapter і scoped query cache;
+- shared API adapter і session-scoped query cache;
 - Vitest, Playwright Chromium і production build — PASS.
 
-Операції **10.1 — browser login** і **10.2 — session recovery** прийнято й
-закрито після CI та локального Windows-приймання.
+Операції **10.1 — browser login**, **10.2 — session recovery** і
+**10.3 — profile, permissions і route guards** прийнято й закрито після CI
+та локального Windows-приймання.
 
-Операцію **10.3 — profile, permissions і route guards** реалізовано й
-автоматично перевірено:
+Операція 10.3 підтвердила:
 
 - `/auth/me` із runtime validation;
 - visible organizations і точний organization access;
@@ -36,20 +36,20 @@ Frontend Foundation KERUMO:
 - tenant data не показуються до завершення access resolution;
 - TanStack Query cache ізольовано за `user_id + auth_session_id`;
 - owner/viewer перевірено з real FastAPI/PostgreSQL/Chromium;
+- anonymous `/devices` redirect без tenant-data flash;
+- viewer не може активувати Start/Stop/frequency/settings без permission;
 - 22 unit tests, 19 mocked browser tests і 6 live browser tests — PASS.
 
-10.3 очікує локального Windows-приймання й до цього моменту не вважається
-закритою. Device/telemetry/alarm values залишаються typed demo fixtures до
-Етапу 11; frontend guard не замінює backend authorization.
+Device/telemetry/alarm values залишаються typed demo fixtures до Етапу 11;
+frontend guard не замінює backend authorization.
 
 Поточний статус:
 
 ```text
 Етап 9: 4/4
-Етап 10: 2/4
-Frontend roadmap: 6/24
-Поточна точка: локальне приймання 10.3
-Після приймання: 10.4 — logout, revoke і no session resurrection
+Етап 10: 3/4
+Frontend roadmap: 7/24
+Наступна операція: 10.4 — logout, revoke і no session resurrection
 ```
 
 - [Backend: структура й запуск перевірок](backend/README.md).
