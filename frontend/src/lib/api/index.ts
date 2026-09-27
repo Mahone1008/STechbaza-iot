@@ -1,6 +1,12 @@
 export { apiRequest, type ApiRequestOptions } from "./client";
 export { apiConfig } from "./config";
-export { getBackendHealth, type HealthResponse } from "./endpoints";
+export {
+  browserLogin,
+  getBackendHealth,
+  type BrowserLoginRequest,
+  type BrowserLoginResponse,
+  type HealthResponse,
+} from "./endpoints";
 export {
   ApiError,
   apiErrorDisplayMessage,

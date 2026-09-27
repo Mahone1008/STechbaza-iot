@@ -16,6 +16,7 @@
     "api:verify": "node ./scripts/verify-openapi.mjs",
     "test:unit": "vitest run",
     "test:browser": "playwright test",
+    "test:browser:live": "playwright test --config playwright.live.config.ts",
     "browser:install": "playwright install chromium",
     "check": "npm run api:verify && npm run typecheck && npm run lint && npm run test:unit && npm run build && npm run test:browser"
   },

@@ -6,9 +6,11 @@ on:
     paths:
       - 'frontend/**'
       - 'backend/**'
+      - 'compose.demo.yml'
       - 'scripts/export_openapi.py'
       - 'scripts/check-stage9-op3.ps1'
       - 'scripts/check-stage9-op4.ps1'
+      - 'scripts/check-stage10-op1.ps1'
       - '.github/workflows/frontend-bootstrap.yml'
   workflow_dispatch:
 
@@ -59,16 +61,79 @@ jobs:
       - name: Install Chromium
         working-directory: frontend
         run: npx playwright install --with-deps chromium
-      - name: Chromium browser smoke
+      - name: Mocked Chromium browser checks
         working-directory: frontend
         run: npm run test:browser
       - name: Upload browser report
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
         with:
-          name: frontend-stage9-op4-browser-report
+          name: frontend-browser-report
           path: |
             frontend/playwright-report
             frontend/test-results
           if-no-files-found: ignore
           retention-days: 5
+
+  login-live:
+    needs: frontend
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Create isolated demo credentials
+        run: python backend/app/demo/config.py --output .env.demo
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.16.0'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install locked frontend dependencies
+        working-directory: frontend
+        run: npm ci --no-audit --no-fund
+      - name: Production build
+        working-directory: frontend
+        run: npm run build
+      - name: Install Chromium
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+      - name: Build demo backend
+        run: docker compose -p techbaza-login-ci --env-file .env.demo -f compose.demo.yml build backend
+      - name: Prepare demo database and backend
+        run: |
+          docker compose -p techbaza-login-ci --env-file .env.demo -f compose.demo.yml up -d --wait --wait-timeout 90 postgres mosquitto
+          docker compose -p techbaza-login-ci --env-file .env.demo -f compose.demo.yml run --rm -T backend alembic upgrade head
+          docker compose -p techbaza-login-ci --env-file .env.demo -f compose.demo.yml run --rm -T backend python -m app.demo.seed
+          docker compose -p techbaza-login-ci --env-file .env.demo -f compose.demo.yml up -d --no-build --wait --wait-timeout 90 backend
+          curl --fail --silent --show-error http://127.0.0.1:8001/health
+      - name: Prepare masked live-login environment
+        shell: bash
+        run: |
+          password="$(grep '^DEMO_OWNER_PASSWORD=' .env.demo | cut -d= -f2-)"
+          test -n "$password"
+          echo "::add-mask::$password"
+          echo "KERUMO_API_BASE_URL=http://127.0.0.1:8001" >> "$GITHUB_ENV"
+          echo "KERUMO_DEMO_EMAIL=owner@techbaza-demo.example.com" >> "$GITHUB_ENV"
+          echo "KERUMO_DEMO_PASSWORD=$password" >> "$GITHUB_ENV"
+      - name: Real browser login checks
+        working-directory: frontend
+        run: npm run test:browser:live
+      - name: Upload live-login browser report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-login-live-report
+          path: |
+            frontend/playwright-report
+            frontend/test-results-live
+          if-no-files-found: ignore
+          retention-days: 5
+      - name: Demo diagnostics
+        if: ${{ failure() }}
+        run: docker compose -p techbaza-login-ci --env-file .env.demo -f compose.demo.yml logs --tail 100 backend postgres
+      - name: Remove isolated demo
+        if: ${{ always() }}
+        run: docker compose -p techbaza-login-ci --env-file .env.demo -f compose.demo.yml down --volumes --remove-orphans

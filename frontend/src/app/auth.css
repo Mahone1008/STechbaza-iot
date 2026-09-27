@@ -1,0 +1,28 @@
+.prototype-note-auth {
+  border-color: #cce5d8;
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.login-alert {
+  display: grid;
+  gap: 4px;
+  margin: 0 0 18px;
+  border: 1px solid;
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 13px;
+}
+
+.login-alert:focus-visible { box-shadow: var(--focus); }
+.login-alert strong { font-size: 13px; }
+.login-alert span { line-height: 1.45; }
+.login-alert-danger { border-color: #efc7c8; background: var(--danger-soft); color: #913538; }
+.login-alert-warning { border-color: #efd8b2; background: var(--warning-soft); color: #805112; }
+.login-form .button[aria-busy="true"] { cursor: progress; }
+.login-support strong { color: var(--text); font-weight: 650; text-align: right; }
+
+@media (max-width: 480px) {
+  .login-support { align-items: flex-start; flex-direction: column; }
+  .login-support strong { text-align: left; }
+}

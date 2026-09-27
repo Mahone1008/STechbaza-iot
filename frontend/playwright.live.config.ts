@@ -2,10 +2,10 @@ import { defineConfig } from "@playwright/test";
 
 export default defineConfig({
   testDir: "./tests/browser",
-  testIgnore: "**/*.live.spec.ts",
+  testMatch: "**/*.live.spec.ts",
   fullyParallel: false,
-  forbidOnly: Boolean(process.env.CI),
-  retries: process.env.CI ? 1 : 0,
+  forbidOnly: true,
+  retries: 0,
   workers: 1,
   reporter: process.env.CI ? [["github"], ["html", { open: "never" }]] : "list",
   use: {
@@ -19,5 +19,5 @@ export default defineConfig({
     reuseExistingServer: false,
     timeout: 120_000,
   },
-  outputDir: "test-results",
+  outputDir: "test-results-live",
 });

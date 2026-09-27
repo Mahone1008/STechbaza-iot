@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
+import { useAuthSession } from "@/features/auth-session";
+
 const navigation = [
   { href: "/devices", label: "Пристрої", icon: "devices" as const },
   { href: "/alarms", label: "Аварії", icon: "alarm" as const, count: 2 },
@@ -73,8 +75,20 @@ function isActivePath(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
+function initialsFor(value: string): string {
+  const localPart = value.split("@")[0] ?? value;
+  const chunks = localPart.split(/[._-]+/u).filter(Boolean);
+  return chunks.slice(0, 2).map((chunk) => chunk[0]?.toUpperCase() ?? "").join("") || "К";
+}
+
 export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
   const pathname = usePathname();
+  const { session } = useAuthSession();
+  const authenticated = session.status === "authenticated";
+  const userName = authenticated ? session.email : "Демо-контекст";
+  const userStatus = authenticated
+    ? "Вхід підтверджено · access у пам’яті"
+    : "Без session guard до операції 10.3";
 
   return (
     <div className="app-shell">
@@ -100,9 +114,9 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
           <span className="nav-link-disabled" aria-disabled="true"><Icon name="components" />Повідомлення</span>
         </nav>
         <div className="sidebar-footer">
-          <span className="avatar" aria-hidden="true">ОП</span>
-          <span className="user-copy"><strong>Олег Петренко</strong><span>Оператор</span></span>
-          <button className="icon-button" type="button" aria-label="Меню користувача"><Icon name="more" /></button>
+          <span className="avatar" aria-hidden="true">{initialsFor(userName)}</span>
+          <span className="user-copy" title={userName}><strong>{userName}</strong><span>{userStatus}</span></span>
+          <button className="icon-button" type="button" aria-label="Меню користувача буде додано в операції 10.4"><Icon name="more" /></button>
         </div>
       </aside>
 
@@ -110,7 +124,10 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
         <header className="topbar">
           <span className="topbar-brand"><Brand compact /></span>
           <div className="topbar-context"><span>АгроПром Північ</span><span aria-hidden="true">/</span><strong>Насосна станція №1</strong></div>
-          <span className="prototype-note"><span className="prototype-dot" aria-hidden="true" />Каркас 9.2 · demo data</span>
+          <span className={`prototype-note${authenticated ? " prototype-note-auth" : ""}`}>
+            <span className="prototype-dot" aria-hidden="true" />
+            {authenticated ? "Сесія підтверджена · demo data" : "Demo data · guard у 10.3"}
+          </span>
         </header>
         <main className="workspace-content" id="main-content">{children}</main>
       </section>

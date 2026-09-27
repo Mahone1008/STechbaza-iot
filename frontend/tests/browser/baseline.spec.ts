@@ -10,7 +10,7 @@ test("core routes render and device navigation remains understandable", async ({
   await expect(page.getByRole("heading", { name: "Пристрої" })).toBeVisible();
   await page.getByRole("link", { name: "Насосна станція №1" }).click();
   await expect(page.getByRole("heading", { name: "Насосна станція №1" })).toBeVisible();
-  await expect(page.getByText("Каркас 9.2 · demo data")).toBeVisible();
+  await expect(page.getByText("Demo data · guard у 10.3")).toBeVisible();
 });
 
 test("critical demo action requires confirmation and never claims physical success", async ({ page }) => {

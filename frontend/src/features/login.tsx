@@ -1,12 +1,119 @@
 "use client";
 
-import type { FormEvent } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 
 import { Brand } from "@/components/app-shell";
 import { Button, TextField } from "@/components/ui";
+import { useAuthSession } from "@/features/auth-session";
+import {
+  loginErrorPresentation,
+  validateLoginForm,
+  type LoginFieldErrors,
+} from "@/features/login-model";
+import { browserLogin, isApiError } from "@/lib/api";
+
+function focusFirstInvalidField(errors: LoginFieldErrors): void {
+  const id = errors.email ? "login-email" : errors.password ? "login-password" : null;
+  if (!id) return;
+  window.requestAnimationFrame(() => document.getElementById(id)?.focus());
+}
+
+function withoutFieldError(errors: LoginFieldErrors, field: keyof LoginFieldErrors): LoginFieldErrors {
+  const next: { email?: string; password?: string } = { ...errors };
+  delete next[field];
+  return next;
+}
 
 export function LoginPanel() {
-  const submitDemo = (event: FormEvent<HTMLFormElement>) => event.preventDefault();
+  const router = useRouter();
+  const { completeLogin } = useAuthSession();
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const alertRef = useRef<HTMLDivElement | null>(null);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<LoginFieldErrors>({});
+  const [formError, setFormError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [blockedUntil, setBlockedUntil] = useState<number | null>(null);
+  const [clock, setClock] = useState(() => Date.now());
+
+  useEffect(() => () => abortControllerRef.current?.abort(), []);
+
+  useEffect(() => {
+    if (blockedUntil === null) return;
+
+    const updateClock = () => {
+      const now = Date.now();
+      setClock(now);
+      if (now >= blockedUntil) setBlockedUntil(null);
+    };
+
+    updateClock();
+    const interval = window.setInterval(updateClock, 250);
+    return () => window.clearInterval(interval);
+  }, [blockedUntil]);
+
+  useEffect(() => {
+    if (formError) alertRef.current?.focus();
+  }, [formError]);
+
+  const retrySeconds = blockedUntil === null
+    ? 0
+    : Math.max(1, Math.ceil((blockedUntil - clock) / 1_000));
+
+  const submitLogin = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (submitting || retrySeconds > 0) return;
+
+    const validation = validateLoginForm({ email, password });
+    setFieldErrors(validation.errors);
+    setFormError("");
+
+    if (validation.errors.email || validation.errors.password) {
+      focusFirstInvalidField(validation.errors);
+      return;
+    }
+
+    abortControllerRef.current?.abort();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+    setSubmitting(true);
+
+    try {
+      const response = await browserLogin(
+        { email: validation.normalizedEmail, password },
+        controller.signal,
+      );
+      setPassword("");
+      completeLogin(validation.normalizedEmail, response);
+      router.replace("/devices");
+    } catch (error) {
+      if (isApiError(error) && error.kind === "aborted") return;
+
+      const presentation = loginErrorPresentation(error);
+      setFormError(presentation.summary);
+      setFieldErrors(presentation.fieldErrors);
+      if (presentation.clearPassword) setPassword("");
+      if (presentation.retryAfterSeconds > 0) {
+        const now = Date.now();
+        setClock(now);
+        setBlockedUntil(now + presentation.retryAfterSeconds * 1_000);
+      }
+      focusFirstInvalidField(presentation.fieldErrors);
+    } finally {
+      if (abortControllerRef.current === controller) {
+        abortControllerRef.current = null;
+        setSubmitting(false);
+      }
+    }
+  };
+
+  const buttonLabel = submitting
+    ? "Перевіряємо…"
+    : retrySeconds > 0
+      ? `Спробуйте через ${retrySeconds} с`
+      : "Увійти";
 
   return (
     <main className="login-page">
@@ -31,14 +138,74 @@ export function LoginPanel() {
         <div className="login-card">
           <Brand />
           <h2>Вхід до кабінету</h2>
-          <p>Каркас операції 9.2. Форма поки не підключена до backend.</p>
-          <form className="login-form" onSubmit={submitDemo}>
-            <TextField label="Email" type="email" placeholder="name@company.ua" autoComplete="username" />
-            <TextField label="Пароль" type="password" placeholder="Введіть пароль" autoComplete="current-password" />
-            <Button type="submit" variant="primary" fullWidth>Увійти</Button>
+          <p>Введіть облікові дані, видані адміністратором вашої організації.</p>
+
+          {formError ? (
+            <div
+              className={`login-alert ${retrySeconds > 0 ? "login-alert-warning" : "login-alert-danger"}`}
+              role="alert"
+              tabIndex={-1}
+              ref={alertRef}
+            >
+              <strong>Не вдалося увійти</strong>
+              <span>{retrySeconds > 0 ? `Забагато спроб. Повторіть через ${retrySeconds} с.` : formError}</span>
+            </div>
+          ) : null}
+
+          <form className="login-form" onSubmit={submitLogin} noValidate>
+            <TextField
+              id="login-email"
+              label="Email"
+              type="email"
+              inputMode="email"
+              placeholder="name@company.ua"
+              autoComplete="username"
+              autoCapitalize="none"
+              spellCheck={false}
+              maxLength={254}
+              value={email}
+              {...(fieldErrors.email ? { error: fieldErrors.email } : {})}
+              disabled={submitting}
+              onChange={(event) => {
+                setEmail(event.target.value);
+                if (fieldErrors.email) setFieldErrors((current) => withoutFieldError(current, "email"));
+              }}
+              autoFocus
+            />
+            <TextField
+              id="login-password"
+              label="Пароль"
+              type="password"
+              placeholder="Введіть пароль"
+              autoComplete="current-password"
+              maxLength={128}
+              value={password}
+              {...(fieldErrors.password ? { error: fieldErrors.password } : {})}
+              disabled={submitting}
+              onChange={(event) => {
+                setPassword(event.target.value);
+                if (fieldErrors.password) setFieldErrors((current) => withoutFieldError(current, "password"));
+              }}
+            />
+            <Button
+              type="submit"
+              variant="primary"
+              fullWidth
+              disabled={submitting || retrySeconds > 0}
+              aria-busy={submitting}
+            >
+              {buttonLabel}
+            </Button>
           </form>
-          <div className="login-support"><span>Потрібна допомога?</span><a href="mailto:admin@example.invalid">Звернутися до адміністратора</a></div>
-          <div className="login-security">Credentials не зашиті у bundle. Реальний browser auth починається в Етапі 10.</div>
+
+          <div className="login-support">
+            <span>Немає доступу?</span>
+            <strong>Зверніться до адміністратора організації</strong>
+          </div>
+          <div className="login-security">
+            Refresh token зберігається лише в HttpOnly cookie. Access token залишається
+            тільки в пам’яті вкладки й не записується у localStorage або URL.
+          </div>
         </div>
       </section>
     </main>

@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { AppProviders } from "@/components/providers";
 
 import "./globals.css";
+import "./auth.css";
 
 export const metadata: Metadata = {
   title: {
