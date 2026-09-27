@@ -26,22 +26,25 @@ Frontend Foundation KERUMO:
 **10.3 — profile, permissions і route guards** прийнято й закрито після CI
 та локального Windows-приймання.
 
-Операція 10.3 підтвердила:
+Операцію **10.4 — logout, revoke і no session resurrection** реалізовано й
+автоматично перевірено:
 
-- `/auth/me` із runtime validation;
-- visible organizations і точний organization access;
-- real email, display name, organization і role в AppShell;
-- permission-aware navigation і controls;
-- anonymous protected route → login із safe local `returnTo`;
-- tenant data не показуються до завершення access resolution;
-- TanStack Query cache ізольовано за `user_id + auth_session_id`;
-- owner/viewer перевірено з real FastAPI/PostgreSQL/Chromium;
-- anonymous `/devices` redirect без tenant-data flash;
-- viewer не може активувати Start/Stop/frequency/settings без permission;
-- 22 unit tests, 19 mocked browser tests і 6 live browser tests — PASS.
+- real `POST /api/v1/auth/browser/logout` із Origin/CSRF/cookie contract;
+- revoke поточної server-side session і видалення HttpOnly refresh cookie;
+- старий access token відхиляється backend до natural JWT expiry;
+- tenant content приховується від початку logout intent;
+- active authorized requests скасовуються;
+- session-scoped cache очищується, public cache зберігається;
+- logout однієї вкладки очищує всі same-origin вкладки;
+- короткоживучий logout marker не містить tokens, email або tenant ids;
+- F5 і новий protected route не відновлюють завершену session;
+- ambiguous network/5xx result не видається за успішний logout;
+- `429 Retry-After` керує повторною спробою;
+- 23 unit tests, 23 mocked browser tests і 8 live browser tests — PASS.
 
-Device/telemetry/alarm values залишаються typed demo fixtures до Етапу 11;
-frontend guard не замінює backend authorization.
+10.4 очікує локального Windows-приймання й до цього моменту не вважається
+закритою. Device/telemetry/alarm values залишаються typed demo fixtures до
+Етапу 11.
 
 Поточний статус:
 
@@ -49,7 +52,8 @@ frontend guard не замінює backend authorization.
 Етап 9: 4/4
 Етап 10: 3/4
 Frontend roadmap: 7/24
-Наступна операція: 10.4 — logout, revoke і no session resurrection
+Поточна точка: локальне приймання 10.4
+Після приймання: 11.1 — організації, об’єкти й tenant context
 ```
 
 - [Backend: структура й запуск перевірок](backend/README.md).
@@ -59,6 +63,7 @@ Frontend roadmap: 7/24
 - [Досьє операції 10.1](docs/stage-10-op1-browser-login.md).
 - [Досьє операції 10.2](docs/stage-10-op2-session-recovery.md).
 - [Досьє операції 10.3](docs/stage-10-op3-permissions-and-guards.md).
+- [Досьє операції 10.4](docs/stage-10-op4-logout-and-failures.md).
 - [Browser authentication contract](docs/browser-auth-v1.md).
 - [Current user context](docs/current-user-context-v1.md).
 - [RBAC + multi-tenant guards](docs/rbac-multitenant-guards-v1.md).
