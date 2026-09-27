@@ -4,14 +4,14 @@
 
 ## Frontend
 
-- [План frontend v1 — 24 операції; прийнято 4/24](frontend-roadmap-v1.md)
+- [План frontend v1 — 24 операції; прийнято 5/24](frontend-roadmap-v1.md)
 - [Етап 9.1 — UX-сценарії та макети KERUMO — закрито](stage-9-op1-ux-and-mockups.md)
 - [Етап 9.2 — Next.js/TypeScript foundation — закрито](stage-9-op2-frontend-foundation.md)
 - [Етап 9.3 — API adapter і контракти — закрито](stage-9-op3-api-adapter.md)
 - [Етап 9.4 — відтворюваний frontend baseline — закрито](stage-9-op4-frontend-baseline.md)
-- [Етап 10.1 — справжній browser login — реалізовано, CI PASS, очікується локальне приймання](stage-10-op1-browser-login.md)
+- [Етап 10.1 — справжній browser login — закрито 27.09.2026](stage-10-op1-browser-login.md)
 
-Поточна точка: **локальне приймання Етапу 10, операції 10.1**.
+Поточна точка: **Етап 10, операція 10.2 — відновлення browser session після F5**.
 
 ## Backend: виправлення та перевірки
 
