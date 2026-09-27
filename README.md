@@ -9,13 +9,27 @@ Backend: Python/FastAPI, PostgreSQL, SQLAlchemy/Alembic, Mosquitto.
 аварії та in-app notifications.
 
 Backend **0.38.0** прийнято 27.09.2026 після повного CI та Windows-перевірки.
-Етап H завершено 5/5. Frontend: операції 9.1–9.3 закрито; 9.4 формує
-відтворюваний baseline із unit/component і Chromium browser checks.
+Етап H завершено 5/5.
+
+Frontend Foundation KERUMO також прийнято 27.09.2026:
+
+- Етап 9 завершено **4/4**;
+- frontend roadmap — **4/24**;
+- Next.js/TypeScript strict foundation;
+- design system і responsive shell;
+- OpenAPI 0.38.0 / 47 paths;
+- shared API adapter і scoped query cache;
+- Vitest **7/7**;
+- Playwright Chromium **4/4**;
+- production build і Windows acceptance — PASS.
+
+Поточна точка — **Етап 10, операція 10.1: справжній browser login
+email/password із CSRF та HttpOnly cookie contract**.
 
 - [Backend: структура й запуск перевірок](backend/README.md).
 - [Frontend: поточна точка й запуск](frontend/README.md).
 - [План frontend 9–14](docs/frontend-roadmap-v1.md).
-- [Досьє операції 9.3](docs/stage-9-op3-api-adapter.md).
+- [Підсумкове досьє Етапу 9](docs/stage-9-frontend-foundation.md).
 - [Досьє операції 9.4](docs/stage-9-op4-frontend-baseline.md).
 - [API для frontend](docs/frontend-api-contract-v1.md).
 - [Модулі та канали](docs/module-channel-contract-v1.md).
