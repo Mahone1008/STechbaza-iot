@@ -1,3 +1,5 @@
+import type { Route } from "next";
+
 import { apiErrorDisplayMessage, isApiError } from "@/lib/api";
 
 export type LoginFormValues = Readonly<{
@@ -25,10 +27,10 @@ export type LoginErrorPresentation = Readonly<{
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/u;
 const MAX_EMAIL_LENGTH = 254;
 const MAX_PASSWORD_LENGTH = 128;
-const DEFAULT_LOGIN_DESTINATION = "/devices";
+const DEFAULT_LOGIN_DESTINATION: Route = "/devices";
 const ALLOWED_RETURN_PATHS = ["/devices", "/alarms", "/ui-kit"] as const;
 
-export function safeLoginReturnTo(value: string | null | undefined): string {
+export function safeLoginReturnTo(value: string | null | undefined): Route {
   if (!value || !value.startsWith("/") || value.startsWith("//") || value.includes("\\")) {
     return DEFAULT_LOGIN_DESTINATION;
   }
@@ -41,7 +43,9 @@ export function safeLoginReturnTo(value: string | null | undefined): string {
     const allowed = ALLOWED_RETURN_PATHS.some(
       (prefix) => url.pathname === prefix || url.pathname.startsWith(`${prefix}/`),
     );
-    return allowed ? `${url.pathname}${url.search}${url.hash}` : DEFAULT_LOGIN_DESTINATION;
+    return allowed
+      ? `${url.pathname}${url.search}${url.hash}` as Route
+      : DEFAULT_LOGIN_DESTINATION;
   } catch {
     return DEFAULT_LOGIN_DESTINATION;
   }
