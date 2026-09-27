@@ -10,10 +10,10 @@
 - [Етап 9.3 — API adapter і контракти — закрито](stage-9-op3-api-adapter.md)
 - [Етап 9.4 — відтворюваний frontend baseline — закрито](stage-9-op4-frontend-baseline.md)
 - [Етап 10.1 — справжній browser login — закрито](stage-10-op1-browser-login.md)
-- [Етап 10.2 — відновлення browser session — закрито після CI та Windows-приймання](stage-10-op2-session-recovery.md)
+- [Етап 10.2 — відновлення browser session — закрито](stage-10-op2-session-recovery.md)
+- [Етап 10.3 — профіль, permissions і route guards — реалізовано, CI PASS, очікується локальне приймання](stage-10-op3-permissions-and-guards.md)
 
-Поточна точка: **Етап 10, операція 10.3 — `/auth/me`, permissions,
-organization access, cache isolation і route guards**.
+Поточна точка: **локальне Windows-приймання Етапу 10, операції 10.3**.
 
 ## Backend: виправлення та перевірки
 
@@ -38,6 +38,8 @@ organization access, cache isolation і route guards**.
 - [Test backend release v1](test-backend-release-v1.md)
 - [Frontend API contract](frontend-api-contract-v1.md)
 - [Browser authentication](browser-auth-v1.md)
+- [Current user context](current-user-context-v1.md)
+- [RBAC + multi-tenant guards](rbac-multitenant-guards-v1.md)
 - [Module/channel contract](module-channel-contract-v1.md)
 - [Telemetry panel/charts](telemetry-panel-charts-v1.md)
 - [Demo stand](demo-stand-v1.md)
