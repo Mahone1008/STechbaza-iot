@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Literal
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, StrictBool, StrictInt, model_validator
 
 from app.services.telemetry_read_config import SERIES_MAX_BUCKETS, SERIES_MAX_DAYS
 
@@ -21,6 +21,12 @@ class MetricReadingRead(BaseModel):
     key: str
     unit: str
     value: float | None
+    status: Literal["missing", "invalid", "fresh", "stale"]
+
+
+class StateReadingRead(BaseModel):
+    key: str
+    value: StrictBool | StrictInt | None
     status: Literal["missing", "invalid", "fresh", "stale"]
 
 

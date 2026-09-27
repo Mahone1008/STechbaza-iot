@@ -5,18 +5,12 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.device_contract import COMMAND_REQUIRED_CAPABILITY
 from app.models.command import DeviceCommand
 from app.repositories.capabilities import CapabilityRepository
 from app.repositories.commands import CommandRepository
 from app.repositories.devices import DeviceRepository
 from app.schemas.command import DeviceCommandCreate
-
-
-COMMAND_REQUIRED_CAPABILITY: dict[str, str] = {
-    "vfd.start": "vfd.control",
-    "vfd.stop": "vfd.control",
-    "vfd.frequency.set": "vfd.control",
-}
 
 
 @dataclass(frozen=True)

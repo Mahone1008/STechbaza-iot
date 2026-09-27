@@ -1,8 +1,9 @@
 import math
 from datetime import datetime
 
+from app.device_contract import STATE_CHANNELS
 from app.numeric import finite_number
-from app.schemas.telemetry_read import MetricReadingRead, TelemetryFreshnessRead
+from app.schemas.telemetry_read import MetricReadingRead, StateReadingRead, TelemetryFreshnessRead
 from app.services.telemetry_read_config import (
     METRIC_UNITS, REPORTED_CLOCK_TOLERANCE_SECONDS, TELEMETRY_STALE_AFTER_SECONDS,
 )
@@ -42,6 +43,22 @@ def readings(keys: list[str], snapshot, quality: TelemetryFreshnessRead) -> list
         value = numeric_value(raw)
         status = "missing" if raw is None else "invalid" if value is None else quality.status
         result.append(MetricReadingRead(key=key, unit=METRIC_UNITS[key], value=value, status=status))
+    return result
+
+
+def state_readings(keys: list[str], snapshot, quality: TelemetryFreshnessRead) -> list[StateReadingRead]:
+    result = []
+    for key in keys:
+        raw = snapshot.state.get(key) if snapshot is not None else None
+        kind = STATE_CHANNELS[key].data_type
+        value = None
+        if kind == "boolean" and isinstance(raw, bool):
+            value = raw
+        elif kind == "integer" and type(raw) is int and abs(raw) <= 2**53 - 1:
+            # JSON number має зберегти точне ціле значення у JavaScript UI.
+            value = raw
+        status = "missing" if raw is None else "invalid" if value is None else quality.status
+        result.append(StateReadingRead(key=key, value=value, status=status))
     return result
 
 

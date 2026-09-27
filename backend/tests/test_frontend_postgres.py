@@ -5,12 +5,14 @@ UUID цього запуску та capabilities, які створив саме
 """
 
 import os
+import json
 import unittest
 import uuid
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
+from urllib.parse import urlencode
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, text
 from sqlalchemy.dialects.postgresql import insert
 
 from app.db import SessionLocal
@@ -20,10 +22,12 @@ from app.models.device import Device
 from app.models.organization import Organization
 from app.models.organization_membership import OrganizationMembership
 from app.models.site import Site
-from app.models.telemetry import DeviceState
+from app.models.telemetry import DeviceState, TelemetryMessage
 from app.models.user import User
 from app.security.roles import ORGANIZATION_ROLE_PERMISSIONS, OrganizationRole, Permission
 from app.security.tokens import create_access_token
+from app.schemas.telemetry import TelemetryEnvelope
+from app.services.telemetry import TelemetryCapabilityViolationError, TelemetryService
 from app.tools.alarm_ack_check import _identity
 from app.tools.alarm_ack_http_check import _request
 
@@ -105,7 +109,7 @@ class FrontendPostgresTests(unittest.TestCase):
         self.assertIsNone(result["snapshot"])
         self.assertFalse(result["availability"]["online"])
         self.assertIsNone(result["availability"]["last_seen_at"])
-        for key in ("capabilities", "value_keys", "state_keys", "command_types", "allowed_commands"):
+        for key in ("capabilities", "modules", "value_keys", "state_keys", "command_types", "allowed_commands", "state_readings"):
             self.assertEqual(result[key], [], key)
         self.assertEqual(result["access"], self.request(self.access))
 
@@ -149,6 +153,10 @@ class FrontendPostgresTests(unittest.TestCase):
             result = self.request(self.overview, who=role)
             self.assertEqual(result["command_types"], commands)
             self.assertEqual(result["allowed_commands"], [] if role == "viewer" else commands)
+            self.assertEqual(result["modules"][0]["code"], "vfd.control")
+            self.assertEqual(result["modules"][0]["allowed_commands"], result["allowed_commands"])
+            self.assertEqual(result["modules"][0]["channels"], [])
+            self.assertTrue(result["modules"][0]["supported"])
             self.assertEqual(result["access"]["organization_role"], role)
             self.assertEqual(result["access"], self.request(self.access, who=role))
             self.assertEqual("command.execute" in result["access"]["permissions"], role != "viewer")
@@ -249,3 +257,131 @@ class FrontendPostgresTests(unittest.TestCase):
         notifications = f"/organizations/{self.orgs[0]}/notifications"
         self.assertEqual(self.request(notifications), [])
         self.assertEqual(self.request(notifications+"/unread-count"), {"unread_count": 0})
+
+    def test_modules_bind_assignments_channels_and_commands_without_config_leak(self):
+        expected = {
+            "pressure.read": [("pressure.bar", "values", "number", "bar", True)],
+            "water_level.read": [("water_level.percent", "values", "number", "%", True)],
+            "vfd.frequency.read": [("vfd.frequency_hz", "values", "number", "Hz", True)],
+            "vfd.current.read": [("vfd.current_a", "values", "number", "A", True)],
+            "vfd.state.read": [(key, "state", "integer" if key == "vfd_fault_code" else "boolean", None, False)
+                               for key in ("emergency_stop", "local_mode", "pump_running", "vfd_fault_code")],
+            "vfd.control": [],
+        }
+        for code in expected:
+            self.assign(code)
+        unknown = "test.unsupported." + uuid.uuid4().hex
+        unknown_id = self.assign(unknown)
+        with SessionLocal() as session:
+            assignments = session.scalars(select(DeviceCapability).where(DeviceCapability.device_id == self.devices[0])).all()
+            assignment_ids = {str(item.capability_id): str(item.id) for item in assignments}
+            next(item for item in assignments if item.capability_id == unknown_id).config = {
+                "private_marker": "DO_NOT_EXPOSE_MODULE_CONFIG", "channels": ["fake.pressure"],
+                "command_types": ["vfd.start"],
+            }
+            session.commit()
+        result = self.request(self.overview)
+        self.assertEqual([item["code"] for item in result["modules"]], sorted([*expected, unknown]))
+        self.assertNotIn("DO_NOT_EXPOSE_MODULE_CONFIG", json.dumps(result))
+        for module in result["modules"]:
+            self.assertEqual(module["assignment_id"], assignment_ids[module["capability_id"]])
+            self.assertEqual(module["supported"], module["code"] != unknown)
+            channels = [(c["key"], c["source"], c["data_type"], c["unit"], c["supports_series"]) for c in module["channels"]]
+            self.assertEqual(channels, expected.get(module["code"], []))
+            self.assertEqual(module["allowed_commands"], [])
+            self.assertEqual(module["command_types"], result["command_types"] if module["code"] == "vfd.control" else [])
+        self.assertEqual(self.request(f"/devices/{self.devices[1]}/overview")["modules"], [])
+
+    def test_advertised_channels_work_through_ingest_series_and_command_routes(self):
+        for code in ("pressure.read", "water_level.read", "vfd.frequency.read", "vfd.current.read", "vfd.state.read", "vfd.control"):
+            self.assign(code)
+        values = {"pressure.bar": 2.5, "water_level.percent": 80, "vfd.frequency_hz": 31, "vfd.current_a": 4}
+        state = {"pump_running": False, "vfd_fault_code": 0, "local_mode": False, "emergency_stop": False}
+        with SessionLocal() as session:
+            TelemetryService(session).ingest(device_uid=f"TB-FRONTEND-{self.devices[0].hex}",
+                payload=TelemetryEnvelope(schema_version=1, message_id=uuid.uuid4(), values=values, state=state),
+                received_at=self.now)
+        result = self.request(self.overview, who="operator")
+        self.assertEqual(result["value_keys"], sorted(values))
+        self.assertEqual(result["state_keys"], sorted(state))
+        with patch("app.services.command_dispatch.publish_command_message", return_value=(True, "published")) as publish:
+            for module in result["modules"]:
+                for channel in module["channels"]:
+                    query = urlencode({"metric": channel["key"], "start": (self.now-timedelta(seconds=1)).isoformat(),
+                        "end": (self.now+timedelta(seconds=1)).isoformat(), "bucket_seconds": 2})
+                    series = self.request(f"/devices/{self.devices[0]}/telemetry/series?{query}",
+                                          expected=200 if channel["supports_series"] else 422)
+                    if channel["supports_series"]:
+                        self.assertEqual(series["sample_count"], 1)
+                        self.assertEqual(series["unit"], channel["unit"])
+                        self.assertEqual(series["buckets"][0]["average"], values[channel["key"]])
+                for command in module["allowed_commands"]:
+                    self.request(f"/devices/{self.devices[0]}/commands", method="POST", who="operator", expected=201,
+                        body={"request_id": str(uuid.uuid4()), "command_type": command,
+                              "payload": {"frequency_hz": 31} if command == "vfd.frequency.set" else {}})
+            self.assertEqual(publish.call_count, 3)
+
+    def test_http_disable_removes_modules_and_blocks_ingest_series_and_commands(self):
+        ids = {code: self.assign(code) for code in ("pressure.read", "vfd.state.read", "vfd.control")}
+        self.store_snapshot(seen_at=self.now, received_at=self.now, values={"pressure.bar": 2.5}, state={"pump_running": False})
+        for cap_id in ids.values():
+            self.request(f"/devices/{self.devices[0]}/capabilities/{cap_id}", who="owner", method="PATCH", body={"is_enabled": False})
+        result = self.request(self.overview, who="owner")
+        for key in ("modules", "value_keys", "state_keys", "readings", "state_readings", "allowed_commands"):
+            self.assertEqual(result[key], [])
+        self.assertEqual(result["snapshot"]["values"], {})
+        self.assertEqual(result["snapshot"]["state"], {})
+        query = urlencode({"metric": "pressure.bar", "start": (self.now-timedelta(seconds=1)).isoformat(), "end": self.now.isoformat()})
+        self.request(f"/devices/{self.devices[0]}/telemetry/series?{query}", expected=409)
+        self.request(f"/devices/{self.devices[0]}/commands", who="owner", method="POST", expected=409,
+                     body={"request_id": str(uuid.uuid4()), "command_type": "vfd.start"})
+        with SessionLocal() as session:
+            with self.assertRaises(TelemetryCapabilityViolationError):
+                TelemetryService(session).ingest(device_uid=f"TB-FRONTEND-{self.devices[0].hex}",
+                    payload=TelemetryEnvelope(schema_version=1, message_id=uuid.uuid4(), values={"pressure.bar": 99}))
+            stored = session.get(DeviceState, self.devices[0])
+            self.assertEqual(stored.values, {"pressure.bar": 2.5})
+            self.assertEqual(stored.state, {"pump_running": False})
+            self.assertIsNone(session.scalar(select(TelemetryMessage.id).where(TelemetryMessage.device_id == self.devices[0])))
+        self.request(f"/devices/{self.devices[0]}/capabilities/{ids['pressure.read']}", who="owner", method="PATCH", body={"is_enabled": True})
+        self.assertEqual([m["code"] for m in self.request(self.overview)["modules"]], ["pressure.read"])
+
+    def test_assigned_state_module_without_telemetry_exposes_missing_readings(self):
+        self.assign("vfd.state.read")
+        result = self.request(self.overview)
+        self.assertTrue(result["modules"][0]["supported"])
+        self.assertIsNone(result["snapshot"])
+        self.assertEqual(result["readings"], [])
+        self.assertEqual(len(result["state_readings"]), 4)
+        for reading in result["state_readings"]:
+            self.assertEqual((reading["value"], reading["status"]), (None, "missing"))
+
+    def test_state_readings_preserve_quality_and_do_not_mutate_historical_state(self):
+        self.assign("vfd.state.read")
+        raw = {"pump_running": False, "vfd_fault_code": 0, "local_mode": "false", "emergency_stop": None}
+        self.store_snapshot(seen_at=self.now, received_at=self.now-timedelta(hours=1), state=raw)
+        result = self.request(self.overview)
+        self.assertTrue(result["availability"]["online"])
+        readings = {item["key"]: item for item in result["state_readings"]}
+        self.assertIs(readings["pump_running"]["value"], False)
+        self.assertEqual(readings["pump_running"]["status"], "stale")
+        self.assertIs(type(readings["vfd_fault_code"]["value"]), int)
+        self.assertEqual(readings["vfd_fault_code"]["status"], "stale")
+        self.assertEqual((readings["local_mode"]["value"], readings["local_mode"]["status"]), (None, "invalid"))
+        self.assertEqual((readings["emergency_stop"]["value"], readings["emergency_stop"]["status"]), (None, "missing"))
+        with SessionLocal() as session:
+            self.assertEqual(session.get(DeviceState, self.devices[0]).state, raw)
+            session.get(DeviceState, self.devices[0]).last_received_at = self.now
+            session.get(Device, self.devices[0]).last_observed_session_id = uuid.uuid4()
+            session.commit()
+        result = self.request(self.overview)
+        self.assertEqual(result["telemetry_freshness"]["reason"], "session_changed")
+        self.assertEqual(next(item for item in result["state_readings"] if item["key"] == "pump_running")["status"], "stale")
+        with SessionLocal() as session:
+            session.execute(text('UPDATE device_states SET state = CAST(:state AS jsonb) WHERE device_id = :id'),
+                {"state": '{"vfd_fault_code": 1e1000}', "id": self.devices[0]})
+            session.commit()
+        result = self.request(self.overview)
+        self.assertIsNone(result["snapshot"]["state"]["vfd_fault_code"])
+        fault = next(item for item in result["state_readings"] if item["key"] == "vfd_fault_code")
+        self.assertEqual((fault["value"], fault["status"]), (None, "invalid"))

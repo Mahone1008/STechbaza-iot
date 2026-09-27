@@ -1,6 +1,8 @@
 # Контракт API перших екранів — Етап 8, операції 1–3
 
-Поточна версія backend: **0.37.0**, міграція **20260926_0017**.
+Поточна версія backend: **0.38.0**, міграція **20260926_0017**.
+H-04 додає [модулі, канали й типізовані state readings](module-channel-contract-v1.md).
+Статус фінального приймання H-04/H-05: [журнал Етапу H](stage-h-backend-corrections.md).
 Початковий контракт створено в операції 1 для 0.32.0; нижче враховано
 browser auth операції 2 та якість показань і графіки операції 3.
 В операції 4 додано [окремий demo-стенд](demo-stand-v1.md) на порту 8001
@@ -79,6 +81,7 @@ Service admin без активного membership не отримує дост�
 | `access` | Той самий формат прав, що й organization access |
 | `availability` | `online`, `last_seen_at`, `timeout_seconds`, `seconds_since_seen`, Device ID і UID |
 | `capabilities` | Каталожні metadata лише реально призначених enabled capabilities, за code ASC |
+| `modules` | Enabled assignments з assignment_id, capability_id, code, supported, channels та командами з урахуванням ролі |
 | `value_keys` | Підтримувані ключі `values` для цього набору capabilities |
 | `state_keys` | Підтримувані ключі `state` для цього набору capabilities |
 | `command_types` | Команди, підтримувані enabled capabilities пристрою |
@@ -86,6 +89,7 @@ Service admin без активного membership не отримує дост�
 | `snapshot` | `DeviceStateRead` або `null`; значення відфільтровані за доступними ключами |
 | `telemetry_freshness` | Давність пакета: missing/fresh/stale, причина, timestamps і поріг |
 | `readings` | Показники enabled capabilities: key, unit, nullable numeric value і missing/invalid/fresh/stale |
+| `state_readings` | Boolean/integer state-показники з тією самою якістю; false/0 відрізняються від null |
 
 Capabilities — можливості пристрою, наприклад `pressure.read`, а не
 список однакових датчиків для всіх клієнтів. У цьому read model не
@@ -93,9 +97,12 @@ Capabilities — можливості пристрою, наприклад `pres
 
 Правила формування ключів і команд беруться з чинних backend policies:
 `VALUE_CAPABILITY_REQUIREMENTS`, `STATE_CAPABILITY_REQUIREMENTS`,
-`COMMAND_REQUIRED_CAPABILITY`. Не створено другу незалежну таблицю
+`COMMAND_REQUIRED_CAPABILITY`. H-04 отримує ці policies та units з єдиного
+`app/device_contract.py`. Не створено другу незалежну таблицю
 підтримки обладнання. Невідомий capability code може бути у каталозі та
 assignments, але не створює підтримувану telemetry key або команду.
+У modules такий code позначений `supported=false`. Повний контракт та межа
+між логічним capability і фізичним датчиком описані в [H-04](module-channel-contract-v1.md).
 
 ### Модульні приклади
 
@@ -234,6 +241,7 @@ PostgreSQL/MQTT. Без flags перевірено лише 17, це не пов
   109 tests без skips, 20 таблиць і SQLite після restore, захист sessions/commands.
 
 [Тестова збірка 0.37.0 прийнята](test-backend-release-v1.md).
-Наступний етап — **Етап 9: фронтенд**; реалізація ще не розпочата.
+Після Етапу 8 додано коригувальний Етап H. Наступний функціональний етап —
+**Етап 9: фронтенд**, після приймання H-04/H-05; реалізація ще не розпочата.
 B2B/QR onboarding, зовнішні notification channels, production TLS/ACL
 та фізичний пілот мають окремі критерії готовності.

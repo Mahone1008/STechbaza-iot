@@ -1,21 +1,6 @@
 from dataclasses import dataclass
 
-# Кожен телеметричний ключ має бути явно пов'язаний із capability.
-# Це не дозволяє пристрою записувати довільні поля, яких у його
-# фактичній конфігурації TechBaza немає.
-VALUE_CAPABILITY_REQUIREMENTS: dict[str, str] = {
-    "vfd.frequency_hz": "vfd.frequency.read",
-    "vfd.current_a": "vfd.current.read",
-    "pressure.bar": "pressure.read",
-    "water_level.percent": "water_level.read",
-}
-
-STATE_CAPABILITY_REQUIREMENTS: dict[str, str] = {
-    "pump_running": "vfd.state.read",
-    "vfd_fault_code": "vfd.state.read",
-    "local_mode": "vfd.state.read",
-    "emergency_stop": "vfd.state.read",
-}
+from app.device_contract import STATE_CAPABILITY_REQUIREMENTS, VALUE_CAPABILITY_REQUIREMENTS
 
 
 @dataclass(frozen=True, slots=True)

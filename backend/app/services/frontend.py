@@ -5,23 +5,21 @@ from datetime import datetime, timezone
 
 from sqlalchemy.orm import Session
 
+from app.device_contract import COMMAND_REQUIRED_CAPABILITY, TELEMETRY_CHANNELS
 from app.repositories.capabilities import CapabilityRepository
 from app.repositories.telemetry import TelemetryRepository
 from app.schemas.availability import DeviceAvailabilityRead
 from app.schemas.capability import CapabilityRead
 from app.schemas.device import DeviceRead
-from app.schemas.frontend import DeviceOverviewRead, OrganizationAccessRead
+from app.schemas.frontend import (
+    DeviceModuleRead, DeviceOverviewRead, OrganizationAccessRead, TelemetryChannelRead,
+)
 from app.schemas.telemetry import DeviceStateRead
 from app.security.authorization import AccessControl
 from app.security.current_user import CurrentUserContext
 from app.security.roles import Permission, role_has_permission
-from app.services.commands import COMMAND_REQUIRED_CAPABILITY
 from app.services.device_presence import DevicePresenceService
-from app.services.telemetry_quality import freshness, readings, json_safe
-from app.services.telemetry_policy import (
-    STATE_CAPABILITY_REQUIREMENTS,
-    VALUE_CAPABILITY_REQUIREMENTS,
-)
+from app.services.telemetry_quality import freshness, readings, state_readings, json_safe
 
 
 class OverviewPermissionError(Exception):
@@ -67,10 +65,26 @@ class FrontendReadService:
             (CapabilityRead.model_validate(item.capability) for item in assignments),
             key=lambda item: item.code,
         )
-        codes = {item.code for item in capabilities}
-        value_keys = sorted(key for key, code in VALUE_CAPABILITY_REQUIREMENTS.items() if code in codes)
-        state_keys = sorted(key for key, code in STATE_CAPABILITY_REQUIREMENTS.items() if code in codes)
-        command_types = sorted(key for key, code in COMMAND_REQUIRED_CAPABILITY.items() if code in codes)
+        can_execute = Permission.COMMAND_EXECUTE in access.permissions
+        modules = []
+        channel_definitions = sorted(TELEMETRY_CHANNELS, key=lambda item: (item.source, item.key))
+        for assignment in sorted(assignments, key=lambda item: item.capability.code):
+            code = assignment.capability.code
+            channels = [TelemetryChannelRead(
+                key=channel.key, source=channel.source, data_type=channel.data_type,
+                unit=channel.unit, supports_series=channel.supports_series,
+            ) for channel in channel_definitions
+                if channel.capability_code == code]
+            commands = sorted(key for key, required in COMMAND_REQUIRED_CAPABILITY.items() if required == code)
+            modules.append(DeviceModuleRead(
+                assignment_id=assignment.id, capability_id=assignment.capability_id, code=code,
+                supported=bool(channels or commands), channels=channels, command_types=commands,
+                allowed_commands=commands if can_execute else [],
+            ))
+        channels = [channel for module in modules for channel in module.channels]
+        value_keys = sorted(channel.key for channel in channels if channel.source == "values")
+        state_keys = sorted(channel.key for channel in channels if channel.source == "state")
+        command_types = sorted(command for module in modules for command in module.command_types)
 
         stored = TelemetryRepository(self._session).get_state(device_id)
         snapshot = DeviceStateRead.model_validate(stored) if stored is not None else None
@@ -85,6 +99,7 @@ class FrontendReadService:
         generated_at = datetime.now(timezone.utc)
         quality = freshness(snapshot, device_session_id=context.device.last_observed_session_id, now=generated_at)
         metric_readings = readings(value_keys, snapshot, quality)
+        typed_states = state_readings(state_keys, snapshot, quality)
         if snapshot is not None:
             # Некоректне історичне числове поле не ламає JSON і не стає нулем.
             numeric = {item.key: item.value for item in metric_readings}
@@ -105,9 +120,10 @@ class FrontendReadService:
                 timeout_seconds=availability.timeout_seconds,
                 seconds_since_seen=availability.seconds_since_seen,
             ),
-            capabilities=capabilities, value_keys=value_keys, state_keys=state_keys,
+            capabilities=capabilities, modules=modules, value_keys=value_keys, state_keys=state_keys,
             command_types=command_types,
-            allowed_commands=command_types if Permission.COMMAND_EXECUTE in access.permissions else [],
+            allowed_commands=command_types if can_execute else [],
             snapshot=snapshot,
             telemetry_freshness=quality, readings=metric_readings,
+            state_readings=typed_states,
         )

@@ -44,7 +44,7 @@ try {
     @'
 services:
   backend:
-    image: techbaza-acceptance-backend:0.37.3
+    image: techbaza-acceptance-backend:0.38.0
 '@ | Set-Content -LiteralPath $preflightCompose -Encoding Ascii
     Demo stop backend simulator
     try {
@@ -63,15 +63,15 @@ finally {
 }
 
 # Promote only after a successful preflight; preserve demo data and credentials.
-docker image tag techbaza-acceptance-backend:0.37.3 techbaza-demo-backend:local
+docker image tag techbaza-acceptance-backend:0.38.0 techbaza-demo-backend:local
 Assert-Step 'Promote H-03 image'
 Demo up -d --no-build --wait --wait-timeout 90 backend simulator
 Demo exec -T backend python -m app.demo.check --quick
 
 $health = Invoke-RestMethod 'http://127.0.0.1:8001/health' -TimeoutSec 10
-if ($health.status -ne 'ok' -or $health.version -ne '0.37.3') {
-    throw 'Expected demo backend 0.37.3 on port 8001'
+if ($health.status -ne 'ok' -or $health.version -ne '0.38.0') {
+    throw 'Expected demo backend 0.38.0 on port 8001'
 }
 $health | Format-Table
 Demo ps
-Write-Host 'PASS: H-03 acceptance; demo 0.37.3 is running. Send this result for operation closure.' -ForegroundColor Green
+Write-Host 'PASS: H-03 acceptance; demo 0.38.0 is running. Send this result for operation closure.' -ForegroundColor Green

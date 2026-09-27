@@ -91,6 +91,28 @@ def command(client, kind, payload=None, expected_result="succeeded"):
     return wait_for(kind, terminal)
 
 
+def check_module_contract(overview):
+    """Перевірити зв'язки, за якими перший UI будує панель пристрою."""
+    modules = overview["modules"]
+    ensure([item["code"] for item in modules] == [item["code"] for item in overview["capabilities"]],
+           "Module list differs from enabled capabilities")
+    descriptors = [channel for module in modules for channel in module["channels"]]
+    for source, keys_field, readings_field in (("values", "value_keys", "readings"), ("state", "state_keys", "state_readings")):
+        keys = sorted(item["key"] for item in descriptors if item["source"] == source)
+        ensure(keys == overview[keys_field], "Module channels differ from overview keys")
+        ensure(keys == [item["key"] for item in overview[readings_field]], "Module readings are incomplete")
+    ensure(sorted(command for module in modules for command in module["command_types"]) == overview["command_types"],
+           "Module commands differ from command types")
+    ensure(sorted(command for module in modules for command in module["allowed_commands"]) == overview["allowed_commands"],
+           "Module commands differ from role permissions")
+    ensure(all(module["supported"] for module in modules), "Demo has an unsupported module")
+    numeric = {item["key"]: item for item in overview["readings"]}
+    for channel in descriptors:
+        ensure(channel["supports_series"] == (channel["source"] == "values"), "Unexpected chart support")
+        if channel["source"] == "values":
+            ensure(channel["unit"] == numeric[channel["key"]]["unit"], "Channel unit differs from reading")
+
+
 def run(quick=False):
     require_demo()
     clients = {}
@@ -102,7 +124,7 @@ def run(quick=False):
             for key in ("pump", "pressure", "stale", "other"):
                 scenario(key, "normal")
         health = owner.call("GET", "/health")
-        ensure(health["version"] == "0.37.3" and health["status"] == "ok", "Expected demo backend 0.37.3")
+        ensure(health["version"] == "0.38.0" and health["status"] == "ok", "Expected demo backend 0.38.0")
         for key, client in clients.items():
             orgs = client.call("GET", "/api/v1/organizations")
             ensure([item["id"] for item in orgs] == [str(identity("org:" + ACCOUNTS[key][0]))], "Tenant list leak")
@@ -120,6 +142,13 @@ def run(quick=False):
         ensure(owner.overview("stale")["telemetry_freshness"]["status"] == "stale", "Heartbeat freshened old values")
         ensure(not owner.overview("offline")["availability"]["online"], "Offline fixture unexpectedly online")
         ensure(owner.overview("new")["snapshot"] is None, "New device unexpectedly has telemetry")
+        for key in DEVICES:
+            check_module_contract((other if key == "other" else owner).overview(key))
+        viewer_overview = viewer.overview("pump")
+        check_module_contract(viewer_overview)
+        ensure(not any(module["allowed_commands"] for module in viewer_overview["modules"]), "Viewer module commands leak")
+        check_module_contract(operator.overview("pump"))
+        print("PASS: module/channel contract, units, chart support, state readings and role-aware commands", flush=True)
         print("PASS: four logins, tenant isolation, viewer 403, modular/live/stale/offline/new states", flush=True)
         if quick:
             return
