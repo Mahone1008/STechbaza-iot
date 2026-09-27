@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
-import { useAuthSession } from "@/features/auth-session";
+import { useAuthSession, type AuthSessionSnapshot } from "@/features/auth-session";
 
 const navigation = [
   { href: "/devices", label: "Пристрої", icon: "devices" as const },
@@ -81,14 +81,56 @@ function initialsFor(value: string): string {
   return chunks.slice(0, 2).map((chunk) => chunk[0]?.toUpperCase() ?? "").join("") || "К";
 }
 
+function sessionPresentation(session: AuthSessionSnapshot): Readonly<{
+  userName: string;
+  userStatus: string;
+  note: string;
+  noteClass: string;
+}> {
+  if (session.status === "authenticated") {
+    const restored = session.source !== "login";
+    return {
+      userName: session.email ?? "Сесію відновлено",
+      userStatus: session.refreshState === "degraded"
+        ? "Access ще чинний · refresh очікує повтору"
+        : restored
+          ? "Сесію відновлено · access у пам’яті"
+          : "Вхід підтверджено · access у пам’яті",
+      note: restored ? "Сесія відновлена · demo data" : "Сесія підтверджена · demo data",
+      noteClass: session.refreshState === "degraded" ? " prototype-note-warning" : " prototype-note-auth",
+    };
+  }
+
+  if (session.status === "restoring") {
+    return {
+      userName: "Перевірка сесії",
+      userStatus: "Читаємо лише HttpOnly cookie через backend",
+      note: "Відновлюємо сесію…",
+      noteClass: " prototype-note-restoring",
+    };
+  }
+
+  if (session.status === "unavailable") {
+    return {
+      userName: "Сесію не перевірено",
+      userStatus: "Backend тимчасово недоступний",
+      note: "Сесію не перевірено · demo data",
+      noteClass: " prototype-note-warning",
+    };
+  }
+
+  return {
+    userName: "Демо-контекст",
+    userStatus: "Без route guard до операції 10.3",
+    note: "Demo data · guard у 10.3",
+    noteClass: "",
+  };
+}
+
 export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
   const pathname = usePathname();
   const { session } = useAuthSession();
-  const authenticated = session.status === "authenticated";
-  const userName = authenticated ? session.email : "Демо-контекст";
-  const userStatus = authenticated
-    ? "Вхід підтверджено · access у пам’яті"
-    : "Без session guard до операції 10.3";
+  const presentation = sessionPresentation(session);
 
   return (
     <div className="app-shell">
@@ -114,8 +156,8 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
           <span className="nav-link-disabled" aria-disabled="true"><Icon name="components" />Повідомлення</span>
         </nav>
         <div className="sidebar-footer">
-          <span className="avatar" aria-hidden="true">{initialsFor(userName)}</span>
-          <span className="user-copy" title={userName}><strong>{userName}</strong><span>{userStatus}</span></span>
+          <span className="avatar" aria-hidden="true">{initialsFor(presentation.userName)}</span>
+          <span className="user-copy" title={presentation.userName}><strong>{presentation.userName}</strong><span>{presentation.userStatus}</span></span>
           <button className="icon-button" type="button" aria-label="Меню користувача буде додано в операції 10.4"><Icon name="more" /></button>
         </div>
       </aside>
@@ -124,9 +166,9 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
         <header className="topbar">
           <span className="topbar-brand"><Brand compact /></span>
           <div className="topbar-context"><span>АгроПром Північ</span><span aria-hidden="true">/</span><strong>Насосна станція №1</strong></div>
-          <span className={`prototype-note${authenticated ? " prototype-note-auth" : ""}`}>
+          <span className={`prototype-note${presentation.noteClass}`} role="status">
             <span className="prototype-dot" aria-hidden="true" />
-            {authenticated ? "Сесія підтверджена · demo data" : "Demo data · guard у 10.3"}
+            {presentation.note}
           </span>
         </header>
         <main className="workspace-content" id="main-content">{children}</main>

@@ -8,6 +8,7 @@ export type BrowserLoginRequest = components["schemas"]["LoginRequest"];
 export type BrowserLoginResponse = components["schemas"]["BrowserTokenResponse"];
 
 const BROWSER_LOGIN_PATH = "/api/v1/auth/browser/login";
+const BROWSER_REFRESH_PATH = "/api/v1/auth/browser/refresh";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -17,7 +18,11 @@ function parsePositiveInteger(value: unknown): number | null {
   return Number.isInteger(value) && Number(value) > 0 ? Number(value) : null;
 }
 
-function parseBrowserLoginResponse(value: unknown): BrowserLoginResponse {
+function parseBrowserTokenResponse(
+  value: unknown,
+  path: string,
+  operation: "входу" | "оновлення сесії",
+): BrowserLoginResponse {
   if (isRecord(value)) {
     const accessToken = value.access_token;
     const tokenType = value.token_type;
@@ -41,11 +46,11 @@ function parseBrowserLoginResponse(value: unknown): BrowserLoginResponse {
     }
   }
 
-  throw new ApiError("Backend повернув некоректну відповідь входу.", {
+  throw new ApiError(`Backend повернув некоректну відповідь ${operation}.`, {
     kind: "invalid-response",
     status: 200,
     method: "POST",
-    url: buildApiUrl(BROWSER_LOGIN_PATH).toString(),
+    url: buildApiUrl(path).toString(),
     retryAfterSeconds: null,
     requestId: null,
     details: { expected: "BrowserTokenResponse" },
@@ -73,5 +78,17 @@ export async function browserLogin(
     ...(signal ? { signal } : {}),
   });
 
-  return parseBrowserLoginResponse(response);
+  return parseBrowserTokenResponse(response, BROWSER_LOGIN_PATH, "входу");
+}
+
+export async function browserRefresh(signal?: AbortSignal): Promise<BrowserLoginResponse> {
+  const response = await apiRequest<unknown>({
+    path: BROWSER_REFRESH_PATH,
+    method: "POST",
+    csrf: true,
+    credentials: "include",
+    ...(signal ? { signal } : {}),
+  });
+
+  return parseBrowserTokenResponse(response, BROWSER_REFRESH_PATH, "оновлення сесії");
 }

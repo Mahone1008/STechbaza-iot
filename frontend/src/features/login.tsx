@@ -11,7 +11,7 @@ import {
   validateLoginForm,
   type LoginFieldErrors,
 } from "@/features/login-model";
-import { browserLogin, isApiError } from "@/lib/api";
+import { isApiError } from "@/lib/api";
 
 function focusFirstInvalidField(errors: LoginFieldErrors): void {
   const id = errors.email ? "login-email" : errors.password ? "login-password" : null;
@@ -27,7 +27,7 @@ function withoutFieldError(errors: LoginFieldErrors, field: keyof LoginFieldErro
 
 export function LoginPanel() {
   const router = useRouter();
-  const { completeLogin } = useAuthSession();
+  const { login, session } = useAuthSession();
   const abortControllerRef = useRef<AbortController | null>(null);
   const alertRef = useRef<HTMLDivElement | null>(null);
   const [email, setEmail] = useState("");
@@ -37,8 +37,13 @@ export function LoginPanel() {
   const [submitting, setSubmitting] = useState(false);
   const [blockedUntil, setBlockedUntil] = useState<number | null>(null);
   const [clock, setClock] = useState(() => Date.now());
+  const restoring = session.status === "restoring";
 
   useEffect(() => () => abortControllerRef.current?.abort(), []);
+
+  useEffect(() => {
+    if (session.status === "authenticated") router.replace("/devices");
+  }, [router, session.status]);
 
   useEffect(() => {
     if (blockedUntil === null) return;
@@ -64,7 +69,7 @@ export function LoginPanel() {
 
   const submitLogin = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (submitting || retrySeconds > 0) return;
+    if (submitting || restoring || retrySeconds > 0) return;
 
     const validation = validateLoginForm({ email, password });
     setFieldErrors(validation.errors);
@@ -81,12 +86,11 @@ export function LoginPanel() {
     setSubmitting(true);
 
     try {
-      const response = await browserLogin(
+      await login(
         { email: validation.normalizedEmail, password },
         controller.signal,
       );
       setPassword("");
-      completeLogin(validation.normalizedEmail, response);
       router.replace("/devices");
     } catch (error) {
       if (isApiError(error) && error.kind === "aborted") return;
@@ -109,11 +113,13 @@ export function LoginPanel() {
     }
   };
 
-  const buttonLabel = submitting
-    ? "Перевіряємо…"
-    : retrySeconds > 0
-      ? `Спробуйте через ${retrySeconds} с`
-      : "Увійти";
+  const buttonLabel = restoring
+    ? "Відновлюємо сесію…"
+    : submitting
+      ? "Перевіряємо…"
+      : retrySeconds > 0
+        ? `Спробуйте через ${retrySeconds} с`
+        : "Увійти";
 
   return (
     <main className="login-page">
@@ -140,6 +146,18 @@ export function LoginPanel() {
           <h2>Вхід до кабінету</h2>
           <p>Введіть облікові дані, видані адміністратором вашої організації.</p>
 
+          {restoring ? (
+            <div className="login-alert login-alert-info" role="status">
+              <strong>Перевіряємо наявну сесію</strong>
+              <span>HttpOnly cookie перевіряється без показу або збереження secret у JavaScript.</span>
+            </div>
+          ) : session.status === "unavailable" && !formError ? (
+            <div className="login-alert login-alert-warning" role="status">
+              <strong>Автоматичне відновлення тимчасово недоступне</strong>
+              <span>{session.message} Можна повторити вхід вручну.</span>
+            </div>
+          ) : null}
+
           {formError ? (
             <div
               className={`login-alert ${retrySeconds > 0 ? "login-alert-warning" : "login-alert-danger"}`}
@@ -165,12 +183,12 @@ export function LoginPanel() {
               maxLength={254}
               value={email}
               {...(fieldErrors.email ? { error: fieldErrors.email } : {})}
-              disabled={submitting}
+              disabled={submitting || restoring}
               onChange={(event) => {
                 setEmail(event.target.value);
                 if (fieldErrors.email) setFieldErrors((current) => withoutFieldError(current, "email"));
               }}
-              autoFocus
+              autoFocus={!restoring}
             />
             <TextField
               id="login-password"
@@ -181,7 +199,7 @@ export function LoginPanel() {
               maxLength={128}
               value={password}
               {...(fieldErrors.password ? { error: fieldErrors.password } : {})}
-              disabled={submitting}
+              disabled={submitting || restoring}
               onChange={(event) => {
                 setPassword(event.target.value);
                 if (fieldErrors.password) setFieldErrors((current) => withoutFieldError(current, "password"));
@@ -191,8 +209,8 @@ export function LoginPanel() {
               type="submit"
               variant="primary"
               fullWidth
-              disabled={submitting || retrySeconds > 0}
-              aria-busy={submitting}
+              disabled={submitting || restoring || retrySeconds > 0}
+              aria-busy={submitting || restoring}
             >
               {buttonLabel}
             </Button>

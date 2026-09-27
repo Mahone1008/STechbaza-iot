@@ -4,6 +4,18 @@
   color: var(--success);
 }
 
+.prototype-note-restoring {
+  border-color: #c9dde7;
+  background: var(--info-soft);
+  color: var(--info);
+}
+
+.prototype-note-warning {
+  border-color: #efd8b2;
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
 .login-alert {
   display: grid;
   gap: 4px;
@@ -19,6 +31,7 @@
 .login-alert span { line-height: 1.45; }
 .login-alert-danger { border-color: #efc7c8; background: var(--danger-soft); color: #913538; }
 .login-alert-warning { border-color: #efd8b2; background: var(--warning-soft); color: #805112; }
+.login-alert-info { border-color: #c9dde7; background: var(--info-soft); color: #315e74; }
 .login-form .button[aria-busy="true"] { cursor: progress; }
 .login-support strong { color: var(--text); font-weight: 650; text-align: right; }
 

@@ -2,6 +2,7 @@ export { apiRequest, type ApiRequestOptions } from "./client";
 export { apiConfig } from "./config";
 export {
   browserLogin,
+  browserRefresh,
   getBackendHealth,
   type BrowserLoginRequest,
   type BrowserLoginResponse,

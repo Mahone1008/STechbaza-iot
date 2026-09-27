@@ -1,6 +1,7 @@
 import { expect, test, type Page, type Route } from "@playwright/test";
 
 const LOGIN_URL = "http://127.0.0.1:8001/api/v1/auth/browser/login";
+const REFRESH_URL = "http://127.0.0.1:8001/api/v1/auth/browser/refresh";
 const FRONTEND_ORIGIN = "http://127.0.0.1:3000";
 
 const corsHeaders = {
@@ -21,10 +22,26 @@ async function mockBrowserLogin(page: Page, handler: (route: Route) => Promise<v
   });
 }
 
+async function mockMissingBrowserSession(page: Page) {
+  await page.route(REFRESH_URL, async (route) => {
+    if (route.request().method() === "OPTIONS") {
+      await route.fulfill({ status: 204, headers: corsHeaders });
+      return;
+    }
+    await route.fulfill({
+      status: 401,
+      headers: { ...corsHeaders, "content-type": "application/json" },
+      body: JSON.stringify({ detail: "Браузерна сесія недійсна або завершилася" }),
+    });
+  });
+}
+
 async function fillLogin(page: Page, email = "owner@example.com", password = "valid-test-password") {
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Пароль").fill(password);
 }
+
+test.beforeEach(async ({ page }) => mockMissingBrowserSession(page));
 
 test("client validation blocks malformed credentials before the API call", async ({ page }) => {
   let postRequests = 0;

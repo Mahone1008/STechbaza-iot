@@ -1,5 +1,30 @@
 import { expect, test } from "@playwright/test";
 
+const REFRESH_URL = "http://127.0.0.1:8001/api/v1/auth/browser/refresh";
+const FRONTEND_ORIGIN = "http://127.0.0.1:3000";
+
+const corsHeaders = {
+  "access-control-allow-origin": FRONTEND_ORIGIN,
+  "access-control-allow-credentials": "true",
+  "access-control-allow-methods": "POST, OPTIONS",
+  "access-control-allow-headers": "content-type, x-techbaza-csrf",
+  vary: "Origin",
+};
+
+test.beforeEach(async ({ page }) => {
+  await page.route(REFRESH_URL, async (route) => {
+    if (route.request().method() === "OPTIONS") {
+      await route.fulfill({ status: 204, headers: corsHeaders });
+      return;
+    }
+    await route.fulfill({
+      status: 401,
+      headers: { ...corsHeaders, "content-type": "application/json" },
+      body: JSON.stringify({ detail: "Браузерна сесія недійсна або завершилася" }),
+    });
+  });
+});
+
 test("core routes render and device navigation remains understandable", async ({ page }) => {
   await page.goto("/login");
   await expect(page.getByRole("heading", { name: "Вхід до кабінету" })).toBeVisible();
