@@ -51,6 +51,15 @@ test("successful logout sends CSRF, clears private state and cannot restore afte
   let loggedOut = false;
   let refreshCalls = 0;
   let logoutCalls = 0;
+  let loggedOutDocumentNavigations = 0;
+
+  page.on("request", (request) => {
+    if (!request.isNavigationRequest()) return;
+    const url = new URL(request.url());
+    if (url.pathname === "/login" && url.searchParams.get("loggedOut") === "1") {
+      loggedOutDocumentNavigations += 1;
+    }
+  });
 
   await routeRefresh(page, async (route) => {
     refreshCalls += 1;
@@ -92,6 +101,7 @@ test("successful logout sends CSRF, clears private state and cannot restore afte
   await expect(page.getByText("Сесію завершено")).toBeVisible();
   await expect(page.getByText("owner@example.com")).not.toBeVisible();
   expect(logoutCalls).toBe(1);
+  expect(loggedOutDocumentNavigations).toBeLessThanOrEqual(1);
 
   const refreshCallsAfterLogout = refreshCalls;
   await page.reload();
