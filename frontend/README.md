@@ -10,22 +10,21 @@
 
 - **9.1–9.4 закрито:** UX, Next.js/TypeScript foundation, OpenAPI/API layer,
   unit/component tests, Chromium smoke, production build і Windows acceptance.
-- **10.1 закрито:** реальний FastAPI browser login із CSRF, HttpOnly refresh
-  cookie, memory-only access token і auth error states.
-- **10.2 закрито 27.09.2026:** F5 recovery, proactive refresh, in-tab
-  single-flight, Web Locks/localStorage lease fallback і BroadcastChannel
+- **10.1 закрито:** real FastAPI browser login із CSRF, HttpOnly refresh cookie,
+  memory-only access token і auth error states.
+- **10.2 закрито:** F5 recovery, proactive refresh, single-flight та
   coordination між same-origin вкладками.
-- Локальне Windows-приймання підтвердило automatic `/login` → `/devices`
-  recovery без повторного password і status `Сесія відновлена · demo data`.
-- Devices, telemetry, alarms і commands поки використовують typed demo
-  fixtures; permissions і route guards реалізуються в 10.3.
+- **10.3 реалізовано, CI PASS:** `/auth/me`, visible organizations,
+  organization access, runtime permission registry, session-scoped cache,
+  anonymous redirect, safe `returnTo`, permission-aware navigation і controls.
+- **10.3 ще не закрито:** очікується локальне Windows-приймання користувачем.
+- Devices, telemetry, alarms і command timeline поки використовують typed
+  demo fixtures; live domain data починаються в Етапі 11.
 
 [Досьє V3.5 — Етап 9](../docs/dossier-v3.5-stage-9-frontend-foundation.md).  
 [Досьє операції 10.1](../docs/stage-10-op1-browser-login.md).  
-[Досьє операції 10.2](../docs/stage-10-op2-session-recovery.md).
-
-**Наступна операція — 10.3: `/auth/me`, реальні permissions,
-organization access, cache isolation і route guards.**
+[Досьє операції 10.2](../docs/stage-10-op2-session-recovery.md).  
+[Досьє операції 10.3](../docs/stage-10-op3-permissions-and-guards.md).
 
 ## Стек
 
@@ -39,8 +38,8 @@ organization access, cache isolation і route guards.**
 - CSS variables + звичайний CSS;
 - ESLint flat config із core-web-vitals і TypeScript rules.
 
-Node.js: **20.9.0+**. CI: Node.js 22.16.0. Локально прийняті Етап 9,
-операції 10.1 і 10.2 на Node.js 24.21.0.
+Node.js: **20.9.0+**. CI: Node.js 22.16.0. Локально прийняті Етап 9 та
+операції 10.1–10.2 на Node.js 24.21.0.
 
 ## Конфігурація
 
@@ -57,52 +56,61 @@ NEXT_PUBLIC_API_TIMEOUT_MS=10000
 
 Не додавати secrets у `NEXT_PUBLIC_*`: ці values потрапляють до browser bundle.
 
-## Прийнята перевірка операції 10.2
+## Перевірка операції 10.3
 
-Зупинити попередній Next.js через `Ctrl+C`, потім із кореня repository:
+Зупинити попередній Next.js через `Ctrl+C`, залишити Docker Desktop у Linux
+containers mode і з кореня repository виконати:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-stage10-op2.ps1 -Start
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-stage10-op3.ps1 -Start
 ```
 
-Підтверджено 27.09.2026:
+Автоматично перевіряються:
 
 ```text
-OpenAPI 0.38.0 / 47 paths — PASS
-TypeScript strict — PASS
-ESLint — PASS
-Vitest — 15 passed
-Production build — PASS
-Mocked Chromium — 13 passed
-Real Chromium — 4 passed
-Docker PostgreSQL/Mosquitto/backend — Healthy
-PASS: Stage 10.2 HttpOnly session recovery, proactive refresh, single-flight and cross-tab coordination.
+OpenAPI 0.38.0 / 47 paths
+TypeScript strict і ESLint
+Vitest — 22 passed
+Next.js production build
+Mocked Chromium — 19 passed
+Real Chromium owner/viewer/session/guards — 6 passed
+PostgreSQL/Mosquitto/FastAPI — Healthy
 ```
 
-Ручне Windows-приймання підтвердило:
+Очікуваний фінал:
 
-1. відкриття `/login` із чинною HttpOnly session;
-2. стан перевірки/відновлення без показу secret;
-3. автоматичний redirect на `/devices` без email/password;
-4. `Сесія відновлена · demo data` у topbar;
-5. повторний password не запитується.
-
-Access token не записується у localStorage/sessionStorage/URL. localStorage
-fallback містить тільки короткоживу lock lease metadata без token.
-
-## Повна перевірка операції 10.1
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-stage10-op1.ps1 -Start
+```text
+PASS: Stage 10.3 /auth/me profile, organization access, permission-aware UI, cache isolation and route guards.
 ```
+
+Ручна перевірка:
+
+1. Incognito `/devices` → `/login?returnTo=%2Fdevices` без workspace flash.
+2. Owner бачить `DEMO: клієнт A`, свій email і `DEMO: owner · Власник`.
+3. Viewer бачить `DEMO: viewer · Спостерігач`, але Start/Stop/frequency і
+   settings disabled через відсутні permissions.
+
+Access token не записується у localStorage/sessionStorage/URL. Query cache
+ізольовано за `user_id + auth_session_id`; public `/health` cache не видаляється
+разом із попередньою session.
 
 ## Маршрути
 
-- `/login` — справжній browser login і automatic session recovery;
-- `/devices` — demo fleet до Етапу 11;
-- `/devices/north-pump` — demo modular dashboard;
-- `/alarms` — demo incidents;
-- `/ui-kit` — components і real `/health` API Contract panel.
+- `/login` — browser login, session recovery і safe local `returnTo`;
+- `/devices` — protected demo fleet до Етапу 11;
+- `/devices/north-pump` — protected modular dashboard;
+- `/alarms` — protected demo incidents;
+- `/ui-kit` — protected components і real `/health` panel.
+
+Route permissions:
+
+```text
+/devices* → device.read
+/alarms*  → alarm.read
+/ui-kit*  → capability.read
+```
+
+Frontend guard покращує UX і не замінює backend authorization.
 
 ## OpenAPI
 
@@ -117,6 +125,5 @@ npm.cmd run api:generate
 npm.cmd run api:verify
 ```
 
-CI повторює generation і вимагає zero diff. `/auth/me`, permissions,
-organization access, cache isolation і route guards належать операції 10.3;
-logout і coordinated revoke — операції 10.4.
+CI повторює generation і вимагає zero diff. Справжній logout/revoke,
+coordinated cache cleanup та захист від session resurrection належать 10.4.
