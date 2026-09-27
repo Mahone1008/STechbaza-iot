@@ -9,8 +9,9 @@
 - [Етап 9.2 — Next.js/TypeScript foundation — закрито](stage-9-op2-frontend-foundation.md)
 - [Етап 9.3 — API adapter і контракти — закрито](stage-9-op3-api-adapter.md)
 - [Етап 9.4 — відтворюваний frontend baseline — закрито](stage-9-op4-frontend-baseline.md)
+- [Етап 10.1 — справжній browser login — реалізовано, CI PASS, очікується локальне приймання](stage-10-op1-browser-login.md)
 
-Поточна точка: **Етап 10, операція 10.1 — реальний browser login email/password**.
+Поточна точка: **локальне приймання Етапу 10, операції 10.1**.
 
 ## Backend: виправлення та перевірки
 

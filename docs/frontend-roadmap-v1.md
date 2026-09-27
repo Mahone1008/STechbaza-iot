@@ -3,7 +3,8 @@
 Дата: 27.09.2026. База: backend **0.38.0**, Етап H завершено 5/5.
 
 **Статус: прийнято 4 із 24 операцій. Етап 9 завершено 4/4.
-Поточна точка — 10.1.**
+Операцію 10.1 реалізовано й автоматично перевірено; очікується локальне
+користувацьке приймання.**
 
 Frontend поділено на Етапи 9–14. Кожен етап має чотири операції. Наступна
 операція не закривається автоматично після реалізації: потрібні CI та локальне
@@ -69,12 +70,17 @@ Frontend поділено на Етапи 9–14. Кожен етап має ч�
 
 | Операція | Результат | Статус |
 |---|---|---|
-| 10.1 — Login | email/password, CSRF, credentials include, 401/403/422/429 UI | **Наступна операція** |
+| 10.1 — Login | email/password, CSRF, credentials include, HttpOnly cookie, memory-only access, 401/403/422/429/network UI | **Реалізовано; CI PASS; локальне приймання очікується** |
 | 10.2 — Відновлення session | refresh cookie, memory access token, single-flight і tab coordination | Заплановано |
 | 10.3 — Permissions/guards | `/auth/me`, organization access, cache isolation, route guards | Заплановано |
 | 10.4 — Logout і збої | coordinated revoke, cancel pending requests, no session resurrection | Заплановано |
 
-Автоматичний повтор write після 401 не допускається без окремої policy.
+Досьє поточної операції:
+
+- [10.1 — справжній browser login KERUMO](stage-10-op1-browser-login.md)
+
+Автоматичний повтор write/login mutation після 401 або network uncertainty не
+допускається. 10.1 не закривається до локального Windows PASS користувача.
 
 ## 6. Етап 11 — організації, пристрої та модульна панель
 
@@ -125,9 +131,11 @@ Start/frequency не накопичуються локально для відп
 3. Backend завжди повторно перевіряє permissions.
 4. Logout/context switch cancel-ить requests і видаляє scoped cache.
 5. Missing не стає нулем, графік не з’єднує gaps.
-6. GET retry bounded; write retry має окрему policy.
+6. GET retry bounded; write/login retry має окрему policy.
 7. Mock data не маскують збій live API.
 8. Frontend CI не замінює backend suite.
+9. Access token не persist-иться; refresh token не читається JavaScript.
+10. Route guards не вважаються готовими до операції 10.3.
 
-**Поточна точка: 10.1 — справжній browser login email/password,
-CSRF, `credentials: include`, normalized auth errors і backend 0.38.0.**
+**Поточна точка: локальне приймання 10.1 — реальний browser login,
+CSRF, HttpOnly cookie, memory-only access token і auth error states.**
