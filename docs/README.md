@@ -1,11 +1,11 @@
 # Документація
 
-Документація проєкту TechBaza IoT Pump Control.
+Документація проєкту TechBaza IoT Pump Control / KERUMO.
 
 ## Frontend
 
-- [Етап 9, операція 1 — сценарії, карта сторінок і макети KERUMO — підготовлено до приймання](stage-9-op1-ux-and-mockups.md)
-- [План frontend v1 — Етапи 9–14, 24 операції](frontend-roadmap-v1.md)
+- [Етап 9, операція 1 — UX-сценарії та макети KERUMO — закрито 27.09.2026](stage-9-op1-ux-and-mockups.md)
+- [План frontend v1 — Етапи 9–14, 24 операції; прийнято 1/24](frontend-roadmap-v1.md)
 
 ## Виправлення та перевірки
 
@@ -69,9 +69,11 @@
 
 ## Запланований розвиток
 
-- архітектура системи;
+- frontend 9.2–14;
+- firmware ESP32-S3 та hardware-in-the-loop;
 - схеми підключення обладнання;
 - карти регістрів Modbus;
-- MQTT-топіки та формати повідомлень;
-- API-контракти;
+- MQTT production identities/TLS/ACL;
+- production deployment, monitoring і load tests;
+- API-контракти майбутніх B2B/provisioning функцій;
 - інструкції з розгортання та обслуговування.
