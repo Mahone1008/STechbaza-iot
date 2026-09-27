@@ -6,7 +6,7 @@
 
 ## Поточний стан
 
-**Етап 9 завершено 4/4. Етап 10: 3/4. Frontend roadmap: прийнято 7/24.**
+**Етап 9 завершено 4/4. Етап 10 завершено 4/4. Frontend roadmap: прийнято 8/24.**
 
 - **9.1–9.4 закрито:** UX, Next.js/TypeScript foundation, OpenAPI/API layer,
   unit/component tests, Chromium smoke, production build і Windows acceptance.
@@ -17,14 +17,14 @@
 - **10.3 закрито:** `/auth/me`, visible organizations, organization access,
   runtime permission registry, session-scoped cache, route guards і
   permission-aware controls.
-- **10.4 реалізовано, CI PASS:** real browser logout, server-side revoke,
-  cross-tab cleanup, abort pending requests, logout failure/retry states і
-  захист від session resurrection.
-- **10.4 ще не закрито:** очікується локальне Windows-приймання користувачем.
+- **10.4 закрито 27.09.2026:** real browser logout, server-side revoke,
+  cross-tab cleanup, abort pending requests, logout failure/retry states,
+  no session resurrection і фінальне Windows-приймання.
 - Devices, telemetry, alarms і command timeline поки використовують typed
   demo fixtures; live domain data починаються в Етапі 11.
 
 [Досьє V3.5 — Етап 9](../docs/dossier-v3.5-stage-9-frontend-foundation.md).  
+[Досьє V3.5 — Етап 10](../docs/dossier-v3.5-stage-10-browser-auth-session-rbac.md).  
 [Досьє операції 10.1](../docs/stage-10-op1-browser-login.md).  
 [Досьє операції 10.2](../docs/stage-10-op2-session-recovery.md).  
 [Досьє операції 10.3](../docs/stage-10-op3-permissions-and-guards.md).  
@@ -132,6 +132,6 @@ npm.cmd run api:generate
 npm.cmd run api:verify
 ```
 
-CI повторює generation і вимагає zero diff. Після локального приймання 10.4
-Етап 10 буде завершено 4/4, а наступною стане 11.1 — реальні організації,
-об’єкти, breadcrumbs і tenant context restore.
+CI повторює generation і вимагає zero diff. Етап 10 завершено 4/4.
+Наступна операція — 11.1: реальні організації, об’єкти, breadcrumbs і
+tenant context restore.
