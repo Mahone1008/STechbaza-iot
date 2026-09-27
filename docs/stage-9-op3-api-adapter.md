@@ -3,8 +3,9 @@
 Дата початку: 27.09.2026. Вхідна точка: 9.2 закрито, frontend roadmap 2/24.
 Backend залишається **0.38.0**.
 
-**Статус: реалізація підготовляється до автоматичної та локальної перевірки.
-Операція 9.3 ще не закрита.**
+**Статус: автоматичний CI пройдено; реалізацію передано на локальне
+користувацьке приймання. Операція 9.3 ще не закрита. Етап 9: 2/4,
+frontend roadmap: 2/24 до підтвердження користувача.**
 
 ## 1. Мета
 
@@ -34,12 +35,14 @@ error mapping або cache keys у кожному компоненті.
 - root QueryClient не зберігається у localStorage і створюється один раз на
   browser application instance.
 
-## 3. Пакети
+## 3. Пакети та generated contract
 
 - `@tanstack/react-query` **5.104.0**;
-- `openapi-typescript` **7.13.0**.
-
-Exact dependency graph фіксує `frontend/package-lock.json`.
+- `openapi-typescript` **7.13.0**;
+- OpenAPI **3.1.0**, backend version **0.38.0**;
+- snapshot містить **47 paths**;
+- exact dependency graph зафіксовано у `frontend/package-lock.json`;
+- `frontend/src/lib/api/openapi.json` і `schema.d.ts` tracked у Git.
 
 ## 4. Демонстрація без передчасного підключення бізнес-екранів
 
@@ -68,27 +71,34 @@ Exact dependency graph фіксує `frontend/package-lock.json`.
 - write request policy й single-flight refresh реалізуються у наступних
   операціях, а не декларуються готовими зараз.
 
-## 6. Перевірки
+## 6. Автоматичні докази
 
-CI bootstrap генерує три артефакти:
+Основна реалізація: commit
+`1924c8a24e5c475b4fff7e20c17a64491284b8ca`.
+Bootstrap GitHub Actions run **36323749392** завершився `success`:
 
-```text
-frontend/package-lock.json
-frontend/src/lib/api/openapi.json
-frontend/src/lib/api/schema.d.ts
-```
+1. встановлено backend schema dependencies;
+2. експортовано OpenAPI 0.38.0;
+3. встановлено frontend dependencies;
+4. згенеровано TypeScript contract;
+5. пройдено `api:verify`, typecheck, lint і production build.
 
-Після їх фіксації final gate використовує `npm ci`, повторно експортує OpenAPI,
-генерує TypeScript contract і вимагає zero diff, після чого запускає:
+Generated contract і lockfile зафіксував службовий commit
+`50e0eebd0f7d010f72685b59e7c49702d440f8de`.
 
-```text
-npm run api:verify
-npm run typecheck
-npm run lint
-npm run build
-```
+Фінальний read-only gate на commit
+`fd68cd65588a80eff6316ced0aa07f880b6d3ad1`:
+GitHub Actions run **36323956820** — `completed / success`.
+Він використовує `npm ci`, повторно експортує OpenAPI, регенерує types,
+вимагає zero diff і після цього запускає verify/typecheck/lint/build.
 
-Локальна перевірка:
+Це доводить відтворюваність contract artifacts у чистому Linux/Node 22.16.0
+environment, але не замінює локальну Windows-перевірку UI та реального
+`/health` state.
+
+## 7. Локальна перевірка
+
+Спочатку зупинити попередній dev server через `Ctrl+C`, потім:
 
 ```powershell
 Set-Location "C:\Users\seraf\Documents\TechBaza\techbaza-iot"
@@ -102,16 +112,21 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-stage9-op3.p
 http://127.0.0.1:3000/ui-kit
 ```
 
-## 7. Критерії приймання
+У development-перегляді Next.js route indicator `N` вимкнено в
+`next.config.ts`, бо він не належить до KERUMO. Compile/runtime errors Next.js
+продовжує показувати.
 
-1. OpenAPI snapshot і generated types присутні та відповідають backend 0.38.0.
-2. `npm ci`, `api:verify`, typecheck, lint і build — PASS.
+## 8. Критерії користувацького приймання
+
+1. Скрипт завершується `PASS: Stage 9.3...`.
+2. OpenAPI snapshot і generated types відповідають backend 0.38.0.
 3. `/ui-kit` показує API base URL і timeout без secrets.
 4. Кнопка перевірки `/health` показує success або зрозумілий network error,
    але не маскує збій як empty data.
 5. Cancel не дозволяє старій відповіді змінити очищений стан.
 6. Query keys мають session/tenant/device scope; cache не persist-иться.
 7. Devices, alarms і login не видаються за live data до відповідних етапів.
+8. Сірий рухомий Next.js `N` більше не перекриває інтерфейс.
 
 Після користувацького підтвердження 9.3 буде закрито як 3/24. Наступна
 операція — **9.4: відтворюваний baseline, component/browser checks і frontend CI**.
