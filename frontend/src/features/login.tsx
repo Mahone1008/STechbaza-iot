@@ -2,7 +2,7 @@
 
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type FormEvent } from "react";
 
 import { Brand } from "@/components/app-shell";
 import { Button, TextField } from "@/components/ui";
@@ -27,6 +27,17 @@ function withoutFieldError(errors: LoginFieldErrors, field: keyof LoginFieldErro
   return next;
 }
 
+function subscribeToLocationChange(callback: () => void): () => void {
+  if (typeof window === "undefined") return () => undefined;
+  window.addEventListener("popstate", callback);
+  return () => window.removeEventListener("popstate", callback);
+}
+
+function loggedOutLocationSnapshot(): boolean {
+  if (typeof window === "undefined") return false;
+  return new URLSearchParams(window.location.search).get("loggedOut") === "1";
+}
+
 function currentLoginDestination(): Route {
   if (typeof window === "undefined") return "/devices";
   return safeLoginReturnTo(new URLSearchParams(window.location.search).get("returnTo"));
@@ -44,15 +55,14 @@ export function LoginPanel() {
   const [submitting, setSubmitting] = useState(false);
   const [blockedUntil, setBlockedUntil] = useState<number | null>(null);
   const [clock, setClock] = useState(() => Date.now());
-  const [loggedOutNotice, setLoggedOutNotice] = useState(false);
+  const loggedOutNotice = useSyncExternalStore(
+    subscribeToLocationChange,
+    loggedOutLocationSnapshot,
+    () => false,
+  );
   const sessionBusy = session.status === "restoring" || session.status === "logging-out";
 
   useEffect(() => () => abortControllerRef.current?.abort(), []);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    setLoggedOutNotice(new URLSearchParams(window.location.search).get("loggedOut") === "1");
-  }, []);
 
   useEffect(() => {
     if (session.status === "authenticated") router.replace(currentLoginDestination());
@@ -87,7 +97,6 @@ export function LoginPanel() {
     const validation = validateLoginForm({ email, password });
     setFieldErrors(validation.errors);
     setFormError("");
-    setLoggedOutNotice(false);
 
     if (validation.errors.email || validation.errors.password) {
       focusFirstInvalidField(validation.errors);
