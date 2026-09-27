@@ -2,7 +2,8 @@
 
 Дата: 27.09.2026. База: backend **0.38.0**, Етап H завершено 5/5.
 
-**Статус: прийнято 3 із 24 операцій. Етап 9: 3/4. Поточна точка — 9.4.**
+**Статус: прийнято 4 із 24 операцій. Етап 9 завершено 4/4.
+Поточна точка — 10.1.**
 
 Frontend поділено на Етапи 9–14. Кожен етап має чотири операції. Наступна
 операція не закривається автоматично після реалізації: потрібні CI та локальне
@@ -47,12 +48,14 @@ Frontend поділено на Етапи 9–14. Кожен етап має ч�
 
 ## 4. Етап 9 — структура інтерфейсу та основа
 
+**Статус Етапу 9: завершено 4/4 27.09.2026.**
+
 | Операція | Результат | Статус |
 |---|---|---|
 | 9.1 — Сценарії та макети | light industrial SaaS visual direction, page map, roles, desktop/mobile, all UI states | **Закрито 27.09.2026** |
 | 9.2 — Каркас і компоненти | Next.js/TS strict, tokens, navigation shell, primitives, lockfile, clean build | **Закрито 27.09.2026** |
 | 9.3 — API adapter і контракти | OpenAPI types, base URL, timeout/cancel, error mapping, query keys/cache lifecycle | **Закрито 27.09.2026** |
-| 9.4 — Відтворюваний baseline | component/unit tests, Chromium smoke, frontend CI, clean setup docs, schema update policy | **У роботі** |
+| 9.4 — Відтворюваний baseline | component/unit tests, Chromium smoke, frontend CI, clean setup docs, schema update policy | **Закрито 27.09.2026** |
 
 Досьє:
 
@@ -60,15 +63,16 @@ Frontend поділено на Етапи 9–14. Кожен етап має ч�
 - [9.2 — frontend foundation](stage-9-op2-frontend-foundation.md)
 - [9.3 — API adapter і контракти](stage-9-op3-api-adapter.md)
 - [9.4 — відтворюваний frontend baseline](stage-9-op4-frontend-baseline.md)
+- [загальне підсумкове досьє Етапу 9](stage-9-frontend-foundation.md)
 
 ## 5. Етап 10 — вхід, сесія та права
 
-| Операція | Результат |
-|---|---|
-| 10.1 — Login | email/password, CSRF, credentials include, 401/403/422/429 UI |
-| 10.2 — Відновлення session | refresh cookie, memory access token, single-flight і tab coordination |
-| 10.3 — Permissions/guards | `/auth/me`, organization access, cache isolation, route guards |
-| 10.4 — Logout і збої | coordinated revoke, cancel pending requests, no session resurrection |
+| Операція | Результат | Статус |
+|---|---|---|
+| 10.1 — Login | email/password, CSRF, credentials include, 401/403/422/429 UI | **Наступна операція** |
+| 10.2 — Відновлення session | refresh cookie, memory access token, single-flight і tab coordination | Заплановано |
+| 10.3 — Permissions/guards | `/auth/me`, organization access, cache isolation, route guards | Заплановано |
+| 10.4 — Logout і збої | coordinated revoke, cancel pending requests, no session resurrection | Заплановано |
 
 Автоматичний повтор write після 401 не допускається без окремої policy.
 
@@ -125,5 +129,5 @@ Start/frequency не накопичуються локально для відп
 7. Mock data не маскують збій live API.
 8. Frontend CI не замінює backend suite.
 
-**Поточна точка: 9.4 — clean install, contract zero-diff, unit/component tests,
-production build, Chromium smoke checks і фінальний CI Етапу 9.**
+**Поточна точка: 10.1 — справжній browser login email/password,
+CSRF, `credentials: include`, normalized auth errors і backend 0.38.0.**
