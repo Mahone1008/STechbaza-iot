@@ -9,9 +9,10 @@
 - [Етап 9.2 — Next.js/TypeScript foundation — закрито](stage-9-op2-frontend-foundation.md)
 - [Етап 9.3 — API adapter і контракти — закрито](stage-9-op3-api-adapter.md)
 - [Етап 9.4 — відтворюваний frontend baseline — закрито](stage-9-op4-frontend-baseline.md)
-- [Етап 10.1 — справжній browser login — закрито 27.09.2026](stage-10-op1-browser-login.md)
+- [Етап 10.1 — справжній browser login — закрито](stage-10-op1-browser-login.md)
+- [Етап 10.2 — відновлення browser session — реалізовано, CI PASS, очікується локальне приймання](stage-10-op2-session-recovery.md)
 
-Поточна точка: **Етап 10, операція 10.2 — відновлення browser session після F5**.
+Поточна точка: **локальне приймання Етапу 10, операції 10.2**.
 
 ## Backend: виправлення та перевірки
 
