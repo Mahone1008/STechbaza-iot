@@ -102,7 +102,7 @@ def run(quick=False):
             for key in ("pump", "pressure", "stale", "other"):
                 scenario(key, "normal")
         health = owner.call("GET", "/health")
-        ensure(health["version"] == "0.37.2" and health["status"] == "ok", "Expected demo backend 0.37.2")
+        ensure(health["version"] == "0.37.3" and health["status"] == "ok", "Expected demo backend 0.37.3")
         for key, client in clients.items():
             orgs = client.call("GET", "/api/v1/organizations")
             ensure([item["id"] for item in orgs] == [str(identity("org:" + ACCOUNTS[key][0]))], "Tenant list leak")

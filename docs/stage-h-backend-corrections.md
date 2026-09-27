@@ -11,7 +11,7 @@
 |---|---|---|
 | H-01 | Некоректні MQTT packets не блокують потік; transient failure зберігає retry | Закрито 27.09.2026 — CI та Windows-приймання PASS |
 | H-02 | Справедливий відбір і повторна доставка команд | Закрито 27.09.2026 — CI та Windows-приймання PASS |
-| H-03 | Розділення системних та користувацьких ключів аварій | Заплановано |
+| H-03 | Розділення системних та користувацьких ключів аварій | Реалізовано; очікує CI та приймання користувачем |
 | H-04 | Узгодження module/channel контракту перших екранів | Заплановано |
 | H-05 | Повна регресія та фіксація прийнятої версії | Заплановано |
 
@@ -323,3 +323,115 @@ viewer 403 та modular/live/stale/offline/new states — PASS. Повний Chr
 
 **H-02 прийнято та закрито. Етап H: завершено 2 із 5 операцій.**
 Наступна операція — H-03, розділення системних та користувацьких ключів аварій.
+
+## H-03 — системні та користувацькі ключі аварій, backend 0.37.3
+
+База операції: `a25d0c2` (H-02 прийнято). Схема БД залишається
+`20260926_0017`. Історія Alarm, transitions, notifications і rule state
+не перейменовується та не видаляється.
+
+### Проблема
+
+Rule Engine використовує rule_key як alarm_key. Системні presence/reboot/command
+аварії зберігаються в тій самій таблиці та ідентифікуються за device_id + alarm_key.
+Раніше можна було призначити числове правило з ключем `device.offline` або
+`command.failed.vfd.start`: воно могло повторити, змінити severity/context або
+закрити системний incident за порогом довільного датчика.
+
+### Новий контракт
+
+Спільна політика знаходиться в `app.alarm_keys`:
+
+| Ключ користувацького rule | Результат |
+|---|---|
+| `device`, `device.*` | Зарезервовано; HTTP POST/PATCH config повертає 422 |
+| `command`, `command.*` | Зарезервовано; HTTP POST/PATCH config повертає 422 |
+| `pressure.low`, `demo.pressure.low`, `my.device.offline` | Дозволено за звичайними правилами валідації |
+| `device_pressure.low`, `devices.offline` | Інші простори; з системними ключами не збігаються |
+
+Резервується весь системний простір із розділювачем крапкою, включно з коренем,
+щоб наступні системні типи не створювали нових колізій. Поточні системні ключі
+та alarm_type не змінені; discriminator lifecycle — саме alarm_key.
+
+Перевірка нового config застосовується також до вимкнених rules/assignments.
+PATCH `is_enabled=true` без config повторно перевіряє збережений config під
+наявним Device lock: legacy-конфлікт повертає 422 без зміни assignment.
+PATCH `is_enabled=false` без нового config дозволяє вимкнути старий конфлікт.
+Його можна виправити валідним config і знову увімкнути. Конфліктна legacy
+capability не блокує виправлення інших нормальних правил цього Device.
+
+Існуюча заборона дубльованих активних ключів різних capabilities, HTTP/JWT
+перевірки ролей і tenant isolation збережені. Загальний lifecycle service
+залишається внутрішнім trusted API для системних orchestration services;
+публічного HTTP endpoint довільного створення системної аварії не додано.
+
+### Старі дані та безпечне оновлення
+
+Runtime читає legacy rules зі спеціальним internal режимом parser, але
+пропускає зарезервований rule до читання/зміни rule state або Alarm. Пише
+`Reserved alarm rule skipped` із device/capability/key, без повного config.
+Валідні rules тієї самої capability продовжують працювати. Валідна telemetry
+комітиться, MQTT ACK відбувається після commit; старий конфлікт не запускає
+нескінченний retry одного packet. Пропущене правило потребує виправлення:
+це захист від колізії, а не його автоматична міграція.
+
+`python -m app.tools.alarm_key_check` — read-only preflight існуючої БД:
+
+- Перевіряє всі assignments, включно з вимкненими, і повертає ідентифікатори
+  зарезервованих rules або іншого невалідного rule config.
+- Виявляє активні legacy Alarm у системному просторі з rule_key у context,
+  включно зі змішаними incidents. Автоматично визначати їх правильний фізичний
+  стан і переписувати історію не можна.
+- Працює в PostgreSQL REPEATABLE READ / READ ONLY, читає порціями по 200.
+- За конфліктів завершується з exit 1, не змінюючи жодного запису.
+
+Скрипт H-03 спочатку виконує ізольовану регресію. Потім коротко зупиняє
+demo backend/simulator, щоб старий API не змінював config під час preflight.
+Новий checker запускається з перевіреного image проти існуючої demo БД через
+тимчасовий Compose override. При невдачі перевірки попередній demo запускається
+знову, image tag не змінюється, скрипт завершується помилкою. Потрібно передати
+звіт про конфлікти для окремого розбору; автоматичного перейменування чи
+закриття incident немає. Після PASS перевірений image оновлює demo до 0.37.3.
+
+Ця перевірка перед оновленням обов'язкова також для іншого наявного стенда.
+Прямий запис у БД адміністративними засобами залишається trusted операцією;
+runtime guard і preflight не є заміною прав доступу до PostgreSQL.
+
+### Перевірки
+
+Додано 3 unit та 7 PostgreSQL-регресій; загальний suite — **145 tests**:
+
+1. POST/PATCH schemas відхиляють roots, поточні й майбутні системні ключі,
+   зокрема при enabled=false; сусідні нерезервовані назви працюють.
+2. Legacy rule не приховує нормальне правило тієї самої capability.
+3. HTTP POST/PATCH повертають 422 і не створюють/не змінюють assignment.
+4. HTTP 401/403/404 та дозволений запис owner зберігаються.
+5. Часткове повторне включення legacy config заборонено; вимкнення і ремонт
+   дозволені навіть за наявності іншої конфліктної legacy capability.
+6. Зарезервовані rules не змінюють чотири реальні системні incidents:
+   offline, reboot, command.failed і command.result_unknown. Валідний custom
+   incident водночас відкривається та закривається; системна історія незмінна.
+7. Реальний MQTT callback із PostgreSQL комітить valid telemetry перед ACK,
+   не створюючи Alarm/rule state для конфліктного legacy rule. Сам socket у
+   цій вузькій регресії замінений Mock; реальний broker покрито іншими suites.
+8. Preflight знаходить вимкнене reserved rule і активний legacy incident,
+   завершується exit 1 та не змінює їх.
+9. Одночасна системна й користувацька аварія створюють два незалежні incidents.
+
+Повний CI також виконує попередні MQTT/PostgreSQL suites, Chromium, demo,
+restart/outage, clean install, exact backup/restore та PowerShell H-03.
+Backup manifest 0.37.3 приймає 0.37.0, 0.37.1, 0.37.2 з тією самою схемою.
+
+### Приймання користувачем
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-stage-h-op3.ps1
+```
+
+Очікується `PASS: 145 backend tests, zero skips`,
+`PASS: alarm key preflight; no reserved rules or active legacy collisions`,
+health `ok / 0.37.3` та фінальний `PASS: H-03 acceptance; demo 0.37.3 is running...`.
+Demo працює на `127.0.0.1:8001`; існуючий `.env.demo`, користувачі, паролі,
+demo volumes і SQLite-стан simulator зберігаються. Seed не повторюється.
+
+**H-03 не закрито до підтвердження користувача. Етап H: закрито 2 із 5.**

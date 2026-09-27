@@ -3,6 +3,7 @@ import uuid
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.alarm_keys import is_system_alarm_key
 from app.models.capability import Capability, DeviceCapability
 from app.repositories.capabilities import CapabilityRepository
 from app.repositories.devices import DeviceRepository
@@ -162,8 +163,8 @@ class CapabilityService:
             if assignment.capability_id == capability_id:
                 continue
             other = {
-                rule.rule_key for rule in parse_alarm_rules(assignment.config)
-                if rule.enabled
+                rule.rule_key for rule in parse_alarm_rules(assignment.config, allow_reserved_keys=True)
+                if rule.enabled and not is_system_alarm_key(rule.rule_key)
             }
             if keys & other:
                 raise DeviceAlarmRulesConflictError

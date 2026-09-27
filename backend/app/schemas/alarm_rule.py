@@ -2,6 +2,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from app.alarm_keys import validate_rule_key
+
 
 class NumericAlarmRuleConfig(BaseModel):
     """Конфігурація одного числового telemetry-rule."""
@@ -46,9 +48,13 @@ class NumericAlarmRuleConfig(BaseModel):
         return self
 
 
-def parse_alarm_rules(config: dict[str, Any]) -> list[NumericAlarmRuleConfig]:
+def parse_alarm_rules(
+    config: dict[str, Any], *, allow_reserved_keys: bool = False,
+) -> list[NumericAlarmRuleConfig]:
     """Розібрати alarm_rules із generic DeviceCapability.config."""
 
+    if not isinstance(config, dict):
+        raise ValueError("config має бути об'єктом")
     raw_rules = config.get("alarm_rules", [])
     if raw_rules is None:
         return []
@@ -59,6 +65,12 @@ def parse_alarm_rules(config: dict[str, Any]) -> list[NumericAlarmRuleConfig]:
         NumericAlarmRuleConfig.model_validate(item)
         for item in raw_rules
     ]
+
+    # Legacy read потрібен лише для preflight і runtime quarantine.
+    # HTTP schemas та service write/re-enable використовують strict default.
+    if not allow_reserved_keys:
+        for rule in rules:
+            validate_rule_key(rule.rule_key)
 
     keys = [rule.rule_key for rule in rules]
     if len(keys) != len(set(keys)):

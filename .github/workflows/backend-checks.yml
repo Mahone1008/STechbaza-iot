@@ -13,6 +13,7 @@ on:
       - 'scripts/check-stage8-op6.ps1'
       - 'scripts/check-stage-h-op1.ps1'
       - 'scripts/check-stage-h-op2.ps1'
+      - 'scripts/check-stage-h-op3.ps1'
       - 'compose.acceptance.yml'
   workflow_dispatch:
 
@@ -118,9 +119,9 @@ jobs:
       - name: Clean install and exact backup restore acceptance
         shell: pwsh
         run: ./scripts/check-stage8-op6.ps1
-      - name: H-02 user acceptance script
+      - name: H-03 user acceptance script
         shell: pwsh
-        run: ./scripts/check-stage-h-op2.ps1
+        run: ./scripts/check-stage-h-op3.ps1
       - name: Demo logs on failure
         if: failure()
         run: docker compose -p techbaza-demo --env-file .env.demo -f compose.demo.yml logs --tail 120 backend simulator

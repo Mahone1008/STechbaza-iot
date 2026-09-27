@@ -7,6 +7,7 @@ from typing import Any
 from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
+from app.alarm_keys import is_system_alarm_key
 from app.models.event_alarm import DeviceEvent
 from app.numeric import finite_number
 from app.repositories.alarm_rules import AlarmRuleStateRepository
@@ -73,7 +74,7 @@ class TelemetryAlarmRuleEngine:
 
         for assignment in assignments:
             try:
-                rules = parse_alarm_rules(assignment.config)
+                rules = parse_alarm_rules(assignment.config, allow_reserved_keys=True)
             except (ValidationError, ValueError) as exc:
                 raise AlarmRuleConfigurationError(
                     f"Некоректні alarm_rules для capability "
@@ -82,6 +83,15 @@ class TelemetryAlarmRuleEngine:
 
             for rule in rules:
                 if not rule.enabled:
+                    continue
+
+                if is_system_alarm_key(rule.rule_key):
+                    # Старий конфлікт не повинен змінювати системну аварію або
+                    # спричиняти нескінченний MQTT retry валідної telemetry.
+                    logger.error(
+                        "Reserved alarm rule skipped: device_id=%s capability_id=%s rule_key=%s",
+                        device_id, assignment.capability_id, rule.rule_key,
+                    )
                     continue
 
                 if rule.rule_key in seen_keys:

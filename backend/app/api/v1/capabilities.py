@@ -4,6 +4,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
+from app.alarm_keys import ReservedAlarmRuleKeyError
 from app.db import get_db_session
 from app.schemas.capability import (
     CapabilityCreate,
@@ -150,6 +151,8 @@ def assign_capability(
             status_code=status.HTTP_409_CONFLICT,
             detail="Capability уже прив'язаний до цього пристрою",
         ) from exc
+    except ReservedAlarmRuleKeyError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
     except DeviceAlarmRulesConflictError as exc:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -202,6 +205,8 @@ def update_device_capability(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Capability assignment не знайдено",
         ) from exc
+    except ReservedAlarmRuleKeyError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
     except DeviceAlarmRulesConflictError as exc:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
