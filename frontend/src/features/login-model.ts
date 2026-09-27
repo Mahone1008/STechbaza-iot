@@ -25,6 +25,27 @@ export type LoginErrorPresentation = Readonly<{
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/u;
 const MAX_EMAIL_LENGTH = 254;
 const MAX_PASSWORD_LENGTH = 128;
+const DEFAULT_LOGIN_DESTINATION = "/devices";
+const ALLOWED_RETURN_PATHS = ["/devices", "/alarms", "/ui-kit"] as const;
+
+export function safeLoginReturnTo(value: string | null | undefined): string {
+  if (!value || !value.startsWith("/") || value.startsWith("//") || value.includes("\\")) {
+    return DEFAULT_LOGIN_DESTINATION;
+  }
+
+  try {
+    const url = new URL(value, "http://kerumo.local");
+    if (url.origin !== "http://kerumo.local" || url.pathname === "/login") {
+      return DEFAULT_LOGIN_DESTINATION;
+    }
+    const allowed = ALLOWED_RETURN_PATHS.some(
+      (prefix) => url.pathname === prefix || url.pathname.startsWith(`${prefix}/`),
+    );
+    return allowed ? `${url.pathname}${url.search}${url.hash}` : DEFAULT_LOGIN_DESTINATION;
+  } catch {
+    return DEFAULT_LOGIN_DESTINATION;
+  }
+}
 
 export function validateLoginForm(values: LoginFormValues): LoginValidationResult {
   const normalizedEmail = values.email.trim().toLowerCase();

@@ -12,6 +12,7 @@ on:
       - 'scripts/check-stage9-op4.ps1'
       - 'scripts/check-stage10-op1.ps1'
       - 'scripts/check-stage10-op2.ps1'
+      - 'scripts/check-stage10-op3.ps1'
       - '.github/workflows/frontend-bootstrap.yml'
   workflow_dispatch:
 
@@ -113,13 +114,18 @@ jobs:
       - name: Prepare masked live-auth environment
         shell: bash
         run: |
-          password="$(grep '^DEMO_OWNER_PASSWORD=' .env.demo | cut -d= -f2-)"
-          test -n "$password"
-          echo "::add-mask::$password"
+          owner_password="$(grep '^DEMO_OWNER_PASSWORD=' .env.demo | cut -d= -f2-)"
+          viewer_password="$(grep '^DEMO_VIEWER_PASSWORD=' .env.demo | cut -d= -f2-)"
+          test -n "$owner_password"
+          test -n "$viewer_password"
+          echo "::add-mask::$owner_password"
+          echo "::add-mask::$viewer_password"
           echo "KERUMO_API_BASE_URL=http://127.0.0.1:8001" >> "$GITHUB_ENV"
           echo "KERUMO_DEMO_EMAIL=owner@techbaza-demo.example.com" >> "$GITHUB_ENV"
-          echo "KERUMO_DEMO_PASSWORD=$password" >> "$GITHUB_ENV"
-      - name: Real browser auth and session checks
+          echo "KERUMO_DEMO_PASSWORD=$owner_password" >> "$GITHUB_ENV"
+          echo "KERUMO_VIEWER_EMAIL=viewer@techbaza-demo.example.com" >> "$GITHUB_ENV"
+          echo "KERUMO_VIEWER_PASSWORD=$viewer_password" >> "$GITHUB_ENV"
+      - name: Real browser auth, session and permission checks
         working-directory: frontend
         run: npm run test:browser:live
       - name: Upload live-auth browser report

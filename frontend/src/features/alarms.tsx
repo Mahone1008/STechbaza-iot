@@ -1,3 +1,6 @@
+"use client";
+
+import { useAccessContext } from "@/features/access-context";
 import { alarms, type AlarmSeverity } from "@/lib/demo-data";
 import { Button, PageHeader, SelectField, StatusBadge, type StatusTone } from "@/components/ui";
 
@@ -14,13 +17,16 @@ const severityLabel: Record<AlarmSeverity, string> = {
 };
 
 export function AlarmList() {
+  const { snapshot } = useAccessContext();
+  const organizationName = snapshot.status === "ready" ? snapshot.activeOrganization.name : "Організація";
+
   return (
     <>
       <PageHeader
-        eyebrow="Організація · АгроПром Північ"
+        eyebrow={`Організація · ${organizationName}`}
         title="Аварії та інциденти"
-        description="Статус інциденту, його підтвердження та фактичне відновлення показуються окремо."
-        actions={<Button variant="secondary" disabled title="Експорт не входить у 9.2">Експортувати</Button>}
+        description="Статус інциденту, його підтвердження та фактичне відновлення показуються окремо. Дані інцидентів поки демонстраційні."
+        actions={<Button variant="secondary" disabled title="Експорт не входить у поточний frontend release">Експортувати</Button>}
       />
 
       <div className="toolbar">

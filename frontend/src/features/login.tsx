@@ -8,6 +8,7 @@ import { Button, TextField } from "@/components/ui";
 import { useAuthSession } from "@/features/auth-session";
 import {
   loginErrorPresentation,
+  safeLoginReturnTo,
   validateLoginForm,
   type LoginFieldErrors,
 } from "@/features/login-model";
@@ -23,6 +24,11 @@ function withoutFieldError(errors: LoginFieldErrors, field: keyof LoginFieldErro
   const next: { email?: string; password?: string } = { ...errors };
   delete next[field];
   return next;
+}
+
+function currentLoginDestination(): string {
+  if (typeof window === "undefined") return "/devices";
+  return safeLoginReturnTo(new URLSearchParams(window.location.search).get("returnTo"));
 }
 
 export function LoginPanel() {
@@ -42,7 +48,7 @@ export function LoginPanel() {
   useEffect(() => () => abortControllerRef.current?.abort(), []);
 
   useEffect(() => {
-    if (session.status === "authenticated") router.replace("/devices");
+    if (session.status === "authenticated") router.replace(currentLoginDestination());
   }, [router, session.status]);
 
   useEffect(() => {
@@ -91,7 +97,7 @@ export function LoginPanel() {
         controller.signal,
       );
       setPassword("");
-      router.replace("/devices");
+      router.replace(currentLoginDestination());
     } catch (error) {
       if (isApiError(error) && error.kind === "aborted") return;
 

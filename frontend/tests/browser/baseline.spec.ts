@@ -1,44 +1,22 @@
 import { expect, test } from "@playwright/test";
 
-const REFRESH_URL = "http://127.0.0.1:8001/api/v1/auth/browser/refresh";
-const FRONTEND_ORIGIN = "http://127.0.0.1:3000";
+import { mockAuthenticatedWorkspace } from "./auth-fixtures";
 
-const corsHeaders = {
-  "access-control-allow-origin": FRONTEND_ORIGIN,
-  "access-control-allow-credentials": "true",
-  "access-control-allow-methods": "POST, OPTIONS",
-  "access-control-allow-headers": "content-type, x-techbaza-csrf",
-  vary: "Origin",
-};
+test.beforeEach(async ({ page }) => mockAuthenticatedWorkspace(page));
 
-test.beforeEach(async ({ page }) => {
-  await page.route(REFRESH_URL, async (route) => {
-    if (route.request().method() === "OPTIONS") {
-      await route.fulfill({ status: 204, headers: corsHeaders });
-      return;
-    }
-    await route.fulfill({
-      status: 401,
-      headers: { ...corsHeaders, "content-type": "application/json" },
-      body: JSON.stringify({ detail: "Браузерна сесія недійсна або завершилася" }),
-    });
-  });
-});
-
-test("core routes render and device navigation remains understandable", async ({ page }) => {
-  await page.goto("/login");
-  await expect(page.getByRole("heading", { name: "Вхід до кабінету" })).toBeVisible();
-  await expect(page.getByLabel("Email")).toBeVisible();
-  await expect(page.getByLabel("Пароль")).toBeVisible();
-
+test("core routes render only after profile, organization and permissions resolve", async ({ page }) => {
   await page.goto("/devices");
   await expect(page.getByRole("heading", { name: "Пристрої" })).toBeVisible();
+  await expect(page.getByText("DEMO: клієнт A").first()).toBeVisible();
+  await expect(page.getByText("owner@example.com")).toBeVisible();
+  await expect(page.getByText(/Owner · Власник/u)).toBeVisible();
+
   await page.getByRole("link", { name: "Насосна станція №1" }).click();
   await expect(page.getByRole("heading", { name: "Насосна станція №1" })).toBeVisible();
-  await expect(page.getByText("Demo data · guard у 10.3")).toBeVisible();
+  await expect(page.getByText("Сесія відновлена · demo data")).toBeVisible();
 });
 
-test("critical demo action requires confirmation and never claims physical success", async ({ page }) => {
+test("critical demo action requires permission and confirmation and never claims physical success", async ({ page }) => {
   await page.goto("/devices/north-pump");
   await page.getByRole("button", { name: "Запустити" }).click();
 
@@ -51,7 +29,7 @@ test("critical demo action requires confirmation and never claims physical succe
   await expect(dialog).not.toBeVisible();
 });
 
-test("API panel distinguishes success from a network failure", async ({ page }) => {
+test("API panel distinguishes success from a network failure inside an authorized route", async ({ page }) => {
   await page.route("http://127.0.0.1:8001/health", async (route) => {
     await route.fulfill({
       status: 200,
@@ -72,7 +50,7 @@ test("API panel distinguishes success from a network failure", async ({ page }) 
   await expect(page.getByText(/Backend недоступний/)).toBeVisible();
 });
 
-test("mobile navigation keeps the primary route visible", async ({ page }) => {
+test("mobile navigation keeps only permitted primary routes visible", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/devices/north-pump");
 

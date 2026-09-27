@@ -1,0 +1,76 @@
+.access-gate {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  background:
+    radial-gradient(circle at 18% 20%, rgb(20 127 121 / 8%), transparent 34%),
+    var(--background);
+  padding: 24px;
+}
+
+.access-gate-card {
+  display: grid;
+  width: min(100%, 520px);
+  justify-items: center;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-md);
+  padding: 34px;
+  text-align: center;
+}
+
+.access-gate-brand {
+  color: var(--brand);
+  font-size: 14px;
+  font-weight: 850;
+  letter-spacing: 0.12em;
+}
+
+.access-gate-mark {
+  width: 38px;
+  height: 38px;
+  margin: 24px 0 18px;
+  border: 5px solid var(--brand-soft);
+  border-top-color: var(--brand);
+  border-radius: 50%;
+  animation: access-gate-spin 900ms linear infinite;
+}
+
+.access-gate-mark-warning {
+  border-color: var(--warning-soft);
+  border-top-color: var(--warning);
+}
+
+.access-gate-mark-danger {
+  border-color: var(--danger-soft);
+  border-top-color: var(--danger);
+  animation: none;
+}
+
+.access-gate-card h1 {
+  margin-bottom: 10px;
+  font-size: 27px;
+}
+
+.access-gate-card p {
+  max-width: 430px;
+  margin-bottom: 0;
+  color: var(--text-secondary);
+}
+
+.access-gate-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+@keyframes access-gate-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .access-gate-mark { animation: none; }
+}

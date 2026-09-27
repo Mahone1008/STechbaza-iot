@@ -6,6 +6,7 @@ import { useMemo, useState } from "react";
 
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Button, Card, DataTable, MetricCard, PageHeader, StatusBadge, TextField, type StatusTone, type TableColumn } from "@/components/ui";
+import { useAccessContext } from "@/features/access-context";
 import { devices, type AvailabilityState, type DeviceDetail, type DeviceMetric, type DeviceSummary } from "@/lib/demo-data";
 
 const availabilityTone: Record<AvailabilityState, StatusTone> = {
@@ -33,12 +34,15 @@ function qualityBadge(metric: DeviceMetric) {
 }
 
 export function DeviceList() {
+  const { snapshot, hasPermission } = useAccessContext();
   const [query, setQuery] = useState("");
   const normalized = query.trim().toLocaleLowerCase("uk");
   const visibleDevices = useMemo(
     () => normalized ? devices.filter((device) => [device.name, device.site, device.uid].some((value) => value.toLocaleLowerCase("uk").includes(normalized))) : devices,
     [normalized],
   );
+  const organizationName = snapshot.status === "ready" ? snapshot.activeOrganization.name : "Організація";
+  const canCreateDevice = hasPermission("device.create");
 
   const columns: readonly TableColumn<DeviceSummary>[] = [
     {
@@ -70,10 +74,18 @@ export function DeviceList() {
   return (
     <>
       <PageHeader
-        eyebrow="Організація · АгроПром Північ"
+        eyebrow={`Організація · ${organizationName}`}
         title="Пристрої"
-        description="Стан парку без завантаження повної телеметрії кожного контролера."
-        actions={<Button variant="primary" disabled title="Provisioning буде окремою функцією">Додати пристрій</Button>}
+        description="Стан парку без завантаження повної телеметрії кожного контролера. Дані пристроїв поки демонстраційні."
+        actions={(
+          <Button
+            variant="primary"
+            disabled
+            title={canCreateDevice ? "Provisioning буде окремою функцією" : "Поточна роль не має permission device.create"}
+          >
+            Додати пристрій
+          </Button>
+        )}
       />
       <section className="summary-grid" aria-label="Зведення парку">
         <article className="card summary-card"><span className="summary-label">Усього пристроїв</span><div className="summary-value"><strong>{devices.length}</strong><span>у 4 об’єктах</span></div></article>
@@ -92,11 +104,11 @@ export function DeviceList() {
 
 type PendingAction = "start" | "stop" | "frequency" | null;
 
-function ControlPanel({ device }: { device: DeviceDetail }) {
+function ControlPanel({ device, canExecute }: { device: DeviceDetail; canExecute: boolean }) {
   const [frequency, setFrequency] = useState("42.5");
   const [pendingAction, setPendingAction] = useState<PendingAction>(null);
   const [localMessage, setLocalMessage] = useState("Команди ще не надсилалися в цій demo-сесії.");
-  const controlsEnabled = device.availability === "online" && device.mode === "Дистанційний";
+  const controlsEnabled = canExecute && device.availability === "online" && device.mode === "Дистанційний";
   const dialogCopy = {
     start: { title: "Підтвердити запуск", description: `Контролер ${device.name} отримає команду запуску після підключення API в Етапі 12.`, confirm: "Підтвердити запуск", variant: "primary" as const },
     stop: { title: "Підтвердити зупинку", description: "Мережева Stop-команда не є фізичним аварійним відключенням.", confirm: "Підтвердити Stop", variant: "danger" as const },
@@ -104,18 +116,26 @@ function ControlPanel({ device }: { device: DeviceDetail }) {
   };
   const activeCopy = pendingAction ? dialogCopy[pendingAction] : null;
 
+  const blockingReason = !canExecute
+    ? "Поточна роль не має permission command.execute."
+    : device.availability !== "online"
+      ? "Пристрій має бути online."
+      : device.mode !== "Дистанційний"
+        ? "Потрібен дистанційний режим."
+        : null;
+
   return (
-    <Card title="Керування" description="Критичні дії відокремлені від телеметрії.">
+    <Card title="Керування" description="Критичні дії відокремлені від телеметрії, а permission надає backend.">
       <div className="control-panel">
         <div className="control-state">
           <div><strong>{device.running ? "Насос працює" : "Насос зупинений"}</strong><div className="table-secondary">Фактичний state із останнього пакета</div></div>
           <StatusBadge tone={device.mode === "Дистанційний" ? "success" : "warning"}>{device.mode}</StatusBadge>
         </div>
-        {!controlsEnabled ? <div className="notice notice-warning">Дистанційні controls заблоковані: потрібні online і дистанційний режим.</div> : null}
+        {blockingReason ? <div className="notice notice-warning">Дистанційні controls заблоковані: {blockingReason}</div> : null}
         <div className="control-actions"><Button variant="primary" disabled={!controlsEnabled} onClick={() => setPendingAction("start")}>Запустити</Button><Button variant="danger" disabled={!controlsEnabled} onClick={() => setPendingAction("stop")}>Зупинити</Button></div>
         <div className="inline-fields"><TextField label="Задана частота, Hz" inputMode="decimal" value={frequency} onChange={(event) => setFrequency(event.target.value)} disabled={!controlsEnabled} /><Button variant="secondary" disabled={!controlsEnabled} onClick={() => setPendingAction("frequency")}>Застосувати</Button></div>
         <div className="notice notice-info">{localMessage}</div>
-        <p className="help-copy">У 9.2 це локальна демонстрація компонентів. HTTP/MQTT команда не створюється.</p>
+        <p className="help-copy">До Етапу 12 це локальна демонстрація компонентів. HTTP/MQTT команда не створюється.</p>
       </div>
       {activeCopy ? (
         <ConfirmDialog open title={activeCopy.title} description={activeCopy.description} confirmLabel={activeCopy.confirm} confirmVariant={activeCopy.variant} onClose={() => setPendingAction(null)} onConfirm={() => setLocalMessage("Demo intent підтверджено локально. Команду не надіслано.")}>
@@ -141,9 +161,13 @@ function TrendChart() {
 }
 
 export function DeviceDashboard({ device }: { device: DeviceDetail }) {
+  const { hasPermission } = useAccessContext();
+  const canExecute = hasPermission("command.execute");
+  const canManageCapabilities = hasPermission("capability.manage");
+
   return (
     <>
-      <PageHeader eyebrow={`${device.site} · ${device.uid}`} title={device.name} description="Огляд стану, показників, встановлених модулів і останньої команди." actions={<><StatusBadge tone={availabilityTone[device.availability]}>{availabilityLabel[device.availability]}</StatusBadge><Button variant="secondary" disabled title="Capability management буде підключено пізніше">Налаштування</Button></>} />
+      <PageHeader eyebrow={`${device.site} · ${device.uid}`} title={device.name} description="Огляд стану, показників, встановлених модулів і останньої команди." actions={<><StatusBadge tone={availabilityTone[device.availability]}>{availabilityLabel[device.availability]}</StatusBadge><Button variant="secondary" disabled title={canManageCapabilities ? "Capability management буде підключено пізніше" : "Поточна роль не має permission capability.manage"}>Налаштування</Button></>} />
       <div className="status-strip" aria-label="Поточний стан пристрою">
         <div className="status-cell"><span className="status-cell-label">Насос</span><span className="status-cell-value">{device.running ? "Працює" : "Зупинений"}</span></div>
         <div className="status-cell"><span className="status-cell-label">Режим</span><span className="status-cell-value">{device.mode}</span></div>
@@ -155,13 +179,13 @@ export function DeviceDashboard({ device }: { device: DeviceDetail }) {
       </section>
       <div className="dashboard-grid">
         <div className="dashboard-column">
-          <Card title="Історія показника" description="Missing не домальовується як нуль; live API з’явиться в 9.3/12.1."><TrendChart /></Card>
+          <Card title="Історія показника" description="Missing не домальовується як нуль; live API з’явиться в Етапі 12.1."><TrendChart /></Card>
           <Card title="Активне попередження" description="Acknowledge не означає, що фізична причина усунена.">
             {device.alarmCount ? <div className="notice notice-warning">Низький тиск: останнє значення наближалося до порогу 2.5 bar. Перевірте водозабір і магістраль.</div> : <div className="notice">Активних попереджень для цього Device немає.</div>}
           </Card>
         </div>
         <div className="dashboard-column">
-          <ControlPanel device={device} />
+          <ControlPanel device={device} canExecute={canExecute} />
           <Card title="Встановлені модулі" description="Склад визначається enabled assignments конкретного Device."><div className="module-chips">{device.modules.map((module) => <span className="module-chip" key={module}>{module}</span>)}</div></Card>
           <Card title="Остання команда" description="ACK і фінальний Result показуються окремо.">
             <div className="timeline">{[["Створена", "queued", "14:36:01"], ["Опублікована", "published", "14:36:02"], ["Прийнята контролером", "acknowledged", "14:36:02"], ["Виконана", "succeeded", "14:36:04"]].map(([label, code, time]) => <div className="timeline-step" key={code}><span className="timeline-node" aria-hidden="true" /><span className="timeline-copy"><strong>{label}</strong><span>{code}</span></span><span className="timeline-time">{time}</span></div>)}</div>

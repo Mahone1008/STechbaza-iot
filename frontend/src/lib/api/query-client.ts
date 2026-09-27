@@ -43,3 +43,9 @@ export async function clearSessionCache(queryClient: QueryClient, scope: Session
   await queryClient.cancelQueries({ queryKey });
   queryClient.removeQueries({ queryKey });
 }
+
+export async function clearAllSessionCaches(queryClient: QueryClient): Promise<void> {
+  const queryKey = apiQueryKeys.allSessionsRoot();
+  await queryClient.cancelQueries({ queryKey });
+  queryClient.removeQueries({ queryKey });
+}

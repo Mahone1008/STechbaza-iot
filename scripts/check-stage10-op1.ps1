@@ -95,13 +95,17 @@ if ($health.status -ne 'ok' -or $health.version -ne '0.38.0') {
 }
 
 $demoEmail = 'owner@techbaza-demo.example.com'
+$viewerEmail = 'viewer@techbaza-demo.example.com'
 $demoPassword = Read-EnvValue -Path $demoEnv -Name 'DEMO_OWNER_PASSWORD'
+$viewerPassword = Read-EnvValue -Path $demoEnv -Name 'DEMO_VIEWER_PASSWORD'
 $previousEnvironment = @{}
 
 try {
     Set-TemporaryEnvironment -Name 'KERUMO_API_BASE_URL' -Value 'http://127.0.0.1:8001' -Previous $previousEnvironment
     Set-TemporaryEnvironment -Name 'KERUMO_DEMO_EMAIL' -Value $demoEmail -Previous $previousEnvironment
     Set-TemporaryEnvironment -Name 'KERUMO_DEMO_PASSWORD' -Value $demoPassword -Previous $previousEnvironment
+    Set-TemporaryEnvironment -Name 'KERUMO_VIEWER_EMAIL' -Value $viewerEmail -Previous $previousEnvironment
+    Set-TemporaryEnvironment -Name 'KERUMO_VIEWER_PASSWORD' -Value $viewerPassword -Previous $previousEnvironment
 
     Set-Location $frontend
     Invoke-Npm -Arguments @('run', 'test:browser:live')
@@ -109,11 +113,13 @@ try {
 finally {
     Restore-TemporaryEnvironment -Previous $previousEnvironment
     $demoPassword = $null
+    $viewerPassword = $null
 }
 
-Write-Host 'PASS: Stage 10.1 real browser login, CSRF, HttpOnly cookie, memory-only access token and auth error states.' -ForegroundColor Green
-Write-Host "Demo login email: $demoEmail" -ForegroundColor Cyan
-Write-Host 'Demo password was read only for the automated test and was not printed.' -ForegroundColor DarkGray
+Write-Host 'PASS: Stage 10.1+ authentication, HttpOnly session and real role checks.' -ForegroundColor Green
+Write-Host "Demo owner email: $demoEmail" -ForegroundColor Cyan
+Write-Host "Demo viewer email: $viewerEmail" -ForegroundColor Cyan
+Write-Host 'Demo passwords were read only for automated tests and were not printed.' -ForegroundColor DarkGray
 
 if ($Start) {
     Set-Location $frontend

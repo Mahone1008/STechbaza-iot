@@ -2,15 +2,25 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 
+import { useAccessContext, type ReadyAccessSnapshot } from "@/features/access-context";
 import { useAuthSession, type AuthSessionSnapshot } from "@/features/auth-session";
+import { organizationRoleLabel, type PermissionCode } from "@/lib/api";
 
-const navigation = [
-  { href: "/devices", label: "Пристрої", icon: "devices" as const },
-  { href: "/alarms", label: "Аварії", icon: "alarm" as const, count: 2 },
-  { href: "/ui-kit", label: "Компоненти", icon: "components" as const },
-] as const;
+type NavigationItem = Readonly<{
+  href: string;
+  label: string;
+  icon: "devices" | "alarm" | "components";
+  permission: PermissionCode;
+  count?: number;
+}>;
+
+const navigation: readonly NavigationItem[] = [
+  { href: "/devices", label: "Пристрої", icon: "devices", permission: "device.read" },
+  { href: "/alarms", label: "Аварії", icon: "alarm", permission: "alarm.read", count: 2 },
+  { href: "/ui-kit", label: "Компоненти", icon: "components", permission: "capability.read" },
+];
 
 function Brand({ compact = false }: { compact?: boolean }) {
   return (
@@ -77,60 +87,61 @@ function isActivePath(pathname: string, href: string) {
 
 function initialsFor(value: string): string {
   const localPart = value.split("@")[0] ?? value;
-  const chunks = localPart.split(/[._-]+/u).filter(Boolean);
+  const chunks = localPart.split(/[._\-\s]+/u).filter(Boolean);
   return chunks.slice(0, 2).map((chunk) => chunk[0]?.toUpperCase() ?? "").join("") || "К";
 }
 
-function sessionPresentation(session: AuthSessionSnapshot): Readonly<{
+function routeLabel(pathname: string): string {
+  if (pathname === "/devices") return "Пристрої";
+  if (pathname.startsWith("/devices/")) return "Панель пристрою";
+  if (pathname.startsWith("/alarms")) return "Аварії та інциденти";
+  if (pathname.startsWith("/ui-kit")) return "Базові компоненти";
+  return "Кабінет";
+}
+
+function sessionPresentation(
+  session: AuthSessionSnapshot,
+  ready: ReadyAccessSnapshot,
+): Readonly<{
   userName: string;
   userStatus: string;
   note: string;
   noteClass: string;
 }> {
-  if (session.status === "authenticated") {
-    const restored = session.source !== "login";
-    return {
-      userName: session.email ?? "Сесію відновлено",
-      userStatus: session.refreshState === "degraded"
-        ? "Access ще чинний · refresh очікує повтору"
-        : restored
-          ? "Сесію відновлено · access у пам’яті"
-          : "Вхід підтверджено · access у пам’яті",
-      note: restored ? "Сесія відновлена · demo data" : "Сесія підтверджена · demo data",
-      noteClass: session.refreshState === "degraded" ? " prototype-note-warning" : " prototype-note-auth",
-    };
-  }
-
-  if (session.status === "restoring") {
-    return {
-      userName: "Перевірка сесії",
-      userStatus: "Читаємо лише HttpOnly cookie через backend",
-      note: "Відновлюємо сесію…",
-      noteClass: " prototype-note-restoring",
-    };
-  }
-
-  if (session.status === "unavailable") {
-    return {
-      userName: "Сесію не перевірено",
-      userStatus: "Backend тимчасово недоступний",
-      note: "Сесію не перевірено · demo data",
-      noteClass: " prototype-note-warning",
-    };
-  }
+  const restored = session.status === "authenticated" && session.source !== "login";
+  const role = organizationRoleLabel(
+    ready.access.organization_role,
+    ready.profile.platform_role,
+  );
 
   return {
-    userName: "Демо-контекст",
-    userStatus: "Без route guard до операції 10.3",
-    note: "Demo data · guard у 10.3",
-    noteClass: "",
+    userName: ready.profile.email,
+    userStatus: `${ready.profile.display_name} · ${role}`,
+    note: restored ? "Сесія відновлена · demo data" : "Сесія підтверджена · demo data",
+    noteClass: session.status === "authenticated" && session.refreshState === "degraded"
+      ? " prototype-note-warning"
+      : " prototype-note-auth",
   };
 }
 
 export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
   const pathname = usePathname();
   const { session } = useAuthSession();
-  const presentation = sessionPresentation(session);
+  const { snapshot, hasPermission } = useAccessContext();
+
+  if (snapshot.status !== "ready") return null;
+
+  const presentation = sessionPresentation(session, snapshot);
+  const visibleNavigation = navigation.filter((item) => hasPermission(item.permission));
+  const mobileNavigation = [
+    { href: "/devices/north-pump", label: "Панель", icon: "components" as const, permission: "device.read" as const },
+    { href: "/devices", label: "Пристрої", icon: "devices" as const, permission: "device.read" as const },
+    { href: "/alarms", label: "Аварії", icon: "alarm" as const, permission: "alarm.read" as const },
+    { href: "/ui-kit", label: "Ще", icon: "more" as const, permission: "capability.read" as const },
+  ].filter((item) => hasPermission(item.permission));
+  const mobileStyle: CSSProperties = {
+    gridTemplateColumns: `repeat(${Math.max(1, mobileNavigation.length)}, minmax(0, 1fr))`,
+  };
 
   return (
     <div className="app-shell">
@@ -140,20 +151,22 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
         <div className="sidebar-head"><Brand /></div>
         <div className="sidebar-context">
           <span className="context-label">Організація</span>
-          <span className="context-value">АгроПром Північ<Icon name="chevron" className="nav-icon" /></span>
+          <span className="context-value">{snapshot.activeOrganization.name}<Icon name="chevron" className="nav-icon" /></span>
         </div>
         <nav className="sidebar-nav">
-          {navigation.map((item) => {
+          {visibleNavigation.map((item) => {
             const active = isActivePath(pathname, item.href);
             return (
               <Link className={`nav-link${active ? " nav-link-active" : ""}`} href={item.href} key={item.href} aria-current={active ? "page" : undefined}>
                 <Icon name={item.icon} />
                 {item.label}
-                {"count" in item ? <span className="nav-count">{item.count}</span> : null}
+                {item.count !== undefined ? <span className="nav-count">{item.count}</span> : null}
               </Link>
             );
           })}
-          <span className="nav-link-disabled" aria-disabled="true"><Icon name="components" />Повідомлення</span>
+          {hasPermission("notification.read") ? (
+            <span className="nav-link-disabled" aria-disabled="true"><Icon name="components" />Повідомлення</span>
+          ) : null}
         </nav>
         <div className="sidebar-footer">
           <span className="avatar" aria-hidden="true">{initialsFor(presentation.userName)}</span>
@@ -165,7 +178,7 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
       <section className="workspace">
         <header className="topbar">
           <span className="topbar-brand"><Brand compact /></span>
-          <div className="topbar-context"><span>АгроПром Північ</span><span aria-hidden="true">/</span><strong>Насосна станція №1</strong></div>
+          <div className="topbar-context"><span>{snapshot.activeOrganization.name}</span><span aria-hidden="true">/</span><strong>{routeLabel(pathname)}</strong></div>
           <span className={`prototype-note${presentation.noteClass}`} role="status">
             <span className="prototype-dot" aria-hidden="true" />
             {presentation.note}
@@ -174,13 +187,8 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
         <main className="workspace-content" id="main-content">{children}</main>
       </section>
 
-      <nav className="mobile-nav" aria-label="Мобільна навігація">
-        {([
-          { href: "/devices/north-pump", label: "Панель", icon: "components" },
-          { href: "/devices", label: "Пристрої", icon: "devices" },
-          { href: "/alarms", label: "Аварії", icon: "alarm" },
-          { href: "/ui-kit", label: "Ще", icon: "more" },
-        ] as const).map((item) => {
+      <nav className="mobile-nav" aria-label="Мобільна навігація" style={mobileStyle}>
+        {mobileNavigation.map((item) => {
           const active = item.href === "/devices" ? pathname === "/devices" : isActivePath(pathname, item.href);
           return (
             <Link href={item.href} key={item.href} data-active={active ? "true" : "false"}>

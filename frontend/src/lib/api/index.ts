@@ -14,6 +14,26 @@ export {
   isApiError,
   type ApiErrorKind,
 } from "./errors";
+export {
+  isPermissionCode,
+  organizationRoleLabel,
+  parseCurrentUserResponse,
+  parseOrganizationAccessResponse,
+  parseOrganizationListResponse,
+  permissionCodes,
+  type CurrentUserResponse,
+  type OrganizationAccessResponse,
+  type OrganizationListResponse,
+  type OrganizationResponse,
+  type OrganizationRole,
+  type PermissionCode,
+  type PlatformRole,
+} from "./access";
 export { apiQueryKeys, type SessionScope } from "./query-keys";
-export { clearSessionCache, createKerumoQueryClient, shouldRetryApiQuery } from "./query-client";
+export {
+  clearAllSessionCaches,
+  clearSessionCache,
+  createKerumoQueryClient,
+  shouldRetryApiQuery,
+} from "./query-client";
 export type { paths, components, operations } from "./schema";

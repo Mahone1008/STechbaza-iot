@@ -10,7 +10,9 @@ function sessionRoot(scope: SessionScope) {
 export const apiQueryKeys = {
   publicRoot: () => ["kerumo", "public"] as const,
   health: () => ["kerumo", "public", "health"] as const,
+  allSessionsRoot: () => ["kerumo", "session"] as const,
   sessionRoot,
+  currentUser: (scope: SessionScope) => [...sessionRoot(scope), "auth", "me"] as const,
   organizations: (scope: SessionScope) => [...sessionRoot(scope), "organizations"] as const,
   organizationAccess: (scope: SessionScope, organizationId: string) =>
     [...sessionRoot(scope), "organizations", organizationId, "access"] as const,

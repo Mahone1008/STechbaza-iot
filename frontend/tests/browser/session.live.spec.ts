@@ -19,17 +19,23 @@ async function login(page: Page) {
   await page.getByRole("button", { name: "Увійти" }).click();
   await expect(page).toHaveURL(/\/devices$/u);
   await expect(page.getByText("Сесія підтверджена · demo data")).toBeVisible();
+  await expect(page.getByText("DEMO: клієнт A").first()).toBeVisible();
 }
 
-test("real HttpOnly session is restored after reload and issues a usable access token", async ({ page }) => {
+test("real HttpOnly session restores profile, tenant and permissions after reload", async ({ page }) => {
   await login(page);
 
   const refreshResponsePromise = page.waitForResponse(
     (response) => response.url() === REFRESH_URL && response.request().method() === "POST",
   );
+  const meResponsePromise = page.waitForResponse(
+    (response) => response.url() === `${API_BASE_URL}/api/v1/auth/me`
+      && response.request().method() === "GET",
+  );
   await page.reload();
-  const refreshResponse = await refreshResponsePromise;
+  const [refreshResponse, meResponse] = await Promise.all([refreshResponsePromise, meResponsePromise]);
   expect(refreshResponse.status()).toBe(200);
+  expect(meResponse.status()).toBe(200);
 
   const payload = await refreshResponse.json() as {
     access_token?: unknown;
@@ -43,12 +49,11 @@ test("real HttpOnly session is restored after reload and issues a usable access 
   expect(Number(payload.session_expires_in)).toBeGreaterThan(0);
 
   await expect(page.getByText("Сесія відновлена · demo data")).toBeVisible();
+  await expect(page.getByText(DEMO_EMAIL)).toBeVisible();
+  await expect(page.getByText("DEMO: клієнт A").first()).toBeVisible();
+  await expect(page.getByText(/DEMO: owner · Власник/u)).toBeVisible();
 
   const accessToken = String(payload.access_token);
-  const meResponse = await page.request.get(`${API_BASE_URL}/api/v1/auth/me`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
-  expect(meResponse.status()).toBe(200);
   const mePayload = await meResponse.json() as { email?: unknown; is_active?: unknown };
   expect(mePayload.email).toBe(DEMO_EMAIL);
   expect(mePayload.is_active).toBe(true);
@@ -64,7 +69,7 @@ test("real HttpOnly session is restored after reload and issues a usable access 
   expect(JSON.stringify(storage)).not.toContain(accessToken);
 });
 
-test("real concurrent tabs serialize refresh rotation and both recover", async ({ page, context }) => {
+test("real concurrent tabs serialize refresh rotation and both resolve access context", async ({ page, context }) => {
   await login(page);
   await page.close();
 
@@ -80,6 +85,10 @@ test("real concurrent tabs serialize refresh rotation and both recover", async (
 
   await expect(first.getByText("Сесія відновлена · demo data")).toBeVisible();
   await expect(second.getByText("Сесія відновлена · demo data")).toBeVisible();
+  await expect(first.getByText(DEMO_EMAIL)).toBeVisible();
+  await expect(second.getByText(DEMO_EMAIL)).toBeVisible();
+  await expect(first.getByText("DEMO: клієнт A").first()).toBeVisible();
+  await expect(second.getByText("DEMO: клієнт A").first()).toBeVisible();
   expect(refreshRequests).toBe(1);
 
   context.off("request", countRefresh);

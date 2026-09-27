@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { loginErrorPresentation, validateLoginForm } from "@/features/login-model";
+import { loginErrorPresentation, safeLoginReturnTo, validateLoginForm } from "@/features/login-model";
 import { ApiError } from "@/lib/api";
 
 function apiError(kind: ConstructorParameters<typeof ApiError>[1]["kind"], status: number | null, retryAfterSeconds: number | null = null) {
@@ -45,5 +45,14 @@ describe("login form model", () => {
     const network = loginErrorPresentation(apiError("network", null));
     expect(network.summary).toContain("Backend недоступний");
     expect(network.clearPassword).toBe(false);
+  });
+
+  it("accepts only local protected return paths", () => {
+    expect(safeLoginReturnTo("/alarms")).toBe("/alarms");
+    expect(safeLoginReturnTo("/devices/north-pump?tab=state")).toBe("/devices/north-pump?tab=state");
+    expect(safeLoginReturnTo("//evil.example/path")).toBe("/devices");
+    expect(safeLoginReturnTo("https://evil.example/path")).toBe("/devices");
+    expect(safeLoginReturnTo("/login")).toBe("/devices");
+    expect(safeLoginReturnTo("/admin")).toBe("/devices");
   });
 });
