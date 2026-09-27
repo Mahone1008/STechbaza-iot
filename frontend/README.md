@@ -1,34 +1,64 @@
-# Frontend
+# KERUMO Frontend
 
-Вебінтерфейс KERUMO для клієнтів, сервісних спеціалістів та адміністраторів.
-Внутрішні технічні ідентифікатори TechBaza поки зберігаються для сумісності
-з прийнятим backend; це не змінює зовнішній бренд першого UI.
+Адаптивний web UI для клієнтів, операторів і сервісних спеціалістів KERUMO.
+Внутрішні backend/MQTT ідентифікатори TechBaza поки зберігаються для
+сумісності з прийнятим backend 0.38.0.
 
-Інтерфейс модульний: віджети та controls показуються відповідно до обладнання,
-датчиків і capabilities конкретного Device.
+## Поточний стан
 
-Прийнята основа — backend **0.38.0**, Етап H завершено 5/5.
+- Операція 9.1 закрита: прийняті UX-сценарії та light industrial SaaS напрямок.
+- Операція 9.2 у роботі: створено Next.js/TypeScript strict каркас, design
+  tokens, navigation shell і базові компоненти.
+- Live API adapter ще не підключений — це операція 9.3.
+- Login, показники, пристрої й аварії зараз використовують типізовані demo data.
 
-## Поточна точка
+## Стек
 
-Операцію **9.1** закрито 27.09.2026 після користувацького приймання ревізії 2.
-Погоджено light industrial SaaS visual direction KERUMO, інформаційну
-hierarchy, desktop/mobile layout, ролі, модульність і стани даних/команд.
+- Next.js 16.3.6, App Router;
+- React / React DOM 19.2.8 — версія, яку використовує офіційний шаблон Next.js 16.3.6;
+- TypeScript strict;
+- CSS variables + звичайний CSS без runtime styling dependency;
+- ESLint flat config із `core-web-vitals` і TypeScript rules.
 
-- [прийняті сценарії, карта сторінок, visual system і правила станів](../docs/stage-9-op1-ux-and-mockups.md);
-- [статичний UX-прототип](mockups/stage9-1/index.html);
-- [інструкція локального перегляду](mockups/stage9-1/README.md).
+Node.js: **20.9.0+**. Перевірене локальне/CI оточення — Node.js 22.16.0.
 
-Статус roadmap: **1/24**. Етап 9: **1/4**.
+## Запуск
 
-Статичний preview є артефактом UX-приймання, а не production frontend. Він
-містить demo data, не викликає API і не надсилає команд. Підтримуваний код
-з TypeScript/React, design tokens, accessibility, lint/typecheck і tests
-створюється в наступній операції.
+У папці `frontend`:
 
-**Наступний крок — 9.2: Next.js/TypeScript strict, design system, navigation
-shell і базові компоненти.**
+```powershell
+Copy-Item .env.example .env.local
+npm ci
+npm run dev
+```
 
-[План frontend v1](../docs/frontend-roadmap-v1.md): Етапи 9–14, 24 операції.
-Джерело даних майбутнього UI — чинний FastAPI API; склад віджетів і доступних
-дій визначають modules/channels/permissions.
+Відкрити `http://127.0.0.1:3000`.
+
+Повна перевірка з кореня repository:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-stage9-op2.ps1
+```
+
+Запустити UI після перевірки:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-stage9-op2.ps1 -Start
+```
+
+## Маршрути каркаса
+
+- `/login` — демонстраційна login-форма без backend auth;
+- `/devices` — парк пристроїв;
+- `/devices/north-pump` — модульна Device dashboard;
+- `/alarms` — список інцидентів;
+- `/ui-kit` — primitives і semantic states design system.
+
+## Межі 9.2
+
+Каркас не викликає FastAPI, не читає cookies/tokens і не публікує команди.
+Він не видає demo data за live: у shell постійно показано `Каркас 9.2 · demo data`.
+API base URL винесено до `.env.example`, але adapter і OpenAPI types будуть
+реалізовані в операції 9.3.
+
+UX-макет 9.1 збережено у `mockups/stage9-1/` як історичний acceptance artifact.
