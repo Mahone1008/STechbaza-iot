@@ -14,7 +14,8 @@ Backend **0.38.0** прийнято 27.09.2026 після повного CI та
 Frontend Foundation KERUMO прийнято 27.09.2026:
 
 - Етап 9 завершено **4/4**;
-- frontend roadmap — прийнято **5/24**;
+- Етап 10 завершено **2/4**;
+- frontend roadmap — прийнято **6/24**;
 - Next.js/TypeScript strict foundation;
 - design system і responsive shell;
 - OpenAPI 0.38.0 / 47 paths;
@@ -23,8 +24,8 @@ Frontend Foundation KERUMO прийнято 27.09.2026:
 
 Операцію **10.1 — справжній browser login** прийнято й закрито.
 
-Операцію **10.2 — відновлення browser session** реалізовано й автоматично
-перевірено:
+Операцію **10.2 — відновлення browser session** прийнято й закрито після
+автоматичного CI та локального Windows-приймання:
 
 - F5 recovery через HttpOnly refresh cookie;
 - access token тільки у пам’яті;
@@ -34,10 +35,18 @@ Frontend Foundation KERUMO прийнято 27.09.2026:
 - BroadcastChannel coordination між вкладками;
 - один refresh request для двох concurrent tabs;
 - temporary network failure не прирівнюється до logout;
-- mocked і real Chromium tests — PASS.
+- відкриття `/login` із чинною session автоматично переводить на `/devices`;
+- mocked і real Chromium tests — PASS;
+- локальний status `Сесія відновлена · demo data` підтверджено.
 
-Операція 10.2 очікує локального Windows-приймання й до цього моменту не
-вважається закритою. Permissions/guards і logout заплановано в 10.3–10.4.
+Поточний статус:
+
+```text
+Етап 9: 4/4
+Етап 10: 2/4
+Frontend roadmap: 6/24
+Наступна операція: 10.3 — /auth/me, permissions і route guards
+```
 
 - [Backend: структура й запуск перевірок](backend/README.md).
 - [Frontend: поточна точка й запуск](frontend/README.md).
