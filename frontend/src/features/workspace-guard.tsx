@@ -1,5 +1,6 @@
 "use client";
 
+import type { Route } from "next";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
@@ -16,7 +17,7 @@ function requiredPermission(pathname: string): PermissionCode {
   return "organization.read";
 }
 
-function firstAllowedRoute(permissions: readonly string[]): string | null {
+function firstAllowedRoute(permissions: readonly string[]): Route | null {
   if (permissions.includes("device.read")) return "/devices";
   if (permissions.includes("alarm.read")) return "/alarms";
   if (permissions.includes("capability.read")) return "/ui-kit";
@@ -52,7 +53,7 @@ export function WorkspaceGuard({ children }: Readonly<{ children: ReactNode }>) 
   const router = useRouter();
   const { session, refreshSession } = useAuthSession();
   const { snapshot, retryAccess } = useAccessContext();
-  const loginUrl = `/login?returnTo=${encodeURIComponent(pathname || "/devices")}`;
+  const loginUrl = `/login?returnTo=${encodeURIComponent(pathname || "/devices")}` as Route;
 
   useEffect(() => {
     if (session.status === "anonymous") router.replace(loginUrl);
