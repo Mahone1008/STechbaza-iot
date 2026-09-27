@@ -12,8 +12,8 @@
 | H-01 | Некоректні MQTT packets не блокують потік; transient failure зберігає retry | Закрито 27.09.2026 — CI та Windows-приймання PASS |
 | H-02 | Справедливий відбір і повторна доставка команд | Закрито 27.09.2026 — CI та Windows-приймання PASS |
 | H-03 | Розділення системних та користувацьких ключів аварій | Закрито 27.09.2026 — CI та Windows-приймання PASS |
-| H-04 | Узгодження module/channel контракту перших екранів | Заплановано |
-| H-05 | Повна регресія та фіксація прийнятої версії | Заплановано |
+| H-04 | Узгодження module/channel контракту перших екранів | Реалізовано; спільне CI та приймання з H-05 очікуються |
+| H-05 | Повна регресія та фіксація прийнятої версії | Підготовлено; CI та приймання користувачем очікуються |
 
 Операція закривається після автоматичних перевірок і підтвердження користувача.
 Робота виконується без додаткових гілок, невеликими змінами в `main`.
@@ -503,3 +503,124 @@ viewer 403 та modular/live/stale/offline/new states — PASS.
 **H-03 закрито. Етап H: завершено 3 із 5 операцій.**
 Залишилися H-04 — узгодження module/channel контракту перших екранів,
 і H-05 — повна регресія та фіксація прийнятої версії.
+
+## H-04 та H-05 — спільний фінальний блок, backend 0.38.0
+
+27.09.2026 користувач явно попросив виконати H-04 і H-05 разом. База —
+`c7e842a` із закритою H-03. Операції залишаються окремими в плані,
+але мають один фінальний скрипт локального приймання. Нових гілок немає.
+
+### H-04: проблема та зміна контракту
+
+Попередній overview повертав capabilities, окремі keys і command arrays.
+Frontend мав сам відновлювати зв'язок модуля з типом каналу, одиницею,
+графіком і командами. Для state не було аналога readings із типом/якістю:
+невалідне `"false"` можна було помилково показати як стан насоса.
+
+Додано `overview.modules`: лише enabled assignments цього Device,
+assignment_id/capability_id/code, supported, канали та команди з правами.
+Канал має source/key, data_type, unit і supports_series. Каталожні name та
+description вже є в capabilities; довільний config не копіюється в modules.
+Невідомий code має supported=false й порожні channels/commands.
+
+`app/device_contract.py` є єдиним джерелом реалізованих каналів, одиниць
+та відповідності команд capabilities. Ingestion, overview і series
+використовують його проєкції. Старі Python imports mapping сумісні.
+Нових SQL-запитів на кожен канал або таблиць модулів не додано.
+
+Додано `state_readings` зі strict boolean/integer/null. false і 0 не
+втрачаються; missing/invalid не стають «насос вимкнений» або «помилок немає».
+Застосовано чинний freshness пакета, включно з session change. Integer
+обмежено точним діапазоном JavaScript ±(2^53−1) тільки у цьому read DTO.
+Raw snapshot, telemetry history та чинні поля overview збережено.
+
+Деталі, таблиця всіх восьми каналів і межі:
+[module-channel-contract-v1.md](module-channel-contract-v1.md).
+Це логічні capabilities, а не автоматичне виявлення фізичних плат.
+Кілька однотипних датчиків на одному Device ще потребуватимуть окремого
+instance/channel контракту firmware, ingestion, історії, rules та UI.
+
+### H-04: перевірки
+
+Додано 6 unit та 5 PostgreSQL/HTTP тестів. Наявні frontend-тести додатково
+перевіряють порожні modules/state_readings і role-aware module commands.
+
+- Відповідність registry чинним ingress і CommandType, типи OpenAPI.
+- Точні integer boundaries, false/zero/missing/invalid та stale readings.
+- UUID assignment, відсутність generic config у відповіді, unknown code.
+- Усі оголошені numeric channels проходять ingestion і HTTP series з
+  правильними units; state series відхиляються як непідтримувані.
+- Оголошені дозволені команди проходять POST; viewer їх не отримує.
+- HTTP disable прибирає channels/commands і блокує ingestion/series/POST;
+  історичний snapshot незмінний, повторне включення повертає модуль.
+- Встановлений state-модуль без telemetry має missing, а не false/zero.
+- Свіжий heartbeat і нова boot session не роблять старий state свіжим.
+
+Live demo перевіряє module/channel зв'язки, units, chart support і role-aware
+commands для різних пристроїв через реальний HTTP API. Функціональні
+MQTT/simulator сценарії продовжують виконуватися в повному прогоні.
+
+### H-05: знайдений крайній випадок і фінальний gate
+
+Відтворено `OverflowError` у `DeviceCommandCreate` для frequency_hz=10**400:
+попередній прямий float(value) виходив за межі Pydantic ValidationError.
+Застосовано спільний finite_number; невалідний чи надмірний numeric input
+тепер дає HTTP 422. Діапазон 0..100 і початковий payload валідної команди
+не змінюються, зберігається idempotency. Додано 2 unit тести та розширено
+реальний HTTP-тест: 422 без створення команди або MQTT publish.
+
+Загальний suite — **158 tests**. Локальний допоміжний запуск:
+**75 пройдено, 83 пропущено** без PostgreSQL/MQTT; це не повне приймання.
+Повний CI і фінальний скрипт вимагають zero skips.
+
+`scripts/check-stage-h-final.ps1` використовує спільний acceptance сценарій
+Етапу 8/операції 6, щоб не дублювати backup/restore логіку. Він виконує:
+
+1. Clean install із git archive поточного HEAD, нових випадкових volumes,
+   build без cache, empty DB check, міграцій та всіх 158 тестів.
+2. Seed тільки нового тимчасового стенда і live HTTP/MQTT сценарії,
+   включно з H-04 contract, командами, аваріями та notifications.
+3. Коротку зупинку старого demo backend/simulator і read-only H-03 preflight
+   існуючої БД новим image. При відмові попередній image відновлюється,
+   promotion не відбувається; автоматичного ремонту історії немає.
+4. Promotion перевіреного image до demo 0.38.0 без повторного seed
+   наявних користувачів/модулів. Старий `.env.demo` збережено.
+5. Приватний backup PostgreSQL/SQLite, перевірку hashes і відновлення в
+   іншому випадковому оточенні; source demo volumes не перезаписуються.
+6. Exact comparison схеми й усіх 20 таблиць та SQLite-стану, захист
+   відновлених sessions/queued commands, live recovery перевірки.
+7. Видалення лише тимчасових test/restore volumes; backup/report лишається
+   локально в `backups/acceptance-*`, який ігнорується Git.
+
+У restored copy також прибрано повторний seed: її дані отримані з backup.
+Restore guard відкликає sessions і блокує стару queued delivery лише
+у відновленій копії. Source canary session створюється/відкликається
+перевіркою; чинні користувачі та паролі не замінюються.
+
+CI додатково виконує Chromium browser auth, контрольні downgrade/upgrade,
+restart simulator/backend та broker outage/reconnect. Той самий фінальний
+PowerShell-скрипт виконується CI PowerShell 7 і користувачем у Windows.
+
+Версія підвищена до **0.38.0** через розширення API; схема лишається
+**20260926_0017**. Backup verification приймає також 0.37.0–0.37.3
+із цією схемою. Контракт перших екранів, release notes та backend README
+оновлені; історія приймання попередніх версій збережена.
+
+### Спільне приймання користувачем
+
+Після оновлення main, з працюючим Docker Desktop і чинним `.env.demo`:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-stage-h-final.ps1
+```
+
+Очікуються 158 tests, zero skips, module/channel contract PASS, H-03
+preflight PASS, exact restore усіх 20 таблиць та SQLite, health 0.38.0
+на `127.0.0.1:8001`, і фінальний `PASS: H-04/H-05 acceptance...`.
+Сценарій довший за H-03: перевіряє чисту установку й backup/restore.
+
+**H-04/H-05 ще не закриті. Етап H: прийнято 3 із 5 операцій.**
+Після успішного CI й підтвердження користувача можна зафіксувати основу
+першого frontend та перейти до Етапу 9. Це не підтвердження роботи
+10 000 контролерів, production TLS/ACL чи фізичних interlocks;
+ці межі наведені в [release notes](test-backend-release-v1.md).

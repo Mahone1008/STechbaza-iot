@@ -65,13 +65,26 @@ try {
     Isolated $cleanProject down --volumes
     Write-Host 'PASS: clean tracked-source installation, migrations, full tests and live HTTP/MQTT' -ForegroundColor Green
 
-    # Перевірений image використовується для звичного demo на 8001.
-    docker image tag techbaza-acceptance-backend:0.38.0 techbaza-demo-backend:local
-    Assert-Step 'Promote verified backend image'
+    # H-05: спочатку перевірка старих даних новим image, потім promotion.
+    # При відмові finally відновить попередній image, tag ще не змінено.
     Demo stop backend simulator
     $sourcePaused = $true
+    $preflightCompose = [System.IO.Path]::GetTempFileName()
+    try {
+        @'
+services:
+  backend:
+    image: techbaza-acceptance-backend:0.38.0
+'@ | Set-Content -LiteralPath $preflightCompose -Encoding Ascii
+        & docker compose -p techbaza-demo --env-file $demoEnv -f (Join-Path $repoRoot 'compose.demo.yml') -f $preflightCompose run --rm -T --no-deps backend python -m app.tools.alarm_key_check
+        Assert-Step 'Existing demo alarm key preflight'
+    }
+    finally {
+        Remove-Item -LiteralPath $preflightCompose -Force
+    }
+    docker image tag techbaza-acceptance-backend:0.38.0 techbaza-demo-backend:local
+    Assert-Step 'Promote verified backend image'
     Demo run --rm -T backend alembic upgrade head
-    Demo run --rm -T backend python -m app.demo.seed
     Demo up -d --no-build --wait --wait-timeout 90 backend simulator
     $sourcePaused = $false
     Demo exec -T backend python -m app.demo.check
@@ -103,7 +116,6 @@ try {
     Isolated $restoreProject exec -T postgres rm -- /tmp/restore.dump
     Restore-Tool compare
     Isolated $restoreProject run --rm -T backend alembic current
-    Isolated $restoreProject run --rm -T backend python -m app.demo.seed
     Isolated $restoreProject run --rm -T --no-deps -v "${backupPath}:/backup" simulator python -m app.demo.backup_check sqlite-import
     Restore-Tool guard
 

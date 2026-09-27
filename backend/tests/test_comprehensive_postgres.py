@@ -188,7 +188,7 @@ class ComprehensivePostgresTests(unittest.TestCase):
         cases = [{"ttl_seconds": 4}, {"ttl_seconds": 301}, {"command_type": "unknown"},
                  {"payload": {"unexpected": 1}}, {"request_id": "not-uuid"}]
         cases += [{"command_type": "vfd.frequency.set", "payload": {"frequency_hz": value}}
-                  for value in (-1, 101, True, "50", None)]
+                  for value in (-1, 101, True, "50", None, 10**400, -(10**400))]
         with patch("app.services.command_dispatch.publish_command_message") as publish:
             for change in cases:
                 self.call(self.command_path, method="POST", body=self.body(**change), expected=422)

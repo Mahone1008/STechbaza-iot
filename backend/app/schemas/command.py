@@ -4,6 +4,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from app.numeric import finite_number
 
 CommandType = Literal[
     "vfd.start",
@@ -40,13 +41,13 @@ class DeviceCommandCreate(BaseModel):
                     "vfd.frequency.set вимагає лише поле frequency_hz"
                 )
 
-            value = self.payload["frequency_hz"]
-            if isinstance(value, bool) or not isinstance(value, (int, float)):
-                raise ValueError("frequency_hz має бути числом")
+            value = finite_number(self.payload["frequency_hz"])
+            if value is None:
+                raise ValueError("frequency_hz має бути скінченним числом")
 
             # Це протокольний guardrail від очевидно некоректних значень.
             # Реальні min/max конкретного VFD мають братися з конфігурації Device.
-            if not 0 <= float(value) <= 100:
+            if not 0 <= value <= 100:
                 raise ValueError("frequency_hz має бути в діапазоні 0..100")
 
         return self

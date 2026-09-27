@@ -4,7 +4,7 @@
 
 ## Виправлення та перевірки
 
-- [Етап H — коригування перед frontend; MQTT, черга команд, простори ключів аварій](stage-h-backend-corrections.md)
+- [Етап H — коригування перед frontend: MQTT, команди, аварії, модулі та фінальне приймання](stage-h-backend-corrections.md)
 - [Виправлення надійності та доступу — 25.09.2026, backend 0.30.0](hardening-2026-09-25.md)
 
 ## Досьє V3.5
@@ -22,7 +22,8 @@
 
 - [Етап 8 — Підготовка тестової версії backend — завершено](stage-8-test-backend.md)
 - [Browser authentication v1 — Етап 8, операція 2](browser-auth-v1.md)
-- [Frontend API contract v1 — API перших екранів, backend 0.37.0](frontend-api-contract-v1.md)
+- [Frontend API contract v1 — API перших екранів, backend 0.38.0](frontend-api-contract-v1.md)
+- [Модулі та канали першого UI — H-04](module-channel-contract-v1.md)
 - [Показання панелі та графіки v1 — Етап 8, операція 3](telemetry-panel-charts-v1.md)
 - [Демонстраційний стенд v1 — Етап 8, операція 4](demo-stand-v1.md)
 - [Комплексні перевірки v1 — Етап 8, операція 5](comprehensive-checks-v1.md)
