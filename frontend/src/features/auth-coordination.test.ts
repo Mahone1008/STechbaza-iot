@@ -34,6 +34,18 @@ describe("auth cross-tab coordination", () => {
     expect(parseAuthChannelMessage({ version: 2, type: "session-request" })).toBeNull();
   });
 
+  it("accepts an explicit logout tombstone and rejects unknown clear reasons", () => {
+    const message = {
+      version: 1,
+      type: "session-cleared",
+      sourceTab: "tab-b",
+      issuedAt: 1_000_000,
+      reason: "logout",
+    } as const;
+    expect(parseAuthChannelMessage(message, message.issuedAt)).toEqual(message);
+    expect(parseAuthChannelMessage({ ...message, reason: "local-only" }, message.issuedAt)).toBeNull();
+  });
+
   it("does not use expired peer access tokens", () => {
     const value = snapshot({ accessExpiresAt: 1_010_000 });
     expect(isSnapshotUsable(value, 1_000_000, 5_000)).toBe(true);

@@ -118,7 +118,7 @@ export function AccessContextProvider({ children }: Readonly<{ children: ReactNo
         });
         profile = parseCurrentUserResponse(profilePayload);
         if (!profile.is_active) {
-          clearSession();
+          clearSession("revoked");
           return;
         }
 
@@ -178,7 +178,7 @@ export function AccessContextProvider({ children }: Readonly<{ children: ReactNo
         if (isApiError(error) && error.kind === "aborted") return;
 
         if (phase === "profile" && isApiError(error) && (error.kind === "unauthorized" || error.kind === "forbidden")) {
-          clearSession();
+          clearSession(error.kind === "forbidden" ? "revoked" : "expired");
           return;
         }
 

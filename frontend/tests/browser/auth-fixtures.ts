@@ -4,6 +4,7 @@ export const API_ORIGIN = "http://127.0.0.1:8001";
 export const FRONTEND_ORIGIN = "http://127.0.0.1:3000";
 export const LOGIN_URL = `${API_ORIGIN}/api/v1/auth/browser/login`;
 export const REFRESH_URL = `${API_ORIGIN}/api/v1/auth/browser/refresh`;
+export const LOGOUT_URL = `${API_ORIGIN}/api/v1/auth/browser/logout`;
 export const ME_URL = `${API_ORIGIN}/api/v1/auth/me`;
 export const ORGANIZATIONS_URL = `${API_ORIGIN}/api/v1/organizations`;
 export const ORGANIZATION_ID = "670b979d-9e60-5207-a5d2-5d86ee70c71c";
@@ -169,6 +170,24 @@ export async function mockBrowserLoginSuccess(
         "set-cookie": `techbaza_refresh=${seed.repeat(64)}; Path=/api/v1/auth/browser; HttpOnly; SameSite=Strict`,
       },
       body: JSON.stringify(tokenPayload(seed)),
+    });
+  });
+}
+
+export async function mockBrowserLogoutSuccess(
+  target: RouteTarget,
+  onRequest: ((route: Route) => void) | null = null,
+): Promise<void> {
+  await target.route(LOGOUT_URL, async (route) => {
+    if (await fulfillPreflight(route)) return;
+    onRequest?.(route);
+    await route.fulfill({
+      status: 204,
+      headers: {
+        ...corsHeaders,
+        "set-cookie": "techbaza_refresh=; Path=/api/v1/auth/browser; Max-Age=0; HttpOnly; SameSite=Strict",
+      },
+      body: "",
     });
   });
 }

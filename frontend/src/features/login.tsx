@@ -44,9 +44,15 @@ export function LoginPanel() {
   const [submitting, setSubmitting] = useState(false);
   const [blockedUntil, setBlockedUntil] = useState<number | null>(null);
   const [clock, setClock] = useState(() => Date.now());
-  const restoring = session.status === "restoring";
+  const [loggedOutNotice, setLoggedOutNotice] = useState(false);
+  const sessionBusy = session.status === "restoring" || session.status === "logging-out";
 
   useEffect(() => () => abortControllerRef.current?.abort(), []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    setLoggedOutNotice(new URLSearchParams(window.location.search).get("loggedOut") === "1");
+  }, []);
 
   useEffect(() => {
     if (session.status === "authenticated") router.replace(currentLoginDestination());
@@ -76,11 +82,12 @@ export function LoginPanel() {
 
   const submitLogin = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (submitting || restoring || retrySeconds > 0) return;
+    if (submitting || sessionBusy || retrySeconds > 0) return;
 
     const validation = validateLoginForm({ email, password });
     setFieldErrors(validation.errors);
     setFormError("");
+    setLoggedOutNotice(false);
 
     if (validation.errors.email || validation.errors.password) {
       focusFirstInvalidField(validation.errors);
@@ -120,8 +127,8 @@ export function LoginPanel() {
     }
   };
 
-  const buttonLabel = restoring
-    ? "Відновлюємо сесію…"
+  const buttonLabel = sessionBusy
+    ? session.status === "logging-out" ? "Завершуємо сесію…" : "Відновлюємо сесію…"
     : submitting
       ? "Перевіряємо…"
       : retrySeconds > 0
@@ -153,10 +160,26 @@ export function LoginPanel() {
           <h2>Вхід до кабінету</h2>
           <p>Введіть облікові дані, видані адміністратором вашої організації.</p>
 
-          {restoring ? (
+          {loggedOutNotice && session.status === "anonymous" ? (
+            <div className="login-alert login-alert-success" role="status">
+              <strong>Сесію завершено</strong>
+              <span>Server-side session відкликано, приватний cache очищено в усіх відкритих вкладках.</span>
+            </div>
+          ) : null}
+
+          {sessionBusy ? (
             <div className="login-alert login-alert-info" role="status">
-              <strong>Перевіряємо наявну сесію</strong>
-              <span>HttpOnly cookie перевіряється без показу або збереження secret у JavaScript.</span>
+              <strong>{session.status === "logging-out" ? "Завершуємо сесію" : "Перевіряємо наявну сесію"}</strong>
+              <span>
+                {session.status === "logging-out"
+                  ? "Чекаємо підтвердження logout від backend."
+                  : "HttpOnly cookie перевіряється без показу або збереження secret у JavaScript."}
+              </span>
+            </div>
+          ) : session.status === "logout-failed" && !formError ? (
+            <div className="login-alert login-alert-warning" role="alert">
+              <strong>Logout не підтверджено</strong>
+              <span>{session.message} Поверніться до захищеного маршруту, щоб повторити вихід або відновити кабінет.</span>
             </div>
           ) : session.status === "unavailable" && !formError ? (
             <div className="login-alert login-alert-warning" role="status">
@@ -190,12 +213,12 @@ export function LoginPanel() {
               maxLength={254}
               value={email}
               {...(fieldErrors.email ? { error: fieldErrors.email } : {})}
-              disabled={submitting || restoring}
+              disabled={submitting || sessionBusy}
               onChange={(event) => {
                 setEmail(event.target.value);
                 if (fieldErrors.email) setFieldErrors((current) => withoutFieldError(current, "email"));
               }}
-              autoFocus={!restoring}
+              autoFocus={!sessionBusy}
             />
             <TextField
               id="login-password"
@@ -206,7 +229,7 @@ export function LoginPanel() {
               maxLength={128}
               value={password}
               {...(fieldErrors.password ? { error: fieldErrors.password } : {})}
-              disabled={submitting || restoring}
+              disabled={submitting || sessionBusy}
               onChange={(event) => {
                 setPassword(event.target.value);
                 if (fieldErrors.password) setFieldErrors((current) => withoutFieldError(current, "password"));
@@ -216,8 +239,8 @@ export function LoginPanel() {
               type="submit"
               variant="primary"
               fullWidth
-              disabled={submitting || restoring || retrySeconds > 0}
-              aria-busy={submitting || restoring}
+              disabled={submitting || sessionBusy || retrySeconds > 0}
+              aria-busy={submitting || sessionBusy}
             >
               {buttonLabel}
             </Button>

@@ -2,9 +2,11 @@ export const AUTH_CHANNEL_NAME = "kerumo-auth-session-v1";
 export const AUTH_LOCK_NAME = "kerumo-auth-session-lock-v1";
 
 const AUTH_LOCK_STORAGE_KEY = "kerumo.auth.lock.v1";
+const AUTH_LOGOUT_STORAGE_KEY = "kerumo.auth.logout.v1";
 const LOCK_LEASE_MS = 15_000;
 const LOCK_RENEW_MS = 5_000;
 const LOCK_TIMEOUT_MS = 25_000;
+const LOGOUT_MARKER_TTL_MS = 5 * 60_000;
 const MIN_SNAPSHOT_TOKEN_LENGTH = 20;
 const MAX_SNAPSHOT_TOKEN_LENGTH = 8_192;
 const MAX_FUTURE_CLOCK_SKEW_MS = 60_000;
@@ -48,6 +50,12 @@ type StorageLease = Readonly<{
   owner: string;
   nonce: string;
   expiresAt: number;
+}>;
+
+type LogoutMarker = Readonly<{
+  issuedAt: number;
+  expiresAt: number;
+  nonce: string;
 }>;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -171,6 +179,22 @@ function parseLease(value: string | null): StorageLease | null {
   }
 }
 
+function parseLogoutMarker(value: string | null): LogoutMarker | null {
+  if (!value) return null;
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    if (!isRecord(parsed)) return null;
+    const issuedAt = readInteger(parsed.issuedAt);
+    const expiresAt = readInteger(parsed.expiresAt);
+    const nonce = readString(parsed.nonce, 128);
+    return issuedAt !== null && expiresAt !== null && nonce
+      ? { issuedAt, expiresAt, nonce }
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => globalThis.setTimeout(resolve, ms));
 }
@@ -185,6 +209,43 @@ function storageAvailable(): boolean {
   } catch {
     return false;
   }
+}
+
+export function recordLogoutMarker(issuedAt = Date.now()): void {
+  if (!storageAvailable()) return;
+  const marker: LogoutMarker = {
+    issuedAt,
+    expiresAt: issuedAt + LOGOUT_MARKER_TTL_MS,
+    nonce: createAuthTabId(),
+  };
+  try {
+    window.localStorage.setItem(AUTH_LOGOUT_STORAGE_KEY, JSON.stringify(marker));
+  } catch {
+    // The server-side revoked session remains the final protection boundary.
+  }
+}
+
+export function clearLogoutMarker(): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(AUTH_LOGOUT_STORAGE_KEY);
+  } catch {
+    // Explicit login still replaces the cookie-backed session on the backend.
+  }
+}
+
+export function readRecentLogoutMarker(nowMs = Date.now()): number | null {
+  if (!storageAvailable()) return null;
+  const marker = parseLogoutMarker(window.localStorage.getItem(AUTH_LOGOUT_STORAGE_KEY));
+  if (
+    !marker
+    || marker.issuedAt > nowMs + MAX_FUTURE_CLOCK_SKEW_MS
+    || marker.expiresAt <= nowMs
+  ) {
+    clearLogoutMarker();
+    return null;
+  }
+  return marker.issuedAt;
 }
 
 async function withStorageLease<T>(owner: string, operation: () => Promise<T>): Promise<T> {

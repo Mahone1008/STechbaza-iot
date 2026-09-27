@@ -9,6 +9,7 @@ export type BrowserLoginResponse = components["schemas"]["BrowserTokenResponse"]
 
 const BROWSER_LOGIN_PATH = "/api/v1/auth/browser/login";
 const BROWSER_REFRESH_PATH = "/api/v1/auth/browser/refresh";
+const BROWSER_LOGOUT_PATH = "/api/v1/auth/browser/logout";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -91,4 +92,14 @@ export async function browserRefresh(signal?: AbortSignal): Promise<BrowserLogin
   });
 
   return parseBrowserTokenResponse(response, BROWSER_REFRESH_PATH, "оновлення сесії");
+}
+
+export async function browserLogout(signal?: AbortSignal): Promise<void> {
+  await apiRequest<null>({
+    path: BROWSER_LOGOUT_PATH,
+    method: "POST",
+    csrf: true,
+    credentials: "include",
+    ...(signal ? { signal } : {}),
+  });
 }

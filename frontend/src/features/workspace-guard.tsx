@@ -3,7 +3,7 @@
 import type { Route } from "next";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import { Button } from "@/components/ui";
 import { useAccessContext } from "@/features/access-context";
@@ -48,16 +48,72 @@ function AccessGate({
   );
 }
 
+function LogoutFailureGate({
+  message,
+  retryAt,
+  onRetry,
+  onCancel,
+}: Readonly<{
+  message: string;
+  retryAt: number | null;
+  onRetry: () => void;
+  onCancel: () => void;
+}>) {
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (retryAt === null || retryAt <= Date.now()) return;
+    const timer = globalThis.setInterval(() => setNow(Date.now()), 250);
+    return () => globalThis.clearInterval(timer);
+  }, [retryAt]);
+
+  const retrySeconds = retryAt === null ? 0 : Math.max(0, Math.ceil((retryAt - now) / 1_000));
+  return (
+    <AccessGate
+      title="Не вдалося завершити сесію"
+      description={`${message} Кабінет приховано, але server-side session ще не вважається відкликаною.`}
+      tone="warning"
+    >
+      <Button variant="danger" disabled={retrySeconds > 0} onClick={onRetry}>
+        {retrySeconds > 0 ? `Повторити через ${retrySeconds} с` : "Повторити вихід"}
+      </Button>
+      <Button variant="secondary" onClick={onCancel}>Повернутися до кабінету</Button>
+    </AccessGate>
+  );
+}
+
 export function WorkspaceGuard({ children }: Readonly<{ children: ReactNode }>) {
   const pathname = usePathname();
   const router = useRouter();
-  const { session, refreshSession } = useAuthSession();
+  const { session, refreshSession, logout, cancelLogout } = useAuthSession();
   const { snapshot, retryAccess } = useAccessContext();
   const loginUrl = `/login?returnTo=${encodeURIComponent(pathname || "/devices")}` as Route;
+  const loggedOutUrl = "/login?loggedOut=1" as Route;
 
   useEffect(() => {
-    if (session.status === "anonymous") router.replace(loginUrl);
-  }, [loginUrl, router, session.status]);
+    if (session.status !== "anonymous") return;
+    router.replace(session.reason === "logout" ? loggedOutUrl : loginUrl);
+  }, [loggedOutUrl, loginUrl, router, session]);
+
+  if (session.status === "logging-out") {
+    return (
+      <AccessGate
+        title="Завершуємо сесію"
+        description="Відкликаємо HttpOnly session на backend, скасовуємо активні запити та очищуємо приватний cache."
+      />
+    );
+  }
+
+  if (session.status === "logout-failed") {
+    return (
+      <LogoutFailureGate
+        message={session.message}
+        retryAt={session.retryAt}
+        onRetry={() => void logout()}
+        onCancel={cancelLogout}
+      />
+    );
+  }
 
   if (session.status === "restoring") {
     return <AccessGate title="Перевіряємо сесію" description="Безпечна HttpOnly session перевіряється через backend." />;

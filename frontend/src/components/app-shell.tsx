@@ -3,7 +3,14 @@
 import type { Route } from "next";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { CSSProperties, ReactNode } from "react";
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 
 import { useAccessContext, type ReadyAccessSnapshot } from "@/features/access-context";
 import { useAuthSession, type AuthSessionSnapshot } from "@/features/auth-session";
@@ -55,7 +62,7 @@ function Brand({ compact = false }: { compact?: boolean }) {
   );
 }
 
-type IconName = "devices" | "alarm" | "components" | "more" | "chevron";
+type IconName = "devices" | "alarm" | "components" | "more" | "chevron" | "logout";
 
 function Icon({ name, className = "nav-icon" }: { name: IconName; className?: string }) {
   const paths: Record<IconName, ReactNode> = {
@@ -87,6 +94,12 @@ function Icon({ name, className = "nav-icon" }: { name: IconName; className?: st
       </>
     ),
     chevron: <path d="m9 18 6-6-6-6" />,
+    logout: (
+      <>
+        <path d="M10 5H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h4" />
+        <path d="m14 8 4 4-4 4M9 12h9" />
+      </>
+    ),
   };
 
   return (
@@ -139,6 +152,88 @@ function sessionPresentation(
   };
 }
 
+type SessionPresentation = ReturnType<typeof sessionPresentation>;
+
+function UserMenu({
+  presentation,
+  organizationName,
+  compact = false,
+}: Readonly<{
+  presentation: SessionPresentation;
+  organizationName: string;
+  compact?: boolean;
+}>) {
+  const { logout } = useAuthSession();
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const menuId = useId();
+
+  useEffect(() => {
+    if (!open) return;
+
+    const closeFromPointer = (event: PointerEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    const closeFromKeyboard = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setOpen(false);
+      triggerRef.current?.focus();
+    };
+
+    document.addEventListener("pointerdown", closeFromPointer);
+    document.addEventListener("keydown", closeFromKeyboard);
+    return () => {
+      document.removeEventListener("pointerdown", closeFromPointer);
+      document.removeEventListener("keydown", closeFromKeyboard);
+    };
+  }, [open]);
+
+  return (
+    <div className={`user-menu${compact ? " user-menu-compact" : ""}`} ref={rootRef}>
+      <button
+        className={compact ? "topbar-account-button" : "icon-button"}
+        type="button"
+        aria-label="Відкрити меню користувача"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-controls={open ? menuId : undefined}
+        onClick={() => setOpen((value) => !value)}
+        ref={triggerRef}
+      >
+        {compact ? (
+          <span className="avatar avatar-compact" aria-hidden="true">{initialsFor(presentation.userName)}</span>
+        ) : (
+          <Icon name="more" />
+        )}
+      </button>
+
+      {open ? (
+        <div className="user-menu-popover" id={menuId} role="menu" aria-label="Меню користувача">
+          <div className="user-menu-profile">
+            <strong>{presentation.userName}</strong>
+            <span>{presentation.userStatus}</span>
+            <small>{organizationName}</small>
+          </div>
+          <div className="user-menu-separator" />
+          <button
+            className="user-menu-action user-menu-action-danger"
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              setOpen(false);
+              void logout();
+            }}
+          >
+            <Icon name="logout" />
+            <span><strong>Вийти з акаунта</strong><small>Відкликати поточну browser session</small></span>
+          </button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
   const pathname = usePathname();
   const { session } = useAuthSession();
@@ -181,7 +276,7 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
         <div className="sidebar-footer">
           <span className="avatar" aria-hidden="true">{initialsFor(presentation.userName)}</span>
           <span className="user-copy" title={presentation.userName}><strong>{presentation.userName}</strong><span>{presentation.userStatus}</span></span>
-          <button className="icon-button" type="button" aria-label="Меню користувача буде додано в операції 10.4"><Icon name="more" /></button>
+          <UserMenu presentation={presentation} organizationName={snapshot.activeOrganization.name} />
         </div>
       </aside>
 
@@ -189,10 +284,15 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
         <header className="topbar">
           <span className="topbar-brand"><Brand compact /></span>
           <div className="topbar-context"><span>{snapshot.activeOrganization.name}</span><span aria-hidden="true">/</span><strong>{routeLabel(pathname)}</strong></div>
-          <span className={`prototype-note${presentation.noteClass}`} role="status">
-            <span className="prototype-dot" aria-hidden="true" />
-            {presentation.note}
-          </span>
+          <div className="topbar-actions">
+            <span className={`prototype-note${presentation.noteClass}`} role="status">
+              <span className="prototype-dot" aria-hidden="true" />
+              {presentation.note}
+            </span>
+            <div className="topbar-user-menu">
+              <UserMenu compact presentation={presentation} organizationName={snapshot.activeOrganization.name} />
+            </div>
+          </div>
         </header>
         <main className="workspace-content" id="main-content">{children}</main>
       </section>

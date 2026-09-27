@@ -1,5 +1,6 @@
 "use client";
 
+import { useQueryClient } from "@tanstack/react-query";
 import {
   createContext,
   useCallback,
@@ -13,9 +14,12 @@ import {
 
 import {
   AUTH_CHANNEL_NAME,
+  clearLogoutMarker,
   createAuthTabId,
   isSnapshotUsable,
   parseAuthChannelMessage,
+  readRecentLogoutMarker,
+  recordLogoutMarker,
   refreshDelayMs,
   refreshRetryDelayMs,
   withCrossTabAuthLock,
@@ -27,7 +31,9 @@ import {
   apiErrorDisplayMessage,
   apiRequest,
   browserLogin,
+  browserLogout,
   browserRefresh,
+  clearAllSessionCaches,
   isApiError,
   type ApiRequestOptions,
   type BrowserLoginRequest,
@@ -51,21 +57,31 @@ export type AuthenticatedSession = Readonly<{
 
 export type AuthSessionSnapshot =
   | Readonly<{ status: "restoring"; startedAt: number }>
-  | Readonly<{ status: "anonymous"; reason: "none" | "expired" | "revoked" }>
+  | Readonly<{ status: "anonymous"; reason: "none" | "expired" | "revoked" | "logout" }>
   | AuthenticatedSession
-  | Readonly<{ status: "unavailable"; message: string; retryAt: number | null }>;
+  | Readonly<{ status: "unavailable"; message: string; retryAt: number | null }>
+  | Readonly<{ status: "logging-out"; startedAt: number; email: string | null }>
+  | Readonly<{
+      status: "logout-failed";
+      message: string;
+      retryAt: number | null;
+      email: string | null;
+    }>;
 
 export type AuthorizedApiRequestOptions = Omit<ApiRequestOptions, "accessToken"> & Readonly<{
   retryOnUnauthorized?: boolean;
 }>;
 
 type RefreshReason = "startup" | "timer" | "visibility" | "demand" | "unauthorized" | "retry";
+type SessionInvalidationReason = "expired" | "revoked";
 
 type AuthSessionContextValue = Readonly<{
   session: AuthSessionSnapshot;
   login: (payload: BrowserLoginRequest, signal?: AbortSignal) => Promise<void>;
+  logout: () => Promise<boolean>;
+  cancelLogout: () => void;
   refreshSession: (reason?: RefreshReason) => Promise<boolean>;
-  clearSession: () => void;
+  clearSession: (reason?: SessionInvalidationReason) => void;
   getAccessToken: (minimumValidityMs?: number) => Promise<string | null>;
   authorizedRequest: <T>(options: AuthorizedApiRequestOptions) => Promise<T>;
 }>;
@@ -75,6 +91,7 @@ type RefreshOutcome =
   | Readonly<{ kind: "api"; response: BrowserLoginResponse; issuedAt: number }>;
 
 type PeerSnapshotResolver = (snapshot: AuthSessionSnapshotMessage | null) => void;
+type LogoutFallback = Readonly<{ session: AuthenticatedSession; accessToken: string }>;
 
 let sameDocumentRefreshPromise: Promise<RefreshOutcome> | null = null;
 
@@ -138,9 +155,38 @@ function noAccessTokenError(path: string): ApiError {
   });
 }
 
+function logoutCancelledRequestError(path: string, method: string): ApiError {
+  return new ApiError("Запит скасовано під час завершення сесії.", {
+    kind: "aborted",
+    status: null,
+    method,
+    url: path,
+    retryAfterSeconds: null,
+    requestId: null,
+    details: { reason: "logout" },
+  });
+}
+
+function createLinkedRequestController(externalSignal?: AbortSignal) {
+  const controller = new AbortController();
+  const abortFromExternal = () => controller.abort(externalSignal?.reason);
+
+  if (externalSignal?.aborted) {
+    abortFromExternal();
+  } else {
+    externalSignal?.addEventListener("abort", abortFromExternal, { once: true });
+  }
+
+  return {
+    controller,
+    cleanup: () => externalSignal?.removeEventListener("abort", abortFromExternal),
+  };
+}
+
 const AuthSessionContext = createContext<AuthSessionContextValue | null>(null);
 
 export function AuthSessionProvider({ children }: Readonly<{ children: ReactNode }>) {
+  const queryClient = useQueryClient();
   const [session, setSession] = useState<AuthSessionSnapshot>(
     () => ({ status: "restoring", startedAt: Date.now() }),
   );
@@ -151,6 +197,10 @@ export function AuthSessionProvider({ children }: Readonly<{ children: ReactNode
   const latestPeerSnapshotRef = useRef<AuthSessionSnapshotMessage | null>(null);
   const lastEventAtRef = useRef(0);
   const refreshPromiseRef = useRef<Promise<boolean> | null>(null);
+  const logoutPromiseRef = useRef<Promise<boolean> | null>(null);
+  const logoutIntentRef = useRef(false);
+  const logoutFallbackRef = useRef<LogoutFallback | null>(null);
+  const activeRequestControllersRef = useRef(new Set<AbortController>());
   const peerWaitersRef = useRef(new Set<PeerSnapshotResolver>());
   const retryTimerRef = useRef<ReturnType<typeof globalThis.setTimeout> | null>(null);
   const retryAttemptRef = useRef(0);
@@ -172,9 +222,21 @@ export function AuthSessionProvider({ children }: Readonly<{ children: ReactNode
     }
   }, []);
 
+  const resolvePeerWaiters = useCallback((snapshot: AuthSessionSnapshotMessage | null) => {
+    for (const resolve of peerWaitersRef.current) resolve(snapshot);
+    peerWaitersRef.current.clear();
+  }, []);
+
+  const abortAuthorizedRequests = useCallback(() => {
+    for (const controller of activeRequestControllersRef.current) {
+      controller.abort("logout");
+    }
+    activeRequestControllersRef.current.clear();
+  }, []);
+
   const publishSnapshot = useCallback((authenticated: AuthenticatedSession) => {
     const token = accessTokenRef.current;
-    if (!token) return;
+    if (!token || logoutIntentRef.current || readRecentLogoutMarker() !== null) return;
 
     postMessage({
       version: 1,
@@ -200,6 +262,19 @@ export function AuthSessionProvider({ children }: Readonly<{ children: ReactNode
       force?: boolean;
     }>,
   ): boolean => {
+    if (options.force) {
+      clearLogoutMarker();
+      logoutIntentRef.current = false;
+      logoutFallbackRef.current = null;
+    } else if (
+      logoutIntentRef.current
+      || sessionRef.current.status === "logging-out"
+      || sessionRef.current.status === "logout-failed"
+      || readRecentLogoutMarker() !== null
+    ) {
+      return false;
+    }
+
     if (!options.force && options.issuedAt < lastEventAtRef.current) return false;
 
     const now = Date.now();
@@ -226,6 +301,10 @@ export function AuthSessionProvider({ children }: Readonly<{ children: ReactNode
   }, [clearRetryTimer, commitSession, publishSnapshot]);
 
   const applyPeerSnapshot = useCallback((snapshot: AuthSessionSnapshotMessage): boolean => {
+    if (logoutIntentRef.current || readRecentLogoutMarker() !== null) return false;
+    if (sessionRef.current.status === "logging-out" || sessionRef.current.status === "logout-failed") {
+      return false;
+    }
     if (!isSnapshotUsable(snapshot, Date.now(), MIN_PEER_TOKEN_VALIDITY_MS)) return false;
     if (snapshot.issuedAt < lastEventAtRef.current) return false;
 
@@ -250,18 +329,24 @@ export function AuthSessionProvider({ children }: Readonly<{ children: ReactNode
   }, [clearRetryTimer, commitSession]);
 
   const clearSessionInternal = useCallback((
-    reason: "none" | "expired" | "revoked",
+    reason: "none" | "expired" | "revoked" | "logout",
     options: Readonly<{ broadcast: boolean; issuedAt?: number }> = { broadcast: false },
   ) => {
     const issuedAt = options.issuedAt ?? Date.now();
     if (issuedAt < lastEventAtRef.current) return;
 
+    if (reason === "logout") recordLogoutMarker(issuedAt);
+    logoutIntentRef.current = false;
+    logoutFallbackRef.current = null;
     accessTokenRef.current = null;
     latestPeerSnapshotRef.current = null;
     lastEventAtRef.current = issuedAt;
     retryAttemptRef.current = 0;
     clearRetryTimer();
+    abortAuthorizedRequests();
+    resolvePeerWaiters(null);
     commitSession({ status: "anonymous", reason });
+    void clearAllSessionCaches(queryClient);
 
     if (options.broadcast && reason !== "none") {
       postMessage({
@@ -272,11 +357,20 @@ export function AuthSessionProvider({ children }: Readonly<{ children: ReactNode
         reason,
       });
     }
-  }, [clearRetryTimer, commitSession, postMessage]);
+  }, [
+    abortAuthorizedRequests,
+    clearRetryTimer,
+    commitSession,
+    postMessage,
+    queryClient,
+    resolvePeerWaiters,
+  ]);
 
   const requestPeerSnapshot = useCallback((): Promise<AuthSessionSnapshotMessage | null> => {
     const channel = channelRef.current;
-    if (!channel) return Promise.resolve(null);
+    if (!channel || logoutIntentRef.current || readRecentLogoutMarker() !== null) {
+      return Promise.resolve(null);
+    }
 
     return new Promise((resolve) => {
       let settled = false;
@@ -302,6 +396,7 @@ export function AuthSessionProvider({ children }: Readonly<{ children: ReactNode
   }, []);
 
   const scheduleRetry = useCallback((error: unknown) => {
+    if (logoutIntentRef.current) return;
     clearRetryTimer();
     const retryAfterSeconds = isApiError(error) ? error.retryAfterSeconds : null;
     const delay = refreshRetryDelayMs(retryAttemptRef.current, retryAfterSeconds);
@@ -338,6 +433,14 @@ export function AuthSessionProvider({ children }: Readonly<{ children: ReactNode
 
   const refreshSession = useCallback((reason: RefreshReason = "demand"): Promise<boolean> => {
     void reason;
+    if (
+      logoutIntentRef.current
+      || sessionRef.current.status === "logging-out"
+      || sessionRef.current.status === "logout-failed"
+      || readRecentLogoutMarker() !== null
+    ) {
+      return Promise.resolve(false);
+    }
     if (refreshPromiseRef.current) return refreshPromiseRef.current;
 
     const baselineEventAt = lastEventAtRef.current;
@@ -397,6 +500,8 @@ export function AuthSessionProvider({ children }: Readonly<{ children: ReactNode
 
   const login = useCallback(async (payload: BrowserLoginRequest, signal?: AbortSignal) => {
     await withCrossTabAuthLock(DOCUMENT_TAB_ID, async () => {
+      logoutIntentRef.current = false;
+      logoutFallbackRef.current = null;
       const response = await browserLogin(payload, signal);
       applyTokenResponse(response, {
         email: normalizeEmail(String(payload.email)),
@@ -408,9 +513,92 @@ export function AuthSessionProvider({ children }: Readonly<{ children: ReactNode
     });
   }, [applyTokenResponse]);
 
-  const clearSession = useCallback(() => clearSessionInternal("none"), [clearSessionInternal]);
+  const logout = useCallback((): Promise<boolean> => {
+    if (logoutPromiseRef.current) return logoutPromiseRef.current;
+
+    const current = sessionRef.current;
+    const token = accessTokenRef.current;
+    if (current.status === "authenticated" && token) {
+      logoutFallbackRef.current = { session: current, accessToken: token };
+    }
+    const fallback = logoutFallbackRef.current;
+
+    logoutIntentRef.current = true;
+    clearRetryTimer();
+    abortAuthorizedRequests();
+    resolvePeerWaiters(null);
+    commitSession({
+      status: "logging-out",
+      startedAt: Date.now(),
+      email: fallback?.session.email ?? null,
+    });
+    void clearAllSessionCaches(queryClient);
+
+    const promise = withCrossTabAuthLock(DOCUMENT_TAB_ID, async () => {
+      try {
+        await browserLogout();
+        const issuedAt = Date.now();
+        clearSessionInternal("logout", { broadcast: true, issuedAt });
+        return true;
+      } catch (error) {
+        if (sessionRef.current.status === "anonymous" && sessionRef.current.reason === "logout") {
+          return true;
+        }
+
+        logoutIntentRef.current = false;
+        const retryAt = isApiError(error) && error.retryAfterSeconds !== null
+          ? Date.now() + error.retryAfterSeconds * 1_000
+          : null;
+        commitSession({
+          status: "logout-failed",
+          message: apiErrorDisplayMessage(error),
+          retryAt,
+          email: logoutFallbackRef.current?.session.email ?? null,
+        });
+        return false;
+      }
+    }).finally(() => {
+      logoutPromiseRef.current = null;
+    });
+
+    logoutPromiseRef.current = promise;
+    return promise;
+  }, [
+    abortAuthorizedRequests,
+    clearRetryTimer,
+    clearSessionInternal,
+    commitSession,
+    queryClient,
+    resolvePeerWaiters,
+  ]);
+
+  const cancelLogout = useCallback(() => {
+    if (sessionRef.current.status !== "logout-failed") return;
+
+    logoutIntentRef.current = false;
+    const fallback = logoutFallbackRef.current;
+    if (
+      fallback
+      && fallback.session.sessionExpiresAt > Date.now()
+      && fallback.session.accessExpiresAt - Date.now() > MIN_PEER_TOKEN_VALIDITY_MS
+    ) {
+      accessTokenRef.current = fallback.accessToken;
+      logoutFallbackRef.current = null;
+      commitSession({ ...fallback.session, refreshState: "ready", refreshMessage: null });
+      return;
+    }
+
+    logoutFallbackRef.current = null;
+    commitSession({ status: "restoring", startedAt: Date.now() });
+    void refreshSessionRef.current("demand");
+  }, [commitSession]);
+
+  const clearSession = useCallback((reason: SessionInvalidationReason = "revoked") => {
+    clearSessionInternal(reason, { broadcast: true });
+  }, [clearSessionInternal]);
 
   const getAccessToken = useCallback(async (minimumValidityMs = MIN_ACCESS_VALIDITY_MS) => {
+    if (logoutIntentRef.current) return null;
     const current = sessionRef.current;
     const token = accessTokenRef.current;
     if (
@@ -422,32 +610,55 @@ export function AuthSessionProvider({ children }: Readonly<{ children: ReactNode
     }
 
     const refreshed = await refreshSession("demand");
-    return refreshed ? accessTokenRef.current : null;
+    return refreshed && !logoutIntentRef.current ? accessTokenRef.current : null;
   }, [refreshSession]);
 
   const authorizedRequest = useCallback(async <T,>(options: AuthorizedApiRequestOptions): Promise<T> => {
-    const { retryOnUnauthorized, ...requestOptions } = options;
-    const token = await getAccessToken();
-    if (!token) throw noAccessTokenError(options.path);
+    const method = options.method ?? "GET";
+    const linked = createLinkedRequestController(options.signal);
+    activeRequestControllersRef.current.add(linked.controller);
 
     try {
-      return await apiRequest<T>({ ...requestOptions, accessToken: token });
-    } catch (error) {
-      const method = options.method ?? "GET";
-      const mayRetry = retryOnUnauthorized ?? method === "GET";
-      if (
-        !mayRetry
-        || !isApiError(error)
-        || error.kind !== "unauthorized"
-        || options.signal?.aborted
-      ) {
-        throw error;
+      if (logoutIntentRef.current) throw logoutCancelledRequestError(options.path, method);
+      const token = await getAccessToken();
+      if (linked.controller.signal.aborted || logoutIntentRef.current) {
+        throw logoutCancelledRequestError(options.path, method);
       }
+      if (!token) throw noAccessTokenError(options.path);
 
-      const refreshed = await refreshSession("unauthorized");
-      const replacementToken = accessTokenRef.current;
-      if (!refreshed || !replacementToken) throw error;
-      return apiRequest<T>({ ...requestOptions, accessToken: replacementToken });
+      const { retryOnUnauthorized, signal: _signal, ...requestOptions } = options;
+      void _signal;
+
+      try {
+        return await apiRequest<T>({
+          ...requestOptions,
+          accessToken: token,
+          signal: linked.controller.signal,
+        });
+      } catch (error) {
+        const mayRetry = retryOnUnauthorized ?? method === "GET";
+        if (
+          !mayRetry
+          || !isApiError(error)
+          || error.kind !== "unauthorized"
+          || linked.controller.signal.aborted
+          || logoutIntentRef.current
+        ) {
+          throw error;
+        }
+
+        const refreshed = await refreshSession("unauthorized");
+        const replacementToken = accessTokenRef.current;
+        if (!refreshed || !replacementToken || logoutIntentRef.current) throw error;
+        return apiRequest<T>({
+          ...requestOptions,
+          accessToken: replacementToken,
+          signal: linked.controller.signal,
+        });
+      }
+    } finally {
+      activeRequestControllersRef.current.delete(linked.controller);
+      linked.cleanup();
     }
   }, [getAccessToken, refreshSession]);
 
@@ -467,7 +678,9 @@ export function AuthSessionProvider({ children }: Readonly<{ children: ReactNode
           const current = sessionRef.current;
           const token = accessTokenRef.current;
           if (
-            current.status === "authenticated"
+            !logoutIntentRef.current
+            && readRecentLogoutMarker() === null
+            && current.status === "authenticated"
             && token
             && current.accessExpiresAt - Date.now() > MIN_PEER_TOKEN_VALIDITY_MS
           ) {
@@ -490,22 +703,24 @@ export function AuthSessionProvider({ children }: Readonly<{ children: ReactNode
         if (message.type === "session-snapshot") {
           if (message.targetTab !== null && message.targetTab !== DOCUMENT_TAB_ID) return;
           latestPeerSnapshotRef.current = message;
-          for (const resolve of peerWaitersRef.current) resolve(message);
-          peerWaitersRef.current.clear();
+          resolvePeerWaiters(message);
           applyPeerSnapshot(message);
           return;
         }
 
         if (message.issuedAt >= lastEventAtRef.current) {
-          clearSessionInternal(
-            message.reason === "expired" ? "expired" : "revoked",
-            { broadcast: false, issuedAt: message.issuedAt },
-          );
+          clearSessionInternal(message.reason, { broadcast: false, issuedAt: message.issuedAt });
         }
       });
     }
 
     void (async () => {
+      const logoutAt = readRecentLogoutMarker();
+      if (logoutAt !== null) {
+        clearSessionInternal("logout", { broadcast: false, issuedAt: logoutAt });
+        return;
+      }
+
       const peerSnapshot = await requestPeerSnapshot();
       if (!mountedRef.current) return;
       if (peerSnapshot && applyPeerSnapshot(peerSnapshot)) return;
@@ -519,13 +734,16 @@ export function AuthSessionProvider({ children }: Readonly<{ children: ReactNode
       for (const resolve of peerWaiters) resolve(null);
       peerWaiters.clear();
       clearRetryTimer();
+      abortAuthorizedRequests();
     };
   }, [
+    abortAuthorizedRequests,
     applyPeerSnapshot,
     clearRetryTimer,
     clearSessionInternal,
     refreshSession,
     requestPeerSnapshot,
+    resolvePeerWaiters,
   ]);
 
   useEffect(() => {
@@ -540,7 +758,7 @@ export function AuthSessionProvider({ children }: Readonly<{ children: ReactNode
 
   useEffect(() => {
     const refreshWhenVisible = () => {
-      if (document.visibilityState !== "visible") return;
+      if (document.visibilityState !== "visible" || logoutIntentRef.current) return;
       const current = sessionRef.current;
       if (
         current.status === "authenticated"
@@ -562,12 +780,23 @@ export function AuthSessionProvider({ children }: Readonly<{ children: ReactNode
     () => ({
       session,
       login,
+      logout,
+      cancelLogout,
       refreshSession,
       clearSession,
       getAccessToken,
       authorizedRequest,
     }),
-    [authorizedRequest, clearSession, getAccessToken, login, refreshSession, session],
+    [
+      authorizedRequest,
+      cancelLogout,
+      clearSession,
+      getAccessToken,
+      login,
+      logout,
+      refreshSession,
+      session,
+    ],
   );
 
   return <AuthSessionContext.Provider value={value}>{children}</AuthSessionContext.Provider>;
