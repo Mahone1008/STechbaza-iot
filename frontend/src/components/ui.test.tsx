@@ -40,6 +40,6 @@ describe("KERUMO UI primitives", () => {
     );
 
     expect(markup).toContain("Пристроїв немає.");
-    expect(markup).toContain("colspan=\"1\"");
+    expect(markup).toContain("colSpan=\"1\"");
   });
 });
