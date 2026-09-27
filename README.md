@@ -14,26 +14,32 @@ Backend **0.38.0** прийнято 27.09.2026 після повного CI та
 Frontend Foundation KERUMO прийнято 27.09.2026:
 
 - Етап 9 завершено **4/4**;
-- frontend roadmap — прийнято **4/24**;
 - Next.js/TypeScript strict foundation;
 - design system і responsive shell;
 - OpenAPI 0.38.0 / 47 paths;
 - shared API adapter і scoped query cache;
 - Vitest, Playwright Chromium і production build — PASS.
 
-Операцію **10.1 — справжній browser login** реалізовано й автоматично
-перевірено:
+Операцію **10.1 — справжній browser login** також прийнято 27.09.2026:
 
 - email/password через FastAPI;
 - `X-TechBaza-CSRF` і exact Origin;
 - HttpOnly refresh cookie;
 - access token лише у пам’яті вкладки;
 - 401/403/422/429/network states;
-- mocked і real Chromium login tests;
-- GitHub Actions run `36329977001` — success.
+- 11 unit/component tests;
+- 9 mocked Chromium tests;
+- 2 real backend login tests;
+- локальний Windows PASS і ручний redirect на `/devices`.
 
-Операція 10.1 очікує локального Windows-приймання й до цього моменту не
-вважається закритою. Session recovery, guards і logout заплановано в 10.2–10.4.
+Поточний статус:
+
+```text
+Етап 9: 4/4
+Етап 10: 1/4
+Frontend roadmap: 5/24
+Наступна операція: 10.2 — session recovery після F5
+```
 
 - [Backend: структура й запуск перевірок](backend/README.md).
 - [Frontend: поточна точка й запуск](frontend/README.md).
