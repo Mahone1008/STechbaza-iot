@@ -440,6 +440,7 @@ export function AuthSessionProvider({ children }: Readonly<{ children: ReactNode
 
   useEffect(() => {
     mountedRef.current = true;
+    const peerWaiters = peerWaitersRef.current;
     let channel: BroadcastChannel | null = null;
 
     if (typeof BroadcastChannel !== "undefined") {
@@ -500,8 +501,8 @@ export function AuthSessionProvider({ children }: Readonly<{ children: ReactNode
       mountedRef.current = false;
       channel?.close();
       if (channelRef.current === channel) channelRef.current = null;
-      for (const resolve of peerWaitersRef.current) resolve(false);
-      peerWaitersRef.current.clear();
+      for (const resolve of peerWaiters) resolve(false);
+      peerWaiters.clear();
       clearRetryTimer();
     };
   }, [applyPeerSnapshot, clearRetryTimer, clearSessionInternal, refreshSession, waitForPeerSnapshot]);
