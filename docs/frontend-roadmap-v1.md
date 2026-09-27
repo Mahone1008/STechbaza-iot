@@ -2,150 +2,126 @@
 
 Дата: 27.09.2026. База: backend **0.38.0**, Етап H завершено 5/5.
 
-**Статус: роботу над frontend розпочато. Прийнято 1 із 24 операцій.
-Операцію 9.1 закрито 27.09.2026; поточна точка — 9.2.**
+**Статус: прийнято 2 із 24 операцій. Етап 9: 2/4. Поточна точка — 9.3.**
 
-Frontend поділено на Етапи 9–14. Кожен етап має чотири операції. Нумерація
-попередніх backend-етапів та H-01–H-05 залишається незмінною.
+Frontend поділено на Етапи 9–14. Кожен етап має чотири операції. Наступна
+операція не закривається автоматично після реалізації: потрібні CI та локальне
+користувацьке приймання.
 
 ## 1. Результат frontend v1
 
 Користувач входить у кабінет, обирає організацію й об’єкт, бачить доступні
-пристрої та лише фактично призначені їм модулі. Панель показує якість і давність
-даних, графіки, дозволені команди з реальним lifecycle, аварії, події та
-персональні позначки прочитання. Інтерфейс працює на ПК і мобільному браузері
-з чинним demo API.
+пристрої та лише призначені їм modules/capabilities. Панель показує якість і
+давність даних, графіки, дозволені команди з реальним lifecycle, аварії,
+події та персональні notifications. Інтерфейс працює на desktop і mobile з
+чинним demo API.
 
-Перший release не включає billing, B2B invitation/QR claim, масове provisioning,
-редактор alarm rules, камери, OTA, native app або offline queue для команд.
-Ці можливості потребують окремих backend + UI + test вертикалей.
+За межами першого release: billing, B2B invitation/QR claim, mass provisioning,
+повний service portal, alarm rule editor, camera/video, OTA, native app і
+локальна offline queue для command writes.
 
 ## 2. Технічна основа
 
-- **React + Next.js + TypeScript strict**.
-- FastAPI залишається єдиним backend та джерелом auth/RBAC/business rules.
-- DTO генеруються з `/openapi.json`; критичні межі мають runtime validation.
-- Server state — TanStack Query із cache keys за user/session/tenant/device.
-- Access token зберігається лише в пам’яті; refresh cookie — HttpOnly.
-- На старті використовуємо bounded HTTP polling лише видимих даних.
-- Component tests + Playwright; фінальне E2E проходить через реальний demo API/MQTT.
-- Локальні адреси: UI `http://127.0.0.1:3000`, demo API `http://127.0.0.1:8001`.
+- React + Next.js + TypeScript strict;
+- FastAPI залишається єдиним backend і джерелом auth/RBAC/business rules;
+- OpenAPI snapshot + generated TypeScript contract;
+- TanStack Query із user/session/tenant/device scoped keys;
+- access token лише в memory, refresh token лише в HttpOnly cookie;
+- bounded polling тільки видимих даних;
+- component tests і Playwright; final E2E через real demo API/MQTT;
+- UI `http://127.0.0.1:3000`, demo API `http://127.0.0.1:8001`.
 
-## 3. Екрани та API
+## 3. Карта екранів і API
 
-| Екран | Основні endpoint-и | Критичне правило |
+| Екран | Джерело | Головне правило |
 |---|---|---|
 | Login/session | browser login/refresh/logout, `/auth/me` | один session coordinator; refresh cookie не читає JS |
-| Організації/об’єкти | `/organizations`, access, sites | URL не надає доступ сам по собі |
-| Пристрої | devices, availability | bounded pagination/status calls |
-| Device dashboard | `/devices/{id}/overview` | modules/readings/state/permissions із backend |
+| Організації/об’єкти | organizations, access, sites | URL сам по собі не дає доступ |
+| Пристрої | devices + bounded availability | не запитувати overview всього парку |
+| Device dashboard | overview | modules/readings/state/permissions визначає backend |
 | Графіки | telemetry series | missing — gap, zero — значення |
-| Команди | create/list/get command | один request_id на намір; ACK ≠ Result |
-| Аварії/події | alarms, transitions, events | acknowledge ≠ resolved |
-| Повідомлення | notifications, unread-count, read | read персональне й не замінює acknowledge |
+| Команди | create/list/get command | один request_id на intent; ACK ≠ Result |
+| Аварії/події | alarms/transitions/events | acknowledge ≠ resolved |
+| Notifications | stream/unread/read | read персональне й не замінює acknowledge |
 
 ## 4. Етап 9 — структура інтерфейсу та основа
 
-**Статус Етапу 9: 1/4.**
-
 | Операція | Результат | Статус |
 |---|---|---|
-| 9.1 — Сценарії та макети | KERUMO light industrial SaaS visual system, карта сторінок, ролі, desktop/mobile, loading/empty/offline/error/command states | **Закрито 27.09.2026** після приймання ревізії 2 |
-| 9.2 — Каркас і компоненти | Next.js/TS strict, design tokens, navigation shell, базові buttons/forms/tables/status/dialog, config example і lockfile | Наступна операція |
-| 9.3 — API adapter і контракти | OpenAPI types, base URL, timeout, AbortSignal, error mapping, query keys і cache lifecycle | Заплановано |
-| 9.4 — Відтворюваний baseline | typecheck, lint, build, початкові component/browser tests, frontend CI та інструкція чистого запуску | Заплановано |
+| 9.1 — Сценарії та макети | light industrial SaaS visual direction, page map, roles, desktop/mobile, all UI states | **Закрито 27.09.2026** |
+| 9.2 — Каркас і компоненти | Next.js/TS strict, tokens, navigation shell, primitives, lockfile, clean build | **Закрито 27.09.2026** |
+| 9.3 — API adapter і контракти | OpenAPI types, base URL, timeout/cancel, error mapping, query keys/cache lifecycle | **У роботі** |
+| 9.4 — Відтворюваний baseline | component/browser checks, frontend CI, clean setup docs, schema update policy | Заплановано |
 
-Досьє 9.1: [UX-сценарії та макети KERUMO](stage-9-op1-ux-and-mockups.md).
+Досьє:
+
+- [9.1 — UX-сценарії та макети](stage-9-op1-ux-and-mockups.md)
+- [9.2 — frontend foundation](stage-9-op2-frontend-foundation.md)
+- [9.3 — API adapter і контракти](stage-9-op3-api-adapter.md)
 
 ## 5. Етап 10 — вхід, сесія та права
 
 | Операція | Результат |
 |---|---|
-| 10.1 — Login | email/password, CSRF, credentials include, login errors і 429/Retry-After |
-| 10.2 — Відновлення session | reload, single-flight refresh, coordination між вкладками, захист від race |
-| 10.3 — Permissions і route guards | `/auth/me`, актуальний organization access, cache isolation і server-side guards |
-| 10.4 — Logout і збої | coordinated logout, cancel pending requests, network/reconnect і відсутність session resurrection |
+| 10.1 — Login | email/password, CSRF, credentials include, 401/403/422/429 UI |
+| 10.2 — Відновлення session | refresh cookie, memory access token, single-flight і tab coordination |
+| 10.3 — Permissions/guards | `/auth/me`, organization access, cache isolation, route guards |
+| 10.4 — Logout і збої | coordinated revoke, cancel pending requests, no session resurrection |
 
 Автоматичний повтор write після 401 не допускається без окремої policy.
-При повторі команди зберігається той самий request_id.
 
-## 6. Етап 11 — об’єкти, пристрої та модульна панель
+## 6. Етап 11 — організації, пристрої та модульна панель
 
 | Операція | Результат |
 |---|---|
-| 11.1 — Організації й об’єкти | списки, breadcrumbs, deep links, pagination і валідне відновлення context |
-| 11.2 — Список пристроїв | пагіновані rows, availability видимої сторінки, cancel старих status-запитів |
-| 11.3 — Registry віджетів | UI за modules/channels; units, numeric/state readings, unsupported fallback |
-| 11.4 — Якість і зміна конфігурації | fresh/stale/missing/invalid, session change, enable/disable module, lost permission |
+| 11.1 — Організації й об’єкти | lists, breadcrumbs, deep links, pagination, valid context restore |
+| 11.2 — Список пристроїв | paginated rows, bounded presence calls, cancel old page requests |
+| 11.3 — Registry віджетів | UI із modules/channels; units, numeric/state, unsupported fallback |
+| 11.4 — Якість/конфігурація | fresh/stale/missing/invalid, session change, enable/disable, revoke |
 
-Не запускаємо overview для всього парку. Summary endpoint додається лише після
-вимірювання реального fan-out.
+Summary endpoint додається лише після виміряної потреби, не наперед.
 
 ## 7. Етап 12 — графіки та команди
 
 | Операція | Результат |
 |---|---|
-| 12.1 — Історія показань | metric, unit, period, buckets, min/max/average/count, gaps і timezone |
-| 12.2 — Оновлення даних | єдина polling policy, backoff, dedup/cancel, hidden-tab pause і request budget |
-| 12.3 — Start/Stop/частота | allowed_commands, validation, confirmation, double-click protection і один intent |
-| 12.4 — Lifecycle та журнал | queued/published/acknowledged/succeeded/failed/expired/result_unknown, audit і стабільна pagination |
+| 12.1 — Історія | metric, unit, period, bucket, min/max/average/count, gaps, timezone |
+| 12.2 — Оновлення | one polling policy, backoff, cancel/dedup, hidden-tab pause, budget |
+| 12.3 — Start/Stop/frequency | allowed_commands, validation, confirmation, one request_id |
+| 12.4 — Lifecycle/journal | queued→published→ack→result, TTL, audit, stable pagination |
 
-Start і зміна frequency не накопичуються локально для відправки після reconnect.
-ACK не показується як фізичне виконання. R-09 backend tie-breaker виконується у 12.4.
+Start/frequency не накопичуються локально для відправлення після reconnect.
 
-## 8. Етап 13 — аварії, події та повідомлення
+## 8. Етап 13 — аварії, події та notifications
 
 | Операція | Результат |
 |---|---|
-| 13.1 — Аварії пристрою | filters, severity, active/resolved, detail і transitions |
-| 13.2 — Acknowledge | permission, pending/error, idempotency і паралельне resolution |
-| 13.3 — In-app feed | organization stream, unread count, personal read і tenant isolation |
-| 13.4 — Наскрізний інцидент | MQTT → rule → alarm → notification → acknowledge → recovery через UI |
+| 13.1 — Аварії | filters, severity, active/resolved, incident detail, transitions |
+| 13.2 — Acknowledge | permission, pending/error, idempotency, concurrent resolution |
+| 13.3 — In-app feed | organization stream, unread count, personal read, tenant isolation |
+| 13.4 — Наскрізний інцидент | MQTT → rule → alarm → notification → ack → recovery |
 
-Глобальне зведення active alarms не симулюється сотнями Device-запитів; за
-потреби це буде окремий bounded API.
+Глобальний alarm dashboard не симулюється fan-out запитами без bounded API.
 
 ## 9. Етап 14 — якість і приймання frontend v1
 
 | Операція | Результат |
 |---|---|
-| 14.1 — Повна UX-перевірка | mobile/tablet/desktop, keyboard, focus, contrast, text zoom, loading/error/empty |
-| 14.2 — Browser regression | Playwright: login → object → Device → chart → command → alarm; ролі, tenants, tabs |
-| 14.3 — Security і performance | cache isolation, session races, escaping, CSP/headers, requests/heap/bundle/latency, dependency scan |
-| 14.4 — Release і досьє | production build, clean run, real demo E2E, revision/version evidence, release notes і user acceptance |
+| 14.1 — UX/accessibility | mobile/tablet/desktop, keyboard, focus, contrast, zoom, states |
+| 14.2 — Browser regression | Playwright full path, roles, two tenants, two tabs |
+| 14.3 — Security/performance | cache isolation, races, escaping, CSP, bundle/requests/heap/latency |
+| 14.4 — Release/dossier | production build, clean run, real demo E2E, revision evidence |
 
-Responsive, accessibility і tests починаються в 9.2; Етап 14 є фінальним gate,
-а не першою спробою виправити готовий desktop.
+## 10. Незмінні правила
 
-## 10. Незмінні правила даних і безпеки
+1. Module assignment не дорівнює physical sensor instance.
+2. Online, fresh telemetry, HTTP success, MQTT ACK і physical Result — різні стани.
+3. Backend завжди повторно перевіряє permissions.
+4. Logout/context switch cancel-ить requests і видаляє scoped cache.
+5. Missing не стає нулем, графік не з’єднує gaps.
+6. GET retry bounded; write retry має окрему policy.
+7. Mock data не маскують збій live API.
+8. Frontend CI не замінює backend suite.
 
-1. Module assignment не дорівнює фізичному sensor instance.
-2. Online, fresh telemetry, HTTP success, MQTT ACK і фізичний Result — різні стани.
-3. Права беруться з API; прихована кнопка не є authorization test.
-4. Logout/context switch скасовують запити та очищають tenant/device cache.
-5. Графік не домальовує нуль через missing або безперервну лінію через gap.
-6. GET retries bounded; 401/403/404/422 не запускають нескінченні повтори.
-7. Write retries мають окремі правила й не створюють новий intent автоматично.
-8. Mock data дозволені в tests/preview, але production UI не маскує ними збій API.
-9. E2E використовує ізольовані fixtures та не видаляє demo volumes користувача.
-10. Новий frontend CI не замінює чинний backend suite.
-
-## 11. Вузькі залежності від backend
-
-- 9.3: фактична OpenAPI schema й error adapter;
-- 11.2: summary API лише за виміряної потреби;
-- 12.4: стабільний tie-breaker command history;
-- майбутні create forms: name/timezone validation;
-- майбутній rule editor: metric/config validation і semantics оновлення rules.
-
-Не додаємо Kubernetes, Kafka, Redis, microservices або великий backend rewrite
-без виміряної потреби першого UI.
-
-## 12. Формат роботи й поточна точка
-
-Кожна операція: обмежена зміна в `main` → автоматичні перевірки → один
-відтворюваний PowerShell-блок → користувацьке підтвердження → фіксація в досьє.
-Наступна операція не закривається автоматично. Нові branches не створюються.
-
-**Поточна точка: операція 9.2 — Next.js/TypeScript strict, design system,
-navigation shell і базові компоненти.**
+**Поточна точка: 9.3 — OpenAPI types, shared API adapter, timeout/cancel,
+normalized errors і cache lifecycle.**

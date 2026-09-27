@@ -4,13 +4,14 @@ import { useState } from "react";
 
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Button, Card, PageHeader, SelectField, StatusBadge, TextField } from "@/components/ui";
+import { ApiContractPanel } from "@/features/api-contract";
 
 export function UiKitShowcase() {
   const [dialogOpen, setDialogOpen] = useState(false);
 
   return (
     <>
-      <PageHeader eyebrow="Design system · Stage 9.2" title="Базові компоненти" description="Один набір tokens і primitives для наступних функціональних екранів." />
+      <PageHeader eyebrow="Design system · Stage 9.3" title="Базові компоненти та API-контракт" description="Один набір tokens, primitives і передбачуваний transport layer для наступних екранів." />
 
       <div className="ui-grid">
         <Card title="Кнопки" description="Primary використовується лише для головної дії поточного контексту.">
@@ -37,6 +38,8 @@ export function UiKitShowcase() {
           <div className="ui-stack"><div className="notice notice-warning">Критичні write-actions завжди мають контекст і confirmation.</div><Button variant="primary" onClick={() => setDialogOpen(true)}>Відкрити dialog</Button></div>
         </Card>
       </div>
+
+      <ApiContractPanel />
 
       <ConfirmDialog open={dialogOpen} title="Підтвердити демонстраційну дію" description="Це перевірка базового dialog-компонента. Жодна команда не надсилається." confirmLabel="Підтвердити" onConfirm={() => undefined} onClose={() => setDialogOpen(false)} />
     </>

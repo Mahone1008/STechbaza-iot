@@ -12,9 +12,12 @@
     "start": "next start --hostname 127.0.0.1",
     "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc --noEmit",
-    "check": "npm run typecheck && npm run lint && npm run build"
+    "api:generate": "openapi-typescript ./src/lib/api/openapi.json --output ./src/lib/api/schema.d.ts --alphabetize",
+    "api:verify": "node ./scripts/verify-openapi.mjs",
+    "check": "npm run api:verify && npm run typecheck && npm run lint && npm run build"
   },
   "dependencies": {
+    "@tanstack/react-query": "5.104.0",
     "next": "16.3.6",
     "react": "19.2.8",
     "react-dom": "19.2.8"
@@ -25,6 +28,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.3.6",
+    "openapi-typescript": "7.13.0",
     "typescript": "^5"
   }
 }

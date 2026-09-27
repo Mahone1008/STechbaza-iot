@@ -1,11 +1,13 @@
-name: Frontend bootstrap checks
+name: Frontend checks
 
 on:
   push:
     branches: [main]
     paths:
       - 'frontend/**'
-      - 'scripts/check-stage9-op2.ps1'
+      - 'backend/**'
+      - 'scripts/export_openapi.py'
+      - 'scripts/check-stage9-op3.ps1'
       - '.github/workflows/frontend-bootstrap.yml'
   workflow_dispatch:
 
@@ -15,22 +17,44 @@ permissions:
 jobs:
   frontend:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-    defaults:
-      run:
-        working-directory: frontend
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install backend schema dependencies
+        run: python -m pip install -r backend/requirements.txt
+      - name: Export backend OpenAPI snapshot
+        run: python scripts/export_openapi.py
       - uses: actions/setup-node@v4
         with:
           node-version: '22.16.0'
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-      - name: Install locked dependencies
-        run: npm ci --no-audit --no-fund
+      - name: Bootstrap frontend dependencies
+        working-directory: frontend
+        run: npm install --no-audit --no-fund
+      - name: Generate TypeScript API contract
+        working-directory: frontend
+        run: npm run api:generate
+      - name: Verify OpenAPI contract
+        working-directory: frontend
+        run: npm run api:verify
       - name: Typecheck
+        working-directory: frontend
         run: npm run typecheck
       - name: Lint
+        working-directory: frontend
         run: npm run lint
       - name: Production build
+        working-directory: frontend
         run: npm run build
+      - name: Upload Stage 9.3 bootstrap files
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-stage9-op3-bootstrap
+          path: |
+            frontend/package-lock.json
+            frontend/src/lib/api/openapi.json
+            frontend/src/lib/api/schema.d.ts
+          if-no-files-found: error
+          retention-days: 3

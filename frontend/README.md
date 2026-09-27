@@ -1,64 +1,79 @@
 # KERUMO Frontend
 
 Адаптивний web UI для клієнтів, операторів і сервісних спеціалістів KERUMO.
-Внутрішні backend/MQTT ідентифікатори TechBaza поки зберігаються для
-сумісності з прийнятим backend 0.38.0.
+Внутрішні backend/MQTT identifiers TechBaza поки зберігаються для сумісності
+з прийнятим backend 0.38.0.
 
 ## Поточний стан
 
-- Операція 9.1 закрита: прийняті UX-сценарії та light industrial SaaS напрямок.
-- Операція 9.2 у роботі: створено Next.js/TypeScript strict каркас, design
-  tokens, navigation shell і базові компоненти.
-- Live API adapter ще не підключений — це операція 9.3.
-- Login, показники, пристрої й аварії зараз використовують типізовані demo data.
+- **9.1 закрито:** UX-сценарії та light industrial SaaS direction.
+- **9.2 закрито:** Next.js/TypeScript strict foundation, design system,
+  responsive shell і reusable components; local Windows acceptance PASS.
+- **9.3 у роботі:** generated OpenAPI types, shared API adapter, normalized
+  errors, timeout/cancel, TanStack Query keys і cache lifecycle.
+- Login, devices, alarms і dashboard поки використовують typed demo fixtures.
+  Єдиний real request у 9.3 — публічний backend `/health` у `/ui-kit`.
 
 ## Стек
 
 - Next.js 16.3.6, App Router;
-- React / React DOM 19.2.8 — версія, яку використовує офіційний шаблон Next.js 16.3.6;
+- React / React DOM 19.2.8;
 - TypeScript strict;
-- CSS variables + звичайний CSS без runtime styling dependency;
-- ESLint flat config із `core-web-vitals` і TypeScript rules.
+- TanStack Query 5.104.0;
+- OpenAPI TypeScript 7.13.0;
+- CSS variables + звичайний CSS;
+- ESLint flat config із core-web-vitals і TypeScript rules.
 
-Node.js: **20.9.0+**. Перевірене локальне/CI оточення — Node.js 22.16.0.
+Node.js: **20.9.0+**. CI: Node.js 22.16.0. Локально прийнято на Node.js 24.21.0.
 
-## Запуск
-
-У папці `frontend`:
+## Конфігурація
 
 ```powershell
 Copy-Item .env.example .env.local
-npm ci
-npm run dev
 ```
 
-Відкрити `http://127.0.0.1:3000`.
+Public settings:
 
-Повна перевірка з кореня repository:
+```text
+NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8001
+NEXT_PUBLIC_API_TIMEOUT_MS=10000
+```
+
+Не додавати secrets у `NEXT_PUBLIC_*`: ці values потрапляють до browser bundle.
+
+## Перевірка 9.3
+
+З кореня repository:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-stage9-op2.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-stage9-op3.ps1
 ```
 
-Запустити UI після перевірки:
+Перевірка й запуск:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-stage9-op2.ps1 -Start
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-stage9-op3.ps1 -Start
 ```
 
-## Маршрути каркаса
+Маршрути:
 
-- `/login` — демонстраційна login-форма без backend auth;
-- `/devices` — парк пристроїв;
-- `/devices/north-pump` — модульна Device dashboard;
-- `/alarms` — список інцидентів;
-- `/ui-kit` — primitives і semantic states design system.
+- `/login` — demo login form;
+- `/devices` — demo fleet;
+- `/devices/north-pump` — demo modular dashboard;
+- `/alarms` — demo incidents;
+- `/ui-kit` — components і real `/health` API Contract panel.
 
-## Межі 9.2
+## OpenAPI
 
-Каркас не викликає FastAPI, не читає cookies/tokens і не публікує команди.
-Він не видає demo data за live: у shell постійно показано `Каркас 9.2 · demo data`.
-API base URL винесено до `.env.example`, але adapter і OpenAPI types будуть
-реалізовані в операції 9.3.
+Backend snapshot: `src/lib/api/openapi.json`.
+Generated TypeScript: `src/lib/api/schema.d.ts`.
 
-UX-макет 9.1 збережено у `mockups/stage9-1/` як історичний acceptance artifact.
+Regeneration після зміни backend contract:
+
+```powershell
+python ..\scripts\export_openapi.py
+npm.cmd run api:generate
+npm.cmd run api:verify
+```
+
+Потрібні Python dependencies backend. CI повторює generation і вимагає zero diff.
