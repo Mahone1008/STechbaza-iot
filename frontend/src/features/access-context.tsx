@@ -86,11 +86,16 @@ export function AccessContextProvider({ children }: Readonly<{ children: ReactNo
 
   useEffect(() => {
     const run = ++runRef.current;
+    const scheduleSnapshot = (next: AccessSnapshot) => {
+      globalThis.queueMicrotask(() => {
+        if (run === runRef.current) setSnapshot(next);
+      });
+    };
 
     if (session.status !== "authenticated") {
       const previousScope = activeScopeRef.current;
       activeScopeRef.current = null;
-      setSnapshot({ status: "idle" });
+      scheduleSnapshot({ status: "idle" });
       if (previousScope) {
         void clearSessionCache(queryClient, previousScope);
       } else {
@@ -100,7 +105,7 @@ export function AccessContextProvider({ children }: Readonly<{ children: ReactNo
     }
 
     const controller = new AbortController();
-    setSnapshot({ status: "resolving" });
+    scheduleSnapshot({ status: "resolving" });
 
     void (async () => {
       let phase: "profile" | "organizations" | "access" = "profile";
