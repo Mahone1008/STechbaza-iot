@@ -2,9 +2,9 @@
 
 Дата: 27.09.2026. База: backend **0.38.0**, Етап H завершено 5/5.
 
-**Статус: прийнято 7 із 24 операцій. Етап 9 завершено 4/4.
-Етап 10: 3/4. Операцію 10.4 реалізовано й автоматично перевірено;
-очікується локальне користувацьке приймання.**
+**Статус: прийнято 8 із 24 операцій. Етап 9 завершено 4/4.
+Етап 10 завершено 4/4 після CI та локального Windows-приймання.
+Поточна точка — 11.1.**
 
 Frontend поділено на Етапи 9–14. Кожен етап має чотири операції. Наступна
 операція не закривається автоматично після реалізації: потрібні CI та локальне
@@ -73,14 +73,14 @@ Frontend поділено на Етапи 9–14. Кожен етап має ч�
 
 ## 5. Етап 10 — вхід, сесія та права
 
-**Статус Етапу 10: прийнято 3/4; 10.4 очікує локального приймання.**
+**Статус Етапу 10: завершено 4/4 27.09.2026.**
 
 | Операція | Результат | Статус |
 |---|---|---|
 | 10.1 — Login | email/password, CSRF, credentials include, HttpOnly cookie, memory-only access, 401/403/422/429/network UI | **Закрито 27.09.2026** |
 | 10.2 — Відновлення session | F5 recovery, proactive refresh, memory access token, single-flight і cross-tab coordination | **Закрито 27.09.2026; CI і Windows PASS** |
 | 10.3 — Permissions/guards | `/auth/me`, visible organizations, organization access, session cache isolation, safe returnTo, permission-aware routes/navigation/controls | **Закрито 27.09.2026; CI і Windows PASS** |
-| 10.4 — Logout і збої | server-side revoke, cross-tab cleanup, cancel pending requests, Retry-After і no session resurrection | **Реалізовано; CI PASS; локальне приймання очікується** |
+| 10.4 — Logout і збої | server-side revoke, cross-tab cleanup, cancel pending requests, Retry-After і no session resurrection | **Закрито 27.09.2026; CI і Windows PASS** |
 
 Досьє:
 
@@ -173,5 +173,5 @@ Start/frequency не накопичуються локально для відп
 13. Logout має відкликати server session до остаточного success state.
 14. Невизначений logout result не видається за підтверджений вихід.
 
-**Поточна точка: локальне приймання 10.4 — logout у двох вкладках, F5 і
-прямий protected route без відновлення завершеної session.**
+**Поточна точка: 11.1 — реальні організації, об’єкти, breadcrumbs,
+deep links і відновлення валідного tenant context.**
