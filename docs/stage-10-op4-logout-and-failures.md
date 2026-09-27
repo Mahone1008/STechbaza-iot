@@ -4,10 +4,10 @@
 Backend base: **0.38.0**.  
 Вхідний статус: операції 10.1–10.3 закрито, Етап 10 — **3/4**, frontend roadmap — **7/24**.
 
-> **Статус: реалізацію завершено, фінальний автоматичний CI пройдено.**
+> **Статус: операцію 10.4 прийнято й закрито 27.09.2026.**
 >
-> Операція 10.4 ще не закрита: очікується локальне Windows-приймання
-> користувачем. До цього моменту Етап 10 залишається 3/4, roadmap — 7/24.
+> Фінальний CI та локальне Windows-приймання пройдено. Етап 10 завершено
+> **4/4**, frontend roadmap — **8/24**. Наступна операція — 11.1.
 
 ---
 
@@ -380,8 +380,7 @@ Starting KERUMO at http://127.0.0.1:3000/login
 6. tenant data не показуються під час logout/failure;
 7. користувач приймає результат.
 
-До цього моменту статус залишається **реалізовано, CI PASS, очікується
-локальне користувацьке приймання**.
+Локальне користувацьке приймання пройдено. Операцію 10.4 закрито.
 
 ---
 
@@ -391,6 +390,37 @@ Starting KERUMO at http://127.0.0.1:3000/login
 - список активних сесій і `logout all devices` не входять до frontend v1;
 - offline logout без доступу до backend не вважається підтвердженим;
 - domain data пристроїв, telemetry та alarms залишаються typed demo fixtures;
-- після приймання 10.4 Етап 10 буде завершено **4/4**, roadmap — **8/24**;
+- Етап 10 завершено **4/4**, frontend roadmap — **8/24**;
 - наступна операція — **11.1: реальні організації, об’єкти, breadcrumbs,
   deep links і відновлення валідного tenant context**.
+
+
+---
+
+## 16. Локальне приймання 27.09.2026
+
+Користувач повторно виконав cumulative Windows gate після виправлення
+desktop user-menu bounds та type-safe deduplicated logout redirect.
+
+Підтверджено:
+
+- OpenAPI 0.38.0 / 47 paths — PASS;
+- TypeScript strict і ESLint — PASS;
+- Vitest — **23 passed**;
+- mocked Chromium — **23 passed**;
+- real backend Chromium — **8 passed**;
+- PostgreSQL, Mosquitto і FastAPI — Healthy;
+- фінальний рядок Stage 10.4 PASS;
+- desktop user menu повністю залишається всередині sidebar;
+- logout переводить browser на `/login?loggedOut=1`;
+- показується `Сесію завершено`;
+- завершена session не відновлюється після F5;
+- password/access/refresh token у screenshots не розкрито.
+
+Під час локального приймання додатково виправлено:
+1. popover, що виходив за межі sidebar;
+2. regression test для геометрії menu;
+3. deduplication повторного protected-route redirect;
+4. TypeScript narrowing для `session.reason`.
+
+**Вердикт: 10.4 закрито. Етап 10 завершено 4/4.**
