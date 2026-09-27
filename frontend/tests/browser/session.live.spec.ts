@@ -1,15 +1,18 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page, type Request } from "@playwright/test";
 
 const API_BASE_URL = process.env.KERUMO_API_BASE_URL ?? "http://127.0.0.1:8001";
-const DEMO_EMAIL = process.env.KERUMO_DEMO_EMAIL;
-const DEMO_PASSWORD = process.env.KERUMO_DEMO_PASSWORD;
+const demoEmail = process.env.KERUMO_DEMO_EMAIL;
+const demoPassword = process.env.KERUMO_DEMO_PASSWORD;
 const REFRESH_URL = `${API_BASE_URL}/api/v1/auth/browser/refresh`;
 
-if (!DEMO_EMAIL || !DEMO_PASSWORD) {
+if (!demoEmail || !demoPassword) {
   throw new Error("KERUMO_DEMO_EMAIL and KERUMO_DEMO_PASSWORD are required for live session tests.");
 }
 
-async function login(page: import("@playwright/test").Page) {
+const DEMO_EMAIL: string = demoEmail;
+const DEMO_PASSWORD: string = demoPassword;
+
+async function login(page: Page) {
   await page.goto("/login");
   await page.getByLabel("Email").fill(DEMO_EMAIL);
   await page.getByLabel("Пароль").fill(DEMO_PASSWORD);
@@ -66,7 +69,7 @@ test("real concurrent tabs serialize refresh rotation and both recover", async (
   await page.close();
 
   let refreshRequests = 0;
-  const countRefresh = (request: import("@playwright/test").Request) => {
+  const countRefresh = (request: Request) => {
     if (request.url() === REFRESH_URL && request.method() === "POST") refreshRequests += 1;
   };
   context.on("request", countRefresh);
