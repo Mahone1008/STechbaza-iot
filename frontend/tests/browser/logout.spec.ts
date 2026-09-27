@@ -11,7 +11,19 @@ import {
 } from "./auth-fixtures";
 
 async function openUserMenuAndLogout(page: Page): Promise<void> {
-  await page.locator(".sidebar").getByRole("button", { name: "Відкрити меню користувача" }).click();
+  const sidebar = page.locator(".sidebar");
+  await sidebar.getByRole("button", { name: "Відкрити меню користувача" }).click();
+
+  const menu = page.getByRole("menu", { name: "Меню користувача" });
+  await expect(menu).toBeVisible();
+  const [menuBox, sidebarBox] = await Promise.all([menu.boundingBox(), sidebar.boundingBox()]);
+  expect(menuBox).not.toBeNull();
+  expect(sidebarBox).not.toBeNull();
+  if (menuBox && sidebarBox) {
+    expect(menuBox.x).toBeGreaterThanOrEqual(sidebarBox.x);
+    expect(menuBox.x + menuBox.width).toBeLessThanOrEqual(sidebarBox.x + sidebarBox.width);
+  }
+
   await page.getByRole("menuitem", { name: /Вийти з акаунта/u }).click();
 }
 
