@@ -79,6 +79,6 @@ test("real backend rejects a wrong password with the generic login error", async
   expect(loginResponse.status()).toBe(401);
 
   await expect(page).toHaveURL(/\/login$/u);
-  await expect(page.getByRole("alert")).toContainText("Невірний email або пароль");
+  await expect(page.locator(".login-alert")).toContainText("Невірний email або пароль");
   await expect(page.getByLabel("Пароль")).toHaveValue("");
 });
