@@ -30,6 +30,13 @@ const navigation: readonly NavigationItem[] = [
   { href: "/ui-kit", label: "Компоненти", icon: "components", permission: "capability.read" },
 ];
 
+const mobileNavigationItems: readonly MobileNavigationItem[] = [
+  { href: "/devices/north-pump", label: "Панель", icon: "components", permission: "device.read" },
+  { href: "/devices", label: "Пристрої", icon: "devices", permission: "device.read" },
+  { href: "/alarms", label: "Аварії", icon: "alarm", permission: "alarm.read" },
+  { href: "/ui-kit", label: "Ще", icon: "more", permission: "capability.read" },
+];
+
 function Brand({ compact = false }: { compact?: boolean }) {
   return (
     <span className="brand-lockup" aria-label="KERUMO">
@@ -141,12 +148,7 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
 
   const presentation = sessionPresentation(session, snapshot);
   const visibleNavigation = navigation.filter((item) => hasPermission(item.permission));
-  const mobileNavigation: readonly MobileNavigationItem[] = [
-    { href: "/devices/north-pump", label: "Панель", icon: "components", permission: "device.read" },
-    { href: "/devices", label: "Пристрої", icon: "devices", permission: "device.read" },
-    { href: "/alarms", label: "Аварії", icon: "alarm", permission: "alarm.read" },
-    { href: "/ui-kit", label: "Ще", icon: "more", permission: "capability.read" },
-  ].filter((item) => hasPermission(item.permission));
+  const mobileNavigation = mobileNavigationItems.filter((item) => hasPermission(item.permission));
   const mobileStyle: CSSProperties = {
     gridTemplateColumns: `repeat(${Math.max(1, mobileNavigation.length)}, minmax(0, 1fr))`,
   };
