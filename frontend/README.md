@@ -6,22 +6,26 @@
 
 ## Поточний стан
 
-**Етап 9 завершено 4/4. Frontend roadmap: прийнято 5/24.**
+**Етап 9 завершено 4/4. Етап 10: 2/4. Frontend roadmap: прийнято 6/24.**
 
 - **9.1–9.4 закрито:** UX, Next.js/TypeScript foundation, OpenAPI/API layer,
   unit/component tests, Chromium smoke, production build і Windows acceptance.
 - **10.1 закрито:** реальний FastAPI browser login із CSRF, HttpOnly refresh
   cookie, memory-only access token і auth error states.
-- **10.2 реалізовано, CI PASS:** F5 recovery, proactive refresh, in-tab
+- **10.2 закрито 27.09.2026:** F5 recovery, proactive refresh, in-tab
   single-flight, Web Locks/localStorage lease fallback і BroadcastChannel
   coordination між same-origin вкладками.
-- **10.2 ще не закрито:** очікується локальне Windows-приймання користувачем.
+- Локальне Windows-приймання підтвердило automatic `/login` → `/devices`
+  recovery без повторного password і status `Сесія відновлена · demo data`.
 - Devices, telemetry, alarms і commands поки використовують typed demo
-  fixtures; permissions і route guards починаються в 10.3.
+  fixtures; permissions і route guards реалізуються в 10.3.
 
 [Досьє V3.5 — Етап 9](../docs/dossier-v3.5-stage-9-frontend-foundation.md).  
 [Досьє операції 10.1](../docs/stage-10-op1-browser-login.md).  
 [Досьє операції 10.2](../docs/stage-10-op2-session-recovery.md).
+
+**Наступна операція — 10.3: `/auth/me`, реальні permissions,
+organization access, cache isolation і route guards.**
 
 ## Стек
 
@@ -35,8 +39,8 @@
 - CSS variables + звичайний CSS;
 - ESLint flat config із core-web-vitals і TypeScript rules.
 
-Node.js: **20.9.0+**. CI: Node.js 22.16.0. Локально прийнята Stage 9 і 10.1
-на Node.js 24.21.0.
+Node.js: **20.9.0+**. CI: Node.js 22.16.0. Локально прийняті Етап 9,
+операції 10.1 і 10.2 на Node.js 24.21.0.
 
 ## Конфігурація
 
@@ -53,7 +57,7 @@ NEXT_PUBLIC_API_TIMEOUT_MS=10000
 
 Не додавати secrets у `NEXT_PUBLIC_*`: ці values потрапляють до browser bundle.
 
-## Перевірка операції 10.2
+## Прийнята перевірка операції 10.2
 
 Зупинити попередній Next.js через `Ctrl+C`, потім із кореня repository:
 
@@ -61,19 +65,27 @@ NEXT_PUBLIC_API_TIMEOUT_MS=10000
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-stage10-op2.ps1 -Start
 ```
 
-Скрипт повторює cumulative Stage 10 auth gate, запускає real demo backend і
-перевіряє login, refresh після reload та concurrent tabs. Очікуваний результат:
+Підтверджено 27.09.2026:
 
 ```text
+OpenAPI 0.38.0 / 47 paths — PASS
+TypeScript strict — PASS
+ESLint — PASS
+Vitest — 15 passed
+Production build — PASS
+Mocked Chromium — 13 passed
+Real Chromium — 4 passed
+Docker PostgreSQL/Mosquitto/backend — Healthy
 PASS: Stage 10.2 HttpOnly session recovery, proactive refresh, single-flight and cross-tab coordination.
 ```
 
-Ручна перевірка:
+Ручне Windows-приймання підтвердило:
 
-1. Увійти через `owner@techbaza-demo.example.com`.
-2. На `/devices` натиснути `F5`.
-3. Побачити `Сесія відновлена · demo data` без повторного password.
-4. Відкрити `/devices` у другій вкладці й перевірити відновлення без login form.
+1. відкриття `/login` із чинною HttpOnly session;
+2. стан перевірки/відновлення без показу secret;
+3. автоматичний redirect на `/devices` без email/password;
+4. `Сесія відновлена · demo data` у topbar;
+5. повторний password не запитується.
 
 Access token не записується у localStorage/sessionStorage/URL. localStorage
 fallback містить тільки короткоживу lock lease metadata без token.
@@ -105,5 +117,6 @@ npm.cmd run api:generate
 npm.cmd run api:verify
 ```
 
-CI повторює generation і вимагає zero diff. Permissions, route guards,
-logout і browser → API → MQTT regression належать наступним операціям.
+CI повторює generation і вимагає zero diff. `/auth/me`, permissions,
+organization access, cache isolation і route guards належать операції 10.3;
+logout і coordinated revoke — операції 10.4.
