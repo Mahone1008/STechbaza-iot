@@ -1,13 +1,14 @@
 # Етап 10, операція 2 — відновлення browser session KERUMO
 
-Дата реалізації: 27.09.2026.  
+Дата реалізації та приймання: 27.09.2026.  
 Backend base: **0.38.0**.  
 Вхідний статус: операцію 10.1 закрито, Етап 10 — **1/4**, frontend roadmap — **5/24**.
 
-> **Статус: реалізацію завершено, автоматичний CI пройдено.**
+> **Статус: закрито 27.09.2026 після автоматичного CI та локального Windows-приймання.**
 >
-> Операція 10.2 ще не закрита: очікується локальне Windows-приймання
-> користувачем. До цього моменту Етап 10 залишається 1/4, roadmap — 5/24.
+> Підсумковий статус: Етап 10 — **2/4**, frontend roadmap — **6/24**.
+> Наступна операція — **10.3: `/auth/me`, permissions, organization access,
+> cache isolation і route guards**.
 
 ---
 
@@ -227,10 +228,17 @@ a2d1a73ac26ec0af3603d1d6fe0c363fd8fc1526
 Deduplicate Stage 10.2 cross-tab refresh
 ```
 
+CI та документаційна інтеграція:
+
+```text
+7236e880e9937ad01d7733594f132cee1826246d
+Extend frontend CI for Stage 10.2 session recovery
+```
+
 Фінальний GitHub Actions run:
 
 ```text
-36333852692 — completed / success
+36334330557 — completed / success
 ```
 
 ### Frontend job
@@ -259,9 +267,9 @@ tests**:
 
 ---
 
-## 12. Локальна Windows-перевірка
+## 12. Локальне Windows-приймання
 
-Перед запуском зупинити попередній Next.js через `Ctrl+C`, потім:
+27.09.2026 користувач виконав cumulative acceptance на Windows 11:
 
 ```powershell
 Set-Location "C:\Users\seraf\Documents\TechBaza\techbaza-iot"
@@ -269,45 +277,53 @@ git pull
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-stage10-op2.ps1 -Start
 ```
 
-Очікуваний фінал:
+Зафіксований результат:
 
 ```text
+Vitest: 15 passed
+Mocked Chromium: 13 passed
+Real Chromium: 4 passed
+Docker PostgreSQL: Healthy
+Docker Mosquitto: Healthy
+Docker backend: Healthy
 PASS: Stage 10.2 HttpOnly session recovery, proactive refresh, single-flight and cross-tab coordination.
 Starting KERUMO at http://127.0.0.1:3000/login
 ```
 
-Ручний acceptance:
+Ручне приймання підтвердило:
 
-1. Увійти через `owner@techbaza-demo.example.com`.
-2. На `/devices` натиснути `F5`.
-3. Переконатися, що password повторно не запитується.
-4. Побачити `Сесія відновлена · demo data`.
-5. Відкрити `http://127.0.0.1:3000/devices` у другій вкладці.
-6. Переконатися, що друга вкладка також відновилась без login form.
-7. Не публікувати demo password або token у screenshot.
+1. відкриття `http://127.0.0.1:3000/login` із чинною HttpOnly session;
+2. короткий стан `Перевіряємо наявну сесію` / `Відновлюємо сесію…`;
+3. автоматичний redirect на `/devices` без email/password;
+4. статус у topbar `Сесія відновлена · demo data`;
+5. відсутність access token у localStorage/sessionStorage/URL;
+6. повторний password не запитується;
+7. screenshots не містять demo password або token.
+
+Це саме очікувана поведінка 10.2: `/login` не повинен показувати форму входу,
+якщо backend підтвердив чинну refresh session.
 
 ---
 
 ## 13. Критерії закриття
 
-Операція 10.2 закривається після підтвердження:
+| Критерій | Результат |
+|---|---|
+| Cumulative acceptance script | **PASS** |
+| Mocked browser tests | **13 passed** |
+| Real browser tests | **4 passed** |
+| F5/session recovery не повертає на login | **PASS** |
+| UI показує restored session | **PASS** |
+| Cross-tab refresh rotation | **PASS, один refresh request у real test** |
+| Локальні screenshots і приймання користувача | **PASS** |
 
-1. cumulative acceptance script завершується PASS;
-2. mocked browser tests показують 13 passed;
-3. real browser tests показують 4 passed;
-4. ручний F5 не повертає користувача на login;
-5. UI показує restored session;
-6. друга вкладка відкривається без повторного password;
-7. користувач надає screenshots і приймає результат.
-
-До цього моменту status залишається **реалізовано, CI PASS, очікується
-користувацьке приймання**.
+**Операцію 10.2 закрито.**
 
 ---
 
 ## 14. Межі та наступні операції
 
-- **10.3 — наступна після приймання:** `/auth/me`, актуальні permissions,
+- **10.3 — наступна операція:** `/auth/me`, актуальні permissions,
   organization access, cache isolation і route guards;
 - **10.4:** справжній logout/revoke, cancel pending requests і захист від
   session resurrection.
