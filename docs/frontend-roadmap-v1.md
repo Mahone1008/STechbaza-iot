@@ -3,8 +3,8 @@
 Дата: 27.09.2026. База: backend **0.38.0**, Етап H завершено 5/5.
 
 **Статус: прийнято 7 із 24 операцій. Етап 9 завершено 4/4.
-Етап 10: 3/4. Операцію 10.3 закрито після CI та локального Windows-приймання.
-Поточна точка — 10.4: logout, revoke і захист від session resurrection.**
+Етап 10: 3/4. Операцію 10.4 реалізовано й автоматично перевірено;
+очікується локальне користувацьке приймання.**
 
 Frontend поділено на Етапи 9–14. Кожен етап має чотири операції. Наступна
 операція не закривається автоматично після реалізації: потрібні CI та локальне
@@ -34,6 +34,7 @@ Frontend поділено на Етапи 9–14. Кожен етап має ч�
 - verified `/auth/me`, organization access і runtime permission registry;
 - workspace route guards без tenant-data flash;
 - permission-aware navigation і critical controls;
+- server-side browser logout, cross-tab revoke і no session resurrection;
 - bounded polling тільки видимих даних;
 - Vitest component/unit tests і Playwright Chromium smoke/full E2E;
 - UI `http://127.0.0.1:3000`, demo API `http://127.0.0.1:8001`.
@@ -72,20 +73,21 @@ Frontend поділено на Етапи 9–14. Кожен етап має ч�
 
 ## 5. Етап 10 — вхід, сесія та права
 
-**Статус Етапу 10: прийнято 3/4. Наступна операція — 10.4.**
+**Статус Етапу 10: прийнято 3/4; 10.4 очікує локального приймання.**
 
 | Операція | Результат | Статус |
 |---|---|---|
 | 10.1 — Login | email/password, CSRF, credentials include, HttpOnly cookie, memory-only access, 401/403/422/429/network UI | **Закрито 27.09.2026** |
 | 10.2 — Відновлення session | F5 recovery, proactive refresh, memory access token, single-flight і cross-tab coordination | **Закрито 27.09.2026; CI і Windows PASS** |
 | 10.3 — Permissions/guards | `/auth/me`, visible organizations, organization access, session cache isolation, safe returnTo, permission-aware routes/navigation/controls | **Закрито 27.09.2026; CI і Windows PASS** |
-| 10.4 — Logout і збої | coordinated revoke, cancel pending requests, no session resurrection | **Наступна операція** |
+| 10.4 — Logout і збої | server-side revoke, cross-tab cleanup, cancel pending requests, Retry-After і no session resurrection | **Реалізовано; CI PASS; локальне приймання очікується** |
 
 Досьє:
 
 - [10.1 — справжній browser login KERUMO](stage-10-op1-browser-login.md)
 - [10.2 — відновлення browser session KERUMO](stage-10-op2-session-recovery.md)
 - [10.3 — профіль, permissions і route guards KERUMO](stage-10-op3-permissions-and-guards.md)
+- [10.4 — logout, revoke і захист від session resurrection](stage-10-op4-logout-and-failures.md)
 
 Access token не persist-иться. Refresh token не читається JavaScript.
 Temporary network failure не прирівнюється до logout; write requests не
@@ -100,6 +102,17 @@ Frontend guard не замінює backend authorization.
 - viewer context із disabled Start/Stop/frequency/settings;
 - explicit warning про відсутній `command.execute`;
 - 22 unit, 19 mocked Chromium і 6 real Chromium tests — PASS.
+
+Автоматичний gate 10.4 підтвердив:
+
+- `POST /auth/browser/logout` із CSRF і HttpOnly cookie;
+- revoke поточної server-side session;
+- старий access token → `401` після logout;
+- одна вкладка очищує всі same-origin вкладки;
+- F5 і новий protected route не відновлюють session;
+- ambiguous failure не видається за успіх;
+- `Retry-After` керує повторною спробою;
+- 23 unit, 23 mocked Chromium і 8 real Chromium tests — PASS.
 
 ## 6. Етап 11 — організації, пристрої та модульна панель
 
@@ -150,14 +163,15 @@ Start/frequency не накопичуються локально для відп
 3. Backend завжди повторно перевіряє permissions.
 4. Logout/context switch cancel-ить requests і видаляє scoped cache.
 5. Missing не стає нулем, графік не з’єднує gaps.
-6. GET retry bounded; write/login retry має окрему policy.
+6. GET retry bounded; write/login/logout retry має окрему policy.
 7. Mock data не маскують збій live API.
 8. Frontend CI не замінює backend suite.
 9. Access token не persist-иться; refresh token не читається JavaScript.
-10. Cross-tab lock metadata не містить token.
+10. Cross-tab lock і logout marker metadata не містять token.
 11. Session cache scope містить `user_id` і `auth_session_id`.
 12. Route guard не є заміною server-side authorization.
-13. Logout має відкликати server session до остаточного очищення browser state.
+13. Logout має відкликати server session до остаточного success state.
+14. Невизначений logout result не видається за підтверджений вихід.
 
-**Поточна точка: 10.4 — справжній browser logout/revoke, coordinated cleanup
-між вкладками, cancel pending requests і захист від session resurrection.**
+**Поточна точка: локальне приймання 10.4 — logout у двох вкладках, F5 і
+прямий protected route без відновлення завершеної session.**
