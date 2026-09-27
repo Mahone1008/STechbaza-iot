@@ -6,14 +6,20 @@
 
 ## Поточний стан
 
+**Етап 9 завершено 4/4. Frontend roadmap: 4/24.**
+
 - **9.1 закрито:** UX-сценарії та light industrial SaaS direction.
 - **9.2 закрито:** Next.js/TypeScript strict foundation, design system,
-  responsive shell і reusable components; local Windows acceptance PASS.
+  responsive shell і reusable components.
 - **9.3 закрито:** generated OpenAPI types, shared API adapter, normalized
   errors, timeout/cancel, TanStack Query keys/cache lifecycle і real `/health`.
-- **9.4 у роботі:** clean baseline, Vitest unit/component tests, Chromium
-  browser smoke checks і фінальний CI Етапу 9.
+- **9.4 закрито:** clean baseline, Vitest unit/component tests, Chromium
+  browser smoke checks, production build, CI і Windows acceptance.
 - Login, devices, alarms і dashboard поки використовують typed demo fixtures.
+
+[Підсумкове досьє Етапу 9](../docs/stage-9-frontend-foundation.md).
+
+**Наступна операція — 10.1: реальний browser login email/password.**
 
 ## Стек
 
@@ -44,7 +50,7 @@ NEXT_PUBLIC_API_TIMEOUT_MS=10000
 
 Не додавати secrets у `NEXT_PUBLIC_*`: ці values потрапляють до browser bundle.
 
-## Перевірка 9.4
+## Повна перевірка фундаменту
 
 З кореня repository:
 
@@ -58,12 +64,13 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-stage9-op4.p
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-stage9-op4.ps1 -Start
 ```
 
-Перший запуск завантажує Chromium для Playwright. Скрипт виконує clean install,
-OpenAPI zero-diff, typecheck, lint, unit tests, production build і browser smoke.
+Скрипт створює ignored project-local `.venv`, встановлює backend schema
+dependencies, виконує clean npm install, OpenAPI zero-diff, typecheck, lint,
+7 unit/component tests, production build і 4 Chromium browser smoke tests.
 
 Маршрути:
 
-- `/login` — demo login form;
+- `/login` — demo login form до операції 10.1;
 - `/devices` — demo fleet;
 - `/devices/north-pump` — demo modular dashboard;
 - `/alarms` — demo incidents;
@@ -77,10 +84,10 @@ Generated TypeScript: `src/lib/api/schema.d.ts`.
 Regeneration після зміни backend contract:
 
 ```powershell
-python ..\scripts\export_openapi.py
+.\.venv\Scripts\python.exe ..\scripts\export_openapi.py
 npm.cmd run api:generate
 npm.cmd run api:verify
 ```
 
-CI повторює generation і вимагає zero diff. Browser tests першого baseline не
-підміняють full auth/MQTT E2E, заплановане на наступних етапах.
+CI повторює generation і вимагає zero diff. Browser smoke першого baseline не
+підміняє full auth/MQTT E2E, заплановане на наступних етапах.
