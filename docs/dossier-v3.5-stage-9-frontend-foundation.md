@@ -1,4 +1,6 @@
-# Етап 9 — Frontend Foundation KERUMO
+# Досьє V3.5 — Етап 9
+
+## Frontend Foundation KERUMO — загальне підсумкове досьє
 
 Дата початку: 27.09.2026.  
 Дата завершення: 27.09.2026.  

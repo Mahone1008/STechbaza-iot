@@ -5,7 +5,6 @@
 ## Frontend
 
 - [План frontend v1 — 24 операції; прийнято 4/24](frontend-roadmap-v1.md)
-- [Етап 9 — Frontend Foundation KERUMO — завершено 4/4](stage-9-frontend-foundation.md)
 - [Етап 9.1 — UX-сценарії та макети KERUMO — закрито](stage-9-op1-ux-and-mockups.md)
 - [Етап 9.2 — Next.js/TypeScript foundation — закрито](stage-9-op2-frontend-foundation.md)
 - [Етап 9.3 — API adapter і контракти — закрито](stage-9-op3-api-adapter.md)
@@ -29,6 +28,7 @@
 - [Етап 6 — Users, Authentication & RBAC](dossier-v3.5-stage-6-users-auth-rbac.md)
 - [Етап 7 — Events & Alarms Core](dossier-v3.5-stage-7-events-alarms-core.md)
 - [Етап 8 — Test backend](dossier-v3.5-stage-8-test-backend.md)
+- [Етап 9 — Frontend Foundation KERUMO — загальне підсумкове досьє](dossier-v3.5-stage-9-frontend-foundation.md)
 
 ## Чинні технічні контракти
 

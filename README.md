@@ -29,7 +29,7 @@ email/password із CSRF та HttpOnly cookie contract**.
 - [Backend: структура й запуск перевірок](backend/README.md).
 - [Frontend: поточна точка й запуск](frontend/README.md).
 - [План frontend 9–14](docs/frontend-roadmap-v1.md).
-- [Підсумкове досьє Етапу 9](docs/stage-9-frontend-foundation.md).
+- [Досьє V3.5 — Етап 9 — Frontend Foundation KERUMO](docs/dossier-v3.5-stage-9-frontend-foundation.md).
 - [Досьє операції 9.4](docs/stage-9-op4-frontend-baseline.md).
 - [API для frontend](docs/frontend-api-contract-v1.md).
 - [Модулі та канали](docs/module-channel-contract-v1.md).

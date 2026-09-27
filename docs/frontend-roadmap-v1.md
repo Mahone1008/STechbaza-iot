@@ -63,7 +63,7 @@ Frontend поділено на Етапи 9–14. Кожен етап має ч�
 - [9.2 — frontend foundation](stage-9-op2-frontend-foundation.md)
 - [9.3 — API adapter і контракти](stage-9-op3-api-adapter.md)
 - [9.4 — відтворюваний frontend baseline](stage-9-op4-frontend-baseline.md)
-- [загальне підсумкове досьє Етапу 9](stage-9-frontend-foundation.md)
+- [Досьє V3.5 — Етап 9 — Frontend Foundation KERUMO](dossier-v3.5-stage-9-frontend-foundation.md)
 
 ## 5. Етап 10 — вхід, сесія та права
 
