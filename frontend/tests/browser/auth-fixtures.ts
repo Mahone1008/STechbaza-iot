@@ -48,6 +48,7 @@ export const corsHeaders = {
   "access-control-allow-credentials": "true",
   "access-control-allow-methods": "GET, POST, OPTIONS",
   "access-control-allow-headers": "authorization, content-type, x-techbaza-csrf",
+  "access-control-expose-headers": "Retry-After",
   vary: "Origin",
 };
 
