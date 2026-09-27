@@ -2,7 +2,7 @@
 
 Дата: 27.09.2026. База: backend **0.38.0**, Етап H завершено 5/5.
 
-**Статус: прийнято 2 із 24 операцій. Етап 9: 2/4. Поточна точка — 9.3.**
+**Статус: прийнято 3 із 24 операцій. Етап 9: 3/4. Поточна точка — 9.4.**
 
 Frontend поділено на Етапи 9–14. Кожен етап має чотири операції. Наступна
 операція не закривається автоматично після реалізації: потрібні CI та локальне
@@ -25,10 +25,11 @@ Frontend поділено на Етапи 9–14. Кожен етап має ч�
 - React + Next.js + TypeScript strict;
 - FastAPI залишається єдиним backend і джерелом auth/RBAC/business rules;
 - OpenAPI snapshot + generated TypeScript contract;
+- shared API adapter із timeout/cancel/normalized errors;
 - TanStack Query із user/session/tenant/device scoped keys;
 - access token лише в memory, refresh token лише в HttpOnly cookie;
 - bounded polling тільки видимих даних;
-- component tests і Playwright; final E2E через real demo API/MQTT;
+- Vitest component/unit tests і Playwright Chromium smoke/full E2E;
 - UI `http://127.0.0.1:3000`, demo API `http://127.0.0.1:8001`.
 
 ## 3. Карта екранів і API
@@ -50,14 +51,15 @@ Frontend поділено на Етапи 9–14. Кожен етап має ч�
 |---|---|---|
 | 9.1 — Сценарії та макети | light industrial SaaS visual direction, page map, roles, desktop/mobile, all UI states | **Закрито 27.09.2026** |
 | 9.2 — Каркас і компоненти | Next.js/TS strict, tokens, navigation shell, primitives, lockfile, clean build | **Закрито 27.09.2026** |
-| 9.3 — API adapter і контракти | OpenAPI types, base URL, timeout/cancel, error mapping, query keys/cache lifecycle | **У роботі** |
-| 9.4 — Відтворюваний baseline | component/browser checks, frontend CI, clean setup docs, schema update policy | Заплановано |
+| 9.3 — API adapter і контракти | OpenAPI types, base URL, timeout/cancel, error mapping, query keys/cache lifecycle | **Закрито 27.09.2026** |
+| 9.4 — Відтворюваний baseline | component/unit tests, Chromium smoke, frontend CI, clean setup docs, schema update policy | **У роботі** |
 
 Досьє:
 
 - [9.1 — UX-сценарії та макети](stage-9-op1-ux-and-mockups.md)
 - [9.2 — frontend foundation](stage-9-op2-frontend-foundation.md)
 - [9.3 — API adapter і контракти](stage-9-op3-api-adapter.md)
+- [9.4 — відтворюваний frontend baseline](stage-9-op4-frontend-baseline.md)
 
 ## 5. Етап 10 — вхід, сесія та права
 
@@ -123,5 +125,5 @@ Start/frequency не накопичуються локально для відп
 7. Mock data не маскують збій live API.
 8. Frontend CI не замінює backend suite.
 
-**Поточна точка: 9.3 — OpenAPI types, shared API adapter, timeout/cancel,
-normalized errors і cache lifecycle.**
+**Поточна точка: 9.4 — clean install, contract zero-diff, unit/component tests,
+production build, Chromium smoke checks і фінальний CI Етапу 9.**

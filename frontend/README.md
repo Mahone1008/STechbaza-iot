@@ -9,10 +9,11 @@
 - **9.1 закрито:** UX-сценарії та light industrial SaaS direction.
 - **9.2 закрито:** Next.js/TypeScript strict foundation, design system,
   responsive shell і reusable components; local Windows acceptance PASS.
-- **9.3 у роботі:** generated OpenAPI types, shared API adapter, normalized
-  errors, timeout/cancel, TanStack Query keys і cache lifecycle.
+- **9.3 закрито:** generated OpenAPI types, shared API adapter, normalized
+  errors, timeout/cancel, TanStack Query keys/cache lifecycle і real `/health`.
+- **9.4 у роботі:** clean baseline, Vitest unit/component tests, Chromium
+  browser smoke checks і фінальний CI Етапу 9.
 - Login, devices, alarms і dashboard поки використовують typed demo fixtures.
-  Єдиний real request у 9.3 — публічний backend `/health` у `/ui-kit`.
 
 ## Стек
 
@@ -21,6 +22,8 @@
 - TypeScript strict;
 - TanStack Query 5.104.0;
 - OpenAPI TypeScript 7.13.0;
+- Vitest 5.0.2;
+- Playwright 1.63.0, Chromium;
 - CSS variables + звичайний CSS;
 - ESLint flat config із core-web-vitals і TypeScript rules.
 
@@ -41,19 +44,22 @@ NEXT_PUBLIC_API_TIMEOUT_MS=10000
 
 Не додавати secrets у `NEXT_PUBLIC_*`: ці values потрапляють до browser bundle.
 
-## Перевірка 9.3
+## Перевірка 9.4
 
 З кореня repository:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-stage9-op3.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-stage9-op4.ps1
 ```
 
 Перевірка й запуск:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-stage9-op3.ps1 -Start
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-stage9-op4.ps1 -Start
 ```
+
+Перший запуск завантажує Chromium для Playwright. Скрипт виконує clean install,
+OpenAPI zero-diff, typecheck, lint, unit tests, production build і browser smoke.
 
 Маршрути:
 
@@ -76,4 +82,5 @@ npm.cmd run api:generate
 npm.cmd run api:verify
 ```
 
-Потрібні Python dependencies backend. CI повторює generation і вимагає zero diff.
+CI повторює generation і вимагає zero diff. Browser tests першого baseline не
+підміняють full auth/MQTT E2E, заплановане на наступних етапах.

@@ -14,7 +14,10 @@
     "typecheck": "tsc --noEmit",
     "api:generate": "openapi-typescript ./src/lib/api/openapi.json --output ./src/lib/api/schema.d.ts --alphabetize",
     "api:verify": "node ./scripts/verify-openapi.mjs",
-    "check": "npm run api:verify && npm run typecheck && npm run lint && npm run build"
+    "test:unit": "vitest run",
+    "test:browser": "playwright test",
+    "browser:install": "playwright install chromium",
+    "check": "npm run api:verify && npm run typecheck && npm run lint && npm run test:unit && npm run build && npm run test:browser"
   },
   "dependencies": {
     "@tanstack/react-query": "5.104.0",
@@ -23,12 +26,14 @@
     "react-dom": "19.2.8"
   },
   "devDependencies": {
+    "@playwright/test": "1.63.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.3.6",
     "openapi-typescript": "7.13.0",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "5.0.2"
   }
 }

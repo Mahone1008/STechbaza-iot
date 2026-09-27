@@ -8,16 +8,17 @@ on:
       - 'backend/**'
       - 'scripts/export_openapi.py'
       - 'scripts/check-stage9-op3.ps1'
+      - 'scripts/check-stage9-op4.ps1'
       - '.github/workflows/frontend-bootstrap.yml'
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   frontend:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -30,11 +31,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22.16.0'
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-      - name: Install locked frontend dependencies
+      - name: Bootstrap frontend dependencies
         working-directory: frontend
-        run: npm ci --no-audit --no-fund
+        run: npm install --no-audit --no-fund
       - name: Generate TypeScript API contract
         working-directory: frontend
         run: npm run api:generate
@@ -49,6 +48,37 @@ jobs:
       - name: Lint
         working-directory: frontend
         run: npm run lint
+      - name: Unit and component tests
+        working-directory: frontend
+        run: npm run test:unit
       - name: Production build
         working-directory: frontend
         run: npm run build
+      - name: Install Chromium
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+      - name: Chromium browser smoke
+        working-directory: frontend
+        run: npm run test:browser
+      - name: Commit Stage 9.4 dependency lock
+        shell: bash
+        run: |
+          git add frontend/package-lock.json
+          if git diff --cached --quiet; then
+            echo "package-lock.json is already current."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Pin Stage 9.4 frontend test dependencies"
+          git push origin HEAD:main
+      - name: Upload browser report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-stage9-op4-browser-report
+          path: |
+            frontend/playwright-report
+            frontend/test-results
+          if-no-files-found: ignore
+          retention-days: 5

@@ -1,132 +1,110 @@
 # Етап 9, операція 3 — API adapter і контракти KERUMO
 
-Дата початку: 27.09.2026. Вхідна точка: 9.2 закрито, frontend roadmap 2/24.
-Backend залишається **0.38.0**.
+Дата: 27.09.2026. Backend: **0.38.0**.
 
-**Статус: автоматичний CI пройдено; реалізацію передано на локальне
-користувацьке приймання. Операція 9.3 ще не закрита. Етап 9: 2/4,
-frontend roadmap: 2/24 до підтвердження користувача.**
+**Статус: операцію 9.3 прийнято користувачем і закрито 27.09.2026.
+Етап 9: 3/4. Frontend roadmap: 3/24.**
 
-## 1. Мета
+## 1. Результат
 
-Створити одну перевірену межу між browser UI та FastAPI, щоб майбутні login,
-списки, telemetry, commands і alarms не реалізовували власний `fetch`, timeout,
+Створено одну перевірену межу між browser UI та FastAPI, щоб login, списки,
+telemetry, commands і alarms не реалізовували власний `fetch`, timeout,
 error mapping або cache keys у кожному компоненті.
 
-## 2. Реалізований контракт
+Реалізовано:
 
-- OpenAPI snapshot експортується без запуску HTTP server через
-  `scripts/export_openapi.py` з чинного `app.openapi()`;
-- `openapi-typescript` генерує `schema.d.ts`;
-- CI перевіряє backend version і обов’язкові paths;
-- browser config читає лише public `NEXT_PUBLIC_*` values і відхиляє URL з
-  credentials, query або fragment;
-- один `apiRequest<T>` додає JSON headers, optional Bearer, CSRF header,
-  `credentials: include`, `cache: no-store`, query params, timeout і cancel;
-- errors нормалізуються у `ApiError` без порівняння UI з українським текстом
-  backend;
-- окремо розрізняються 401, 403, 404, 409, 422, 429, 5xx, network, timeout,
-  cancel та invalid JSON;
-- `Retry-After` читається як seconds або HTTP date;
-- TanStack Query має bounded retry policy; mutations не повторюються
-  автоматично;
-- query keys завжди містять user/session/tenant/device context;
-- session cache можна спочатку cancel, а потім повністю remove;
-- root QueryClient не зберігається у localStorage і створюється один раз на
-  browser application instance.
+- експорт OpenAPI через `scripts/export_openapi.py` із чинного `app.openapi()`;
+- tracked snapshot `frontend/src/lib/api/openapi.json`;
+- generated TypeScript contract `schema.d.ts` через `openapi-typescript`;
+- перевірку backend version і обов’язкових paths;
+- public browser config тільки з `NEXT_PUBLIC_*` без credentials/query/fragment;
+- один `apiRequest<T>` із JSON headers, optional Bearer, CSRF, cookie credentials,
+  no-store, query params, timeout та AbortSignal;
+- normalized `ApiError` для 401/403/404/409/422/429/5xx, network, timeout,
+  aborted та invalid response;
+- parsing `Retry-After` як seconds або HTTP date;
+- TanStack Query із bounded retry policy та `retry: false` для mutations;
+- session/tenant/device scoped query keys і cancel + remove cache lifecycle;
+- root QueryClient без localStorage persistence;
+- real `/health` panel у `/ui-kit` без передчасного підключення devices/auth.
 
-## 3. Пакети та generated contract
+## 2. Зафіксований контракт
 
+- OpenAPI **3.1.0**;
+- backend version **0.38.0**;
+- **47 paths**;
 - `@tanstack/react-query` **5.104.0**;
 - `openapi-typescript` **7.13.0**;
-- OpenAPI **3.1.0**, backend version **0.38.0**;
-- snapshot містить **47 paths**;
-- exact dependency graph зафіксовано у `frontend/package-lock.json`;
-- `frontend/src/lib/api/openapi.json` і `schema.d.ts` tracked у Git.
+- exact dependency graph у `frontend/package-lock.json`.
 
-## 4. Демонстрація без передчасного підключення бізнес-екранів
+Devices, alarms, login і Device dashboard залишаються на явних typed demo
+fixtures до своїх операцій. Це не маскує їх як live data.
 
-`/ui-kit` отримує API Contract panel. Він виконує лише публічний `/health`:
-
-- до першого запиту показує `Не перевірено`, а не порожній список;
-- при success показує status, service і backend version;
-- при недоступному server показує окремий network error;
-- довгий запит можна скасувати;
-- reset видаляє лише public health query;
-- devices/alarms/login залишаються на явних demo fixtures до своїх етапів.
-
-Це не підміняє Етап 10 auth або Етап 11 live dashboard.
-
-## 5. Безпека й cache policy
-
-- access token у 9.3 не зберігається; майбутній caller передаватиме його з
-  memory-only session coordinator;
-- refresh cookie не читається JavaScript, але fetch готовий до
-  `credentials: include`;
-- 401/403/404/409/422/429, cancel та invalid response не retry автоматично;
-- network/5xx мають максимум дві додаткові спроби для read queries;
-- mutations мають `retry: false`;
-- logout або context switch використовуватимуть scoped cancel + remove, тому
-  запізніла відповідь старого tenant не повинна потрапити у новий cache;
-- write request policy й single-flight refresh реалізуються у наступних
-  операціях, а не декларуються готовими зараз.
-
-## 6. Автоматичні докази
+## 3. Автоматичні докази
 
 Основна реалізація: commit
 `1924c8a24e5c475b4fff7e20c17a64491284b8ca`.
-Bootstrap GitHub Actions run **36323749392** завершився `success`:
-
-1. встановлено backend schema dependencies;
-2. експортовано OpenAPI 0.38.0;
-3. встановлено frontend dependencies;
-4. згенеровано TypeScript contract;
-5. пройдено `api:verify`, typecheck, lint і production build.
-
-Generated contract і lockfile зафіксував службовий commit
+Generated contract зафіксовано commit
 `50e0eebd0f7d010f72685b59e7c49702d440f8de`.
 
-Фінальний read-only gate на commit
-`fd68cd65588a80eff6316ced0aa07f880b6d3ad1`:
-GitHub Actions run **36323956820** — `completed / success`.
-Він використовує `npm ci`, повторно експортує OpenAPI, регенерує types,
-вимагає zero diff і після цього запускає verify/typecheck/lint/build.
+Фінальний read-only gate:
 
-Це доводить відтворюваність contract artifacts у чистому Linux/Node 22.16.0
-environment, але не замінює локальну Windows-перевірку UI та реального
-`/health` state.
+- commit `fd68cd65588a80eff6316ced0aa07f880b6d3ad1`;
+- GitHub Actions run **36323956820**;
+- результат `completed / success`.
 
-## 7. Локальна перевірка
+Пройдено:
 
-Спочатку зупинити попередній dev server через `Ctrl+C`, потім:
+1. `npm ci` за tracked lockfile;
+2. повторний OpenAPI export;
+3. regeneration TypeScript contract;
+4. zero diff contract check;
+5. `api:verify`;
+6. TypeScript typecheck;
+7. ESLint із zero warnings policy;
+8. Next.js production build.
 
-```powershell
-Set-Location "C:\Users\seraf\Documents\TechBaza\techbaza-iot"
-git pull
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-stage9-op3.ps1 -Start
-```
+## 4. Локальне приймання користувачем
 
-Після запуску відкрити:
+Користувач виконав Windows-перевірку на Node.js **24.21.0** та надав
+screenshots із результатами:
 
 ```text
-http://127.0.0.1:3000/ui-kit
+PASS: OpenAPI 0.38.0; 47 paths; generated TypeScript contract present.
+PASS: Stage 9.3 OpenAPI contract, typecheck, lint and production build.
 ```
 
-У development-перегляді Next.js route indicator `N` вимкнено в
-`next.config.ts`, бо він не належить до KERUMO. Compile/runtime errors Next.js
-продовжує показувати.
+Після запуску `http://127.0.0.1:3000/ui-kit` реальний health request до
+`http://127.0.0.1:8001/health` завершився успішно. UI показав:
 
-## 8. Критерії користувацького приймання
+```text
+API доступний
+Backend відповів: ok
+service techbaza-backend
+version 0.38.0
+```
 
-1. Скрипт завершується `PASS: Stage 9.3...`.
-2. OpenAPI snapshot і generated types відповідають backend 0.38.0.
-3. `/ui-kit` показує API base URL і timeout без secrets.
-4. Кнопка перевірки `/health` показує success або зрозумілий network error,
-   але не маскує збій як empty data.
-5. Cancel не дозволяє старій відповіді змінити очищений стан.
-6. Query keys мають session/tenant/device scope; cache не persist-иться.
-7. Devices, alarms і login не видаються за live data до відповідних етапів.
-8. Сірий рухомий Next.js `N` більше не перекриває інтерфейс.
+Це підтвердило одночасно:
 
-Після користувацького підтвердження 9.3 буде закрито як 3/24. Наступна
-операція — **9.4: відтворюваний baseline, component/browser checks і frontend CI**.
+- правильний API base URL;
+- роботу browser request adapter;
+- коректне відображення success state;
+- відсутність secrets у видимій config;
+- доступність backend 0.38.0;
+- відсутність рухомого Next.js `N`, вимкненого через `devIndicators: false`.
+
+## 5. Межі
+
+9.3 не реалізує login/session coordinator, live fleet, live Device dashboard,
+command writes або alarm acknowledge. Access token поки не зберігається;
+memory-only session coordinator створюється на Етапі 10. Автоматичний retry
+write-запитів не дозволено.
+
+## 6. Вердикт
+
+Критерії виконано: contract artifacts tracked, clean CI відтворюється,
+errors не підміняються empty state, cache має правильний scope, а реальний
+`/health` підтверджено у браузері.
+
+**Операцію 9.3 закрито. Наступна операція — 9.4: відтворюваний baseline,
+component tests, Chromium browser smoke checks і фінальний CI Етапу 9.**
