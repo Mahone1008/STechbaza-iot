@@ -1,114 +1,114 @@
-# Етап 9, операція 1 — сценарії, карта сторінок і макети KERUMO
+# Етап 9, операція 1 — UX-сценарії та макети KERUMO
 
-Дата підготовки: 27.09.2026. База: backend **0.38.0**, Етап H завершено 5/5.
+Дата первинної підготовки: 27.09.2026. База: backend **0.38.0**, Етап H завершено 5/5.
 
-**Статус: результат підготовлено та передано на приймання користувачу. Операція
-9.1 ще не закрита; загальний лічильник frontend залишається 0/24 до явного
-підтвердження.** Production frontend, Next.js-проєкт і підключення до API цією
-операцією не створюються.
+**Статус: ревізію 2 підготовлено після користувацького feedback і передано на
+повторне приймання. Операція 9.1 не закрита; frontend roadmap залишається
+0/24 до явного підтвердження користувача.**
 
-## 1. Результат операції
+Production frontend, Next.js-проєкт і live API integration цією операцією не
+створюються. Макет містить лише демонстраційні дані й не надсилає команд.
+
+## 1. Причина ревізії
+
+Перша версія була надмірно темною та контрастною: accent color, glow, великі
+темні площини й різнокольорові status-картки одночасно конкурували за увагу.
+Це погіршувало орієнтацію та створювало враження декоративного dashboard,
+а не спокійного промислового робочого кабінету.
+
+Ревізія 2 змінює напрямок на **light industrial SaaS**:
+
+- світла нейтральна основа;
+- білі робочі surface з тонкими межами;
+- бірюзовий лише як brand/primary accent;
+- semantic green/yellow/red лише для станів;
+- одна чітка hierarchy замість однаково яскравих карток;
+- керування фізичним обладнанням відокремлено від telemetry;
+- контекст організації, об’єкта і Device завжди видимий.
+
+## 2. Референси та висновки
+
+Під час перегляду dashboard-підходів враховано не копіювання зовнішнього
+бренду, а інформаційну архітектуру:
+
+1. **Samsara Operations Overview** — короткий operational summary, фільтри,
+   сортування та перехід від огляду до конкретного asset.
+2. **Samsara Device Health** — централізований стан пристроїв, видимі причини
+   проблем і конкретні recommended actions.
+3. **Ubiquiti UniFi** — проста multi-site navigation, стримана surface system
+   та однакова модель переходу від організації до site і device.
+4. Загальні industrial/energy dashboards — status first, telemetry second,
+   command surface окремо від read-only metrics.
+
+Офіційні сторінки, використані як design research:
+
+- https://kb.samsara.com/hc/en-us/articles/4402308140941-Operations-Overview
+- https://kb.samsara.com/hc/en-us/articles/360043670172-Device-Health
+- https://ui.com/introduction
+
+Жоден зовнішній layout не відтворюється один в один. KERUMO зберігає власний
+бренд, модульну device model і backend semantics.
+
+## 3. Результат ревізії 2
 
 Підготовлено:
 
-- зовнішню продуктову назву та правила співіснування бренду KERUMO з чинними
-  технічними ідентифікаторами TechBaza;
-- карту сторінок першого web UI;
-- сценарії owner/operator/viewer;
-- desktop і mobile макети;
-- правила модульної побудови панелі за `modules`, `channels`, `readings`,
-  `state_readings`, `allowed_commands` і permissions backend;
-- таблицю loading/empty/offline/stale/missing/invalid та command lifecycle;
-- правила безпечного відображення керування насосом;
-- статичний інтерактивний прототип без live API й без реальних команд.
+- login screen;
+- список пристроїв із summary та фільтрами;
+- desktop і mobile Device dashboard;
+- аварії та історію інцидентів;
+- матрицю loading/empty/stale/offline/missing/invalid і command lifecycle;
+- сценарії viewer/operator/owner;
+- правила кольору, hierarchy, responsive та safe control;
+- відтворюваний статичний preview.
 
-Інтерактивний макет:
-[`frontend/mockups/stage9-1/index.html`](../frontend/mockups/stage9-1/index.html).
-Інструкція запуску:
-[`frontend/mockups/stage9-1/README.md`](../frontend/mockups/stage9-1/README.md).
+Preview:
 
-## 2. Бренд і межа перейменування
+- [`frontend/mockups/stage9-1/index.html`](../frontend/mockups/stage9-1/index.html)
+  — стабільна вхідна точка;
+- [`frontend/mockups/stage9-1/revision2.html`](../frontend/mockups/stage9-1/revision2.html)
+  — автономний preview ревізії 2;
+- [`frontend/mockups/stage9-1/README.md`](../frontend/mockups/stage9-1/README.md)
+  — локальний запуск.
 
-### Зовнішня назва
+`revision2.html` є автономним статичним preview для приймання. Читабельна
+production-компонентна реалізація починається в 9.2 на Next.js/TypeScript;
+цей файл не є майбутньою структурою застосунку.
 
-Перший користувацький інтерфейс оформлюється як **KERUMO**. Назва показується
-на login, у navigation shell, у title/meta, на сторінках пристроїв і в
-користувацьких повідомленнях.
+## 4. Бренд і технічні межі
 
-Робочий підзаголовок макета: **Industrial IoT control**. Це не остаточний
-юридичний слоган і не реєстрація торговельної марки.
-
-### Внутрішні ідентифікатори
+Зовнішня продуктова назва першого UI — **KERUMO**.
 
 У межах 9.1 не перейменовуються:
 
-- репозиторій `STechbaza-iot`;
+- repository `STechbaza-iot`;
 - Python packages та Docker service names;
 - `techbaza/...` MQTT topics;
-- `techbaza-backend` service identifier;
-- чинні таблиці, migrations, environment variables та тестові fixtures.
+- tables, migrations, environment variables і fixtures.
 
-Причина: cosmetic rename не повинен змінювати прийнятий backend 0.38.0 або
-створювати ризик для MQTT, backup/restore і тестів. Технічне перейменування,
-якщо воно буде потрібне, виконується окремою операцією з міграційним планом.
+Cosmetic rename не повинен змінювати прийнятий backend 0.38.0, MQTT contract
+або backup/restore. Технічне перейменування, якщо воно знадобиться, виконується
+окремою операцією з міграційним планом.
 
-## 3. Мова та термінологія
+## 5. Мова й термінологія
 
-Основна мова першої версії — **українська**. Технічні коди API, command status,
-metric keys і capability codes не перекладаються в даних, але UI показує для
-них зрозумілі українські назви.
+Основна мова першої версії — українська. Технічні API codes залишаються
+англійськими у DTO, але UI показує зрозумілі назви.
 
-| Технічний об'єкт | Назва в UI |
+| Backend object | Назва в UI |
 |---|---|
 | Organization | Організація |
-| Site | Об'єкт |
+| Site | Об’єкт |
 | Device | Пристрій / контролер |
-| Capability assignment | Встановлена можливість / модуль |
+| Capability assignment | Модуль / встановлена можливість |
 | Telemetry reading | Показник |
-| Alarm | Аварія або попередження залежно від severity |
+| Alarm | Аварія або попередження |
 | Event | Подія |
 | Command | Команда |
-| Acknowledge alarm | Підтвердити отримання аварії |
-| Notification read | Позначити повідомлення прочитаним |
-| local mode | Панель / локальний режим |
+| local mode | Локальний режим / панель |
 | remote mode | Дистанційний режим |
 
-У майбутньому тексти мають бути винесені в i18n resource layer, але 9.1 не
-додає бібліотеку локалізації до відсутнього Next.js-проєкту.
-
-## 4. Ролі та основні сценарії
-
-### Viewer
-
-1. Входить у кабінет.
-2. Бачить лише доступні організації, об'єкти та пристрої.
-3. Переглядає online/offline, свіжість, показники, графіки, аварії та історію.
-4. Не отримує активних Start/Stop/frequency controls.
-5. Спроба ручного POST поза UI все одно блокується backend 403.
-
-### Operator
-
-1. Виконує всі read-сценарії viewer.
-2. Бачить controls тільки з `allowed_commands` поточного Device.
-3. Перед Start і зміною частоти бачить confirmation із назвою пристрою,
-   режимом та значенням.
-4. Після POST бачить lifecycle команди, а не миттєве «насос запущено».
-5. Може acknowledge аварію за наявності permission; acknowledge не закриває
-   фізичну причину.
-
-### Owner / адміністратор організації
-
-1. Має operator workflow.
-2. Керує membership і capability assignments лише через існуючі дозволені API.
-3. У першому UI не отримує декоративного B2B onboarding, QR claim або billing,
-   оскільки backend цих vertical features ще не має.
-
-### Superadmin / service role
-
-Потрібні окремі сервісні екрани в майбутньому. Перший release не повинен
-змішувати global diagnostics із звичайним клієнтським navigation shell.
-
-## 5. Карта сторінок
+## 6. Карта сторінок
 
 ```text
 /login
@@ -127,197 +127,153 @@ metric keys і capability codes не перекладаються в даних,
   └── /profile/session
 ```
 
-Для mobile основні вкладки сторінки Device: **Панель**, **Графіки**,
-**Аварії**, **Ще**. Desktop використовує постійну ліву navigation rail.
+Desktop використовує постійну ліву navigation rail. Mobile використовує
+компактний header і нижню navigation: Панель, Графіки, Аварії, Ще.
 
-## 6. Екрани першої версії
+## 7. Головна hierarchy Device dashboard
 
-| Екран | Основні дані | Критична поведінка |
-|---|---|---|
-| Login | Browser login, session errors, rate limit | Refresh cookie не читається JS; password не зберігається |
-| Організації та об'єкти | `/organizations`, access, sites | Чужий URL не надає доступ; context switch очищає tenant cache |
-| Пристрої | devices + bounded availability | Не опитувати overview всього парку; online не означає fresh |
-| Панель Device | overview modules/readings/state/permissions | Склад віджетів лише з backend contract |
-| Графік | series endpoint | Missing — gap; zero — значення; units і timezone явні |
-| Керування | allowed commands, create/get command | Один `request_id` на намір; ACK ≠ Result |
-| Команди | lifecycle і audit | Unknown не запускає автоматичний повтор Start |
-| Аварії | incidents/transitions/acknowledge | Acknowledge ≠ resolved |
-| Повідомлення | organization feed/read | Read персональне; не замінює acknowledge |
+Порядок відповідає задачам оператора:
 
-## 7. Структура панелі пристрою
+1. **Контекст:** organization → site → device, назва й UID.
+2. **Стан:** online/offline, remote/local mode, data freshness, active alarm.
+3. **Ключові показники:** frequency, current, pressure, water level.
+4. **Тренд:** один головний графік із явною metric, unit і періодом.
+5. **Керування:** окрема control panel із причиною enabled/disabled.
+6. **Проблеми:** активні аварії та recommended next action.
+7. **Модулі:** лише enabled assignments поточного Device.
+8. **Команда:** lifecycle останнього наміру й audit.
 
-Панель не має фіксованого набору карток для всіх клієнтів. Вона будується з
-`overview.modules`.
+Таким чином read-only telemetry не змішується з критичними write-actions.
 
-### Постійний каркас
+## 8. Модульність
 
-- назва, UID і об'єкт;
-- availability;
-- telemetry freshness;
-- час генерації та час останнього достовірного packet;
-- режим `local_mode`, якщо канал підтримується;
-- область помилок доступу/мережі.
+Dashboard не має фіксованого набору cards для всіх клієнтів. Склад визначає
+`overview.modules` і пов’язані `channels`, `readings`, `state_readings`,
+`allowed_commands` та permissions.
 
-### Динамічні віджети
-
-| Capability / channel | Віджет |
+| Capability / channel | UI |
 |---|---|
-| `vfd.frequency.read` | Частота, unit Hz, series action |
-| `vfd.current.read` | Струм, unit A, series action |
-| `pressure.read` | Тиск, unit bar, series action |
-| `water_level.read` | Рівень води, unit %, series action |
-| `vfd.state.read` | Running/fault/local/emergency typed indicators |
-| `vfd.control` | Start/Stop/frequency лише з `allowed_commands` |
-| unknown supported=false | Нейтральний fallback без вигаданих даних або controls |
+| `vfd.frequency.read` | Частота, Hz, graph action |
+| `vfd.current.read` | Струм, A, graph action |
+| `pressure.read` | Тиск, bar, graph action |
+| `water_level.read` | Рівень води, %, graph action |
+| `vfd.state.read` | running/fault/local/emergency indicators |
+| `vfd.control` | Start/Stop/frequency лише з allowed commands |
+| unknown `supported=false` | нейтральний fallback без вигаданого control |
 
-Вимкнений assignment зникає з modules і UI. Історичний snapshot не повинен
-повертати його віджет. `missing`, `invalid`, `false` і `0` відображаються як
-різні стани відповідно до backend contract.
+Вимкнений assignment зникає з UI. `false`, `0`, `missing` та `invalid` — різні
+стани й ніколи не нормалізуються в одне значення.
 
-## 8. Семантика станів
+## 9. Visual system ревізії 2
 
-### Дані та зв'язок
-
-| Стан | UI-поведінка |
+| Token | Значення preview |
 |---|---|
-| Loading | Skeleton; не показувати дані попереднього Device |
-| Empty | Пояснення наступної дії, не порожня сторінка |
-| Online + fresh | Нормальні live indicators |
-| Online + stale | Жовта якість даних; не підміняти старе значення свіжим |
-| Offline | Червоний статус, timestamp останнього зв'язку, старі дані з часом |
-| Missing | `—`, без нуля та без точки на графіку |
-| Invalid | Явний invalid/type state; не робити висновок про насос |
-| Session change | Старі readings не стають fresh від нового heartbeat |
-| Unsupported module | Fallback і код модуля; без generic controls |
+| App background | `#F4F6F7` |
+| Primary surface | `#FFFFFF` |
+| Subtle surface | `#F8FAFA` |
+| Border | `#DDE4E6` |
+| Primary text | `#172126` |
+| Secondary text | `#66757C` |
+| Brand / action | `#147F79` |
+| Success | `#2E7D5B` |
+| Warning | `#A66A16` |
+| Danger | `#B84245` |
+| Radius | 10–14 px |
+| Shadow | слабка, лише для layer separation |
 
-### HTTP і права
+Правила:
 
-| Відповідь | Дія UI |
+- no neon glow;
+- no full-screen gradient;
+- accent не використовується для кожної card;
+- червоний зарезервовано для fault, danger і Stop;
+- колір не є єдиним носієм status: є текст, icon і label;
+- таблиці й cards мають більше whitespace, ніж декоративних елементів.
+
+## 10. Стан зв’язку й даних
+
+| Стан | Поведінка UI |
 |---|---|
-| 401 | Один координований refresh; після невдачі — login |
-| 403 | Закрити ресурс/дію, оновити access, очистити заборонений cache |
-| 404 | Не розкривати існування чужого ресурсу; показати недоступність |
-| 409 | Конфлікт стану/capability; оновити overview, не повторювати write автоматично |
-| 422 | Показати validation біля поля без технічного traceback |
-| 429 | Врахувати `Retry-After`; не створювати storm |
-| 5xx/network | Зберегти останній відомий стан із ознакою втрати зв'язку |
+| Loading | skeleton, без даних попереднього Device |
+| Empty | пояснення наступної дії |
+| Online + fresh | нормальний live state |
+| Online + stale | жовтий quality status, timestamp старого packet |
+| Offline | червоний status, last seen, старі readings явно історичні |
+| Missing | `—`, не 0 і не точка на графіку |
+| Invalid | explicit invalid/type state, без висновку про pump state |
+| Session change | новий heartbeat не робить старі readings fresh |
+| Unsupported | code і neutral fallback, без generic command controls |
 
-### Команди
+`online`, `fresh telemetry`, HTTP success, MQTT ACK і фізичний Result — різні
+стани. UI не зводить їх до однієї зеленої позначки.
+
+## 11. Command lifecycle
 
 ```text
 queued → published → acknowledged → succeeded / failed
                                 ↘ expired / result_unknown
 ```
 
-- `queued`: backend створив запис;
-- `published`: була спроба MQTT publish;
-- `acknowledged`: контролер прийняв envelope;
-- `succeeded`: отриманий фінальний успішний Result;
-- `failed`: контролер повернув невиконання;
-- `expired`: TTL закінчився;
-- `result_unknown`: ACK був, але остаточного Result немає.
+- ACK означає отримання envelope контролером, а не фізичне виконання;
+- succeeded показується лише після final Result;
+- фактичний стан насоса підтверджує нова telemetry/state;
+- result_unknown не запускає автоматично новий Start;
+- double click створює один intent і один `request_id`;
+- write не повторюється автоматично після невідомої network response.
 
-Жоден проміжний status не використовується як доказ фактичного стану насоса.
-Фактичний стан береться з нової telemetry/state після виконання.
+## 12. Безпека керування
 
-## 9. Безпека керування
+1. Start і зміна frequency мають confirmation dialog.
+2. Control panel завжди показує local/remote mode окремо від online.
+3. У local mode remote controls disabled із видимою причиною.
+4. Viewer не бачить enabled controls; backend залишається остаточним guard.
+5. Stop не називається emergency stop і не підміняє фізичний safety circuit.
+6. Frequency range не вигадується UI; limits мають прийти з конфігурації.
 
-1. Start і зміна частоти мають confirmation dialog.
-2. Stop не ховається лише через fault, але network Stop не називається
-   аварійним фізичним відключенням.
-3. UI показує `local_mode`/remote mode окремо від online.
-4. При local mode controls disabled із чіткою причиною.
-5. Подвійний click створює один намір і один `request_id`.
-6. Write не повторюється автоматично після невідомої мережевої відповіді.
-7. Viewer не бачить enabled controls; backend залишається остаточним guard.
-8. Частотний діапазон UI не вигадується: межі повинні прийти з майбутньої
-   конфігурації установки або бути погоджені окремо.
+## 13. Responsive і accessibility
 
-## 10. Visual system
+- desktop: постійна navigation та task-based two-column workspace;
+- tablet: compact navigation, metrics у дві колонки;
+- mobile: одна пріоритетна колонка, control після overview/metrics;
+- touch targets приблизно 44 px;
+- visible keyboard focus;
+- dialogs повертають focus до trigger;
+- semantic headings;
+- status не передається лише кольором;
+- polling не повинен безперервно оголошувати всі readings screen reader.
 
-Основний образ: промисловий, стриманий, дорогий, без «ігрової» неоновості.
+## 14. Що не входить у 9.1
 
-| Token | Значення макета |
-|---|---|
-| Background | `#080F14` |
-| Surface | `#111C24` / `#15232C` |
-| Accent | `#16C2BD` |
-| Success | `#6EDB83` |
-| Warning | `#F5BD58` |
-| Danger | `#FF6B70` |
-| Text | `#F4F8FA` |
-| Muted | `#8EA0AA` |
-| Radius | 12–18 px |
-
-Колір ніколи не є єдиним носієм status: використовуються текст, icon і форма.
-Червоний зарезервовано для небезпеки, failed/fault і Stop action.
-
-## 11. Responsive і accessibility
-
-- desktop navigation: від 1024 px;
-- tablet: compact navigation і двоколонкова dashboard grid;
-- mobile: від 820 px, bottom navigation і одна основна action column;
-- control targets не менші приблизно 40–44 px;
-- focus states мають бути видимими з клавіатури;
-- dialogs повертають focus до кнопки-виклику;
-- heading hierarchy не залежить від розміру шрифту;
-- live polling не повинен постійно оголошувати screen reader кожне значення;
-- `prefers-reduced-motion` враховується під час production implementation;
-- контраст перевіряється в 14.1, але правила закладаються з 9.2.
-
-## 12. Макети
-
-Tracked інтерактивний макет розміщено у
-[`frontend/mockups/stage9-1/index.html`](../frontend/mockups/stage9-1/index.html).
-Він містить п’ять перемикних представлень:
-
-- login;
-- парк пристроїв;
-- desktop/mobile Device dashboard;
-- аварії та події;
-- матрицю loading/empty/offline/stale/missing/invalid і command lifecycle.
-
-Макет побудований лише на HTML/CSS/JS, відкривається локально без залежностей
-і не завантажує зовнішні ресурси. Дані демонстраційні й не є доказом
-реалізованого API adapter або фізичного VFD control. Контрольні знімки екрана
-формуються під час локального приймання, але не дублюються у Git як бінарні
-артефакти: джерелом макета залишається відтворюваний tracked source.
-
-## 13. Що не входить у 9.1
-
-- package.json, Next.js або React components;
-- browser login проти demo API;
+- Next.js, React components і package lock;
+- live browser login;
 - OpenAPI type generation;
 - TanStack Query;
-- production logo files і trademark package;
-- B2B invitations, QR claim, payments;
-- rule editor;
-- OTA, camera або native mobile app;
-- реальна firmware і hardware interlocks.
+- B2B invitation/QR claim/billing;
+- alarm rule editor;
+- OTA, camera або native app;
+- firmware і physical interlocks.
 
-Це почнеться з операції 9.2 або окремих майбутніх vertical features.
+## 15. Приймання
 
-## 14. Приймання користувачем
-
-У корені локального репозиторію:
+У корені repository:
 
 ```powershell
-Start-Process .\frontend\mockups\stage9-1\index.html
+python -m http.server 3000 --directory .\frontend\mockups\stage9-1
 ```
 
-Перевірити перемикачі **Вхід / Пристрої / Панель / Аварії / Стани UI**, а також
-зменшити ширину браузера до mobile.
+Відкрити `http://127.0.0.1:3000/#device` і перевірити desktop/mobile,
+а також Вхід, Пристрої, Панель, Аварії та Стани.
 
-Операція 9.1 закривається після підтвердження:
+9.1 закривається після підтвердження:
 
-1. бренд KERUMO і палітра прийнятні;
-2. карта сторінок зрозуміла;
-3. desktop/mobile layout погоджені;
-4. модулі відрізняються між Device;
+1. спокійна light visual system прийнятна;
+2. navigation і поточний context зрозумілі без пояснення;
+3. desktop/mobile priority однакова;
+4. modules відрізняються між Device;
 5. online/fresh/stale/offline не змішані;
-6. command ACK не показаний як фізичне виконання;
-7. терміни та основна українська мова погоджені.
+6. control відокремлено від telemetry;
+7. ACK не показаний як фізичний Result;
+8. українська термінологія погоджена.
 
-Після приймання наступна операція — **9.2: Next.js/TypeScript strict, design
-system, navigation shell і базові компоненти**. 9.2 не закривається автоматично
-разом із цим документом.
+Після приймання наступний крок — **9.2: Next.js/TypeScript strict, design
+system, navigation shell і базові компоненти**.
