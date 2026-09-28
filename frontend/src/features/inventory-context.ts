@@ -8,6 +8,9 @@ export function contextStorageKey(scope: SessionScope): string { return `${PREFI
 
 export function inventoryTarget(pathname: string): InventoryTarget {
   if (pathname === "/organizations") return { directory: true };
+  const notification = /^\/organizations\/([^/]+)\/notifications(?:\/([^/]+))?$/u.exec(pathname);
+  if (notification) return notification[1] && isUuid(notification[1]) && (!notification[2] || isUuid(notification[2])) ? { organizationId: notification[1] } : { invalid: true };
+  if (pathname.startsWith("/notifications/")) return { invalid: true };
   const organization = /^\/organizations\/([^/]+)\/sites(?:\/([^/]+)\/devices)?$/u.exec(pathname);
   if (organization) {
     const [, organizationId, siteId] = organization;

@@ -11,6 +11,7 @@ import { useAuthSession } from "@/features/auth-session";
 import { organizationRoleLabel, type PermissionCode } from "@/lib/api";
 
 function requiredPermission(pathname: string): PermissionCode {
+  if (pathname === "/notifications" || /^\/organizations\/[^/]+\/notifications(?:\/|$)/u.test(pathname)) return "notification.read";
   if (pathname === "/alarms" || pathname.startsWith("/alarms/")) return "alarm.read";
   if (pathname === "/ui-kit" || pathname.startsWith("/ui-kit/")) return "capability.read";
   if (pathname === "/devices" || pathname.startsWith("/devices/")) return "device.read";
@@ -22,6 +23,7 @@ function requiredPermission(pathname: string): PermissionCode {
 function firstAllowedRoute(permissions: readonly string[]): Route | null {
   if (permissions.includes("device.read")) return "/devices";
   if (permissions.includes("alarm.read")) return "/alarms";
+  if (permissions.includes("notification.read")) return "/notifications" as Route;
   if (permissions.includes("capability.read")) return "/ui-kit";
   return null;
 }

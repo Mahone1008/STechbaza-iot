@@ -5,7 +5,7 @@
 **Статус: прийнято 10 із 24 операцій. Етап 9 завершено 4/4.
 Етап 10 завершено 4/4 після CI та локального Windows-приймання.
 11.1 і 11.2 прийнято 28.09.2026 після Windows PASS і ручного підтвердження.
-Поточна точка — Етап 12 реалізовано 4/4, досьє V3.5 складено; реалізовано 13.1–13.2;
+Поточна точка — Етап 12 реалізовано 4/4, досьє V3.5 складено; Етап 13 реалізовано 4/4;
 перевірки та залишок локального приймання наведено нижче.
 11.3 + 11.4 мають Windows PASS із залишком ручних сценаріїв.**
 
@@ -149,8 +149,8 @@ Start/frequency не накопичуються локально для відп
 |---|---|
 | 13.1 — Аварії | Реалізовано: device-scoped lists, filters, severity, active/resolved, detail, transitions; CI і Windows PASS, ручне приймання часткове |
 | 13.2 — Acknowledge | Реалізовано: permission, confirmation, pending/error, idempotency, concurrent resolution; CI і Windows PASS, залишок ручного приймання |
-| 13.3 — In-app feed | organization stream, unread count, personal read, tenant isolation |
-| 13.4 — Наскрізний інцидент | MQTT → rule → alarm → notification → ack → recovery |
+| 13.3 — In-app feed | Реалізовано: organization stream, unread count, personal read, tenant isolation; перевірки та приймання — у 13.4 |
+| 13.4 — Наскрізний інцидент | Реалізовано: MQTT → rule → alarm → notification → personal read → ack → recovery через browser; CI та Windows очікуються |
 
 Глобальний alarm dashboard не симулюється fan-out запитами без bounded API.
 
@@ -241,4 +241,8 @@ cumulative gate і запуск frontend PASS. Скриншоти підтвер
 Owner ACK/history/F5 та viewer read-only пройдені автоматично в live suite;
 відповідні ручні сценарії та решта фільтрів/пагінації ще не показані.
 Прийнятий прогрес — 10/24; повний перелік доказів і залишку — у 13.2.
-Наступний блок — 13.3 notifications та 13.4 наскрізний інцидент.
+За наступним дорученням реалізовано [13.3 notifications](stage-13-op3-notifications.md)
+та [13.4 browser MQTT incident](stage-13-op4-incident-e2e.md). Локально 83 unit,
+types/lint/build PASS; 133 mocked сценарії й 10 live, включно з MQTT flow,
+підготовлено до CI. Фінальні докази й Windows-команда — у 13.4.
+Наступний блок — 14.1 UX/accessibility та 14.2 browser regression.

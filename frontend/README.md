@@ -30,6 +30,7 @@
   91 mocked / 10 live + 34 повтори PASS**. Windows бази 12.3–12.4: **88 mocked /
   10 live / cumulative gate PASS**; ручне приймання останнього виправлення
   згортання та решти сценаріїв відкрите.
+- **13.3–13.4 реалізовано:** notification feed, count, personal read і browser MQTT incident/recovery; [перевірки й запуск](../docs/stage-13-op4-incident-e2e.md).
 - **13.1–13.2 реалізовано:** real alarms, фільтри, transitions і acknowledge.
   Локально 75 unit, types/lint/build PASS; CI та Windows-докази — у
   [документі 13.2](../docs/stage-13-op2-acknowledgement.md). Приймання відкрите.
@@ -163,3 +164,11 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-stage13-op1-
 Wrapper явно вмикає `KERUMO_RUN_ALARM_DEMO=1` і готує guarded fixture лише
 в techbaza_demo. Live suite підтверджує цей тестовий incident через UI;
 acknowledge не змінює стан обладнання. Чинний command demo opt-in збережено.
+
+## Повідомлення та MQTT incident (13.3–13.4)
+
+`/notifications` і `/organizations/{id}/notifications[/{notificationId}]`
+підключені до реального API. Персональний read не виконує alarm ACK/resolve.
+Windows: `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-stage13-op3-op4.ps1 -Start` із кореня репозиторію.
+[13.3 — контракт і UI](../docs/stage-13-op3-notifications.md),
+[13.4 — докази, межі та ручне приймання](../docs/stage-13-op4-incident-e2e.md).

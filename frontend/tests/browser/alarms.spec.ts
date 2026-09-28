@@ -130,6 +130,8 @@ test("429 acknowledgement honors Retry-After even after GET, with no automatic P
   await mockPost(page, async (route) => { posts++; await route.fulfill({ status: 429, headers: { ...corsHeaders, "content-type": "application/json", "Retry-After": "10" }, body: JSON.stringify({ detail: "Slow down" }) }); });
   await page.goto(path); await confirm(page); await expect(detail(page)).toContainText("Результат підтвердження невідомий");
   await detail(page).getByRole("button", { name: "Перевірити стан" }).click();
+  // Fast-forward лише після завершення GET: інакше годинник спрацьовує на його timeout.
+  await expect(detail(page)).toContainText("Стан перевірено: підтвердження ще не зафіксоване.");
   await expect(detail(page).getByRole("button", { name: "Підтвердити отримання", exact: true })).toBeDisabled();
   await page.clock.fastForward(11_000); await expect(detail(page).getByRole("button", { name: "Підтвердити отримання", exact: true })).toBeEnabled(); expect(posts).toBe(1);
 });

@@ -19,6 +19,8 @@ on:
       - 'scripts/check-stage12-op1-op2.ps1'
       - 'scripts/check-stage12-op3-op4.ps1'
       - 'scripts/check-stage13-op1-op2.ps1'
+      - 'scripts/check-stage13-op3-op4.ps1'
+      - 'scripts/stage13-mqtt-scenario.py'
       - 'scripts/prepare-stage13-demo.py'
       - '.github/workflows/frontend-bootstrap.yml'
   workflow_dispatch:
@@ -82,6 +84,9 @@ jobs:
       - name: History polling and pause regressions (three runs, no retries)
         working-directory: frontend
         run: npm run test:browser -- tests/browser/history.spec.ts --grep "polling follows|Retry-After|offline cancels" --repeat-each=3 --retries=0
+      - name: Alarm and notification Retry-After regressions (five runs, no retries)
+        working-directory: frontend
+        run: npm run test:browser -- tests/browser/alarms.spec.ts tests/browser/notifications.spec.ts --grep "429" --repeat-each=5 --retries=0
       - name: Upload browser report
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
@@ -140,12 +145,14 @@ jobs:
           echo "::add-mask::$viewer_password"
           echo "KERUMO_RUN_COMMAND_DEMO=1" >> "$GITHUB_ENV"
           echo "KERUMO_RUN_ALARM_DEMO=1" >> "$GITHUB_ENV"
+          echo "KERUMO_RUN_NOTIFICATION_DEMO=1" >> "$GITHUB_ENV"
+          echo "KERUMO_DEMO_COMPOSE_PROJECT=techbaza-auth-ci" >> "$GITHUB_ENV"
           echo "KERUMO_API_BASE_URL=http://127.0.0.1:8001" >> "$GITHUB_ENV"
           echo "KERUMO_DEMO_EMAIL=owner@techbaza-demo.example.com" >> "$GITHUB_ENV"
           echo "KERUMO_DEMO_PASSWORD=$owner_password" >> "$GITHUB_ENV"
           echo "KERUMO_VIEWER_EMAIL=viewer@techbaza-demo.example.com" >> "$GITHUB_ENV"
           echo "KERUMO_VIEWER_PASSWORD=$viewer_password" >> "$GITHUB_ENV"
-      - name: Real browser auth, permissions, logout and inventory checks
+      - name: Real browser auth, inventory, notifications and MQTT incident checks
         working-directory: frontend
         run: npm run test:browser:live
       - name: Upload live-auth browser report

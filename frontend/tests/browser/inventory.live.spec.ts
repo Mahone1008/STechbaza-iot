@@ -1,3 +1,4 @@
+import { checkNotificationIncident } from "../helpers/notification-incident";
 import type { components } from "../../src/lib/api/schema";
 import { expect, test } from "@playwright/test";
 
@@ -19,8 +20,8 @@ test.beforeEach(async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Пристрої", exact: true })).toBeVisible();
 });
 
-test("real organization and site selection shows API devices, presence and restored deep links", async ({ page }) => {
-  test.setTimeout(60_000);
+test("real organization and site selection shows API devices, presence and restored deep links", async ({ page, browser }) => {
+  test.setTimeout(process.env.KERUMO_RUN_NOTIFICATION_DEMO === "1" ? 180_000 : 60_000);
   await page.getByRole("navigation", { name: "Шлях до об’єкта" }).getByRole("link", { name: "Організації", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Організації", exact: true })).toBeVisible();
   await page.getByRole("link", { name: "DEMO: клієнт A", exact: true }).click();
@@ -114,6 +115,7 @@ test("real organization and site selection shows API devices, presence and resto
     await page.reload(); await expect(incidentCard).toContainText(email);
     await expect(incidentCard.getByRole("button", { name: "Підтвердити отримання", exact: true })).toHaveCount(0);
   }
+  if (process.env.KERUMO_RUN_NOTIFICATION_DEMO === "1") await checkNotificationIncident(page, browser);
   // Same authenticated test also exercises a different modular composition.
   const newDevice = rows.find((row) => row.uid === "TB-DEMO-NEW")!;
   await page.goto(`/devices/${newDevice.id}`);
@@ -127,7 +129,7 @@ test("real organization and site selection shows API devices, presence and resto
 });
 
 test("real backend denies foreign organization, site and device deep links", async ({ page }) => {
-  for (const path of [`/organizations/${otherOrg}/sites`, `/organizations/${org}/sites/${otherSite}/devices`, `/devices/${otherDevice}`]) {
+  for (const path of [`/organizations/${otherOrg}/notifications`, `/organizations/${otherOrg}/sites`, `/organizations/${org}/sites/${otherSite}/devices`, `/devices/${otherDevice}`]) {
     await page.goto(path);
     await expect(page.getByRole("heading", { name: "Немає доступної організації" })).toBeVisible();
     await expect(page.getByText("TB-DEMO-OTHER", { exact: true })).toHaveCount(0);

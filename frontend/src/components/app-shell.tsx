@@ -35,6 +35,7 @@ const navigation: readonly NavigationItem[] = [
   { href: "/organizations" as Route, label: "Організації", icon: "components", permission: "organization.read" },
   { href: "/devices", label: "Пристрої", icon: "devices", permission: "device.read" },
   { href: "/alarms", label: "Аварії", icon: "alarm", permission: "alarm.read" },
+  { href: "/notifications" as Route, label: "Повідомлення", icon: "components", permission: "notification.read" },
   { href: "/ui-kit", label: "Компоненти", icon: "components", permission: "capability.read" },
 ];
 
@@ -42,6 +43,7 @@ const mobileNavigationItems: readonly MobileNavigationItem[] = [
   { href: "/organizations" as Route, label: "Організації", icon: "components", permission: "organization.read" },
   { href: "/devices", label: "Пристрої", icon: "devices", permission: "device.read" },
   { href: "/alarms", label: "Аварії", icon: "alarm", permission: "alarm.read" },
+  { href: "/notifications" as Route, label: "Повідомлення", icon: "components", permission: "notification.read" },
   { href: "/ui-kit", label: "Ще", icon: "more", permission: "capability.read" },
 ];
 
@@ -111,6 +113,8 @@ function Icon({ name, className = "nav-icon" }: { name: IconName; className?: st
 }
 
 function isActivePath(pathname: string, href: string) {
+  if (href === "/notifications") return pathname === href || /^\/organizations\/[^/]+\/notifications(?:\/|$)/u.test(pathname);
+  if (href === "/organizations" && pathname.includes("/notifications")) return false;
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
@@ -121,6 +125,7 @@ function initialsFor(value: string): string {
 }
 
 function routeLabel(pathname: string): string {
+  if (pathname === "/notifications" || pathname.includes("/notifications")) return "Повідомлення";
   if (pathname === "/organizations") return "Організації";
   if (pathname.startsWith("/organizations/")) return pathname.endsWith("/devices") ? "Пристрої" : "Об’єкти";
   if (pathname === "/devices") return "Пристрої";
@@ -275,9 +280,6 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
               </Link>
             );
           })}
-          {hasPermission("notification.read") ? (
-            <span className="nav-link-disabled" aria-disabled="true"><Icon name="components" />Повідомлення</span>
-          ) : null}
         </nav>
         <div className="sidebar-footer">
           <span className="avatar" aria-hidden="true">{initialsFor(presentation.userName)}</span>
