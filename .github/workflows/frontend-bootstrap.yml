@@ -72,6 +72,9 @@ jobs:
       - name: Login navigation race regression (five runs, no retries)
         working-directory: frontend
         run: npm run test:browser -- tests/browser/login.spec.ts --grep "waits for the workspace route" --repeat-each=5 --retries=0
+      - name: Overview error recovery regression (five runs, no retries)
+        working-directory: frontend
+        run: npm run test:browser -- tests/browser/overview.spec.ts --grep "on refresh hides prior readings" --repeat-each=5 --retries=0
       - name: Upload browser report
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4

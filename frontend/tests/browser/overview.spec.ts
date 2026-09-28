@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { overviewFixture } from "../fixtures/overview";
 import { API_ORIGIN, DEVICE_ID, ORGANIZATION_ID, SITE_ID, REFRESH_URL, devicePayload, fulfillJson, fulfillPreflight, mockAuthenticatedWorkspace, mockBrowserLogoutSuccess } from "./auth-fixtures";
+test.describe.configure({ retries: 0 });
 const url = `${API_ORIGIN}/api/v1/devices/${DEVICE_ID}/overview`;
 const path = `/devices/${DEVICE_ID}`;
 async function mockOverview(page: Page, get: () => unknown, status = 200) {
@@ -49,7 +50,7 @@ for (const status of [403, 404, 503]) test(`overview ${status} on refresh hides 
   await page.goto(path); await expect(page.locator(".metric-card")).toHaveCount(3);
   await mockOverview(page, () => ({ detail: "Unavailable" }), status);
   await page.getByRole("button", { name: "Оновити панель" }).click();
-  await expect(page.getByRole("alert")).toBeVisible(); await expect(page.locator(".metric-card")).toHaveCount(0);
+  await expect(page.getByRole("alert").filter({ has: page.getByRole("heading", { name: /Дані більше недоступні|Не вдалося завантажити панель/ }) })).toBeVisible(); await expect(page.locator(".metric-card")).toHaveCount(0);
   await mockOverview(page, fixture); await page.getByRole("button", { name: "Повторити", exact: true }).click();
   await expect(page.locator(".metric-card")).toHaveCount(3);
 });
@@ -101,5 +102,5 @@ test("foreign overview identity is rejected instead of rendering another device"
   const data = fixture(); data.device.site_id = ORGANIZATION_ID;
   await mockOverview(page, () => data); await page.goto(`/organizations/${ORGANIZATION_ID}/sites/${SITE_ID}/devices`);
   await page.getByRole("link", { name: "Насосна станція №1" }).click();
-  await expect(page.getByRole("alert")).toBeVisible(); await expect(page.locator(".metric-card")).toHaveCount(0);
+  await expect(page.getByRole("alert").filter({ has: page.getByRole("heading", { name: /Дані більше недоступні|Не вдалося завантажити панель/ }) })).toBeVisible(); await expect(page.locator(".metric-card")).toHaveCount(0);
 });
