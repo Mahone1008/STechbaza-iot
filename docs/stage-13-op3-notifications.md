@@ -1,5 +1,7 @@
 # Етап 13.3 — персональне прочитання повідомлень організації
 
+Зведений результат 13.1–13.4: [досьє V3.5 — Етап 13](dossier-v3.5-stage-13-alarms-notifications.md).
+
 Дата: 28.09.2026. База: `e7001d7`; разом із [13.4 — MQTT incident E2E](stage-13-op4-incident-e2e.md).
 Реалізовано. **Фінальний CI: 83 unit / 133 mocked / 10 live + 44 повтори — PASS**.
 OpenAPI zero diff, types/lint/build — PASS. Workflow/head та MQTT-докази — у 13.4.

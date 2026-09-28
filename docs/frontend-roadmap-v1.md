@@ -145,6 +145,9 @@ Start/frequency не накопичуються локально для відп
 
 ## 8. Етап 13 — аварії, події та notifications
 
+Загальний результат, CI/Windows-докази, revisions, виправлення і залишок
+ручного приймання: [досьє V3.5 — Етап 13](dossier-v3.5-stage-13-alarms-notifications.md).
+
 | Операція | Результат |
 |---|---|
 | 13.1 — Аварії | Реалізовано: device-scoped lists, filters, severity, active/resolved, detail, transitions; CI і Windows PASS, ручне приймання часткове |
@@ -252,3 +255,5 @@ resolved/acknowledged incident з owner audit й трьома transitions.
 Ручні read/F5, viewer та решта взаємодій окремо не підтверджені; прийнятий
 прогрес лишається 10/24. Докази, межі та команда — у 13.4.
 Наступний блок — 14.1 UX/accessibility та 14.2 browser regression.
+29.09.2026 складено загальне досьє Етапу 13; документаційне підбиття підсумків
+не змінює прийнятий прогрес 10/24.

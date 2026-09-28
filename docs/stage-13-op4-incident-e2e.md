@@ -1,5 +1,7 @@
 # Етап 13.4 — наскрізний інцидент MQTT → browser → recovery
 
+Зведений результат 13.1–13.4: [досьє V3.5 — Етап 13](dossier-v3.5-stage-13-alarms-notifications.md).
+
 Дата: 28.09.2026. Разом із [13.3 — повідомленнями](stage-13-op3-notifications.md).
 База: `e7001d7`. Реалізовано; **повний CI — success: 83 unit / 133 mocked /
 10 live + 44 повтори PASS**. Windows 28.09.2026: **133 mocked / 10 live /

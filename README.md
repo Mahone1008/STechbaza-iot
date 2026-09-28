@@ -81,6 +81,8 @@ unread count, tenant isolation і наскрізний incident/recovery. **CI: 
 PASS. Windows 28.09.2026: **133 mocked / 10 live / cumulative gate PASS**;
 стрічку повідомлень, unread recovery та історію resolved/acknowledged показано.
 Докази й Windows-команда — у 13.4; решта ручного приймання відкрита.
+Загальний результат усіх чотирьох операцій, історію виправлень і межі
+приймання зібрано в [досьє V3.5 — Етап 13](docs/dossier-v3.5-stage-13-alarms-notifications.md).
 
 Поточний статус:
 
@@ -102,6 +104,7 @@ Frontend roadmap: 10/24
 - [Досьє V3.5 — Етап 10](docs/dossier-v3.5-stage-10-browser-auth-session-rbac.md).
 - [Досьє V3.5 — Етап 11](docs/dossier-v3.5-stage-11-inventory-modular-dashboard.md).
 - [Досьє V3.5 — Етап 12](docs/dossier-v3.5-stage-12-telemetry-commands.md).
+- [Досьє V3.5 — Етап 13](docs/dossier-v3.5-stage-13-alarms-notifications.md).
 - [Досьє операції 10.1](docs/stage-10-op1-browser-login.md).
 - [Досьє операції 10.2](docs/stage-10-op2-session-recovery.md).
 - [Досьє операції 10.3](docs/stage-10-op3-permissions-and-guards.md).
