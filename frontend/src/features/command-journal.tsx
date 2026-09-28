@@ -69,7 +69,7 @@ export function CommandJournal({ context, onSelect }: { context: ReadyAccessSnap
     <StableRegion>
       {query.isFetching ? <p role="status">Завантажуємо журнал…</p> : query.isError ? <p role="alert">{apiErrorDisplayMessage(query.error)}</p> : rows.length === 0 ? <p>Команд ще немає.</p> : <DataTable caption="Журнал команд пристрою" rows={rows} columns={[
         { key: "created", header: "Створено", render: (row) => formatSeen(row.created_at, context.activeSite?.timezone ?? "UTC") },
-        { key: "type", header: "Команда", render: (row) => <Button size="small" onClick={() => onSelect(row.id)}>{commandLabel(row.command_type)}{typeof row.payload.frequency_hz === "number" ? ` · ${row.payload.frequency_hz} Гц` : ""}</Button> },
+        { key: "type", header: "Команда", render: (row) => <>{commandLabel(row.command_type)}{typeof row.payload.frequency_hz === "number" ? ` · ${row.payload.frequency_hz} Гц` : ""}{" "}<a className="button button-ghost button-small" href="#selected-command" aria-label={`Переглянути команду ${commandLabel(row.command_type)}`} onClick={() => onSelect(row.id)}>Деталі</a></> },
         { key: "status", header: "Стан на час завантаження", render: (row) => <CommandStatus command={row} /> },
         { key: "actor", header: "Автор", render: (row) => row.actor_display_name ?? row.actor_email ?? "Невідомий" },
       ]} />}

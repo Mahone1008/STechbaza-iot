@@ -121,12 +121,12 @@ npm.cmd run api:verify
 
 CI повторює generation і вимагає zero diff. Етап 10 завершено 4/4.
 11.1/11.2 прийнято; 11.3/11.4 мають CI та Windows PASS із залишком ручних сценаріїв.
-Поточна реалізація — [12.1 історія](../docs/stage-12-op1-telemetry-history.md)
+Історія та фільтри — [12.1 історія](../docs/stage-12-op1-telemetry-history.md)
 та [12.2 polling/перевірки](../docs/stage-12-op2-polling.md).
 Спільна Windows-команда з кореня репозиторію:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-stage12-op1-op2.ps1 -Start
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-stage12-op3-op4.ps1 -Start
 ```
 
 ## Команди та журнал (12.3–12.4)

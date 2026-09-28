@@ -110,7 +110,7 @@ test("viewer has journal access without command controls, including mobile layou
   await page.route(`${commandsUrl}?*`, async (route) => { if (await fulfillPreflight(route)) return; await fulfillJson(route, 200, [commandFixture()]); });
   await page.setViewportSize({ width: 390, height: 844 }); await page.goto(path);
   await expect(controls(page)).toHaveCount(0);
-  await page.getByRole("table", { name: "Журнал команд пристрою" }).getByRole("button", { name: "Запустити", exact: true }).click();
+  await page.getByRole("table", { name: "Журнал команд пристрою" }).getByRole("link", { name: "Переглянути команду Запустити", exact: true }).click();
   await expect(detail(page)).toContainText("У черзі");
   await detail(page).getByText("Автор і технічні деталі команди", { exact: true }).click();
   await expect(detail(page)).toContainText("owner@example.com");

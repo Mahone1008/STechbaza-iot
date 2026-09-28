@@ -50,7 +50,7 @@ for (const status of [403, 409, 422, 503]) test(`history ${status} removes previ
 test("foreign history is rejected and disabled module removes history controls", async ({ page }) => {
   await page.route(seriesUrl, async (route) => { if (await fulfillPreflight(route)) return; await fulfillJson(route, 200, { device_id: "foreign" }); });
   await ready(page); await expect(page.getByRole("heading", { name: "Історія недоступна" })).toBeVisible();
-  const data = overviewFixture(devicePayload()); data.modules = []; data.capabilities = []; data.readings = []; data.state_readings = [];
+  const data = overviewFixture(devicePayload()); data.modules = []; data.command_types = []; data.allowed_commands = []; data.capabilities = []; data.readings = []; data.state_readings = [];
   await page.route(`${API_ORIGIN}/api/v1/devices/${DEVICE_ID}/overview`, async (route) => { if (await fulfillPreflight(route)) return; await fulfillJson(route, 200, data); });
   await page.getByRole("button", { name: "Оновити панель" }).click();
   await expect(page.getByText("Увімкнених каналів з підтримкою історії немає.")).toBeVisible(); await expect(page.getByLabel("Метрика", { exact: true })).toHaveCount(0);
