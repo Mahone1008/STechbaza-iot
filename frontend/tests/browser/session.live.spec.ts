@@ -18,7 +18,7 @@ async function login(page: Page) {
   await page.getByLabel("Пароль").fill(DEMO_PASSWORD);
   await page.getByRole("button", { name: "Увійти" }).click();
   await expect(page).toHaveURL(/\/devices$/u);
-  await expect(page.getByText("Сесія підтверджена · demo data")).toBeVisible();
+  await expect(page.getByText("Сесія підтверджена")).toBeVisible();
   await expect(page.getByText("DEMO: клієнт A").first()).toBeVisible();
 }
 
@@ -48,7 +48,7 @@ test("real HttpOnly session restores profile, tenant and permissions after reloa
   expect(Number(payload.expires_in)).toBeGreaterThan(0);
   expect(Number(payload.session_expires_in)).toBeGreaterThan(0);
 
-  await expect(page.getByText("Сесія відновлена · demo data")).toBeVisible();
+  await expect(page.getByText("Сесія відновлена")).toBeVisible();
   await expect(page.getByText(DEMO_EMAIL)).toBeVisible();
   await expect(page.getByText("DEMO: клієнт A").first()).toBeVisible();
   await expect(page.getByText(/DEMO: owner · Власник/u)).toBeVisible();
@@ -83,8 +83,8 @@ test("real concurrent tabs serialize refresh rotation and both resolve access co
   const second = await context.newPage();
   await Promise.all([first.goto("/devices"), second.goto("/devices")]);
 
-  await expect(first.getByText("Сесія відновлена · demo data")).toBeVisible();
-  await expect(second.getByText("Сесія відновлена · demo data")).toBeVisible();
+  await expect(first.getByText("Сесія відновлена")).toBeVisible();
+  await expect(second.getByText("Сесія відновлена")).toBeVisible();
   await expect(first.getByText(DEMO_EMAIL)).toBeVisible();
   await expect(second.getByText(DEMO_EMAIL)).toBeVisible();
   await expect(first.getByText("DEMO: клієнт A").first()).toBeVisible();

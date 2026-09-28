@@ -4,6 +4,9 @@
 
 ## Frontend
 
+- [11.1 — Організації, об’єкти та контекст — очікує приймання](stage-11-op1-organizations-sites.md)
+- [11.2 — Пристрої та спільна перевірка — очікує приймання](stage-11-op2-device-list.md)
+
 - [Огляд після Етапу 10: поточний стан, auth-виправлення і перехід до 11.1](project-review-after-stage10-2026-09-28.md)
 - [План frontend v1 — 24 операції; прийнято 8/24](frontend-roadmap-v1.md)
 - [Етап 9.1 — UX-сценарії та макети KERUMO — закрито](stage-9-op1-ux-and-mockups.md)
@@ -15,7 +18,7 @@
 - [Етап 10.3 — профіль, permissions і route guards — закрито після CI та Windows-приймання](stage-10-op3-permissions-and-guards.md)
 - [Етап 10.4 — logout, revoke і захист від session resurrection — закрито після CI та Windows-приймання](stage-10-op4-logout-and-failures.md)
 
-Поточна точка: **Етап 11, операція 11.1 — організації, об'єкти і tenant context**.
+Поточна точка: **реалізовано 11.1 + 11.2, очікується спільне Windows-приймання**.
 
 ## Backend: виправлення та перевірки
 

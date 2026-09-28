@@ -1,13 +1,11 @@
 "use client";
 
-import type { Route } from "next";
-import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
 import { ConfirmDialog } from "@/components/confirm-dialog";
-import { Button, Card, DataTable, MetricCard, PageHeader, StatusBadge, TextField, type StatusTone, type TableColumn } from "@/components/ui";
+import { Button, Card, MetricCard, PageHeader, StatusBadge, TextField, type StatusTone } from "@/components/ui";
 import { useAccessContext } from "@/features/access-context";
-import { devices, type AvailabilityState, type DeviceDetail, type DeviceMetric, type DeviceSummary } from "@/lib/demo-data";
+import { type AvailabilityState, type DeviceDetail, type DeviceMetric } from "@/lib/demo-data";
 
 const availabilityTone: Record<AvailabilityState, StatusTone> = {
   online: "success",
@@ -31,75 +29,6 @@ function qualityBadge(metric: DeviceMetric) {
   } as const;
   const item = map[metric.quality];
   return <StatusBadge tone={item.tone}>{item.label}</StatusBadge>;
-}
-
-export function DeviceList() {
-  const { snapshot, hasPermission } = useAccessContext();
-  const [query, setQuery] = useState("");
-  const normalized = query.trim().toLocaleLowerCase("uk");
-  const visibleDevices = useMemo(
-    () => normalized ? devices.filter((device) => [device.name, device.site, device.uid].some((value) => value.toLocaleLowerCase("uk").includes(normalized))) : devices,
-    [normalized],
-  );
-  const organizationName = snapshot.status === "ready" ? snapshot.activeOrganization.name : "Організація";
-  const canCreateDevice = hasPermission("device.create");
-
-  const columns: readonly TableColumn<DeviceSummary>[] = [
-    {
-      key: "device",
-      header: "Пристрій",
-      render: (device) => <div><Link className="table-primary" href={`/devices/${device.id}` as Route}>{device.name}</Link><div className="table-secondary">{device.uid}</div></div>,
-    },
-    {
-      key: "status",
-      header: "Стан",
-      render: (device) => <StatusBadge tone={availabilityTone[device.availability]}>{availabilityLabel[device.availability]}</StatusBadge>,
-    },
-    {
-      key: "site",
-      header: "Об’єкт",
-      render: (device) => <div><span className="table-primary">{device.site}</span><div className="table-secondary">{device.mode}</div></div>,
-    },
-    { key: "lastSeen", header: "Останній зв’язок", render: (device) => device.lastSeen },
-    {
-      key: "alarms",
-      header: "Увага",
-      render: (device) => device.alarmCount ? <StatusBadge tone="warning">{device.alarmCount} активна</StatusBadge> : <span className="table-secondary">Немає</span>,
-    },
-  ];
-
-  const onlineCount = devices.filter((device) => device.availability === "online").length;
-  const issueCount = devices.filter((device) => device.availability === "offline" || device.alarmCount).length;
-
-  return (
-    <>
-      <PageHeader
-        eyebrow={`Організація · ${organizationName}`}
-        title="Пристрої"
-        description="Стан парку без завантаження повної телеметрії кожного контролера. Дані пристроїв поки демонстраційні."
-        actions={(
-          <Button
-            variant="primary"
-            disabled
-            title={canCreateDevice ? "Provisioning буде окремою функцією" : "Поточна роль не має permission device.create"}
-          >
-            Додати пристрій
-          </Button>
-        )}
-      />
-      <section className="summary-grid" aria-label="Зведення парку">
-        <article className="card summary-card"><span className="summary-label">Усього пристроїв</span><div className="summary-value"><strong>{devices.length}</strong><span>у 4 об’єктах</span></div></article>
-        <article className="card summary-card"><span className="summary-label">Online</span><div className="summary-value"><strong>{onlineCount}</strong><span>свіжий heartbeat</span></div></article>
-        <article className="card summary-card"><span className="summary-label">Потребують уваги</span><div className="summary-value"><strong>{issueCount}</strong><span>offline або alarm</span></div></article>
-        <article className="card summary-card"><span className="summary-label">Нові</span><div className="summary-value"><strong>1</strong><span>без телеметрії</span></div></article>
-      </section>
-      <div className="toolbar">
-        <div className="toolbar-search"><TextField label="Пошук" placeholder="Назва, UID або об’єкт" value={query} onChange={(event) => setQuery(event.target.value)} /></div>
-        <StatusBadge tone="info">Показано {visibleDevices.length} із {devices.length}</StatusBadge>
-      </div>
-      <DataTable caption="Список пристроїв KERUMO" rows={visibleDevices} columns={columns} emptyMessage="За цим пошуком пристроїв не знайдено." />
-    </>
-  );
 }
 
 type PendingAction = "start" | "stop" | "frequency" | null;

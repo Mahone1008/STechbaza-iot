@@ -57,7 +57,7 @@ test("successful login resolves real profile, organization and permissions witho
   await page.getByRole("button", { name: "Увійти" }).click();
 
   await expect(page).toHaveURL(/\/devices$/u);
-  await expect(page.getByText("Сесія підтверджена · demo data")).toBeVisible();
+  await expect(page.getByText("Сесія підтверджена")).toBeVisible();
   await expect(page.getByText("owner@example.com")).toBeVisible();
   await expect(page.getByText("DEMO: клієнт A").first()).toBeVisible();
   await expect(page.getByText(/Owner · Власник/u)).toBeVisible();

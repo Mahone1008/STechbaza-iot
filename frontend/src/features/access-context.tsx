@@ -1,47 +1,32 @@
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
+import { usePathname } from "next/navigation";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { useAuthSession } from "@/features/auth-session";
+import { forgetContext, inventoryTarget, readSavedContext, saveContext } from "@/features/inventory-context";
 import {
-  apiErrorDisplayMessage,
-  apiQueryKeys,
-  clearAllSessionCaches,
-  clearSessionCache,
-  isApiError,
-  parseCurrentUserResponse,
-  parseOrganizationAccessResponse,
-  parseOrganizationListResponse,
-  type CurrentUserResponse,
-  type OrganizationAccessResponse,
-  type OrganizationListResponse,
-  type OrganizationResponse,
-  type PermissionCode,
-  type SessionScope,
+  apiErrorDisplayMessage, apiQueryKeys, clearAllSessionCaches, clearSessionCache, isApiError,
+  parseCurrentUserResponse, parseOrganizationAccessResponse, parseOrganizationListResponse,
+  type CurrentUserResponse, type OrganizationAccessResponse, type OrganizationResponse,
+  type PermissionCode, type SessionScope,
 } from "@/lib/api";
+import { parseOrganization } from "@/lib/api/access";
+import { matchingId, parseDevice, parsePage, parseSite, type Device, type Site } from "@/lib/api/inventory";
 
-export type ReadyAccessSnapshot = Readonly<{
+type IdentitySnapshot = Readonly<{ profile: CurrentUserResponse; scope: SessionScope }>;
+export type DirectoryAccessSnapshot = IdentitySnapshot & Readonly<{ status: "directory" }>;
+export type ReadyAccessSnapshot = IdentitySnapshot & Readonly<{
   status: "ready";
-  profile: CurrentUserResponse;
-  organizations: OrganizationListResponse;
   activeOrganization: OrganizationResponse;
+  activeSite: Site | null;
+  activeDevice: Device | null;
   access: OrganizationAccessResponse;
-  scope: SessionScope;
 }>;
-
 export type AccessSnapshot =
-  | Readonly<{ status: "idle" }>
-  | Readonly<{ status: "resolving" }>
+  | Readonly<{ status: "idle" | "resolving" }>
+  | DirectoryAccessSnapshot
   | ReadyAccessSnapshot
   | Readonly<{ status: "no-access"; profile: CurrentUserResponse | null; message: string }>
   | Readonly<{ status: "unavailable"; message: string }>;
@@ -51,175 +36,118 @@ type AccessContextValue = Readonly<{
   retryAccess: () => void;
   hasPermission: (permission: PermissionCode) => boolean;
 }>;
-
 const AccessContext = createContext<AccessContextValue | null>(null);
-
-function sameScope(left: SessionScope | null, right: SessionScope): boolean {
-  return left?.userId === right.userId && left.sessionId === right.sessionId;
-}
-
-function selectOrganization(
-  profile: CurrentUserResponse,
-  organizations: OrganizationListResponse,
-): OrganizationResponse | null {
-  const activeOrganizations = organizations.filter((organization) => organization.is_active);
-  const byId = new Map(activeOrganizations.map((organization) => [organization.id, organization]));
-
-  for (const membership of profile.memberships) {
-    const organization = byId.get(membership.organization_id);
-    if (organization) return organization;
-  }
-
-  if (profile.platform_role === "superadmin") return activeOrganizations[0] ?? null;
-  return null;
-}
+class NoAccess extends Error {}
 
 export function AccessContextProvider({ children }: Readonly<{ children: ReactNode }>) {
   const queryClient = useQueryClient();
+  const pathname = usePathname();
   const { session, authorizedRequest, clearSession } = useAuthSession();
-  const [snapshot, setSnapshot] = useState<AccessSnapshot>({ status: "idle" });
+  const [resolved, setResolved] = useState<{ pathname: string; snapshot: AccessSnapshot }>({ pathname: "", snapshot: { status: "idle" } });
   const [retryVersion, setRetryVersion] = useState(0);
   const activeScopeRef = useRef<SessionScope | null>(null);
   const runRef = useRef(0);
-
   const authenticatedEmail = session.status === "authenticated" ? session.email : null;
 
   useEffect(() => {
     const run = ++runRef.current;
-    const scheduleSnapshot = (next: AccessSnapshot) => {
-      globalThis.queueMicrotask(() => {
-        if (run === runRef.current) setSnapshot(next);
-      });
-    };
-
-    if (session.status !== "authenticated") {
-      const previousScope = activeScopeRef.current;
-      activeScopeRef.current = null;
-      scheduleSnapshot({ status: "idle" });
-      if (previousScope) {
-        void clearSessionCache(queryClient, previousScope);
-      } else {
-        void clearAllSessionCaches(queryClient);
-      }
-      return;
-    }
-
     const controller = new AbortController();
-    scheduleSnapshot({ status: "resolving" });
-
+    const current = () => run === runRef.current && !controller.signal.aborted;
+    const publish = (snapshot: AccessSnapshot) => { if (current()) setResolved({ pathname, snapshot }); };
+    const previousScope = activeScopeRef.current;
+    activeScopeRef.current = null;
+    // Старі tenant queries скасовуються й видаляються також при зміні маршруту.
+    const cleared = previousScope ? clearSessionCache(queryClient, previousScope) : clearAllSessionCaches(queryClient);
+    if (session.status !== "authenticated") {
+      if (session.status === "anonymous") forgetContext();
+      queueMicrotask(() => publish({ status: "idle" }));
+      return () => controller.abort();
+    }
+    queueMicrotask(() => publish({ status: "resolving" }));
     void (async () => {
-      let phase: "profile" | "organizations" | "access" = "profile";
+      let phase: "profile" | "context" = "profile";
       let profile: CurrentUserResponse | null = null;
-
+      let scope: SessionScope | undefined;
+      const get = (path: string, query?: { limit: number; offset: number }) => authorizedRequest<unknown>({ path, ...(query ? { query } : {}), signal: controller.signal });
       try {
-        const profilePayload = await authorizedRequest<unknown>({
-          path: "/api/v1/auth/me",
-          signal: controller.signal,
-        });
-        profile = parseCurrentUserResponse(profilePayload);
-        if (!profile.is_active) {
-          clearSession("revoked");
-          return;
-        }
-
-        const scope: SessionScope = {
-          userId: profile.id,
-          sessionId: profile.auth_session_id,
-        };
-        const previousScope = activeScopeRef.current;
-        if (previousScope && !sameScope(previousScope, scope)) {
-          await clearSessionCache(queryClient, previousScope);
-        }
-        if (run !== runRef.current || controller.signal.aborted) return;
-
+        await cleared;
+        controller.signal.throwIfAborted();
+        profile = parseCurrentUserResponse(await get("/api/v1/auth/me"));
+        if (!current()) return;
+        if (!profile.is_active) { clearSession("revoked"); return; }
+        scope = { userId: profile.id, sessionId: profile.auth_session_id };
         activeScopeRef.current = scope;
-        queryClient.setQueryData(apiQueryKeys.currentUser(scope), profile);
-
-        phase = "organizations";
-        const organizationsPayload = await authorizedRequest<unknown>({
-          path: "/api/v1/organizations",
-          query: { limit: 100, offset: 0 },
-          signal: controller.signal,
-        });
-        const organizations = parseOrganizationListResponse(organizationsPayload);
-        queryClient.setQueryData(apiQueryKeys.organizations(scope), organizations);
-
-        const activeOrganization = selectOrganization(profile, organizations);
-        if (!activeOrganization) {
-          if (run === runRef.current && !controller.signal.aborted) {
-            setSnapshot({
-              status: "no-access",
-              profile,
-              message: "Для цього користувача немає активної доступної організації.",
-            });
-          }
+        phase = "context";
+        const target = inventoryTarget(pathname);
+        if (target.invalid) throw new NoAccess("Некоректне посилання на організацію, об’єкт або пристрій.");
+        if (target.directory) {
+          queryClient.setQueryData(apiQueryKeys.currentUser(scope), profile);
+          publish({ status: "directory", profile, scope });
           return;
         }
-
-        phase = "access";
-        const accessPayload = await authorizedRequest<unknown>({
-          path: `/api/v1/organizations/${encodeURIComponent(activeOrganization.id)}/access`,
-          signal: controller.signal,
-        });
-        const access = parseOrganizationAccessResponse(accessPayload, activeOrganization.id);
-        queryClient.setQueryData(apiQueryKeys.organizationAccess(scope, activeOrganization.id), access);
-
-        if (run !== runRef.current || controller.signal.aborted) return;
-        setSnapshot({
-          status: "ready",
-          profile,
-          organizations,
-          activeOrganization,
-          access,
-          scope,
-        });
+        const saved = readSavedContext(scope);
+        let organizationId = target.organizationId;
+        let activeDevice: Device | null = null;
+        let activeSite: Site | null = null;
+        if (target.deviceId) {
+          activeDevice = parseDevice(await get(`/api/v1/devices/${target.deviceId}`), undefined, target.deviceId);
+          activeSite = parseSite(await get(`/api/v1/sites/${activeDevice.site_id}`), undefined, activeDevice.site_id);
+          organizationId = activeSite.organization_id;
+        }
+        organizationId ??= saved?.organizationId;
+        let activeOrganization: OrganizationResponse;
+        if (organizationId) {
+          activeOrganization = parseOrganization(await get(`/api/v1/organizations/${organizationId}`), "/api/v1/organizations");
+          matchingId(activeOrganization.id, organizationId, "/api/v1/organizations");
+        } else {
+          // Перший вибір — лише з обмеженої сторінки. Повний каталог доступний окремо.
+          const organizations = parseOrganizationListResponse(await get("/api/v1/organizations", { limit: 100, offset: 0 }));
+          const selected = organizations.find((organization) => organization.is_active && (
+            profile!.platform_role === "superadmin" || profile!.memberships.some((membership) => membership.organization_id === organization.id)
+          ));
+          if (!selected) throw new NoAccess("Для цього користувача немає активної доступної організації на початковій сторінці. Перевірте каталог організацій.");
+          activeOrganization = selected;
+          organizationId = selected.id;
+        }
+        if (!activeOrganization.is_active) throw new NoAccess("Організація неактивна. Оберіть іншу організацію.");
+        const access = parseOrganizationAccessResponse(await get(`/api/v1/organizations/${organizationId}/access`), organizationId);
+        const siteId = target.siteId ?? (!target.organizationId && !target.deviceId && pathname === "/devices" ? saved?.siteId : null);
+        if (siteId) activeSite = parseSite(await get(`/api/v1/sites/${siteId}`), organizationId, siteId);
+        if (!activeSite && pathname === "/devices" && access.permissions.includes("site.read")) {
+          const sites = parsePage(await get(`/api/v1/organizations/${organizationId}/sites`, { limit: 1, offset: 0 }), (item) => parseSite(item, organizationId), 1);
+          activeSite = sites[0] ?? null;
+        }
+        if (activeSite) matchingId(activeSite.organization_id, organizationId, "/api/v1/sites");
+        if (!current()) return;
+        queryClient.setQueryData(apiQueryKeys.currentUser(scope), profile);
+        queryClient.setQueryData(apiQueryKeys.organizationAccess(scope, organizationId), access);
+        // Зберігаємо тільки підтверджений явний вибір; жодних токенів чи назв.
+        if (target.organizationId || target.deviceId) saveContext(scope, { organizationId, siteId: activeSite?.id ?? null });
+        publish({ status: "ready", profile, scope, activeOrganization, activeSite, activeDevice, access });
       } catch (error) {
-        if (run !== runRef.current || controller.signal.aborted) return;
-        if (isApiError(error) && error.kind === "aborted") return;
-
+        if (!current() || (isApiError(error) && error.kind === "aborted")) return;
         if (phase === "profile" && isApiError(error) && (error.kind === "unauthorized" || error.kind === "forbidden")) {
           clearSession(error.kind === "forbidden" ? "revoked" : "expired");
           return;
         }
-
-        if (
-          phase !== "profile"
-          && isApiError(error)
-          && (error.kind === "forbidden" || error.kind === "not-found")
-        ) {
-          setSnapshot({
-            status: "no-access",
-            profile,
-            message: "Доступ до організації відкликано або вона більше недоступна.",
-          });
+        if (error instanceof NoAccess || (phase === "context" && isApiError(error) && (error.kind === "forbidden" || error.kind === "not-found"))) {
+          if (scope) forgetContext(scope);
+          publish({ status: "no-access", profile, message: error instanceof NoAccess ? error.message : "Контекст недоступний: доступ відкликано або запис видалено. Оберіть організацію повторно." });
           return;
         }
-
-        setSnapshot({
-          status: "unavailable",
-          message: apiErrorDisplayMessage(error),
-        });
+        publish({ status: "unavailable", message: apiErrorDisplayMessage(error) });
       }
     })();
-
     return () => controller.abort();
-  }, [authenticatedEmail, authorizedRequest, clearSession, queryClient, retryVersion, session.status]);
+  }, [authenticatedEmail, authorizedRequest, clearSession, pathname, queryClient, retryVersion, session.status]);
 
+  // Не показуємо попередній tenant навіть на один render до виконання effect.
+  const snapshot = useMemo<AccessSnapshot>(() => resolved.pathname === pathname ? resolved.snapshot : { status: "resolving" }, [resolved, pathname]);
   const retryAccess = useCallback(() => setRetryVersion((value) => value + 1), []);
-  const hasPermission = useCallback(
-    (permission: PermissionCode) => snapshot.status === "ready"
-      && (snapshot.access.permissions as readonly string[]).includes(permission),
-    [snapshot],
-  );
-
-  const value = useMemo<AccessContextValue>(
-    () => ({ snapshot, retryAccess, hasPermission }),
-    [hasPermission, retryAccess, snapshot],
-  );
-
+  const hasPermission = useCallback((permission: PermissionCode) => snapshot.status === "ready" && (snapshot.access.permissions as readonly string[]).includes(permission), [snapshot]);
+  const value = useMemo(() => ({ snapshot, retryAccess, hasPermission }), [snapshot, retryAccess, hasPermission]);
   return <AccessContext.Provider value={value}>{children}</AccessContext.Provider>;
 }
-
 export function useAccessContext(): AccessContextValue {
   const context = useContext(AccessContext);
   if (!context) throw new Error("useAccessContext must be used inside AccessContextProvider.");

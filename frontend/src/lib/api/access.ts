@@ -35,12 +35,12 @@ const organizationRoleSet = new Set<string>(["owner", "admin", "operator", "view
 const platformRoleSet = new Set<string>(["user", "service_admin", "superadmin"]);
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 
-function isRecord(value: unknown): value is Record<string, unknown> {
+export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function invalidResponse(path: string, expected: string, details: unknown = null): never {
-  throw new ApiError("Backend повернув некоректний профіль або набір прав.", {
+export function invalidResponse(path: string, expected: string, details: unknown = null): never {
+  throw new ApiError("Backend повернув некоректні дані.", {
     kind: "invalid-response",
     status: 200,
     method: "GET",
@@ -51,19 +51,19 @@ function invalidResponse(path: string, expected: string, details: unknown = null
   });
 }
 
-function requiredString(record: Record<string, unknown>, key: string, path: string): string {
+export function requiredString(record: Record<string, unknown>, key: string, path: string): string {
   const value = record[key];
   if (typeof value !== "string" || value.length === 0) invalidResponse(path, key);
   return value;
 }
 
-function requiredUuid(record: Record<string, unknown>, key: string, path: string): string {
+export function requiredUuid(record: Record<string, unknown>, key: string, path: string): string {
   const value = requiredString(record, key, path);
   if (!uuidPattern.test(value)) invalidResponse(path, `${key}: uuid`);
   return value;
 }
 
-function requiredDateTime(record: Record<string, unknown>, key: string, path: string): string {
+export function requiredDateTime(record: Record<string, unknown>, key: string, path: string): string {
   const value = requiredString(record, key, path);
   if (!Number.isFinite(Date.parse(value))) invalidResponse(path, `${key}: date-time`);
   return value;
@@ -116,7 +116,7 @@ export function parseCurrentUserResponse(value: unknown): CurrentUserResponse {
   } as CurrentUserResponse;
 }
 
-function parseOrganization(value: unknown, path: string): OrganizationResponse {
+export function parseOrganization(value: unknown, path: string): OrganizationResponse {
   if (!isRecord(value)) invalidResponse(path, "OrganizationRead");
   if (typeof value.is_active !== "boolean") invalidResponse(path, "is_active");
 

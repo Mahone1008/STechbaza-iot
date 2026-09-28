@@ -505,3 +505,9 @@ h1, h2, h3 { letter-spacing: -0.02em; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; }
 }
+
+.inventory-breadcrumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 20px; color: var(--text-secondary); font-size: 13px; overflow-wrap: anywhere; }
+.inventory-breadcrumbs a { color: var(--brand); }
+.inventory-pagination { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 20px 0; }
+.inventory-state { margin: 16px 0; }
+.inventory-state h2 { font-size: 18px; }

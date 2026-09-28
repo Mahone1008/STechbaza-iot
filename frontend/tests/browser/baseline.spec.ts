@@ -13,11 +13,11 @@ test("core routes render only after profile, organization and permissions resolv
 
   await page.getByRole("link", { name: "Насосна станція №1" }).click();
   await expect(page.getByRole("heading", { name: "Насосна станція №1" })).toBeVisible();
-  await expect(page.getByText("Сесія відновлена · demo data")).toBeVisible();
+  await expect(page.getByText("Сесія відновлена")).toBeVisible();
 });
 
 test("critical demo action requires permission and confirmation and never claims physical success", async ({ page }) => {
-  await page.goto("/devices/north-pump");
+  await page.goto("/ui-kit/device-demo");
   await page.getByRole("button", { name: "Запустити" }).click();
 
   const dialog = page.getByRole("dialog");
@@ -52,7 +52,7 @@ test("API panel distinguishes success from a network failure inside an authorize
 
 test("mobile navigation keeps only permitted primary routes visible", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/devices/north-pump");
+  await page.goto("/ui-kit/device-demo");
 
   const mobileNavigation = page.getByRole("navigation", { name: "Мобільна навігація" });
   await expect(mobileNavigation).toBeVisible();

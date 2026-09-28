@@ -52,12 +52,12 @@ test("reload restores profile, organization and access from the HttpOnly session
   await fillLogin(page);
   await page.getByRole("button", { name: "Увійти" }).click();
   await expect(page).toHaveURL(/\/devices$/u);
-  await expect(page.getByText("Сесія підтверджена · demo data")).toBeVisible();
+  await expect(page.getByText("Сесія підтверджена")).toBeVisible();
   await expect(page.getByText("DEMO: клієнт A").first()).toBeVisible();
 
   refreshCalls = 0;
   await page.reload();
-  await expect(page.getByText("Сесія відновлена · demo data")).toBeVisible();
+  await expect(page.getByText("Сесія відновлена")).toBeVisible();
   await expect(page.getByText("owner@example.com")).toBeVisible();
   await expect(page.getByText(/Owner · Власник/u)).toBeVisible();
   expect(refreshCalls).toBe(1);
@@ -97,8 +97,8 @@ test("two tabs share one coordinated refresh and each resolves its protected acc
   const second = await context.newPage();
   await Promise.all([first.goto("/devices"), second.goto("/devices")]);
 
-  await expect(first.getByText("Сесія відновлена · demo data")).toBeVisible();
-  await expect(second.getByText("Сесія відновлена · demo data")).toBeVisible();
+  await expect(first.getByText("Сесія відновлена")).toBeVisible();
+  await expect(second.getByText("Сесія відновлена")).toBeVisible();
   await expect(first.getByText("owner@example.com")).toBeVisible();
   await expect(second.getByText("owner@example.com")).toBeVisible();
   expect(maximumConcurrency).toBe(1);
@@ -117,7 +117,7 @@ test("a valid refresh cookie redirects the login page and then verifies the real
 
   await page.goto("/login");
   await expect(page).toHaveURL(/\/devices$/u);
-  await expect(page.getByText("Сесія відновлена · demo data")).toBeVisible();
+  await expect(page.getByText("Сесія відновлена")).toBeVisible();
   await expect(page.getByText("DEMO: клієнт A").first()).toBeVisible();
 });
 

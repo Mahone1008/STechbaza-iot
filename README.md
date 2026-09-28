@@ -43,7 +43,10 @@ Frontend Foundation KERUMO:
 - 23 unit tests, 23 mocked browser tests і 8 live browser tests — PASS.
 
 Операцію **10.4** прийнято й закрито після локального Windows-приймання.
-Device/telemetry/alarm values залишаються typed demo fixtures до Етапу 11.
+**11.1 і 11.2 реалізовано разом:** реальні org/site/device lists, breadcrumbs,
+перевірені deep links/restore та bounded availability. Документація і спільний
+Windows gate готові; докази CI — у [досьє 11.2](docs/stage-11-op2-device-list.md).
+Модулі й telemetry очікують 11.3–12; alarms поки демонстраційні.
 
 Поточний статус:
 
@@ -51,9 +54,11 @@ Device/telemetry/alarm values залишаються typed demo fixtures до Е
 Етап 9: 4/4
 Етап 10: 4/4
 Frontend roadmap: 8/24
-Поточна точка: 11.1 — організації, об’єкти й tenant context
+Поточна точка: спільна перевірка і приймання 11.1 + 11.2
 ```
 
+- [11.1 — Організації та об’єкти](docs/stage-11-op1-organizations-sites.md).
+- [11.2 — Пристрої, перевірки й Windows-команда](docs/stage-11-op2-device-list.md).
 - [Backend: структура й запуск перевірок](backend/README.md).
 - [Frontend: поточна точка й запуск](frontend/README.md).
 - [План frontend 9–14](docs/frontend-roadmap-v1.md).

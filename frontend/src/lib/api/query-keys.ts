@@ -12,6 +12,8 @@ export const apiQueryKeys = {
   health: () => ["kerumo", "public", "health"] as const,
   allSessionsRoot: () => ["kerumo", "session"] as const,
   sessionRoot,
+  inventory: (scope: SessionScope, organizationId: string | null, siteId: string | null, resource: string, page: number = 0) =>
+    [...sessionRoot(scope), "inventory", organizationId, siteId, resource, { page, limit: 20 }] as const,
   currentUser: (scope: SessionScope) => [...sessionRoot(scope), "auth", "me"] as const,
   organizations: (scope: SessionScope) => [...sessionRoot(scope), "organizations"] as const,
   organizationAccess: (scope: SessionScope, organizationId: string) =>

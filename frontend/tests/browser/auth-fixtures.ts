@@ -9,6 +9,10 @@ export const ME_URL = `${API_ORIGIN}/api/v1/auth/me`;
 export const ORGANIZATIONS_URL = `${API_ORIGIN}/api/v1/organizations`;
 export const ORGANIZATION_ID = "670b979d-9e60-5207-a5d2-5d86ee70c71c";
 export const ACCESS_URL = `${API_ORIGIN}/api/v1/organizations/${ORGANIZATION_ID}/access`;
+export const SITE_ID = "739512a9-6ddb-4f8e-99e9-211c8553651e";
+export const DEVICE_ID = "a8f2f2d6-e380-492a-a9dc-d0b9ba792136";
+export const SITES_URL = `${ORGANIZATIONS_URL}/${ORGANIZATION_ID}/sites`;
+export const DEVICES_URL = `${API_ORIGIN}/api/v1/sites/${SITE_ID}/devices`;
 export const USER_ID = "0f4ac4a8-6a1d-4d4b-9f91-4c9d5d1a8b31";
 export const SESSION_ID = "4df58667-7a29-47f8-b6d6-055e47717680";
 
@@ -120,7 +124,7 @@ export async function fulfillPreflight(route: Route): Promise<boolean> {
   return true;
 }
 
-async function fulfillJson(route: Route, status: number, body: unknown): Promise<void> {
+export async function fulfillJson(route: Route, status: number, body: unknown): Promise<void> {
   await route.fulfill({
     status,
     headers: { ...corsHeaders, "content-type": "application/json" },
@@ -193,7 +197,40 @@ export async function mockBrowserLogoutSuccess(
   });
 }
 
+export function sitePayload() {
+  return { id: SITE_ID, organization_id: ORGANIZATION_ID, name: "Тестовий об’єкт", code: "SITE-1", timezone: "Europe/Kyiv", created_at: "2026-09-27T12:00:00Z", updated_at: "2026-09-27T12:00:00Z" };
+}
+export function devicePayload(index = 0) {
+  return { id: index === 0 ? DEVICE_ID : `a8f2f2d6-e380-492a-a9dc-${String(index).padStart(12, "0")}`, site_id: SITE_ID, name: index === 0 ? "Насосна станція №1" : `Контролер ${index}`, uid: `TB-TEST-${index}`, device_type: "modular_controller", lifecycle_status: "active", last_seen_at: "2026-09-27T12:00:00Z", created_at: "2026-09-27T12:00:00Z", updated_at: "2026-09-27T12:00:00Z" };
+}
+export function availabilityPayload(device = devicePayload()) {
+  return { device_id: device.id, uid: device.uid, online: true, last_seen_at: device.last_seen_at, timeout_seconds: 90, seconds_since_seen: 10 };
+}
 export async function mockIdentity(target: RouteTarget, options: IdentityOptions = {}): Promise<void> {
+  await target.route(`${ORGANIZATIONS_URL}/${ORGANIZATION_ID}`, async (route) => {
+    if (await fulfillPreflight(route)) return;
+    await fulfillJson(route, 200, organizationPayload(options));
+  });
+  await target.route(`${SITES_URL}?*`, async (route) => {
+    if (await fulfillPreflight(route)) return;
+    await fulfillJson(route, 200, [sitePayload()]);
+  });
+  await target.route(`${API_ORIGIN}/api/v1/sites/${SITE_ID}`, async (route) => {
+    if (await fulfillPreflight(route)) return;
+    await fulfillJson(route, 200, sitePayload());
+  });
+  await target.route(`${DEVICES_URL}?*`, async (route) => {
+    if (await fulfillPreflight(route)) return;
+    await fulfillJson(route, 200, [devicePayload()]);
+  });
+  await target.route(`${API_ORIGIN}/api/v1/devices/${DEVICE_ID}`, async (route) => {
+    if (await fulfillPreflight(route)) return;
+    await fulfillJson(route, 200, devicePayload());
+  });
+  await target.route(`${API_ORIGIN}/api/v1/devices/${DEVICE_ID}/availability`, async (route) => {
+    if (await fulfillPreflight(route)) return;
+    await fulfillJson(route, 200, availabilityPayload());
+  });
   await target.route(ME_URL, async (route) => {
     if (await fulfillPreflight(route)) return;
     if (options.meNetworkFailure) {

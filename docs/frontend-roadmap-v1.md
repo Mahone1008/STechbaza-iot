@@ -4,7 +4,7 @@
 
 **Статус: прийнято 8 із 24 операцій. Етап 9 завершено 4/4.
 Етап 10 завершено 4/4 після CI та локального Windows-приймання.
-Поточна точка — 11.1.**
+Поточна точка — спільна перевірка і приймання реалізованих 11.1 + 11.2.**
 
 Frontend поділено на Етапи 9–14. Кожен етап має чотири операції. Наступна
 операція не закривається автоматично після реалізації: потрібні CI та локальне
@@ -119,8 +119,8 @@ Frontend guard не замінює backend authorization.
 
 | Операція | Результат |
 |---|---|
-| 11.1 — Організації й об’єкти | lists, breadcrumbs, deep links, pagination, valid context restore |
-| 11.2 — Список пристроїв | paginated rows, bounded presence calls, cancel old page requests |
+| 11.1 — Організації й об’єкти | Реалізовано: lists, breadcrumbs, deep links, pagination, valid context restore; очікує Windows-приймання |
+| 11.2 — Список пристроїв | Реалізовано: paginated rows, bounded presence calls, cancel old page requests; очікує Windows-приймання |
 | 11.3 — Registry віджетів | UI із modules/channels; units, numeric/state, unsupported fallback |
 | 11.4 — Якість/конфігурація | fresh/stale/missing/invalid, session change, enable/disable, revoke |
 
@@ -174,5 +174,7 @@ Start/frequency не накопичуються локально для відп
 13. Logout має відкликати server session до остаточного success state.
 14. Невизначений logout result не видається за підтверджений вихід.
 
-**Поточна точка: 11.1 — реальні організації, об’єкти, breadcrumbs,
-deep links і відновлення валідного tenant context.**
+**Поточна точка: спільна перевірка і приймання 11.1 та 11.2.**
+Користувач прямо доручив виконати обидві операції разом. Прийнятий прогрес
+залишається 8/24 до підтвердження. [Документація й команда](stage-11-op2-device-list.md).
+Наступна реалізація після приймання — 11.3.

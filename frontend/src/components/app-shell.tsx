@@ -12,7 +12,8 @@ import {
   type ReactNode,
 } from "react";
 
-import { useAccessContext, type ReadyAccessSnapshot } from "@/features/access-context";
+import { useAccessContext, type ReadyAccessSnapshot, type DirectoryAccessSnapshot } from "@/features/access-context";
+import { InventoryBreadcrumbs, sitesHref } from "@/features/inventory";
 import { useAuthSession, type AuthSessionSnapshot } from "@/features/auth-session";
 import { organizationRoleLabel, type PermissionCode } from "@/lib/api";
 
@@ -32,13 +33,14 @@ type MobileNavigationItem = Readonly<{
 }>;
 
 const navigation: readonly NavigationItem[] = [
+  { href: "/organizations" as Route, label: "Організації", icon: "components", permission: "organization.read" },
   { href: "/devices", label: "Пристрої", icon: "devices", permission: "device.read" },
   { href: "/alarms", label: "Аварії", icon: "alarm", permission: "alarm.read", count: 2 },
   { href: "/ui-kit", label: "Компоненти", icon: "components", permission: "capability.read" },
 ];
 
 const mobileNavigationItems: readonly MobileNavigationItem[] = [
-  { href: "/devices/north-pump" as Route, label: "Панель", icon: "components", permission: "device.read" },
+  { href: "/organizations" as Route, label: "Організації", icon: "components", permission: "organization.read" },
   { href: "/devices", label: "Пристрої", icon: "devices", permission: "device.read" },
   { href: "/alarms", label: "Аварії", icon: "alarm", permission: "alarm.read" },
   { href: "/ui-kit", label: "Ще", icon: "more", permission: "capability.read" },
@@ -120,6 +122,8 @@ function initialsFor(value: string): string {
 }
 
 function routeLabel(pathname: string): string {
+  if (pathname === "/organizations") return "Організації";
+  if (pathname.startsWith("/organizations/")) return pathname.endsWith("/devices") ? "Пристрої" : "Об’єкти";
   if (pathname === "/devices") return "Пристрої";
   if (pathname.startsWith("/devices/")) return "Панель пристрою";
   if (pathname.startsWith("/alarms")) return "Аварії та інциденти";
@@ -129,7 +133,7 @@ function routeLabel(pathname: string): string {
 
 function sessionPresentation(
   session: AuthSessionSnapshot,
-  ready: ReadyAccessSnapshot,
+  ready: ReadyAccessSnapshot | DirectoryAccessSnapshot,
 ): Readonly<{
   userName: string;
   userStatus: string;
@@ -138,14 +142,14 @@ function sessionPresentation(
 }> {
   const restored = session.status === "authenticated" && session.source !== "login";
   const role = organizationRoleLabel(
-    ready.access.organization_role,
+    ready.status === "ready" ? ready.access.organization_role : null,
     ready.profile.platform_role,
   );
 
   return {
     userName: ready.profile.email,
     userStatus: `${ready.profile.display_name} · ${role}`,
-    note: restored ? "Сесія відновлена · demo data" : "Сесія підтверджена · demo data",
+    note: restored ? "Сесія відновлена" : "Сесія підтверджена",
     noteClass: session.status === "authenticated" && session.refreshState === "degraded"
       ? " prototype-note-warning"
       : " prototype-note-auth",
@@ -239,11 +243,14 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
   const { session } = useAuthSession();
   const { snapshot, hasPermission } = useAccessContext();
 
-  if (snapshot.status !== "ready") return null;
+  if (snapshot.status !== "ready" && snapshot.status !== "directory") return null;
+
+  const organizationName = snapshot.status === "ready" ? snapshot.activeOrganization.name : "Оберіть організацію";
+  const visible = (item: NavigationItem | MobileNavigationItem) => String(item.href) === "/organizations" || hasPermission(item.permission);
 
   const presentation = sessionPresentation(session, snapshot);
-  const visibleNavigation = navigation.filter((item) => hasPermission(item.permission));
-  const mobileNavigation = mobileNavigationItems.filter((item) => hasPermission(item.permission));
+  const visibleNavigation = navigation.filter(visible);
+  const mobileNavigation = mobileNavigationItems.filter(visible);
   const mobileStyle: CSSProperties = {
     gridTemplateColumns: `repeat(${Math.max(1, mobileNavigation.length)}, minmax(0, 1fr))`,
   };
@@ -256,7 +263,8 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
         <div className="sidebar-head"><Brand /></div>
         <div className="sidebar-context">
           <span className="context-label">Організація</span>
-          <span className="context-value">{snapshot.activeOrganization.name}<Icon name="chevron" className="nav-icon" /></span>
+          <Link href={"/organizations" as Route} className="context-value">{organizationName}<Icon name="chevron" className="nav-icon" /></Link>
+          {snapshot.status === "ready" ? <Link className="context-label" href={sitesHref(snapshot.activeOrganization.id)}>Змінити об’єкт</Link> : null}
         </div>
         <nav className="sidebar-nav">
           {visibleNavigation.map((item) => {
@@ -276,25 +284,25 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
         <div className="sidebar-footer">
           <span className="avatar" aria-hidden="true">{initialsFor(presentation.userName)}</span>
           <span className="user-copy" title={presentation.userName}><strong>{presentation.userName}</strong><span>{presentation.userStatus}</span></span>
-          <UserMenu presentation={presentation} organizationName={snapshot.activeOrganization.name} />
+          <UserMenu presentation={presentation} organizationName={organizationName} />
         </div>
       </aside>
 
       <section className="workspace">
         <header className="topbar">
           <span className="topbar-brand"><Brand compact /></span>
-          <div className="topbar-context"><span>{snapshot.activeOrganization.name}</span><span aria-hidden="true">/</span><strong>{routeLabel(pathname)}</strong></div>
+          <div className="topbar-context"><span>{organizationName}</span><span aria-hidden="true">/</span><strong>{routeLabel(pathname)}</strong></div>
           <div className="topbar-actions">
             <span className={`prototype-note${presentation.noteClass}`} role="status">
               <span className="prototype-dot" aria-hidden="true" />
               {presentation.note}
             </span>
             <div className="topbar-user-menu">
-              <UserMenu compact presentation={presentation} organizationName={snapshot.activeOrganization.name} />
+              <UserMenu compact presentation={presentation} organizationName={organizationName} />
             </div>
           </div>
         </header>
-        <main className="workspace-content" id="main-content">{children}</main>
+        <main className="workspace-content" id="main-content"><InventoryBreadcrumbs />{children}</main>
       </section>
 
       <nav className="mobile-nav" aria-label="Мобільна навігація" style={mobileStyle}>

@@ -48,6 +48,7 @@ describe("login form model", () => {
   });
 
   it("accepts only local protected return paths", () => {
+    expect(safeLoginReturnTo("/organizations")).toBe("/organizations");
     expect(safeLoginReturnTo("/alarms")).toBe("/alarms");
     expect(safeLoginReturnTo("/devices/north-pump?tab=state")).toBe("/devices/north-pump?tab=state");
     expect(safeLoginReturnTo("//evil.example/path")).toBe("/devices");

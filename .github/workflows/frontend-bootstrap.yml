@@ -14,6 +14,7 @@ on:
       - 'scripts/check-stage10-op2.ps1'
       - 'scripts/check-stage10-op3.ps1'
       - 'scripts/check-stage10-op4.ps1'
+      - 'scripts/check-stage11-op1-op2.ps1'
       - '.github/workflows/frontend-bootstrap.yml'
   workflow_dispatch:
 
@@ -126,7 +127,7 @@ jobs:
           echo "KERUMO_DEMO_PASSWORD=$owner_password" >> "$GITHUB_ENV"
           echo "KERUMO_VIEWER_EMAIL=viewer@techbaza-demo.example.com" >> "$GITHUB_ENV"
           echo "KERUMO_VIEWER_PASSWORD=$viewer_password" >> "$GITHUB_ENV"
-      - name: Real browser auth, session, permission and logout checks
+      - name: Real browser auth, permissions, logout and inventory checks
         working-directory: frontend
         run: npm run test:browser:live
       - name: Upload live-auth browser report

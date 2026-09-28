@@ -14,6 +14,8 @@ function requiredPermission(pathname: string): PermissionCode {
   if (pathname === "/alarms" || pathname.startsWith("/alarms/")) return "alarm.read";
   if (pathname === "/ui-kit" || pathname.startsWith("/ui-kit/")) return "capability.read";
   if (pathname === "/devices" || pathname.startsWith("/devices/")) return "device.read";
+  if (pathname.startsWith("/organizations/") && pathname.endsWith("/devices")) return "device.read";
+  if (pathname.startsWith("/organizations/")) return "site.read";
   return "organization.read";
 }
 
@@ -179,6 +181,8 @@ export function WorkspaceGuard({ children }: Readonly<{ children: ReactNode }>) 
         tone="warning"
       >
         <Button variant="secondary" onClick={retryAccess}>Повторити</Button>
+        <Link className="button button-secondary" href={"/organizations" as Route}>Обрати організацію</Link>
+        <Button onClick={() => void logout()}>Вийти</Button>
       </AccessGate>
     );
   }
@@ -187,9 +191,14 @@ export function WorkspaceGuard({ children }: Readonly<{ children: ReactNode }>) 
     return (
       <AccessGate title="Немає доступної організації" description={snapshot.message} tone="danger">
         <Button variant="secondary" onClick={retryAccess}>Оновити доступ</Button>
+        <Link className="button button-secondary" href={"/organizations" as Route}>Обрати організацію</Link>
+        <Button onClick={() => void logout()}>Вийти</Button>
       </AccessGate>
     );
   }
+
+  if (snapshot.status === "directory") return pathname === "/organizations" ? children : null;
+  if (snapshot.status !== "ready") return null;
 
   const permission = requiredPermission(pathname);
   const permissions = snapshot.access.permissions as readonly string[];
@@ -205,6 +214,7 @@ export function WorkspaceGuard({ children }: Readonly<{ children: ReactNode }>) 
         description={`${role} не має permission ${permission} в організації «${snapshot.activeOrganization.name}». Backend залишається остаточним authorization guard.`}
         tone="danger"
       >
+        <Link className="button button-secondary" href={"/organizations" as Route}>Обрати організацію</Link>
         {fallback ? <Link className="button button-secondary" href={fallback}>Перейти до доступного розділу</Link> : null}
       </AccessGate>
     );

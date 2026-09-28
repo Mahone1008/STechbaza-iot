@@ -52,7 +52,7 @@ test("route permission blocks an authenticated user before the page content rend
 test("viewer can read devices but command controls stay disabled by backend permission", async ({ page }) => {
   await mockAuthenticatedWorkspace(page, { role: "viewer" });
 
-  await page.goto("/devices/north-pump");
+  await page.goto("/ui-kit/device-demo");
 
   await expect(page.getByRole("heading", { name: "Насосна станція №1" })).toBeVisible();
   await expect(page.getByText(/Owner · Спостерігач/u)).toBeVisible();

@@ -17,14 +17,14 @@ test("real anonymous navigation never renders a protected workspace", async ({ p
 });
 
 test("real viewer profile drives navigation and blocks command controls", async ({ page }) => {
-  await page.goto("/devices/north-pump");
-  await expect(page).toHaveURL(/\/login\?returnTo=%2Fdevices%2Fnorth-pump$/u);
+  await page.goto("/ui-kit/device-demo");
+  await expect(page).toHaveURL(/\/login\?returnTo=%2Fui-kit%2Fdevice-demo$/u);
 
   await page.getByLabel("Email").fill(VIEWER_EMAIL);
   await page.getByLabel("Пароль").fill(VIEWER_PASSWORD);
   await page.getByRole("button", { name: "Увійти" }).click();
 
-  await expect(page).toHaveURL(/\/devices\/north-pump$/u);
+  await expect(page).toHaveURL(/\/ui-kit\/device-demo$/u);
   await expect(page.getByText(VIEWER_EMAIL)).toBeVisible();
   await expect(page.getByText(/DEMO: viewer · Спостерігач/u)).toBeVisible();
   await expect(page.getByText("DEMO: клієнт A").first()).toBeVisible();
