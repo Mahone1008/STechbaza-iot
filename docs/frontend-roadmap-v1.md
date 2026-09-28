@@ -134,8 +134,8 @@ Summary endpoint додається лише після виміряної по�
 |---|---|
 | 12.1 — Історія | Реалізовано: metric, unit, period, bucket, min/max/average/count, gaps, timezone; CI та Windows PASS; перевірка прокрутки та F5 |
 | 12.2 — Оновлення | Реалізовано: one polling policy, backoff, cancel/dedup, hidden-tab pause, budget; CI та Windows PASS; перевірка прокрутки та F5 |
-| 12.3 — Start/Stop/frequency | Реалізовано: allowed_commands, validation, confirmation, one request_id; CI/Windows evidence у досьє |
-| 12.4 — Lifecycle/journal | Реалізовано: lifecycle, TTL, audit, bounded polling, keyset pagination; CI/Windows evidence у досьє |
+| 12.3 — Start/Stop/frequency | Реалізовано: allowed_commands, validation, confirmation, one request_id; CI PASS, Windows/ручне приймання очікуються |
+| 12.4 — Lifecycle/journal | Реалізовано: lifecycle, TTL, audit, bounded polling, keyset pagination; CI PASS, Windows/ручне приймання очікуються |
 
 Start/frequency не накопичуються локально для відправлення після reconnect.
 
@@ -188,7 +188,7 @@ Start/frequency не накопичуються локально для відп
 - [11.3 — registry віджетів](stage-11-op3-module-widgets.md)
 - [11.4 — якість/конфігурація](stage-11-op4-quality-and-configuration.md)
 
-## Поточна робота: 12.1–12.2
+## Попередня робота: 12.1–12.2
 
 За дорученням користувача наступні дві операції реалізовано разом.
 **CI прокрутки та F5: 61 unit / 71 mocked / 10 live та 34 додаткові повтори — PASS.**
@@ -206,3 +206,7 @@ Windows 28.09.2026 на `c6c215a`: **54/63/10 PASS**; графіки трьох 
 Реалізовано [12.3 — керування](stage-12-op3-command-controls.md) і
 [12.4 — lifecycle, журнал, результати та Windows-команда](stage-12-op4-command-journal.md).
 Автоматичні докази та ручне приймання розділені; нові операції ще не оголошено прийнятими.
+
+**Фінальний CI 12.3–12.4: 68 unit / 88 mocked / 10 live + 34 повтори — PASS.**
+Backend: 160 тестів без skips, demo/restart/backup/restore — PASS.
+Код перевірено в `bafc983`; backend — у `aaeaea7` (backend далі не змінювався).

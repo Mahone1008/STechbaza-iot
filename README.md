@@ -59,7 +59,7 @@ CI: **42 unit / 52 mocked / 10 live — PASS**, додаткові 25 повто
 та [політика оновлення](docs/stage-12-op2-polling.md). **CI: 61 unit / 71 mocked /
 10 live та 34 додаткові повтори регресій — PASS.** Windows 28.09.2026: **54 / 63 / 10 — PASS**, графіки підтверджено.
 Виправлення прокрутки пройшло CI; очікується повторна ручна перевірка.
-Додано [збереження фільтрів після F5](docs/stage-12-history-preferences-2026-09-28.md); CI **61/71/10 + 34 повтори — PASS**; очікується ручна перевірка F5. Реалізовано **[12.3 — команди](docs/stage-12-op3-command-controls.md)** і **[12.4 — lifecycle та журнал](docs/stage-12-op4-command-journal.md)**; результати перевірок і Windows-команда — у досьє 12.4. Alarms поки демонстраційні.
+Додано [збереження фільтрів після F5](docs/stage-12-history-preferences-2026-09-28.md); CI **61/71/10 + 34 повтори — PASS**; очікується ручна перевірка F5. Реалізовано **[12.3 — команди](docs/stage-12-op3-command-controls.md)** і **[12.4 — lifecycle та журнал](docs/stage-12-op4-command-journal.md)**; **CI: 68 unit / 88 mocked / 10 live + 34 повтори — PASS; backend 160 tests, zero skips — PASS.** Windows-команда й докази — у досьє 12.4. Alarms поки демонстраційні.
 
 Поточний статус:
 

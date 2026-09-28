@@ -1,7 +1,7 @@
 # Етап 12.4 — lifecycle і журнал команд
 
 Дата: 28.09.2026. Разом із [12.3 — керуванням](stage-12-op3-command-controls.md).
-Статус: реалізацію завершено; результати CI доповнюються після прогону.
+Статус: реалізацію завершено, Frontend checks і Backend checks — **PASS**.
 Windows і ручне приймання поточної пари ще не підтверджені.
 
 ## Lifecycle та аудит
@@ -85,3 +85,43 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-stage12-op3-
 Backend без сервісів: 75 PASS, 85 пропущено через відсутність PostgreSQL/MQTT;
 це не замінює повний Backend checks CI з нульовою кількістю skips.
 Chromium, повний backend та demo lifecycle перевіряються у GitHub Actions.
+
+
+## Підтверджений CI — 28.09.2026
+
+Frontend code: `bafc98304f12f0339e273aca753dcc7add7eda54`.
+[Frontend checks #36458233494](https://github.com/Mahone1008/STechbaza-iot/actions/runs/36458233494) — **success**.
+
+| Перевірка | Результат |
+|---|---|
+| OpenAPI generation / zero diff / verify | PASS, 0.38.0 / 47 paths |
+| Typecheck / lint / production build | PASS |
+| Unit | 68 PASS |
+| Mocked Chromium | 88 PASS, включно з 17 новими command/journal сценаріями |
+| Додаткові повтори без retries | 34 PASS: 10 login + 15 overview + 9 polling |
+| Live Chromium | 10 PASS; існуючий inventory test розширено UI Stop → MQTT ACK/result → журналом |
+| Flaky/failed tests у фінальному прогоні | 0 |
+| Windows-приймання 12.3–12.4 | Очікується |
+| Ручні сценарії користувача | Очікуються; CI не замінює ручне приймання |
+
+Backend code: `aaeaea7e7ac261a8a6ee9c55eb8a983b0c62c497`.
+[Backend checks #36457558266](https://github.com/Mahone1008/STechbaza-iot/actions/runs/36457558266) — **success**:
+160 тестів без skips, browser auth, migrations roundtrip, HTTP/MQTT demo,
+simulator/backend/broker restart, H-04/H-05, exact backup/restore та safe recovery.
+Backend/Compose/backend workflow між цим SHA та frontend SHA не змінювалися.
+
+Перший frontend прогін мав 87 PASS / 1 failure: стара history fixture видаляла
+modules, але залишала command_types. Після посилення runtime contract така
+відповідь правильно відхиляється. Fixture узгоджено, повний повторний CI зелений.
+Записи журналу отримали окреме посилання «Деталі», яке переходить до вибраної
+команди й не виглядає як повторне надсилання команди.
+
+Simulator повинен бути у штатному режимі для live execution. Якщо раніше
+вручну залишено сценарій offline, його потрібно завершити перед прийманням:
+
+```powershell
+docker compose -p techbaza-demo --env-file .env.demo -f compose.demo.yml exec -T simulator python -m app.demo.simulator scenario pump normal
+```
+
+Це змінює лише режим ізольованого demo pump, не видаляє дані чи credentials.
+Пізніші коміти з самою документацією не змінюють перевірений код.
