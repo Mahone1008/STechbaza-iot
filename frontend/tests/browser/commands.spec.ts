@@ -166,3 +166,35 @@ test("manual mode and hidden tab pause selected command polling", async ({ page 
   await expect(detail(page).getByRole("button", { name: "Оновити стан команди" })).toBeDisabled(); const hidden = gets;
   await page.clock.fastForward(11_000); expect(gets).toBe(hidden);
 });
+
+for (const viewport of [{ width: 1280, height: 720 }, { width: 390, height: 844 }]) {
+  test(`collapsing command audit releases its space and survives refresh at ${viewport.width}px`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    await mockPost(page, async (route, body) => fulfillJson(route, 201, commandFixture(body)));
+    await page.goto(path);
+    await page.getByLabel("Автооновлення", { exact: true }).selectOption("0");
+    await confirm(page);
+    const card = detail(page);
+    await expect(card.locator(".status-badge")).toHaveText("У черзі");
+    const summary = card.getByText("Автор і технічні деталі команди", { exact: true });
+    const height = () => card.evaluate((element) => element.getBoundingClientRect().height);
+    const collapsedHeight = await height();
+    for (const keyboard of [false, true]) {
+      await summary.click();
+      await expect(card.locator(".command-json")).toBeVisible();
+      await expect.poll(height).toBeGreaterThan(collapsedHeight + 100);
+      if (keyboard) { await summary.focus(); await summary.press("Enter"); } else await summary.click();
+      await expect(card.locator(".command-json")).toBeHidden();
+      await expect.poll(async () => Math.abs(await height() - collapsedHeight)).toBeLessThanOrEqual(2);
+    }
+    // Collapsed geometry is also the new reserve when a request fails.
+    await page.route(detailUrl, async (route) => { if (await fulfillPreflight(route)) return; await fulfillJson(route, 503, { detail: "Command unavailable" }); });
+    await card.getByRole("button", { name: "Оновити стан команди" }).click();
+    await expect(card.getByRole("alert")).toContainText("Command unavailable");
+    await expect.poll(async () => Math.abs(await height() - collapsedHeight)).toBeLessThanOrEqual(2);
+    await mockDetail(page);
+    await card.getByRole("button", { name: "Оновити стан команди" }).click();
+    await expect(card.locator(".status-badge")).toHaveText("У черзі");
+    await expect.poll(async () => Math.abs(await height() - collapsedHeight)).toBeLessThanOrEqual(2);
+  });
+}

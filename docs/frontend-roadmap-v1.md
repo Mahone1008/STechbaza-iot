@@ -134,8 +134,8 @@ Summary endpoint додається лише після виміряної по�
 |---|---|
 | 12.1 — Історія | Реалізовано: metric, unit, period, bucket, min/max/average/count, gaps, timezone; CI та Windows PASS; перевірка прокрутки та F5 |
 | 12.2 — Оновлення | Реалізовано: one polling policy, backoff, cancel/dedup, hidden-tab pause, budget; CI та Windows PASS; перевірка прокрутки та F5 |
-| 12.3 — Start/Stop/frequency | Реалізовано: allowed_commands, validation, confirmation, one request_id; CI PASS, Windows/ручне приймання очікуються |
-| 12.4 — Lifecycle/journal | Реалізовано: lifecycle, TTL, audit, bounded polling, keyset pagination; CI PASS, Windows/ручне приймання очікуються |
+| 12.3 — Start/Stop/frequency | Реалізовано: allowed_commands, validation, confirmation, one request_id; CI і Windows PASS на 5fa3afe; виправлення згортання та ручне приймання |
+| 12.4 — Lifecycle/journal | Реалізовано: lifecycle, TTL, audit, bounded polling, keyset pagination; CI і Windows PASS на 5fa3afe; виправлення згортання та ручне приймання |
 
 Start/frequency не накопичуються локально для відправлення після reconnect.
 
@@ -210,3 +210,7 @@ Windows 28.09.2026 на `c6c215a`: **54/63/10 PASS**; графіки трьох 
 **Фінальний CI 12.3–12.4: 68 unit / 88 mocked / 10 live + 34 повтори — PASS.**
 Backend: 160 тестів без skips, demo/restart/backup/restore — PASS.
 Код перевірено в `bafc983`; backend — у `aaeaea7` (backend далі не змінювався).
+
+Windows 28.09.2026 для 12.3–12.4: **88 mocked / 10 live / cumulative gate PASS**.
+Поточне виправлення: [порожня область після згортання деталей](stage-12-details-collapse-2026-09-28.md).
+Повне ручне приймання не закрито.

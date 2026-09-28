@@ -61,6 +61,9 @@ CI: **42 unit / 52 mocked / 10 live — PASS**, додаткові 25 повто
 Виправлення прокрутки пройшло CI; очікується повторна ручна перевірка.
 Додано [збереження фільтрів після F5](docs/stage-12-history-preferences-2026-09-28.md); CI **61/71/10 + 34 повтори — PASS**; очікується ручна перевірка F5. Реалізовано **[12.3 — команди](docs/stage-12-op3-command-controls.md)** і **[12.4 — lifecycle та журнал](docs/stage-12-op4-command-journal.md)**; **CI: 68 unit / 88 mocked / 10 live + 34 повтори — PASS; backend 160 tests, zero skips — PASS.** Windows-команда й докази — у досьє 12.4. Alarms поки демонстраційні.
 
+Windows 12.3–12.4: **88 mocked / 10 live / cumulative gate PASS**.
+[Виправлення порожньої області після згортання деталей](docs/stage-12-details-collapse-2026-09-28.md).
+
 Поточний статус:
 
 ```text
@@ -68,7 +71,7 @@ CI: **42 unit / 52 mocked / 10 live — PASS**, додаткові 25 повто
 Етап 10: 4/4
 Frontend roadmap: 10/24
 Етап 11: реалізовано 4/4, прийнято 2/4; CI + Windows PASS, залишок ручного приймання
-Етап 12: реалізовано 4/4; нові 12.3 + 12.4 очікують Windows і ручного приймання
+Етап 12: реалізовано 4/4; Windows 12.3 + 12.4 PASS, виправлення згортання деталей; ручне приймання відкрите
 ```
 
 - [11.1 — Організації та об’єкти](docs/stage-11-op1-organizations-sites.md).

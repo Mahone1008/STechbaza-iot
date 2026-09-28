@@ -2,7 +2,8 @@
 
 Дата: 28.09.2026. Разом із [12.3 — керуванням](stage-12-op3-command-controls.md).
 Статус: реалізацію завершено, Frontend checks і Backend checks — **PASS**.
-Windows і ручне приймання поточної пари ще не підтверджені.
+Windows-прогін на `5fa3afe` підтверджено: 88 mocked / 10 live та cumulative gate PASS.
+Під час ручної перевірки знайдено [дефект згортання деталей](stage-12-details-collapse-2026-09-28.md); повне ручне приймання ще відкрите.
 
 ## Lifecycle та аудит
 
@@ -101,8 +102,8 @@ Frontend code: `bafc98304f12f0339e273aca753dcc7add7eda54`.
 | Додаткові повтори без retries | 34 PASS: 10 login + 15 overview + 9 polling |
 | Live Chromium | 10 PASS; існуючий inventory test розширено UI Stop → MQTT ACK/result → журналом |
 | Flaky/failed tests у фінальному прогоні | 0 |
-| Windows-приймання 12.3–12.4 | Очікується |
-| Ручні сценарії користувача | Очікуються; CI не замінює ручне приймання |
+| Windows-прогін 12.3–12.4 на `5fa3afe` | PASS: 88 mocked / 10 live, cumulative gate; докази у звіті згортання |
+| Ручні сценарії користувача | Start/result/audit/журнал показано; знайдено дефект згортання, повне приймання відкрите |
 
 Backend code: `aaeaea7e7ac261a8a6ee9c55eb8a983b0c62c497`.
 [Backend checks #36457558266](https://github.com/Mahone1008/STechbaza-iot/actions/runs/36457558266) — **success**:
@@ -125,3 +126,5 @@ docker compose -p techbaza-demo --env-file .env.demo -f compose.demo.yml exec -T
 
 Це змінює лише режим ізольованого demo pump, не видаляє дані чи credentials.
 Пізніші коміти з самою документацією не змінюють перевірений код.
+
+Виправлення після Windows-приймання: [згортання деталей і докази](stage-12-details-collapse-2026-09-28.md).

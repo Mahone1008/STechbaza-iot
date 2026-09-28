@@ -109,3 +109,28 @@ test("automatic overview and history refresh preserve scroll while old values ar
     await stable(page, y, true);
   } finally { panel.release(); history.release(); }
 });
+
+test("collapsing the measurements table releases its space but keeps the collapsed reserve during loading", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 }); await ready(page);
+  const card = page.locator("section.card").filter({ has: page.getByRole("heading", { name: "Історія телеметрії", exact: true }) });
+  const height = () => card.evaluate((element) => element.getBoundingClientRect().height);
+  const collapsedHeight = await height();
+  const summary = card.getByText("Таблиця вимірювань", { exact: true });
+  await summary.click(); await expect(card.getByRole("table")).toBeVisible();
+  await expect.poll(height).toBeGreaterThan(collapsedHeight + 100);
+  await summary.click(); await expect(card.getByRole("table")).toBeHidden();
+  await expect.poll(async () => Math.abs(await height() - collapsedHeight)).toBeLessThanOrEqual(2);
+  const response = gate();
+  await page.route(seriesUrl, async (route) => { if (await fulfillPreflight(route)) return; await response.promise; await fulfillJson(route, 200, series(route.request().url())).catch(() => {}); });
+  try {
+    const y = await position(page);
+    await refreshVisibleHistory(page);
+    await expect(page.getByText("Завантажуємо історію…")).toBeVisible();
+    await expect.poll(async () => Math.abs(await height() - collapsedHeight)).toBeLessThanOrEqual(2);
+    await stable(page, y);
+    response.release();
+    await expect(page.locator(".telemetry-chart")).toBeVisible();
+    await expect.poll(async () => Math.abs(await height() - collapsedHeight)).toBeLessThanOrEqual(2);
+    await stable(page, y);
+  } finally { response.release(); }
+});
