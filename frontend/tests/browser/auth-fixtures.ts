@@ -1,3 +1,4 @@
+import { seriesFixture } from "../fixtures/series";
 import { overviewFixture } from "../fixtures/overview";
 import type { BrowserContext, Page, Route } from "@playwright/test";
 
@@ -267,6 +268,11 @@ export async function mockAuthenticatedWorkspace(
 ): Promise<void> {
   await mockRefreshSuccess(target);
   await mockIdentity(target, options);
+  await target.route(`${API_ORIGIN}/api/v1/devices/*/telemetry/series?*`, async (route) => {
+    if (await fulfillPreflight(route)) return;
+    const url = new URL(route.request().url());
+    await fulfillJson(route, 200, seriesFixture({ start: url.searchParams.get("start")!, end: url.searchParams.get("end")!, bucket_seconds: Number(url.searchParams.get("bucket_seconds")) }, url.searchParams.get("metric")!, url.pathname.split("/")[4]));
+  });
 }
 
 export async function fillLogin(

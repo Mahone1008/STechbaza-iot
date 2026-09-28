@@ -1,5 +1,7 @@
 "use client";
-import { useQuery } from "@tanstack/react-query";
+import { usePanelQuery } from "@/features/use-panel-query";
+import { TelemetryHistory } from "@/features/telemetry-history";
+import type { PollSeconds } from "@/lib/api/polling-policy";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Button, Card, MetricCard, PageHeader, StatusBadge } from "@/components/ui";
@@ -25,7 +27,7 @@ function OverviewContent({ overview, receivedAt, timezone }: { overview: Overvie
       <div className="ui-row"><StatusBadge tone={presence.online && !presenceExpired ? "success" : "neutral"}>{presence.last_seen_at === null ? "Ще не було зв’язку" : presence.online ? presenceExpired ? "Потрібно оновити зв’язок" : "Online" : "Offline"}</StatusBadge><StatusBadge tone={quality === "fresh" ? "success" : "warning"}>{qualityLabels[quality]}</StatusBadge></div>
       <p>{quality === "stale" && overview.freshness.reason === "recent" ? reasonLabels.timeout : reasonLabels[overview.freshness.reason]}</p>
       <dl className="overview-details"><div><dt>UID</dt><dd>{overview.device.uid}</dd></div><div><dt>Життєвий цикл</dt><dd>{overview.device.lifecycle_status}</dd></div><div><dt>Останній зв’язок</dt><dd>{formatSeen(presence.last_seen_at, timezone)}</dd></div><div><dt>Телеметрію отримано</dt><dd>{overview.freshness.received_at ? formatSeen(overview.freshness.received_at, timezone) : "Немає даних"}</dd></div><div><dt>Панель перевірено</dt><dd>{formatSeen(overview.generatedAt, timezone)}</dd></div></dl>
-      <p className="help-copy">Online означає наявність зв’язку. Стан обладнання визначається окремими показаннями. Дані оновлюються кнопкою «Оновити панель».</p>
+      <p className="help-copy">Online означає наявність зв’язку. Стан обладнання визначається окремими показаннями. Частота автоматичного оновлення задається вище; доступна кнопка «Оновити панель».</p>
     </Card>
     <section aria-labelledby="modules-heading"><h2 id="modules-heading">Модулі та канали</h2><p className="help-copy">Показані лише увімкнені можливості цього пристрою. Призначення модуля не визначає кількість фізичних датчиків.</p>
       {overview.modules.length === 0 ? <Card><p>Для пристрою немає увімкнених модулів.</p></Card> : <div className="overview-modules">{overview.modules.map((module) => <Card key={module.assignmentId} title={module.name} description={module.code}>
@@ -42,10 +44,11 @@ function DevicePanel({ context }: { context: ReadyAccessSnapshot }) {
   const { authorizedRequest } = useAuthSession();
   const device = context.activeDevice!;
   const canRead = context.access.permissions.includes("telemetry.read") && context.access.permissions.includes("capability.read");
-  const query = useQuery({
+  const [poll, setPoll] = useState<PollSeconds>(30);
+  const query = usePanelQuery({
     queryKey: [...apiQueryKeys.deviceOverview(context.scope, device.id), context.activeOrganization.id, device.site_id],
-    enabled: canRead, gcTime: 0, retry: false,
-    queryFn: async ({ signal }) => {
+    enabled: canRead, intervalMs: poll * 1000,
+    queryFn: async (signal) => {
       const start = performance.now();
       const raw = await authorizedRequest<unknown>({ path: `/api/v1/devices/${device.id}/overview`, signal, timeoutMs: 10_000 });
       return { overview: parseOverview(raw, device, context.activeOrganization.id), receivedAt: start };
@@ -53,11 +56,14 @@ function DevicePanel({ context }: { context: ReadyAccessSnapshot }) {
   });
   const denied = isApiError(query.error) && ["forbidden", "not-found"].includes(query.error.kind);
   return <>
-    <PageHeader title={device.name} description="Модулі, показання та якість даних пристрою." actions={<Button disabled={!canRead || query.isFetching} onClick={() => void query.refetch()}>Оновити панель</Button>} />
+    <PageHeader title={device.name} description="Модулі, показання та якість даних пристрою." actions={<Button disabled={!canRead || query.isFetching || !query.active} onClick={query.refresh}>Оновити панель</Button>} />
+    <div className="history-controls"><label>Автооновлення<select value={poll} onChange={(e) => setPoll(Number(e.target.value) as PollSeconds)}><option value={30}>Панель: 30 с; історія: 60 с</option><option value={60}>Щохвилини</option><option value={0}>Лише вручну</option></select></label></div>
+    {!query.active && <p role="status">Автооновлення призупинено: вкладка прихована або немає мережі.</p>}
     {!canRead ? <section className="notice notice-warning" role="alert"><h2>Недостатньо прав для панелі</h2><p>Потрібен доступ до модулів і телеметрії.</p></section>
       : query.isFetching ? <p role="status">Перевіряємо модулі та показання…</p>
-        : query.isError ? <section className="notice notice-warning" role="alert"><h2>{denied ? "Дані більше недоступні" : "Не вдалося завантажити панель"}</h2><p>{apiErrorDisplayMessage(query.error)}</p><div className="ui-row"><Button onClick={() => void query.refetch()}>Повторити</Button><Link className="button button-secondary" href="/organizations">Обрати організацію</Link></div></section>
+        : query.isError ? <section className="notice notice-warning" role="alert"><h2>{denied ? "Дані більше недоступні" : "Не вдалося завантажити панель"}</h2><p>{apiErrorDisplayMessage(query.error)}</p><div className="ui-row"><Button onClick={query.refresh}>Повторити</Button><Link className="button button-secondary" href="/organizations">Обрати організацію</Link></div></section>
           : query.data ? <OverviewContent key={query.dataUpdatedAt} overview={query.data.overview} receivedAt={query.data.receivedAt} timezone={context.activeSite?.timezone ?? "UTC"} /> : null}
+    {canRead && query.data && !query.isError && <div hidden={query.isFetching}><TelemetryHistory context={context} overview={query.data.overview} poll={poll} /></div>}
   </>;
 }
 export function DeviceOverview() {

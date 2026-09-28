@@ -131,8 +131,8 @@ Summary endpoint додається лише після виміряної по�
 
 | Операція | Результат |
 |---|---|
-| 12.1 — Історія | metric, unit, period, bucket, min/max/average/count, gaps, timezone |
-| 12.2 — Оновлення | one polling policy, backoff, cancel/dedup, hidden-tab pause, budget |
+| 12.1 — Історія | Реалізовано: metric, unit, period, bucket, min/max/average/count, gaps, timezone; перевірки тривають |
+| 12.2 — Оновлення | Реалізовано: one polling policy, backoff, cancel/dedup, hidden-tab pause, budget; перевірки тривають |
 | 12.3 — Start/Stop/frequency | allowed_commands, validation, confirmation, one request_id |
 | 12.4 — Lifecycle/journal | queued→published→ack→result, TTL, audit, stable pagination |
 
@@ -186,3 +186,10 @@ Start/frequency не накопичуються локально для відп
 
 - [11.3 — registry віджетів](stage-11-op3-module-widgets.md)
 - [11.4 — якість/конфігурація](stage-11-op4-quality-and-configuration.md)
+
+## Поточна робота: 12.1–12.2
+
+За дорученням користувача наступні дві операції реалізовано разом.
+[12.1 — історія](stage-12-op1-telemetry-history.md),
+[12.2 — оновлення, результати та Windows-команда](stage-12-op2-polling.md).
+Прийнятий прогрес не збільшується до Windows та ручного підтвердження.

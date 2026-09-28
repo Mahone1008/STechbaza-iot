@@ -58,6 +58,18 @@ test("real organization and site selection shows API devices, presence and resto
   await expect(page.getByText("TB-DEMO-PUMP", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Оновити панель" }).click();
   await expect(page.locator(".metric-card")).toHaveCount(channels.length);
+  // Перевіряємо реальний series без додаткового login та навантаження rate limit.
+  await expect(page.getByRole("button", { name: "Оновити історію" })).toBeEnabled();
+  const historyPromise = page.waitForResponse((response) => response.request().method() === "GET" && response.url().includes("/telemetry/series?"))
+    .then(async (response) => { expect(response.status()).toBe(200); return await response.json() as components["schemas"]["TelemetrySeriesRead"]; });
+  await page.getByRole("button", { name: "Оновити історію" }).click();
+  const history = await historyPromise;
+  expect(history.device_id).toBe(overview.device.id);
+  expect(history.time_basis).toBe("server_received_at");
+  expect(history.buckets.length).toBe(60);
+  await expect(page.getByRole("heading", { name: "Історія недоступна" })).toHaveCount(0);
+  await page.getByText("Таблиця вимірювань", { exact: true }).click();
+  await expect(page.getByRole("table")).toContainText(history.unit);
   // Same authenticated test also exercises a different modular composition.
   const newDevice = rows.find((row) => row.uid === "TB-DEMO-NEW")!;
   await page.goto(`/devices/${newDevice.id}`);

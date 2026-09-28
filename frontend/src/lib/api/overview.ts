@@ -4,7 +4,7 @@ import type { components } from "./schema";
 type Schemas = components["schemas"];
 export type Quality = Schemas["MetricReadingRead"]["status"];
 export type Freshness = Schemas["TelemetryFreshnessRead"];
-export type Channel = Readonly<{ key: string; source: string; data_type: string; unit: string | null }>;
+export type Channel = Readonly<{ key: string; source: string; data_type: string; unit: string | null; supports_series?: boolean }>;
 export type Reading = Readonly<{ value: number | boolean | null; status: Quality }>;
 export type Module = Readonly<{ assignmentId: string; code: string; name: string; supported: boolean; channels: (Channel & Reading)[]; commands: string[] }>;
 export type Overview = Readonly<{ generatedAt: string; device: Device; availability: Schemas["DeviceAvailabilityRead"]; freshness: Freshness; modules: Module[] }>;
@@ -72,7 +72,8 @@ export function parseOverview(value: unknown, expected: Device, organizationId: 
     const channels = array(item.channels).map((rawChannel) => {
       const ch = record(rawChannel);
       if (ch.unit !== null && typeof ch.unit !== "string") invalidResponse(path, "channel unit");
-      const channel: Channel = { key: requiredString(ch, "key", path), source: requiredString(ch, "source", path), data_type: requiredString(ch, "data_type", path), unit: ch.unit };
+      if (typeof ch.supports_series !== "boolean") invalidResponse(path, "supports_series flag");
+      const channel: Channel = { key: requiredString(ch, "key", path), source: requiredString(ch, "source", path), data_type: requiredString(ch, "data_type", path), unit: ch.unit, supports_series: ch.supports_series };
       const key = `${channel.source}:${channel.key}`; channelKeys.push(key);
       const reading = parseReading(readings.get(key), channel);
       if (reading.status === "fresh" && freshness.status !== "fresh") invalidResponse(path, "coherent reading quality");
