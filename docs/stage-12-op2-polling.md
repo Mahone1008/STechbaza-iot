@@ -55,6 +55,10 @@ select, що включали текст options: точний `getByLabel` не
 поточний стан QueryClient, щоб два натискання до React render не залишали
 ознаку ручного refresh для наступного автоматичного запиту.
 Polling/pause regressions додатково повторюються по 3 рази без retries.
+Другий CI #36438599787: 62 browser PASS / 1 failed, live skipped.
+Останній matcher `toBeDisabled` перевіряв select через вкладений label,
+хоча option мав native `disabled`. Перевірка уточнена до
+`toHaveJSProperty("disabled", true)` самого option; ліміт 1000 buckets збережено.
 Остаточні GitHub browser/live результати будуть зафіксовані після завершення.
 Локальне середовище не має Docker/PowerShell і придатного Chromium.
 Backend executable code, schema і міграції не змінюються; повний backend suite

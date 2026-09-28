@@ -35,7 +35,8 @@ test("period and bucket controls produce bounded UTC requests and empty history"
   const url = new URL((await response).url());
   expect(url.searchParams.get("metric")).toBe("pressure.bar"); expect(url.searchParams.get("start")).toMatch(/Z$/);
   expect(Date.parse(url.searchParams.get("end")!) - Date.parse(url.searchParams.get("start")!)).toBe(604800000);
-  await expect(page.getByLabel("Інтервал", { exact: true }).locator('option[value="60"]')).toBeDisabled();
+  // Перевіряємо native option: toBeDisabled retargets вкладений label до select.
+  await expect(page.getByLabel("Інтервал", { exact: true }).locator('option[value="60"]')).toHaveJSProperty("disabled", true);
   await expect(page.getByLabel("Метрика", { exact: true }).locator("option")).toHaveCount(1);
 });
 for (const status of [403, 409, 422, 503]) test(`history ${status} removes previous chart and permits explicit recovery`, async ({ page }) => {
