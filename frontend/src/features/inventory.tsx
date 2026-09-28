@@ -126,8 +126,8 @@ function PresenceTable({ devices, context, version }: { devices: Device[]; conte
   };
   const columns: TableColumn<Device>[] = [
     { key: "device", header: "Пристрій", render: (device) => <><Link className="table-primary" href={`/devices/${device.id}` as Route}>{device.name}</Link><div className="table-secondary">{device.uid}</div><div className="table-secondary">Тип: {device.device_type} · Життєвий цикл: {device.lifecycle_status}</div></> },
-    { key: "presence", header: "Стан зв’язку", render: (device) => <>{status(byId.get(device.id))}<div className="table-secondary">{query.isFetching ? "" : byId.get(device.id) ? `Перевірено: ${formatSeen(byId.get(device.id)!.checkedAt, context.activeSite?.timezone)}` : ""}</div></> },
-    { key: "seen", header: "Останній зв’язок", render: (device) => query.isFetching ? "—" : byId.get(device.id)?.availability ? formatSeen(byId.get(device.id)!.availability!.last_seen_at, context.activeSite?.timezone) : "Немає підтвердженого стану" },
+    { key: "presence", header: "Стан зв’язку", render: (device) => <>{status(byId.get(device.id))}<div className="table-secondary">{query.isFetching ? "" : byId.get(device.id) ? `Перевірено: ${formatSeen(byId.get(device.id)!.checkedAt, context.activeSite?.timezone)}` : ""}</div>{!query.isFetching && byId.get(device.id)?.availability ? <div className="table-secondary">Останній зв’язок: {formatSeen(byId.get(device.id)!.availability!.last_seen_at, context.activeSite?.timezone)}</div> : null}</> },
+
   ];
   // 403/404 приховує всю сторінку до повторної перевірки, без застарілих рядків.
   if (query.isError) return <ErrorState error={query.error} retry={() => void query.refetch()} />;

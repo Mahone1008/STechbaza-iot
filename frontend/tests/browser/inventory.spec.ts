@@ -233,3 +233,17 @@ test("revoked presence hides rows and a successful explicit retry restores them"
   await expect(page.getByRole("link", { name: "Насосна станція №1" })).toBeVisible();
   expect(calls).toBe(2);
 });
+
+
+test("mobile inventory preserves breadcrumbs, last-seen time and real device navigation", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(tenantPath);
+  await expect(page.getByText("Online", { exact: true })).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Шлях до об’єкта" })).toContainText("Тестовий об’єкт");
+  await expect(page.getByText(/Останній зв’язок:/u)).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Мобільна навігація" })).toBeVisible();
+  await page.getByRole("link", { name: "Насосна станція №1" }).click();
+  await expect(page.getByRole("heading", { name: "Насосна станція №1" })).toBeVisible();
+  const width = await page.evaluate(() => ({ content: document.documentElement.scrollWidth, viewport: innerWidth }));
+  expect(width.content).toBeLessThanOrEqual(width.viewport);
+});

@@ -81,7 +81,7 @@ live suite — реальну tenant isolation. Simulator для тестів н
 | OpenAPI | 0.38.0 / 47 paths, контракт не змінено |
 | TypeScript strict / ESLint / production build | PASS локально |
 | Vitest | 31 passed локально |
-| Mocked Chromium | 37 тестів; CI очікується |
+| Mocked Chromium | 38 тестів; CI очікується |
 | Live Chromium | 10 тестів; CI очікується |
 | Windows PowerShell 5.1 / ручне приймання | Очікується від користувача |
 

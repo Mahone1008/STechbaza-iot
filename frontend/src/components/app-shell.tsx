@@ -22,7 +22,6 @@ type NavigationItem = Readonly<{
   label: string;
   icon: "devices" | "alarm" | "components";
   permission: PermissionCode;
-  count?: number;
 }>;
 
 type MobileNavigationItem = Readonly<{
@@ -35,7 +34,7 @@ type MobileNavigationItem = Readonly<{
 const navigation: readonly NavigationItem[] = [
   { href: "/organizations" as Route, label: "Організації", icon: "components", permission: "organization.read" },
   { href: "/devices", label: "Пристрої", icon: "devices", permission: "device.read" },
-  { href: "/alarms", label: "Аварії", icon: "alarm", permission: "alarm.read", count: 2 },
+  { href: "/alarms", label: "Аварії", icon: "alarm", permission: "alarm.read" },
   { href: "/ui-kit", label: "Компоненти", icon: "components", permission: "capability.read" },
 ];
 
@@ -273,7 +272,6 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
               <Link className={`nav-link${active ? " nav-link-active" : ""}`} href={item.href} key={item.href} aria-current={active ? "page" : undefined}>
                 <Icon name={item.icon} />
                 {item.label}
-                {item.count !== undefined ? <span className="nav-count">{item.count}</span> : null}
               </Link>
             );
           })}
