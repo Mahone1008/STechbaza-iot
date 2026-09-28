@@ -44,6 +44,7 @@ const DOCUMENT_TAB_ID = createAuthTabId();
 const PEER_RESPONSE_WINDOW_MS = 350;
 const MIN_ACCESS_VALIDITY_MS = 30_000;
 const MIN_PEER_TOKEN_VALIDITY_MS = 5_000;
+const MAX_TIMER_DELAY_MS = 2_147_483_647;
 
 export type AuthenticatedSession = Readonly<{
   status: "authenticated";
@@ -204,6 +205,7 @@ export function AuthSessionProvider({ children }: Readonly<{ children: ReactNode
   const peerWaitersRef = useRef(new Set<PeerSnapshotResolver>());
   const retryTimerRef = useRef<ReturnType<typeof globalThis.setTimeout> | null>(null);
   const retryAttemptRef = useRef(0);
+  const refreshNotBeforeRef = useRef(0);
   const refreshSessionRef = useRef<(reason?: RefreshReason) => Promise<boolean>>(async () => false);
 
   const commitSession = useCallback((next: AuthSessionSnapshot) => {
@@ -294,6 +296,7 @@ export function AuthSessionProvider({ children }: Readonly<{ children: ReactNode
     accessTokenRef.current = response.access_token;
     lastEventAtRef.current = options.issuedAt;
     retryAttemptRef.current = 0;
+    refreshNotBeforeRef.current = 0;
     clearRetryTimer();
     commitSession(next);
     if (options.broadcast) publishSnapshot(next);
@@ -323,6 +326,7 @@ export function AuthSessionProvider({ children }: Readonly<{ children: ReactNode
     latestPeerSnapshotRef.current = snapshot;
     lastEventAtRef.current = snapshot.issuedAt;
     retryAttemptRef.current = 0;
+    refreshNotBeforeRef.current = 0;
     clearRetryTimer();
     commitSession(next);
     return true;
@@ -342,6 +346,7 @@ export function AuthSessionProvider({ children }: Readonly<{ children: ReactNode
     latestPeerSnapshotRef.current = null;
     lastEventAtRef.current = issuedAt;
     retryAttemptRef.current = 0;
+    refreshNotBeforeRef.current = 0;
     clearRetryTimer();
     abortAuthorizedRequests();
     resolvePeerWaiters(null);
@@ -402,6 +407,7 @@ export function AuthSessionProvider({ children }: Readonly<{ children: ReactNode
     const delay = refreshRetryDelayMs(retryAttemptRef.current, retryAfterSeconds);
     retryAttemptRef.current += 1;
     const retryAt = Date.now() + delay;
+    refreshNotBeforeRef.current = retryAfterSeconds === null ? 0 : retryAt;
 
     const current = sessionRef.current;
     const tokenStillUsable = current.status === "authenticated"
@@ -418,7 +424,7 @@ export function AuthSessionProvider({ children }: Readonly<{ children: ReactNode
     retryTimerRef.current = globalThis.setTimeout(() => {
       retryTimerRef.current = null;
       void refreshSessionRef.current("retry");
-    }, delay);
+    }, Math.min(delay, MAX_TIMER_DELAY_MS));
   }, [clearRetryTimer, commitSession]);
 
   const commitApiRefresh = useCallback((response: BrowserLoginResponse, issuedAt: number) => {
@@ -442,6 +448,18 @@ export function AuthSessionProvider({ children }: Readonly<{ children: ReactNode
       return Promise.resolve(false);
     }
     if (refreshPromiseRef.current) return refreshPromiseRef.current;
+
+    // Manual retry, focus і demand не обходять cooldown після 429/503.
+    const remainingCooldown = refreshNotBeforeRef.current - Date.now();
+    if (remainingCooldown > 0) {
+      if (retryTimerRef.current === null) {
+        retryTimerRef.current = globalThis.setTimeout(() => {
+          retryTimerRef.current = null;
+          void refreshSessionRef.current("retry");
+        }, Math.min(remainingCooldown, MAX_TIMER_DELAY_MS));
+      }
+      return Promise.resolve(false);
+    }
 
     const baselineEventAt = lastEventAtRef.current;
     const request = (async () => {
@@ -535,28 +553,27 @@ export function AuthSessionProvider({ children }: Readonly<{ children: ReactNode
     void clearAllSessionCaches(queryClient);
 
     const promise = withCrossTabAuthLock(DOCUMENT_TAB_ID, async () => {
-      try {
-        await browserLogout();
-        const issuedAt = Date.now();
-        clearSessionInternal("logout", { broadcast: true, issuedAt });
+      await browserLogout();
+      const issuedAt = Date.now();
+      clearSessionInternal("logout", { broadcast: true, issuedAt });
+      return true;
+    }).catch((error: unknown) => {
+      // Відмова/timeout lock виникає до callback, тому обробляємо всю операцію.
+      if (sessionRef.current.status === "anonymous" && sessionRef.current.reason === "logout") {
         return true;
-      } catch (error) {
-        if (sessionRef.current.status === "anonymous" && sessionRef.current.reason === "logout") {
-          return true;
-        }
-
-        logoutIntentRef.current = false;
-        const retryAt = isApiError(error) && error.retryAfterSeconds !== null
-          ? Date.now() + error.retryAfterSeconds * 1_000
-          : null;
-        commitSession({
-          status: "logout-failed",
-          message: apiErrorDisplayMessage(error),
-          retryAt,
-          email: logoutFallbackRef.current?.session.email ?? null,
-        });
-        return false;
       }
+
+      logoutIntentRef.current = false;
+      const retryAt = isApiError(error) && error.retryAfterSeconds !== null
+        ? Date.now() + error.retryAfterSeconds * 1_000
+        : null;
+      commitSession({
+        status: "logout-failed",
+        message: apiErrorDisplayMessage(error),
+        retryAt,
+        email: logoutFallbackRef.current?.session.email ?? null,
+      });
+      return false;
     }).finally(() => {
       logoutPromiseRef.current = null;
     });

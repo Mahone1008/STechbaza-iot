@@ -60,6 +60,7 @@ describe("auth cross-tab coordination", () => {
 
   it("uses Retry-After before exponential fallback", () => {
     expect(refreshRetryDelayMs(0, 12)).toBe(12_000);
+    expect(refreshRetryDelayMs(0, 300)).toBe(300_000);
     expect(refreshRetryDelayMs(0, null)).toBe(1_000);
     expect(refreshRetryDelayMs(2, null)).toBe(15_000);
     expect(refreshRetryDelayMs(99, null)).toBe(60_000);

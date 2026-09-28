@@ -159,7 +159,8 @@ export function refreshDelayMs(accessExpiresAt: number, nowMs = Date.now()): num
 
 export function refreshRetryDelayMs(attempt: number, retryAfterSeconds: number | null): number {
   if (retryAfterSeconds !== null) {
-    return Math.min(60_000, Math.max(1_000, retryAfterSeconds * 1_000));
+    // Retry-After — нижня межа від сервера; cap backoff не може її скорочувати.
+    return Math.max(1_000, retryAfterSeconds * 1_000);
   }
   const schedule = [1_000, 5_000, 15_000, 30_000, 60_000] as const;
   return schedule[Math.min(Math.max(0, attempt), schedule.length - 1)] ?? 60_000;

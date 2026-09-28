@@ -82,6 +82,31 @@ function LogoutFailureGate({
   );
 }
 
+function SessionRecoveryGate({ message, retryAt, onRetry }: Readonly<{
+  message: string;
+  retryAt: number | null;
+  onRetry: () => void;
+}>) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (retryAt === null || retryAt <= Date.now()) return;
+    const timer = globalThis.setInterval(() => setNow(Date.now()), 250);
+    return () => globalThis.clearInterval(timer);
+  }, [retryAt]);
+  const seconds = retryAt === null ? 0 : Math.max(0, Math.ceil((retryAt - now) / 1_000));
+  return (
+    <AccessGate
+      title="Не вдалося перевірити сесію"
+      description={`${message} Дані кабінету не показуються, доки session не підтверджена.`}
+      tone="warning"
+    >
+      <Button variant="secondary" disabled={seconds > 0} onClick={onRetry}>
+        {seconds > 0 ? `Повторити через ${seconds} с` : "Повторити перевірку"}
+      </Button>
+    </AccessGate>
+  );
+}
+
 export function WorkspaceGuard({ children }: Readonly<{ children: ReactNode }>) {
   const pathname = usePathname();
   const router = useRouter();
@@ -130,13 +155,11 @@ export function WorkspaceGuard({ children }: Readonly<{ children: ReactNode }>) 
 
   if (session.status === "unavailable") {
     return (
-      <AccessGate
-        title="Не вдалося перевірити сесію"
-        description={`${session.message} Дані кабінету не показуються, доки session не підтверджена.`}
-        tone="warning"
-      >
-        <Button variant="secondary" onClick={() => void refreshSession()}>Повторити перевірку</Button>
-      </AccessGate>
+      <SessionRecoveryGate
+        message={session.message}
+        retryAt={session.retryAt}
+        onRetry={() => void refreshSession()}
+      />
     );
   }
 

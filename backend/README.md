@@ -7,13 +7,16 @@
 Прийнята тестова версія **0.38.0**, схема **20260926_0017**. Етапи 1–8
 та всі 5 операцій Етапу H завершені. Спільне Windows-приймання H-04/H-05
 підтверджене 27.09.2026: 158 tests без пропусків, clean install,
-exact backup/restore та live demo PASS. Можна переходити до Етапу 9.
+exact backup/restore та live demo PASS. Frontend Етапи 9 і 10 вже завершені;
+поточна функціональна точка — **11.1: організації, об'єкти та tenant context**.
 Актуальні докази й статус: [досьє Етапу H](../docs/stage-h-backend-corrections.md).
 
 Реалізовано organization/site/device model, memberships/RBAC, browser auth,
 телеметрію та її якість/історію, чергу команд з ACK/Result, аварії й in-app
 notifications. API перших екранів відображає enabled capabilities та
-типізовані канали конкретного Device. UI ще не реалізовано.
+типізовані канали конкретного Device. UI має реальний browser auth, session
+recovery, permissions і logout; devices/telemetry/alarms поки показують demo
+fixtures. Актуальний стан: [frontend roadmap](../docs/frontend-roadmap-v1.md).
 
 ## Запуск і перевірка
 

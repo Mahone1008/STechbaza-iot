@@ -4,6 +4,7 @@
 
 ## Frontend
 
+- [Огляд після Етапу 10: поточний стан, auth-виправлення і перехід до 11.1](project-review-after-stage10-2026-09-28.md)
 - [План frontend v1 — 24 операції; прийнято 8/24](frontend-roadmap-v1.md)
 - [Етап 9.1 — UX-сценарії та макети KERUMO — закрито](stage-9-op1-ux-and-mockups.md)
 - [Етап 9.2 — Next.js/TypeScript foundation — закрито](stage-9-op2-frontend-foundation.md)

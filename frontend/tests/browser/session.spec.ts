@@ -130,3 +130,27 @@ test("temporary refresh failure never reveals protected tenant data", async ({ p
   await expect(page.getByRole("heading", { name: "Пристрої" })).not.toBeVisible();
   await expect(page.getByText("DEMO: клієнт A")).not.toBeVisible();
 });
+
+test("manual recovery cannot bypass the server Retry-After deadline", async ({ page }) => {
+  let refreshCalls = 0;
+  await routeRefresh(page, async (route) => {
+    refreshCalls += 1;
+    await route.fulfill({
+      status: 429,
+      headers: { ...corsHeaders, "content-type": "application/json", "retry-after": "300" },
+      body: JSON.stringify({ detail: "Забагато auth-спроб" }),
+    });
+  });
+
+  await page.goto("/devices");
+  await expect(page.getByRole("heading", { name: "Не вдалося перевірити сесію" })).toBeVisible();
+  const retry = page.getByRole("button", { name: /Повторити/u });
+  await expect(retry).toBeDisabled();
+  await expect(retry).toContainText(/через/u);
+  // Навіть programmatic focus не має запускати refresh до дедлайну.
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  // Даємо завершитися спробі отримати cross-tab lock та peer response.
+  await page.waitForTimeout(700);
+  expect(refreshCalls).toBe(1);
+  await expect(page.getByRole("heading", { name: "Пристрої" })).not.toBeVisible();
+});

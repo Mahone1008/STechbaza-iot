@@ -234,3 +234,36 @@ test("logout rate limit respects Retry-After before allowing another attempt", a
   await expect(page).toHaveURL(/\/login\?loggedOut=1$/u);
   expect(logoutCalls).toBe(2);
 });
+
+test("logout lock failure leaves a recoverable state and sends no uncoordinated request", async ({ page }) => {
+  let logoutCalls = 0;
+  const pageErrors: string[] = [];
+  page.on("pageerror", (error) => pageErrors.push(error.message));
+  await mockAuthenticatedWorkspace(page);
+  await routeLogout(page, async (route) => {
+    logoutCalls += 1;
+    await route.fulfill({ status: 204, headers: corsHeaders, body: "" });
+  });
+  await page.goto("/devices");
+  await expect(page.getByRole("heading", { name: "Пристрої" })).toBeVisible();
+
+  await page.evaluate(() => {
+    const original = navigator.locks.request.bind(navigator.locks);
+    Object.defineProperty(navigator.locks, "request", {
+      configurable: true,
+      value: () => {
+        Object.defineProperty(navigator.locks, "request", { configurable: true, value: original });
+        return Promise.reject(new Error("Simulated auth lock failure"));
+      },
+    });
+  });
+  await openUserMenuAndLogout(page);
+  await expect(page.getByRole("heading", { name: "Не вдалося завершити сесію" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Пристрої" })).not.toBeVisible();
+  expect(logoutCalls).toBe(0);
+  expect(pageErrors).toEqual([]);
+
+  await page.getByRole("button", { name: "Повторити вихід" }).click();
+  await expect(page).toHaveURL(/\/login\?loggedOut=1$/u);
+  expect(logoutCalls).toBe(1);
+});
