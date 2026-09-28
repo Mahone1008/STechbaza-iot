@@ -128,3 +128,11 @@ CI повторює generation і вимагає zero diff. Етап 10 заве
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-stage12-op1-op2.ps1 -Start
 ```
+
+## Команди та журнал (12.3–12.4)
+
+[Керування](../docs/stage-12-op3-command-controls.md),
+[lifecycle, перевірки та запуск Windows](../docs/stage-12-op4-command-journal.md).
+`check-stage12-op3-op4.ps1 -Start` виконує cumulative gate. Live suite
+з `KERUMO_RUN_COMMAND_DEMO=1` надсилає Stop лише localhost TB-DEMO-PUMP simulator.
+Без opt-in live suite не надсилає команд. POST не повторюється автоматично.

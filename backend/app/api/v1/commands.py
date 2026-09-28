@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
@@ -107,17 +108,29 @@ def list_device_commands(
     current: CurrentUser,
     limit: Annotated[int, Query(ge=1, le=100)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
+    before_created_at: datetime | None = None,
+    before_id: uuid.UUID | None = None,
 ) -> list[DeviceCommandRead]:
     AccessControl(session, current).require_device(
         device_id,
         Permission.COMMAND_READ,
     )
 
+    if (before_created_at is None) != (before_id is None) or (
+        before_created_at is not None
+        and (offset != 0 or before_created_at.utcoffset() is None)
+    ):
+        raise HTTPException(status_code=422, detail=(
+            "Курсор потребує before_created_at із часовим поясом та before_id; offset має бути 0"
+        ))
+
     try:
         commands = CommandService(session).list_for_device(
             device_id,
             limit=limit,
             offset=offset,
+            before_created_at=before_created_at,
+            before_id=before_id,
         )
     except CommandDeviceNotFoundError as exc:
         raise HTTPException(

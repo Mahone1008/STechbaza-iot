@@ -1,4 +1,6 @@
 "use client";
+import { CommandControls } from "@/features/command-controls";
+import { CommandDetail, CommandJournal } from "@/features/command-journal";
 import { usePanelQuery } from "@/features/use-panel-query";
 import { StableRegion } from "@/components/stable-region";
 import { TelemetryHistory } from "@/features/telemetry-history";
@@ -32,7 +34,7 @@ function OverviewContent({ overview, receivedAt, timezone }: { overview: Overvie
     </Card>
     <section aria-labelledby="modules-heading"><h2 id="modules-heading">Модулі та канали</h2><p className="help-copy">Показані лише увімкнені можливості цього пристрою. Призначення модуля не визначає кількість фізичних датчиків.</p>
       {overview.modules.length === 0 ? <Card><p>Для пристрою немає увімкнених модулів.</p></Card> : <div className="overview-modules">{overview.modules.map((module) => <Card key={module.assignmentId} title={module.name} description={module.code}>
-        {!module.supported ? <p>Цей модуль ще не підтримує відображення даних.</p> : module.channels.length === 0 ? <p>Модуль керування без вимірювальних каналів. Керування буде доступне на наступному етапі.</p> : <div className="overview-widgets">{module.channels.map((channel) => {
+        {!module.supported ? <p>Цей модуль ще не підтримує відображення даних.</p> : module.channels.length === 0 ? <p>Модуль керування без вимірювальних каналів. Доступні дії показані в блоці керування.</p> : <div className="overview-widgets">{module.channels.map((channel) => {
           if (!channelSupported(channel)) return <article className="notice" key={`${channel.source}:${channel.key}`}><h3>{channelLabel(channel.key)}</h3><p>Цей тип каналу поки не підтримується.</p></article>;
           const status = effectiveQuality(channel.status, overview.freshness, elapsed);
           return <MetricCard key={`${channel.source}:${channel.key}`} label={channelLabel(channel.key)} value={readingText(channel)} unit={channel.unit ?? ""} meta={status === "stale" ? "Останнє відоме значення; не поточний стан" : status === "missing" ? "Показання ще не отримано" : status === "invalid" ? "Показання не пройшло перевірку" : "За останнім отриманим повідомленням"} status={<StatusBadge tone={status === "fresh" ? "success" : status === "invalid" ? "danger" : "warning"}>{qualityLabels[status]}</StatusBadge>} />;
@@ -45,6 +47,7 @@ function DevicePanel({ context }: { context: ReadyAccessSnapshot }) {
   const { authorizedRequest } = useAuthSession();
   const device = context.activeDevice!;
   const canRead = context.access.permissions.includes("telemetry.read") && context.access.permissions.includes("capability.read");
+  const [selectedCommand, setSelectedCommand] = useState<string | null>(null);
   const [poll, setPoll] = useState<PollSeconds>(30);
   const query = usePanelQuery({
     queryKey: [...apiQueryKeys.deviceOverview(context.scope, device.id), context.activeOrganization.id, device.site_id],
@@ -60,11 +63,14 @@ function DevicePanel({ context }: { context: ReadyAccessSnapshot }) {
     <PageHeader title={device.name} description="Модулі, показання та якість даних пристрою." actions={<Button disabled={!canRead || query.isFetching || !query.active} onClick={query.refresh}>Оновити панель</Button>} />
     <div className="history-controls"><label>Автооновлення<select aria-label="Автооновлення" value={poll} onChange={(e) => setPoll(Number(e.target.value) as PollSeconds)}><option value={30}>Панель: 30 с; історія: 60 с</option><option value={60}>Щохвилини</option><option value={0}>Лише вручну</option></select></label></div>
     {!query.active && <p role="status">Автооновлення призупинено: вкладка прихована або немає мережі.</p>}
+    <CommandControls context={context} overview={query.isError ? null : query.data?.overview ?? null} receivedAt={query.data?.receivedAt ?? 0} active={query.active} refreshing={query.isFetching} onCreated={setSelectedCommand} />
+    {selectedCommand && context.access.permissions.includes("command.read") && <CommandDetail key={selectedCommand} context={context} id={selectedCommand} auto={poll > 0} />}
     <StableRegion className="overview-result-region">{!canRead ? <section className="notice notice-warning" role="alert"><h2>Недостатньо прав для панелі</h2><p>Потрібен доступ до модулів і телеметрії.</p></section>
       : query.isFetching ? <p role="status">Перевіряємо модулі та показання…</p>
         : query.isError ? <section className="notice notice-warning" role="alert"><h2>{denied ? "Дані більше недоступні" : "Не вдалося завантажити панель"}</h2><p>{apiErrorDisplayMessage(query.error)}</p><div className="ui-row"><Button onClick={query.refresh}>Повторити</Button><Link className="button button-secondary" href="/organizations">Обрати організацію</Link></div></section>
           : query.data ? <OverviewContent key={query.dataUpdatedAt} overview={query.data.overview} receivedAt={query.data.receivedAt} timezone={context.activeSite?.timezone ?? "UTC"} /> : null}</StableRegion>
     {canRead && query.data && !query.isError && <div className={query.isFetching ? "panel-refresh-hidden" : undefined} inert={query.isFetching} aria-hidden={query.isFetching}><TelemetryHistory context={context} overview={query.data.overview} poll={poll} /></div>}
+    {context.access.permissions.includes("command.read") && <CommandJournal context={context} onSelect={setSelectedCommand} />}
   </>;
 }
 export function DeviceOverview() {

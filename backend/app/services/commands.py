@@ -149,6 +149,8 @@ class CommandService:
         *,
         limit: int,
         offset: int,
+        before_created_at: datetime | None = None,
+        before_id: uuid.UUID | None = None,
     ) -> list[DeviceCommand]:
         if self._devices.get(device_id) is None:
             raise CommandDeviceNotFoundError
@@ -157,4 +159,6 @@ class CommandService:
             device_id,
             limit=limit,
             offset=offset,
+            before_created_at=before_created_at,
+            before_id=before_id,
         )

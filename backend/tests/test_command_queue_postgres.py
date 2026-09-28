@@ -73,6 +73,26 @@ class CommandQueueTests(unittest.TestCase):
             return CommandRepository(session).list_delivery_candidate_ids(now=now,
                 retry_before=now-self.retry, online_since=now-self.online_window, limit=100)
 
+    def test_history_cursor_is_stable_during_inserts_and_equal_timestamps(self):
+        ids = sorted(self.commands(7), reverse=True)
+        self.commands(2, device_id=self.offline)
+        with SessionLocal() as session:
+            repo = CommandRepository(session)
+            first = repo.list_for_device(self.online, limit=3, offset=0)
+            self.assertEqual([row.id for row in first], ids[:3])
+            cursor = (first[-1].created_at, first[-1].id)
+        newest = self.commands(created_at=self.now + timedelta(seconds=1))[0]
+        with SessionLocal() as session:
+            repo = CommandRepository(session)
+            second = repo.list_for_device(self.online, limit=3, offset=0,
+                before_created_at=cursor[0], before_id=cursor[1])
+            self.assertEqual([row.id for row in second], ids[3:6])
+            last = repo.list_for_device(self.online, limit=3, offset=0,
+                before_created_at=second[-1].created_at, before_id=second[-1].id)
+            self.assertEqual([row.id for row in last], ids[6:])
+            self.assertEqual(repo.list_for_device(self.online, limit=1, offset=0)[0].id, newest)
+            self.assertEqual(repo.list_for_device(self.online, limit=1, offset=1)[0].id, ids[0])
+
     def cycle(self, now=None):
         return worker.run_command_reliability_cycle(now=now or self.now)
 

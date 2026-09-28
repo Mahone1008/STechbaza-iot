@@ -17,6 +17,7 @@ on:
       - 'scripts/check-stage11-op1-op2.ps1'
       - 'scripts/check-stage11-op3-op4.ps1'
       - 'scripts/check-stage12-op1-op2.ps1'
+      - 'scripts/check-stage12-op3-op4.ps1'
       - '.github/workflows/frontend-bootstrap.yml'
   workflow_dispatch:
 
@@ -122,7 +123,7 @@ jobs:
           docker compose -p techbaza-auth-ci --env-file .env.demo -f compose.demo.yml up -d --wait --wait-timeout 90 postgres mosquitto
           docker compose -p techbaza-auth-ci --env-file .env.demo -f compose.demo.yml run --rm -T backend alembic upgrade head
           docker compose -p techbaza-auth-ci --env-file .env.demo -f compose.demo.yml run --rm -T backend python -m app.demo.seed
-          docker compose -p techbaza-auth-ci --env-file .env.demo -f compose.demo.yml up -d --no-build --wait --wait-timeout 90 backend
+          docker compose -p techbaza-auth-ci --env-file .env.demo -f compose.demo.yml up -d --no-build --wait --wait-timeout 90 backend simulator
           curl --fail --silent --show-error http://127.0.0.1:8001/health
       - name: Prepare masked live-auth environment
         shell: bash
@@ -133,6 +134,7 @@ jobs:
           test -n "$viewer_password"
           echo "::add-mask::$owner_password"
           echo "::add-mask::$viewer_password"
+          echo "KERUMO_RUN_COMMAND_DEMO=1" >> "$GITHUB_ENV"
           echo "KERUMO_API_BASE_URL=http://127.0.0.1:8001" >> "$GITHUB_ENV"
           echo "KERUMO_DEMO_EMAIL=owner@techbaza-demo.example.com" >> "$GITHUB_ENV"
           echo "KERUMO_DEMO_PASSWORD=$owner_password" >> "$GITHUB_ENV"

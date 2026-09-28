@@ -247,3 +247,10 @@ PostgreSQL/MQTT. Без flags перевірено лише 17, це не пов
 його поетапної реалізації, яку ще не розпочато.
 B2B/QR onboarding, зовнішні notification channels, production TLS/ACL
 та фізичний пілот мають окремі критерії готовності.
+
+## Сумісне доповнення 28.09.2026 — cursor command history
+
+Для GET device commands додано пару `before_created_at` (timezone-aware) і
+`before_id` (UUID), несумісну з ненульовим offset. Масив відповіді, legacy
+limit/offset і RBAC збережено. Порядок: created_at DESC, id DESC.
+Деталі й перевірки: [12.4](stage-12-op4-command-journal.md).

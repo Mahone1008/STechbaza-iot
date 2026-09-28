@@ -268,6 +268,7 @@ export async function mockAuthenticatedWorkspace(
 ): Promise<void> {
   await mockRefreshSuccess(target);
   await mockIdentity(target, options);
+  await target.route(`${API_ORIGIN}/api/v1/devices/*/commands?*`, async (route) => { if (await fulfillPreflight(route)) return; await fulfillJson(route, 200, []); });
   await target.route(`${API_ORIGIN}/api/v1/devices/*/telemetry/series?*`, async (route) => {
     if (await fulfillPreflight(route)) return;
     const url = new URL(route.request().url());

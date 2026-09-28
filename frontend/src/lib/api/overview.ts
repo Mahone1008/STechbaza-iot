@@ -6,8 +6,8 @@ export type Quality = Schemas["MetricReadingRead"]["status"];
 export type Freshness = Schemas["TelemetryFreshnessRead"];
 export type Channel = Readonly<{ key: string; source: string; data_type: string; unit: string | null; supports_series?: boolean }>;
 export type Reading = Readonly<{ value: number | boolean | null; status: Quality }>;
-export type Module = Readonly<{ assignmentId: string; code: string; name: string; supported: boolean; channels: (Channel & Reading)[]; commands: string[] }>;
-export type Overview = Readonly<{ generatedAt: string; device: Device; availability: Schemas["DeviceAvailabilityRead"]; freshness: Freshness; modules: Module[] }>;
+export type Module = Readonly<{ assignmentId: string; code: string; name: string; supported: boolean; channels: (Channel & Reading)[]; commands: string[]; allowedCommands: string[] }>;
+export type Overview = Readonly<{ generatedAt: string; device: Device; availability: Schemas["DeviceAvailabilityRead"]; freshness: Freshness; modules: Module[]; allowedCommands: string[] }>;
 const path = "/api/v1/devices/overview";
 const qualities = new Set(["fresh", "stale", "missing", "invalid"]);
 const reasons = new Set(["no_telemetry", "recent", "timeout", "session_changed", "future_timestamp", "delayed_report"]);
@@ -80,12 +80,19 @@ export function parseOverview(value: unknown, expected: Device, organizationId: 
       return { ...channel, ...reading };
     });
     const commands = strings(item.command_types);
+    const allowedCommands = strings(item.allowed_commands);
+    unique(commands); unique(allowedCommands);
+    if (allowedCommands.some((command) => !commands.includes(command)) || (!access.permissions.includes("command.execute") && allowedCommands.length)) invalidResponse(path, "allowed commands");
     if (!item.supported && (channels.length || commands.length)) invalidResponse(path, "unsupported module");
-    return { assignmentId: requiredUuid(item, "assignment_id", path), code, name: cap.name, supported: item.supported, channels, commands };
+    return { assignmentId: requiredUuid(item, "assignment_id", path), code, name: cap.name, supported: item.supported, channels, commands, allowedCommands };
   });
   unique(modules.map((module) => module.assignmentId)); unique(modules.map((module) => module.code)); unique(channelKeys);
   if (modules.length !== capabilities.length || [...readings.keys()].some((key) => !channelKeys.includes(key))) invalidResponse(path, "assigned channels only");
-  return { generatedAt: requiredDateTime(data, "generated_at", path), device, availability: parseAvailability(data.availability, device), freshness, modules };
+  const allowedCommands = strings(data.allowed_commands); const commandTypes = strings(data.command_types);
+  unique(allowedCommands); unique(commandTypes);
+  const moduleCommands = modules.flatMap((module) => module.commands); const moduleAllowed = modules.flatMap((module) => module.allowedCommands);
+  if (commandTypes.length !== moduleCommands.length || commandTypes.some((item) => !moduleCommands.includes(item)) || allowedCommands.length !== moduleAllowed.length || allowedCommands.some((item) => !moduleAllowed.includes(item))) invalidResponse(path, "consistent command permissions");
+  return { allowedCommands, generatedAt: requiredDateTime(data, "generated_at", path), device, availability: parseAvailability(data.availability, device), freshness, modules };
 }
 export function effectiveQuality(status: Quality, freshness: Freshness, elapsedSeconds: number): Quality {
   if (status !== "fresh") return status;

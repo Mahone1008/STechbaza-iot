@@ -108,12 +108,19 @@ class CommandRepository:
         *,
         limit: int,
         offset: int,
+        before_created_at: datetime | None = None,
+        before_id: uuid.UUID | None = None,
     ) -> list[DeviceCommand]:
         statement = (
             select(DeviceCommand)
             .where(DeviceCommand.device_id == device_id)
-            .order_by(DeviceCommand.created_at.desc())
+            .order_by(DeviceCommand.created_at.desc(), DeviceCommand.id.desc())
             .limit(limit)
             .offset(offset)
         )
+        if before_created_at is not None and before_id is not None:
+            statement = statement.where(or_(
+                DeviceCommand.created_at < before_created_at,
+                and_(DeviceCommand.created_at == before_created_at, DeviceCommand.id < before_id),
+            ))
         return list(self._session.scalars(statement))

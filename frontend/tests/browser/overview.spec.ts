@@ -38,7 +38,7 @@ test("online and stale telemetry remain separate; missing and invalid never beco
 test("refresh applies disable and enable atomically without reviving hidden snapshot values", async ({ page }) => {
   let data = fixture(); await mockOverview(page, () => data); await page.goto(path);
   await expect(page.locator(".metric-card").filter({ hasText: "Тиск" })).toBeVisible();
-  data = { ...data, capabilities: [], modules: [], readings: [], state_readings: [] };
+  data = { ...data, capabilities: [], modules: [], readings: [], state_readings: [], command_types: [], allowed_commands: [] };
   await page.getByRole("button", { name: "Оновити панель" }).click();
   await expect(page.getByText("Для пристрою немає увімкнених модулів.")).toBeVisible();
   await expect(page.locator(".metric-card")).toHaveCount(0);

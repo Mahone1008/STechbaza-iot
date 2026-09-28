@@ -2778,6 +2778,8 @@ export interface operations {
     list_device_commands_api_v1_devices__device_id__commands_get: {
         parameters: {
             query?: {
+                before_created_at?: string | null;
+                before_id?: string | null;
                 limit?: number;
                 offset?: number;
             };

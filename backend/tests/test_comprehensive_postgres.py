@@ -84,6 +84,15 @@ class ComprehensivePostgresTests(unittest.TestCase):
             session.execute(delete(Capability).where(Capability.id.in_(self.created_caps)))
             session.commit()
 
+    def test_command_cursor_validation_and_legacy_list(self):
+        from urllib.parse import urlencode
+        cursor = {"before_created_at": "2026-09-28T12:00:00+00:00", "before_id": str(uuid.uuid4())}
+        for query in ({"before_id": cursor["before_id"]}, {"before_created_at": cursor["before_created_at"]},
+                      {**cursor, "offset": 1}, {**cursor, "before_created_at": "2026-09-28T12:00:00"}):
+            self.call(self.command_path + "?" + urlencode(query), expected=422)
+        self.assertEqual(self.call(self.command_path + "?" + urlencode(cursor)), [])
+        self.assertEqual(self.call(self.command_path + "?limit=20&offset=0"), [])
+
     def call(self, path, *, method="GET", body=None, who="operator", expected=200):
         headers = {"authorization": f"Bearer {self.tokens[who]}"} if who else {}
         code, result, _ = request(method, path, body=body, headers=headers)

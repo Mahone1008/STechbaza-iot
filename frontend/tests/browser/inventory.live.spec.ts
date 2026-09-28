@@ -47,7 +47,7 @@ test("real organization and site selection shows API devices, presence and resto
   await page.getByRole("link", { name: "DEMO: насос з частотником", exact: true }).click();
   await expect(page.getByRole("heading", { name: "DEMO: насос з частотником", exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Модулі та канали" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Запустити" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Запустити", exact: true })).toBeVisible();
   const overview = await overviewPromise;
   expect(overview.modules.length).toBeGreaterThan(0);
   for (const capability of overview.capabilities) {
@@ -69,7 +69,25 @@ test("real organization and site selection shows API devices, presence and resto
   expect(history.buckets.length).toBe(60);
   await expect(page.getByRole("heading", { name: "Історія недоступна" })).toHaveCount(0);
   await page.getByText("Таблиця вимірювань", { exact: true }).click();
-  await expect(page.getByRole("table")).toContainText(history.unit);
+  await expect(page.locator(".history-table")).toContainText(history.unit);
+  // Explicit opt-in; never send test commands to an arbitrary configured API/device.
+  if (process.env.KERUMO_RUN_COMMAND_DEMO === "1") {
+    expect(API).toBe("http://127.0.0.1:8001");
+    expect(overview.device.uid).toBe("TB-DEMO-PUMP");
+    const control = page.locator("section.card").filter({ has: page.getByRole("heading", { name: "Керування пристроєм", exact: true }) });
+    await control.getByRole("button", { name: "Зупинити", exact: true }).click();
+    const receiptPromise = page.waitForResponse((r) => r.request().method() === "POST" && r.url() === `${API}/api/v1/devices/${overview.device.id}/commands`);
+    await page.getByRole("dialog").getByRole("button", { name: "Надіслати команду" }).click();
+    const receipt = await receiptPromise; expect(receipt.status()).toBe(201);
+    const command = await receipt.json() as components["schemas"]["DeviceCommandRead"];
+    expect(command.command_type).toBe("vfd.stop"); expect(command.device_id).toBe(overview.device.id);
+    const details = page.locator("section.card").filter({ has: page.getByRole("heading", { name: "Стан вибраної команди", exact: true }) });
+    await expect(details.locator(".status-badge")).toHaveText("Контролер повідомив про виконання", { timeout: 20_000 });
+    await details.getByText("Автор і технічні деталі команди", { exact: true }).click();
+    await expect(details).toContainText(command.request_id); await expect(details).toContainText(email);
+    await page.getByRole("button", { name: "Оновити журнал", exact: true }).click();
+    await expect(page.getByRole("table", { name: "Журнал команд пристрою" })).toContainText("Контролер повідомив про виконання");
+  }
   // Same authenticated test also exercises a different modular composition.
   const newDevice = rows.find((row) => row.uid === "TB-DEMO-NEW")!;
   await page.goto(`/devices/${newDevice.id}`);

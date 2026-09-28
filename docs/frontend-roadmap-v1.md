@@ -5,7 +5,7 @@
 **Статус: прийнято 10 із 24 операцій. Етап 9 завершено 4/4.
 Етап 10 завершено 4/4 після CI та локального Windows-приймання.
 11.1 і 11.2 прийнято 28.09.2026 після Windows PASS і ручного підтвердження.
-Поточна точка — виправлення прокрутки та збереження фільтрів F5 у 12.1 + 12.2 після Windows 54/63/10 PASS.
+Поточна точка — реалізовано 12.3 + 12.4 за дорученням користувача; перевірки та локальне приймання нижче.
 11.3 + 11.4 мають Windows PASS із залишком ручних сценаріїв.**
 
 Frontend поділено на Етапи 9–14. Кожен етап має чотири операції. Наступна
@@ -134,8 +134,8 @@ Summary endpoint додається лише після виміряної по�
 |---|---|
 | 12.1 — Історія | Реалізовано: metric, unit, period, bucket, min/max/average/count, gaps, timezone; CI та Windows PASS; перевірка прокрутки та F5 |
 | 12.2 — Оновлення | Реалізовано: one polling policy, backoff, cancel/dedup, hidden-tab pause, budget; CI та Windows PASS; перевірка прокрутки та F5 |
-| 12.3 — Start/Stop/frequency | allowed_commands, validation, confirmation, one request_id |
-| 12.4 — Lifecycle/journal | queued→published→ack→result, TTL, audit, stable pagination |
+| 12.3 — Start/Stop/frequency | Реалізовано: allowed_commands, validation, confirmation, one request_id; CI/Windows evidence у досьє |
+| 12.4 — Lifecycle/journal | Реалізовано: lifecycle, TTL, audit, bounded polling, keyset pagination; CI/Windows evidence у досьє |
 
 Start/frequency не накопичуються локально для відправлення після reconnect.
 
@@ -199,3 +199,10 @@ Windows 28.09.2026 на `c6c215a`: **54/63/10 PASS**; графіки трьох 
 [12.2 — оновлення, результати та Windows-команда](stage-12-op2-polling.md).
 [Збереження фільтрів F5](stage-12-history-preferences-2026-09-28.md) додано; CI 61/71/10 + 34 повтори PASS, ручна перевірка очікується.
 Прийнятий прогрес не збільшується до завершення ручного підтвердження.
+
+## Поточна робота: 12.3–12.4
+
+Користувач доручив наступні дві операції після виправлень графіків/F5.
+Реалізовано [12.3 — керування](stage-12-op3-command-controls.md) і
+[12.4 — lifecycle, журнал, результати та Windows-команда](stage-12-op4-command-journal.md).
+Автоматичні докази та ручне приймання розділені; нові операції ще не оголошено прийнятими.

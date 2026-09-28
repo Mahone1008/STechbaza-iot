@@ -87,7 +87,7 @@ Demo build backend
 Demo up -d --wait --wait-timeout 90 postgres mosquitto
 Demo run --rm -T backend alembic upgrade head
 Demo run --rm -T backend python -m app.demo.seed
-Demo up -d --no-build --force-recreate --wait --wait-timeout 90 backend
+Demo up -d --no-build --force-recreate --wait --wait-timeout 90 backend simulator
 
 $health = Invoke-RestMethod 'http://127.0.0.1:8001/health' -TimeoutSec 10
 if ($health.status -ne 'ok' -or $health.version -ne '0.38.0') {
@@ -101,6 +101,8 @@ $viewerPassword = Read-EnvValue -Path $demoEnv -Name 'DEMO_VIEWER_PASSWORD'
 $previousEnvironment = @{}
 
 try {
+    # Commands target only the isolated TB-DEMO-PUMP simulator on localhost.
+    Set-TemporaryEnvironment -Name 'KERUMO_RUN_COMMAND_DEMO' -Value '1' -Previous $previousEnvironment
     Set-TemporaryEnvironment -Name 'KERUMO_API_BASE_URL' -Value 'http://127.0.0.1:8001' -Previous $previousEnvironment
     Set-TemporaryEnvironment -Name 'KERUMO_DEMO_EMAIL' -Value $demoEmail -Previous $previousEnvironment
     Set-TemporaryEnvironment -Name 'KERUMO_DEMO_PASSWORD' -Value $demoPassword -Previous $previousEnvironment
