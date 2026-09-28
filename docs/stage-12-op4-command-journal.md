@@ -128,3 +128,6 @@ docker compose -p techbaza-demo --env-file .env.demo -f compose.demo.yml exec -T
 Пізніші коміти з самою документацією не змінюють перевірений код.
 
 Виправлення після Windows-приймання: [згортання деталей і докази](stage-12-details-collapse-2026-09-28.md).
+
+CI виправлення згортання: **68 unit / 91 mocked / 10 live + 34 повтори — PASS**,
+[run #36462683461](https://github.com/Mahone1008/STechbaza-iot/actions/runs/36462683461), код `dde31a8`.

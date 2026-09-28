@@ -36,7 +36,22 @@
 
 Також залишаються чинними попередні регресії зміни метрики/періоду/інтервалу,
 порожньої/помилкової історії після відкритої таблиці, auto polling і F5.
-Результати нового CI будуть записані після завершення прогону.
+[Frontend checks #36462683461](https://github.com/Mahone1008/STechbaza-iot/actions/runs/36462683461)
+на коді `dde31a8ac3841cb4f5ab8f32037dd5d10be17f83` — **success**:
+
+| Перевірка | Результат |
+|---|---|
+| Typecheck, lint, OpenAPI zero diff/verify, production build | PASS |
+| Unit | 68 PASS |
+| Mocked Chromium | 91 PASS, включно з трьома новими regression tests |
+| Додаткові повтори без retries | 34 PASS: 10 login, 15 overview, 9 polling |
+| Live Chromium | 10 PASS |
+| Failed / flaky у фінальному прогоні | 0 |
+| Windows/manual для нового виправлення | Очікується |
+
+Локально також пройшли typecheck, lint, 68 unit і production build.
+Backend, API-контракт та Windows scripts не змінювалися.
+Наступний коміт документації не змінює перевірений код.
 
 ## Windows і ручне приймання попередньої версії
 
@@ -55,8 +70,22 @@
 
 ## Оновлення
 
-Зупинити frontend через Ctrl+C. Із кореня репозиторію виконати `git pull --ff-only`,
-після успішного оновлення — `powershell -NoProfile -ExecutionPolicy Bypass -File
-.\scripts\check-stage12-op3-op4.ps1 -Start`. Відкрити та закрити «Автор і
-технічні деталі команди»: картка має відразу зменшитися. Повторити для таблиці
-вимірювань. Команди пристрою цим виправленням не змінено.
+Зупинити frontend через Ctrl+C. Для встановленого проєкту достатньо
+оновлення й перезапуску dev server:
+
+```powershell
+& {
+    $ErrorActionPreference = 'Stop'
+    Set-Location C:\Users\seraf\Documents\TechBaza\techbaza-iot
+    git pull --ff-only
+    if ($LASTEXITCODE -ne 0) { throw 'Update failed; frontend was not started.' }
+    Set-Location .\frontend
+    npm.cmd run dev
+}
+```
+
+Відкрити та закрити «Автор і технічні деталі команди»: картка має відразу
+зменшитися. Повторити для таблиці вимірювань. Команди пристрою цим
+виправленням не змінено. Повний Windows gate, коли він потрібен:
+`powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-stage12-op3-op4.ps1 -Start`
+із кореня репозиторію.

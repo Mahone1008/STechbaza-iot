@@ -214,3 +214,6 @@ Backend: 160 тестів без skips, demo/restart/backup/restore — PASS.
 Windows 28.09.2026 для 12.3–12.4: **88 mocked / 10 live / cumulative gate PASS**.
 Поточне виправлення: [порожня область після згортання деталей](stage-12-details-collapse-2026-09-28.md).
 Повне ручне приймання не закрито.
+
+Виправлення згортання на `dde31a8`: **68 unit / 91 mocked / 10 live + 34 повтори — PASS**.
+Windows-приймання виправлення очікується; базовий Windows gate 12.3–12.4 уже PASS.
