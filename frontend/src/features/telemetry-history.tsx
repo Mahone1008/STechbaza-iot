@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { Button, Card } from "@/components/ui";
+import { StableRegion } from "@/components/stable-region";
 import { TelemetryChart } from "@/components/telemetry-chart";
 import { useAuthSession } from "@/features/auth-session";
 import { usePanelQuery } from "@/features/use-panel-query";
@@ -42,7 +43,7 @@ export function TelemetryHistory({ context, overview, poll }: { context: ReadyAc
         <label>Період<select aria-label="Період" value={seconds} onChange={(e) => { const period = periods.find((p) => p.seconds === Number(e.target.value))!; setSeconds(period.seconds); setBucket(period.bucket); }}>{periods.map((p) => <option key={p.seconds} value={p.seconds}>{p.label}</option>)}</select></label>
         <label>Інтервал<select aria-label="Інтервал" value={bucket} onChange={(e) => setBucket(Number(e.target.value))}>{[60, 300, 900, 3600, 86400].map((b) => <option key={b} value={b} disabled={Math.ceil(seconds / b) > 1000}>{b < 3600 ? `${b / 60} хв` : `${b / 3600} год`}</option>)}</select></label>
       </div>
-      <HistoryData key={`${channel.key}:${channel.unit}:${seconds}:${bucket}`} context={context} channel={channel} seconds={seconds} bucket={bucket} poll={poll} />
+      <StableRegion className="history-result-region"><HistoryData key={`${channel.key}:${channel.unit}:${seconds}:${bucket}`} context={context} channel={channel} seconds={seconds} bucket={bucket} poll={poll} /></StableRegion>
     </>}
   </Card>;
 }

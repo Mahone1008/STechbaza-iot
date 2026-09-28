@@ -1,5 +1,6 @@
 "use client";
 import { usePanelQuery } from "@/features/use-panel-query";
+import { StableRegion } from "@/components/stable-region";
 import { TelemetryHistory } from "@/features/telemetry-history";
 import type { PollSeconds } from "@/lib/api/polling-policy";
 import Link from "next/link";
@@ -59,11 +60,11 @@ function DevicePanel({ context }: { context: ReadyAccessSnapshot }) {
     <PageHeader title={device.name} description="Модулі, показання та якість даних пристрою." actions={<Button disabled={!canRead || query.isFetching || !query.active} onClick={query.refresh}>Оновити панель</Button>} />
     <div className="history-controls"><label>Автооновлення<select aria-label="Автооновлення" value={poll} onChange={(e) => setPoll(Number(e.target.value) as PollSeconds)}><option value={30}>Панель: 30 с; історія: 60 с</option><option value={60}>Щохвилини</option><option value={0}>Лише вручну</option></select></label></div>
     {!query.active && <p role="status">Автооновлення призупинено: вкладка прихована або немає мережі.</p>}
-    {!canRead ? <section className="notice notice-warning" role="alert"><h2>Недостатньо прав для панелі</h2><p>Потрібен доступ до модулів і телеметрії.</p></section>
+    <StableRegion className="overview-result-region">{!canRead ? <section className="notice notice-warning" role="alert"><h2>Недостатньо прав для панелі</h2><p>Потрібен доступ до модулів і телеметрії.</p></section>
       : query.isFetching ? <p role="status">Перевіряємо модулі та показання…</p>
         : query.isError ? <section className="notice notice-warning" role="alert"><h2>{denied ? "Дані більше недоступні" : "Не вдалося завантажити панель"}</h2><p>{apiErrorDisplayMessage(query.error)}</p><div className="ui-row"><Button onClick={query.refresh}>Повторити</Button><Link className="button button-secondary" href="/organizations">Обрати організацію</Link></div></section>
-          : query.data ? <OverviewContent key={query.dataUpdatedAt} overview={query.data.overview} receivedAt={query.data.receivedAt} timezone={context.activeSite?.timezone ?? "UTC"} /> : null}
-    {canRead && query.data && !query.isError && <div hidden={query.isFetching}><TelemetryHistory context={context} overview={query.data.overview} poll={poll} /></div>}
+          : query.data ? <OverviewContent key={query.dataUpdatedAt} overview={query.data.overview} receivedAt={query.data.receivedAt} timezone={context.activeSite?.timezone ?? "UTC"} /> : null}</StableRegion>
+    {canRead && query.data && !query.isError && <div className={query.isFetching ? "panel-refresh-hidden" : undefined} inert={query.isFetching} aria-hidden={query.isFetching}><TelemetryHistory context={context} overview={query.data.overview} poll={poll} /></div>}
   </>;
 }
 export function DeviceOverview() {

@@ -531,3 +531,7 @@ h1, h2, h3 { letter-spacing: -0.02em; }
 .history-table { max-width: 100%; max-height: 28rem; overflow: auto; margin-top: 1rem; }
 .history-table table { width: 100%; border-collapse: collapse; font-size: .85rem; }
 .history-table th, .history-table td { padding: .6rem; text-align: left; white-space: nowrap; border-bottom: 1px solid var(--border); }
+
+/* Оновлення приховує неактуальні дані, але зберігає місце в документі. */
+.stable-region-content { display: flow-root; }
+.panel-refresh-hidden { visibility: hidden; }

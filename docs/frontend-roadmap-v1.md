@@ -5,7 +5,7 @@
 **Статус: прийнято 10 із 24 операцій. Етап 9 завершено 4/4.
 Етап 10 завершено 4/4 після CI та локального Windows-приймання.
 11.1 і 11.2 прийнято 28.09.2026 після Windows PASS і ручного підтвердження.
-Поточна точка — Windows-приймання реалізованих 12.1 + 12.2 після CI PASS.
+Поточна точка — виправлення прокрутки 12.1 + 12.2 після Windows 54/63/10 PASS.
 11.3 + 11.4 мають Windows PASS із залишком ручних сценаріїв.**
 
 Frontend поділено на Етапи 9–14. Кожен етап має чотири операції. Наступна
@@ -132,8 +132,8 @@ Summary endpoint додається лише після виміряної по�
 
 | Операція | Результат |
 |---|---|
-| 12.1 — Історія | Реалізовано: metric, unit, period, bucket, min/max/average/count, gaps, timezone; CI PASS; очікує Windows-приймання |
-| 12.2 — Оновлення | Реалізовано: one polling policy, backoff, cancel/dedup, hidden-tab pause, budget; CI PASS; очікує Windows-приймання |
+| 12.1 — Історія | Реалізовано: metric, unit, period, bucket, min/max/average/count, gaps, timezone; CI та Windows PASS; перевірка виправленої прокрутки |
+| 12.2 — Оновлення | Реалізовано: one polling policy, backoff, cancel/dedup, hidden-tab pause, budget; CI та Windows PASS; перевірка виправленої прокрутки |
 | 12.3 — Start/Stop/frequency | allowed_commands, validation, confirmation, one request_id |
 | 12.4 — Lifecycle/journal | queued→published→ack→result, TTL, audit, stable pagination |
 
@@ -192,7 +192,9 @@ Start/frequency не накопичуються локально для відп
 
 За дорученням користувача наступні дві операції реалізовано разом.
 **CI 54 unit / 63 mocked / 10 live та 34 додаткові повтори — PASS.**
-Windows та ручне приймання очікуються.
+Windows 28.09.2026 на `c6c215a`: **54/63/10 PASS**; графіки трьох метрик підтверджено.
+Виправлено стрибок прокрутки при зміні фільтрів/оновленні; CI виправлення
+і повторна ручна перевірка очікуються. Непідтверджені окремо сценарії не закрито.
 [12.1 — історія](stage-12-op1-telemetry-history.md),
 [12.2 — оновлення, результати та Windows-команда](stage-12-op2-polling.md).
-Прийнятий прогрес не збільшується до Windows та ручного підтвердження.
+Прийнятий прогрес не збільшується до завершення ручного підтвердження.
