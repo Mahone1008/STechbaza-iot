@@ -149,8 +149,8 @@ Start/frequency не накопичуються локально для відп
 |---|---|
 | 13.1 — Аварії | Реалізовано: device-scoped lists, filters, severity, active/resolved, detail, transitions; CI і Windows PASS, ручне приймання часткове |
 | 13.2 — Acknowledge | Реалізовано: permission, confirmation, pending/error, idempotency, concurrent resolution; CI і Windows PASS, залишок ручного приймання |
-| 13.3 — In-app feed | Реалізовано: organization stream, unread count, personal read, tenant isolation; перевірки та приймання — у 13.4 |
-| 13.4 — Наскрізний інцидент | Реалізовано: MQTT → rule → alarm → notification → personal read → ack → recovery через browser; CI PASS, Windows/manual очікуються |
+| 13.3 — In-app feed | Реалізовано: organization stream, unread count, personal read, tenant isolation; CI і Windows PASS, ручне приймання часткове |
+| 13.4 — Наскрізний інцидент | Реалізовано: MQTT → rule → alarm → notification → personal read → ack → recovery через browser; CI і Windows PASS, залишок ручного приймання |
 
 Глобальний alarm dashboard не симулюється fan-out запитами без bounded API.
 
@@ -246,5 +246,9 @@ Owner ACK/history/F5 та viewer read-only пройдені автоматичн
 83 unit / 133 mocked / 10 live + 44 повтори — PASS**, OpenAPI zero diff,
 types/lint/build PASS. Повний MQTT flow перевірено через browser із незалежним
 прочитанням owner/viewer. Code revision `d7d9f2a`, workflow #36478571392.
-Windows/manual очікуються; фінальні докази й команда — у 13.4.
+Windows 28.09.2026: **133 mocked / 10 live / cumulative gate PASS**;
+browser MQTT chain PASS. На 11 скриншотах показано feed, unread recovery та
+resolved/acknowledged incident з owner audit й трьома transitions.
+Ручні read/F5, viewer та решта взаємодій окремо не підтверджені; прийнятий
+прогрес лишається 10/24. Докази, межі та команда — у 13.4.
 Наступний блок — 14.1 UX/accessibility та 14.2 browser regression.

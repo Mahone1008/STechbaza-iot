@@ -3,7 +3,9 @@
 Дата: 28.09.2026. База: `e7001d7`; разом із [13.4 — MQTT incident E2E](stage-13-op4-incident-e2e.md).
 Реалізовано. **Фінальний CI: 83 unit / 133 mocked / 10 live + 44 повтори — PASS**.
 OpenAPI zero diff, types/lint/build — PASS. Workflow/head та MQTT-докази — у 13.4.
-Windows/manual очікуються окремо.
+Windows 28.09.2026: **133 mocked / 10 live / cumulative gate — PASS**.
+Стрічку, картку непрочитаного recovery та історію incident показано на скриншотах;
+решта ручного приймання відкрита. Детальні докази та їхні межі — у 13.4.
 
 ## Реальні API та навігація
 
@@ -76,4 +78,4 @@ late response після навігації. Live personal reads і MQTT flow �
 
 Backend application code, OpenAPI 0.38.0 / 47 paths та 17 migrations не
 змінюються. Push, email/SMS, read-all, background badge і real-time transport
-не входять у цю операцію. Windows та ручне приймання очікуються.
+не входять у цю операцію. Windows gate пройдено; ручне приймання часткове.

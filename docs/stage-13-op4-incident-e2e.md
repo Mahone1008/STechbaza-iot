@@ -2,7 +2,8 @@
 
 Дата: 28.09.2026. Разом із [13.3 — повідомленнями](stage-13-op3-notifications.md).
 База: `e7001d7`. Реалізовано; **повний CI — success: 83 unit / 133 mocked /
-10 live + 44 повтори PASS**. Windows/manual ще не підтверджено.
+10 live + 44 повтори PASS**. Windows 28.09.2026: **133 mocked / 10 live /
+cumulative gate PASS**; ручне приймання часткове.
 
 ## Що перевіряється
 
@@ -81,8 +82,9 @@ live job не запускався. Попередній зелений CI та 
 | Додаткові CI повтори | 44 PASS: 10 login + 15 overview + 9 polling + 10 ACK/read 429; retries=0 |
 | Live Chromium + MQTT incident | 10 PASS за 58.3 с; owner/viewer personal read та повний MQTT incident/recovery |
 | Failed / flaky у фінальному прогоні | 0 |
-| Python helper / PowerShell wrapper | Python syntax і ASCII-сумісність PASS; виконання Windows очікується |
-| Windows/manual 13.3–13.4 | Очікується |
+| Python helper / PowerShell wrapper | Python syntax і ASCII-сумісність PASS; Windows wrapper та MQTT chain PASS |
+| Windows 13.3–13.4 | 133 mocked за 3.9 хв / 10 live за 1.0 хв / cumulative gate PASS |
+| Ручне приймання | Стрічка, unread recovery та історія resolved/acknowledged показані; залишок нижче |
 
 Backend application code, API та 17 migrations не змінюються. Новий повний
 backend suite тут не заявляється. Прийнятий frontend progress лишається 10/24;
@@ -117,8 +119,46 @@ raised snapshot і нове unread recovery. Попередній збій 429 �
 тестового годинника виправлено явним очікуванням GET;
 обидва 429 сценарії пройшли основний набір і по п’ять додаткових повторів.
 
-Фінальне доповнення після CI змінює лише документацію. Windows-команда нижче
-потрібна для перевірки на комп’ютері користувача; її результат ще не заявляється.
+Доповнення після CI та фіксація Windows-доказів змінюють лише документацію.
+
+### Windows-докази — 28.09.2026
+
+Переглянуто всі 11 наданих скриншотів із часовими мітками 20:53:06–20:58:55
+у назвах файлів. Команду було надано після documentation revision `33fba93`;
+точного `git HEAD` у цих кадрах немає, тому окремо підтверджений Windows SHA
+не заявляється. Число **83 unit** вище належить перевіреному CI; окремий
+підсумок кількості unit tests у цьому наборі скриншотів не показаний.
+
+| Скриншоти | Що підтверджено |
+|---|---|
+| 205306, 205324, 205343 | 133 mocked Chromium PASS за 3.9 хв, усі 18 notification scenarios; ACK/read 429 tests PASS; cumulative install/API/unit/types/build/Chromium gate PASS |
+| 205359, 205418, 205427 | Docker build, міграції та demo seed без показаних помилок; наявні demo-дані й паролі збережено |
+| 205445 | Чотири healthy containers, guarded ACK fixture PASS, 10 live PASS за 1.0 хв, явний browser MQTT chain PASS із пов’язаними IDs |
+| 205507 | Обидва cumulative wrappers 13.1–13.2 та 13.3–13.4 PASS; frontend на 127.0.0.1:3000 Ready за 493 мс |
+| 205712 | Owner feed організації DEMO: клієнт A, фільтр «Усі», unread count 159, raised/read та recovery/unread; session restored |
+| 205810 | Recovery snapshot «Причину усунено» досі unread, явна кнопка прочитання, посилання до incident, технічні деталі згорнуті |
+| 205855 | Incident resolved + acknowledged, автор DEMO: owner; історія raised → acknowledged → resolved, технічні деталі згорнуті |
+
+Windows MQTT proof належить локальному demo, окремо від CI-доказу вище:
+
+| Доказ | Raised | Recovery |
+|---|---|---|
+| Alarm ID | `d7b40cbc-b4b6-4638-b5c0-59fcc698d446` | Той самий ID |
+| Тиск із MQTT telemetry | 0.4 bar | 2.447 bar |
+| Sequence тієї самої simulator session | 22 | 28 |
+| Alarm state / acknowledge | active / false | resolved / true |
+
+На UI подія виникла о 20:52:34 UTC, підтверджена о 23:52:39 за часом об’єкта,
+усунена о 20:52:43 UTC / 23:52:43 за часом об’єкта. Стрічка явно позначає UTC;
+incident використовує timezone об’єкта. Різниця у три години не означає
+затримку доставки. Лічильник 159 стосується накопичених непрочитаних
+повідомлень організації, а не кількості активних аварій; тест зберігає історію.
+
+У показаних станах явних помилок відображення немає. Кадри підтверджують
+наявність збережених результатів, але не самі ручні кліки read/ACK чи F5:
+ці записи вже створив live E2E. Автоматичні перевірки personal read,
+owner/viewer isolation, F5 та MQTT lifecycle пройдено; ручне приймання
+непоказаних взаємодій залишається відкритим.
 
 ## Windows: один блок
 
@@ -139,12 +179,17 @@ Wrapper запускає cumulative 13.1–13.2 gate з notification opt-in і �
 попередні environment variables. Volumes/паролі не видаляються. Після PASS
 запускається KERUMO; історія містить raised/recovery notification від E2E.
 
-## Ручне приймання
+## Залишок ручного приймання
 
-- «Повідомлення»: усі/непрочитані, count, сторінки, оновлення, порожній результат.
-- Деталі: read лише після кнопки, F5, згортання технічних деталей, перехід до incident.
+Після наведених скриншотів не підтверджено окремо:
+
+- «Повідомлення»: перемикання усі/непрочитані, зміна count після прочитання,
+  сторінки, оновлення, порожній результат.
+- Деталі: ручне прочитання кнопкою, збереження після F5, розгортання/згортання
+  технічних деталей; сам клік переходу до incident не показаний.
 - Owner/viewer: особисті read_at незалежні; viewer не підтверджує аварії.
-- Стара raised-подія зберігається після recovery; нова resolved веде на той самий incident.
+- Відкриття обох snapshot: стара raised-подія зберігається після recovery,
+  нова resolved веде на той самий incident.
 - Вузький екран, keyboard, зміна організації/вихід, offline/reconnect без повторного POST.
 
 Наступні операції за roadmap — 14.1 UX/accessibility та 14.2 browser regression.
