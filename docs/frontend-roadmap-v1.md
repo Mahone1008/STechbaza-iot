@@ -5,7 +5,7 @@
 **Статус: прийнято 10 із 24 операцій. Етап 9 завершено 4/4.
 Етап 10 завершено 4/4 після CI та локального Windows-приймання.
 11.1 і 11.2 прийнято 28.09.2026 після Windows PASS і ручного підтвердження.
-Поточна точка — спільна реалізація і перевірка 11.3 + 11.4.**
+Поточна точка — Windows-приймання реалізованих 11.3 + 11.4.**
 
 Frontend поділено на Етапи 9–14. Кожен етап має чотири операції. Наступна
 операція не закривається автоматично після реалізації: потрібні CI та локальне
@@ -122,8 +122,8 @@ Frontend guard не замінює backend authorization.
 |---|---|
 | 11.1 — Організації й об’єкти | Реалізовано: lists, breadcrumbs, deep links, pagination, valid context restore; прийнято 28.09.2026 |
 | 11.2 — Список пристроїв | Реалізовано: paginated rows, bounded presence calls, cancel old page requests; прийнято 28.09.2026 |
-| 11.3 — Registry віджетів | UI із modules/channels; units, numeric/state, unsupported fallback |
-| 11.4 — Якість/конфігурація | fresh/stale/missing/invalid, session change, enable/disable, revoke |
+| 11.3 — Registry віджетів | Реалізовано: modules/channels, units, numeric/state, unsupported fallback; CI PASS, очікує Windows-приймання |
+| 11.4 — Якість/конфігурація | Реалізовано: fresh/stale/missing/invalid, session change, відображення enable/disable, revoke; CI PASS, очікує Windows-приймання |
 
 Summary endpoint додається лише після виміряної потреби, не наперед.
 
@@ -175,10 +175,11 @@ Start/frequency не накопичуються локально для відп
 13. Logout має відкликати server session до остаточного success state.
 14. Невизначений logout result не видається за підтверджений вихід.
 
-**Поточна точка: спільна реалізація і перевірка 11.3 та 11.4.**
+**Поточна точка: Windows-приймання реалізованих 11.3 та 11.4.**
 11.1/11.2 закрито після CI, Windows 31/40/10 PASS і повідомлення користувача
 «Работает» 28.09.2026. Прийнято 10/24. Користувач прямо доручив наступні дві
-операції разом; їх приймання буде окремим після CI та ручної перевірки.
+операції разом. CI 42 unit / 52 mocked / 10 live і 25 повторів регресій
+без retries — PASS; їх приймання буде окремим після Windows та ручної перевірки.
 
 - [11.3 — registry віджетів](stage-11-op3-module-widgets.md)
 - [11.4 — якість/конфігурація](stage-11-op4-quality-and-configuration.md)

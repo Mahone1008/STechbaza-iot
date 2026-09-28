@@ -1,7 +1,7 @@
 # Етап 11.4 — якість даних і зміни конфігурації
 
 Дата: 28.09.2026. Реалізовано разом із [11.3](stage-11-op3-module-widgets.md).
-**Статус: локальні перевірки PASS; CI та Windows-приймання очікуються.**
+**Статус: реалізовано; локальні перевірки та CI — PASS. Windows-приймання очікується.**
 
 ## Поведінка
 
@@ -53,9 +53,32 @@ water-level device з іншим складом модулів і missing readin
 Next.js. Селектор уточнено за heading, без послаблення перевірки приховування
 старих показань. Нові overview tests не використовують retries; три сценарії
 403/404/503 додатково повторюються по 5 разів у CI. Остаточні результати
-буде зафіксовано після прогону.
+наведено нижче.
 Локальне середовище не має Docker/PowerShell і придатного Chromium;
 браузерні та live тести виконуються у GitHub Actions.
+
+## Остаточні докази CI
+
+[Frontend checks #36433145596](https://github.com/Mahone1008/STechbaza-iot/actions/runs/36433145596)
+завершився **success** для code revision
+[`bc6c072`](https://github.com/Mahone1008/STechbaza-iot/commit/bc6c0725f7fd0b71dc0a215237e6debd760b90aa).
+
+| Gate | Результат |
+|---|---|
+| OpenAPI generation | Zero-diff, backend 0.38.0 / 47 paths |
+| TypeScript strict / ESLint / production build | PASS |
+| Unit/component | **42 passed** |
+| Mocked Chromium | **52 passed**, без failed/flaky |
+| Login/refresh navigation, по 5 повторів | **10 passed**, `--retries=0` |
+| Overview 403/404/503 recovery, по 5 повторів | **15 passed**, `--retries=0` |
+| Live Chromium / справжній backend | **10 passed**, без retries/flaky |
+| Windows / ручне приймання 11.3–11.4 | Очікується |
+
+Jobs: `frontend` — `108964198855`; `auth-live` — `108965620927`.
+Цей documentation commit лише фіксує перевірену code revision. Backend
+executable code і міграції не змінено; новий повний backend suite не запускався.
+Панель не виконує write requests; enable/disable та session_changed покриті
+mocked/контрактними регресіями, реальні modules/missing — live suite.
 
 ## Перевірка у Windows
 
