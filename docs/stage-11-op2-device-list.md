@@ -2,8 +2,9 @@
 
 Дата: 28.09.2026. Реалізовано разом із [11.1](stage-11-op1-organizations-sites.md).
 
-**Код, локальні перевірки та повний Chromium CI готові й успішні.
-Користувацьке Windows-приймання очікується; операції не закрито.**
+**Основна реалізація пройшла CI. Windows-прогін 28.09.2026 виявив гонку
+login navigation; виправлення підготовлено, його CI перевіряється.
+Windows-приймання не завершене; операції не закрито.**
 
 ## Поведінка й бюджет запитів
 
@@ -74,7 +75,37 @@ live suite — реальну tenant isolation. Simulator для тестів н
 нові/історичні пристрої законно можуть бути без зв’язку або Offline.
 Живий heartbeat доступний через вже налаштований demo simulator.
 
-## Докази
+## Windows-прогін 28.09.2026 та виправлення login navigation
+
+Користувач оновив `main` до `14c096b` і запустив
+`check-stage10-op4.ps1 -Start`. Цей накопичувальний скрипт виконує всі актуальні
+suites, включно з 11.1/11.2; його назва не є причиною помилки.
+
+Підтверджено скриншотами: OpenAPI 0.38.0 / 47 paths, typecheck, lint,
+**31 unit**, production build, **38 mocked** — PASS. Demo seed збережений;
+PostgreSQL/Mosquitto/backend Healthy. Live suite: **9 passed / 1 failed**.
+Падіння: `login.live.spec.ts`, читання `meResponse.json()` після переходу;
+Chromium повідомив `Network.getResponseBody: No data found for resource`.
+Повідомлення gate 10.1 → 10.4 — каскад одного failure, а не окремі збої.
+
+Виправлення:
+
+- login має одного власника redirect: effect після authenticated state;
+  дубль `router.replace` із submit handler прибрано, повторний effect
+  захищений ref;
+- AccessContext не завантажує профіль на `/login` і `/`; перший `/auth/me`
+  запускається вже у workspace, без скасування попереднього login-запиту;
+- live test зчитує JSON login/profile/access одразу при response event,
+  зберігаючи перевірки status, identity, role, permissions, cookie та storage;
+- нові mocked регресії затримують відповідь маршруту `/devices` для login
+  і refresh. До переходу profile requests відсутні; після — рівно один
+  успішний, без abort;
+- CI додатково повторює обидві регресії по 5 разів із `--retries=0`.
+
+Після виправлення очікуються 31 unit, 40 mocked і 10 live. Повторне ручне
+приймання — спільним `check-stage11-op1-op2.ps1 -Start`, наведеним вище.
+
+## Докази початкової реалізації до Windows-виправлення
 
 | Gate | Результат |
 |---|---|
@@ -83,7 +114,7 @@ live suite — реальну tenant isolation. Simulator для тестів н
 | Vitest | **31 passed**, локально та в CI |
 | Mocked Chromium | **38 passed**, без retries/flaky |
 | Live Chromium | **10 passed**, без retries/flaky |
-| Windows PowerShell 5.1 / ручне приймання | Очікується від користувача |
+| Windows PowerShell 5.1 / ручне приймання | 31 unit / 38 mocked PASS; live 9/10, потрібен повтор після виправлення |
 
 Повний [Frontend checks #36426003363](https://github.com/Mahone1008/STechbaza-iot/actions/runs/36426003363)
 завершився **success** для code revision

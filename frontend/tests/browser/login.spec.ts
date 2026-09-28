@@ -4,12 +4,14 @@ import {
   API_ORIGIN,
   FRONTEND_ORIGIN,
   LOGIN_URL,
+  ME_URL,
   corsHeaders,
   fillLogin,
   fulfillPreflight,
   mockBrowserLoginSuccess,
   mockIdentity,
   mockMissingBrowserSession,
+  mockRefreshSuccess,
 } from "./auth-fixtures";
 
 async function mockBrowserLogin(page: Parameters<typeof mockMissingBrowserSession>[0], handler: (route: Route) => Promise<void>) {
@@ -126,3 +128,49 @@ test("network failure is not rendered as invalid credentials or an empty state",
   await expect(page.locator(".login-alert")).toContainText("Backend недоступний");
   await expect(page.getByLabel("Пароль")).toHaveValue("valid-test-password");
 });
+
+
+for (const source of ["login", "refresh"] as const) {
+  test(`${source} waits for the workspace route before requesting profile and does not abort it`, async ({ page }) => {
+    await mockIdentity(page);
+    if (source === "login") await mockBrowserLoginSuccess(page);
+    else await mockRefreshSuccess(page);
+    const profilePaths: string[] = [];
+    const profileFailures: string[] = [];
+    await page.route(ME_URL, async (route) => {
+      if (await fulfillPreflight(route)) return;
+      profilePaths.push(new URL(page.url()).pathname);
+      await route.fallback();
+    });
+    page.on("requestfailed", (request) => {
+      if (request.url() === ME_URL && request.method() === "GET") profileFailures.push(request.failure()?.errorText ?? "failed");
+    });
+    let releaseNavigation = () => {};
+    const navigationGate = new Promise<void>((resolve) => { releaseNavigation = resolve; });
+    let destinationRequests = 0;
+    // Повільна RSC-відповідь залишає authenticated користувача на /login.
+    await page.route(`${FRONTEND_ORIGIN}/devices?*`, async (route) => {
+      if (route.request().headers().rsc !== "1") { await route.continue(); return; }
+      destinationRequests += 1;
+      await navigationGate;
+      await route.continue();
+    });
+    try {
+      await page.goto("/login");
+      if (source === "login") {
+        await fillLogin(page);
+        await page.getByRole("button", { name: "Увійти" }).click();
+      }
+      await expect.poll(() => destinationRequests).toBeGreaterThan(0);
+      await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+      await expect(page).toHaveURL(/\/login$/u);
+      expect(profilePaths).toEqual([]);
+      await expect(page.getByRole("heading", { name: "Пристрої", exact: true })).toHaveCount(0);
+      releaseNavigation();
+      await expect(page.getByRole("heading", { name: "Пристрої", exact: true })).toBeVisible();
+      await expect(page.getByText("Online", { exact: true })).toBeVisible();
+      expect(profilePaths).toEqual(["/devices"]);
+      expect(profileFailures).toEqual([]);
+    } finally { releaseNavigation(); }
+  });
+}

@@ -47,6 +47,7 @@ export function LoginPanel() {
   const router = useRouter();
   const { login, session } = useAuthSession();
   const abortControllerRef = useRef<AbortController | null>(null);
+  const redirectTargetRef = useRef<Route | null>(null);
   const alertRef = useRef<HTMLDivElement | null>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -65,7 +66,14 @@ export function LoginPanel() {
   useEffect(() => () => abortControllerRef.current?.abort(), []);
 
   useEffect(() => {
-    if (session.status === "authenticated") router.replace(currentLoginDestination());
+    if (session.status !== "authenticated") {
+      redirectTargetRef.current = null;
+      return;
+    }
+    const destination = currentLoginDestination();
+    if (redirectTargetRef.current === destination) return;
+    redirectTargetRef.current = destination;
+    router.replace(destination);
   }, [router, session.status]);
 
   useEffect(() => {
@@ -92,7 +100,7 @@ export function LoginPanel() {
 
   const submitLogin = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (submitting || sessionBusy || retrySeconds > 0) return;
+    if (submitting || sessionBusy || session.status === "authenticated" || retrySeconds > 0) return;
 
     const validation = validateLoginForm({ email, password });
     setFieldErrors(validation.errors);
@@ -114,7 +122,7 @@ export function LoginPanel() {
         controller.signal,
       );
       setPassword("");
-      router.replace(currentLoginDestination());
+      // Єдиний перехід виконує effect після підтвердженого authenticated state.
     } catch (error) {
       if (isApiError(error) && error.kind === "aborted") return;
 
