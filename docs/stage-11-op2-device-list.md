@@ -2,7 +2,7 @@
 
 Дата: 28.09.2026. Реалізовано разом із [11.1](stage-11-op1-organizations-sites.md).
 
-**Код і локальні перевірки готові. Chromium CI перевіряється.
+**Код, локальні перевірки та повний Chromium CI готові й успішні.
 Користувацьке Windows-приймання очікується; операції не закрито.**
 
 ## Поведінка й бюджет запитів
@@ -79,11 +79,20 @@ live suite — реальну tenant isolation. Simulator для тестів н
 | Gate | Результат |
 |---|---|
 | OpenAPI | 0.38.0 / 47 paths, контракт не змінено |
-| TypeScript strict / ESLint / production build | PASS локально |
-| Vitest | 31 passed локально |
-| Mocked Chromium | 38 тестів; CI очікується |
-| Live Chromium | 10 тестів; CI очікується |
+| TypeScript strict / ESLint / production build | PASS локально та в CI |
+| Vitest | **31 passed**, локально та в CI |
+| Mocked Chromium | **38 passed**, без retries/flaky |
+| Live Chromium | **10 passed**, без retries/flaky |
 | Windows PowerShell 5.1 / ручне приймання | Очікується від користувача |
+
+Повний [Frontend checks #36426003363](https://github.com/Mahone1008/STechbaza-iot/actions/runs/36426003363)
+завершився **success** для code revision
+[`cf25371`](https://github.com/Mahone1008/STechbaza-iot/commit/cf253717a1df84aa63d5905c5bb3f9fef20b50e3).
+Jobs: `frontend` — `108939990743`, `auth-live` — `108940915243`.
+Production build, OpenAPI generation zero-diff, mock та live suites пройдено.
+Попередній [прогін основної реалізації](https://github.com/Mahone1008/STechbaza-iot/actions/runs/36425515807)
+також успішний: 31 / 37 / 10; фінальна версія додала mobile inventory regression.
+Окремий наступний documentation commit лише фіксує ці докази.
 
 Локальне середовище не має Docker/PowerShell і придатного Chromium;
 браузерні та live прогони виконуються в GitHub Actions. Backend executable
