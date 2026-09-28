@@ -533,5 +533,6 @@ h1, h2, h3 { letter-spacing: -0.02em; }
 .history-table th, .history-table td { padding: .6rem; text-align: left; white-space: nowrap; border-bottom: 1px solid var(--border); }
 
 /* Оновлення приховує неактуальні дані, але зберігає місце в документі. */
+.stable-region { overflow-anchor: none; }
 .stable-region-content { display: flow-root; }
 .panel-refresh-hidden { visibility: hidden; }

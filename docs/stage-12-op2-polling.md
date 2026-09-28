@@ -124,6 +124,14 @@ loading-повідомленням; overview refresh також замінюва
 Локальні OpenAPI/typecheck/lint, **54 unit/component** та build — PASS.
 CI виправлення очікується; Windows-скриншоти вище стосуються попередньої revision.
 
+Перший CI виправлення [#36442803717](https://github.com/Mahone1008/STechbaza-iot/actions/runs/36442803717):
+54 unit PASS, **66 browser PASS / 1 failed**, live skipped. Три нові сценарії
+(фільтри desktop/mobile та polling) пройшли. Четвертий виявив стрибок 203 px
+при empty → 503: trace підтвердив незмінний резерв 939 px, але браузер
+перераховував scroll anchor усередині змінного результату. Для `StableRegion`
+вимкнено `overflow-anchor`, щоб заміна його вмісту не коригувала прокрутку.
+Сувора перевірка scrollY (допуск 2 px) збережена; повторний CI очікується.
+
 ## Windows
 
 Зупинити попередній frontend через Ctrl+C, залишити Docker Desktop запущеним.
