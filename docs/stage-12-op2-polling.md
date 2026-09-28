@@ -62,7 +62,7 @@ Polling/pause regressions додатково повторюються по 3 р�
 хоча option мав native `disabled`. Перевірка уточнена до
 `toHaveJSProperty("disabled", true)` самого option; ліміт 1000 buckets збережено.
 
-### Остаточний CI — PASS
+### CI початкової реалізації — PASS
 
 [Frontend checks #36439217358](https://github.com/Mahone1008/STechbaza-iot/actions/runs/36439217358)
 завершився success для
@@ -122,7 +122,7 @@ loading-повідомленням; overview refresh також замінюва
 на 1280 і 390 px, empty/error після розгорнутої таблиці, overview/series polling.
 Перевіряються scrollY під час та після запиту й приховування старих значень.
 Локальні OpenAPI/typecheck/lint, **54 unit/component** та build — PASS.
-CI виправлення очікується; Windows-скриншоти вище стосуються попередньої revision.
+CI виправлення наведено нижче; Windows-скриншоти вище стосуються попередньої revision.
 
 Перший CI виправлення [#36442803717](https://github.com/Mahone1008/STechbaza-iot/actions/runs/36442803717):
 54 unit PASS, **66 browser PASS / 1 failed**, live skipped. Три нові сценарії
@@ -135,7 +135,36 @@ Trace показав збережений резерв 939 px і видиму к
 її перед повторним натисканням. Тест використовує реальний pointer click
 у центр уже видимої кнопки, попередньо перевіряючи enabled та повну видимість.
 Перевірка scrollY (допуск 2 px) та всі перевірки результату залишені без змін.
-Повторний CI очікується.
+
+### Остаточний CI виправлення прокрутки — PASS
+
+[Frontend checks #36444284411](https://github.com/Mahone1008/STechbaza-iot/actions/runs/36444284411)
+завершився success для
+[`65cf63a`](https://github.com/Mahone1008/STechbaza-iot/commit/65cf63adf385bf32b19d11f0b767240da9063bf8).
+
+| Gate | Результат |
+|---|---|
+| OpenAPI generation / committed artifacts | Zero-diff; 0.38.0 / 47 paths |
+| TypeScript strict / ESLint / production build | PASS |
+| Unit/component | **54 passed**, 11 файлів |
+| Mocked Chromium | **67 passed**, без failed/flaky |
+| Нові scroll-регресії | **4 passed**, retries=0; входять до 67 |
+| Login/refresh navigation | **10 повторів PASS**, retries=0 |
+| Overview 403/404/503 recovery | **15 повторів PASS**, retries=0 |
+| History polling / Retry-After / offline | **9 повторів PASS**, retries=0 |
+| Live Chromium / реальний backend | **10 passed**, без failed/flaky |
+| Повторна ручна перевірка прокрутки у Windows | Очікується |
+
+Jobs: frontend `109002424918`, auth-live `109004373834`.
+Остаточний documentation commit не змінює перевірений frontend/backend code.
+Суворий контроль scrollY проходить і під час завантаження, і після заміни
+графіка; зміна способу pointer click усунула побічну прокрутку тестового driver.
+
+Для отримання виправлення: зупинити frontend через Ctrl+C, виконати
+`git pull --ff-only origin main` у корені, потім `cd frontend` і `npm run dev`.
+Оновити сторінку та перевірити три фільтри, ручний refresh і автооновлення.
+Повний Windows check нижче залишається доступним, але його попередній PASS
+не видається за перевірку цього виправлення на комп’ютері користувача.
 
 ## Windows
 
