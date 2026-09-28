@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { overviewDevice, overviewFixture, overviewOrg } from "../../../tests/fixtures/overview";
-import { effectiveQuality, parseOverview, readingText } from "./overview";
+import { channelLabel, effectiveQuality, parseOverview, readingText } from "./overview";
 const parse = (value: unknown) => parseOverview(value, overviewDevice, overviewOrg);
 describe("module overview boundary", () => {
   it("preserves zero, false, units, assignments and unsupported modules", () => {
@@ -30,6 +30,13 @@ describe("module overview boundary", () => {
     const data = overviewFixture(); data.readings[0]!.value = Infinity; expect(() => parse(data)).toThrow();
     data.readings[0]!.value = 1; data.state_readings[0]!.value = 0; expect(() => parse(data)).toThrow();
     data.state_readings[0]!.value = false; data.state_readings[1]!.value = 2 ** 53; expect(() => parse(data)).toThrow();
+  });
+  it("does not coerce malformed quality tags or inherit labels from Object.prototype", () => {
+    const data = overviewFixture();
+    expect(() => parse({ ...data, readings: [{ ...data.readings[0], status: ["fresh"] }] })).toThrow();
+    expect(() => parse({ ...data, telemetry_freshness: { ...data.telemetry_freshness, reason: ["recent"] } })).toThrow();
+    expect(channelLabel("constructor")).toBe("constructor");
+    expect(channelLabel("__proto__")).toBe("__proto__");
   });
   it("rejects duplicate assignments and channel keys", () => {
     const data = overviewFixture(); data.modules.push(data.modules[0]!); expect(() => parse(data)).toThrow();

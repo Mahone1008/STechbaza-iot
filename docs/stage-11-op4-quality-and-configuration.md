@@ -23,7 +23,7 @@ fresh стає stale; видима вкладка також перевіряє 
 
 «Оновити панель» атомарно перечитує склад модулів, permissions, presence та
 readings через один overview. При disable capability її widgets зникають;
-при enable повертаються лише з нового відповіді API. Старий snapshot не може
+при enable повертаються лише з нової відповіді API. Старий snapshot не може
 повернути вимкнений модуль. Під час запиту і після помилки старі показання
 приховано. `403/404` показує втрату доступу; `401` проходить чинний механізм
 refresh/revoke, без відновлення завершеної browser session.
@@ -36,7 +36,7 @@ refresh/revoke, без відновлення завершеної browser sessi
 
 ## Перевірки
 
-Локально пройдено TypeScript strict, ESLint, **41 unit** та production build.
+Локально пройдено TypeScript strict, ESLint, **42 unit** та production build.
 Нові тести охоплюють нулі/false, units, missing/invalid, unsupported,
 command-only, дублікати, чужі IDs, невалідні типи, стару сесію контролера,
 старіння freshness, disable/enable, помилки/retry, logout, viewer/mobile і

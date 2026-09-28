@@ -18,7 +18,7 @@ function unique(values: string[]) { if (new Set(values).size !== values.length) 
 function date(value: Record<string, unknown>, key: string): string | null { return value[key] === null ? null : requiredDateTime(value, key, path); }
 export function parseFreshness(value: unknown): Freshness {
   const data = record(value);
-  if (!["fresh", "stale", "missing"].includes(String(data.status)) || !reasons.has(String(data.reason))) invalidResponse(path, "freshness status/reason");
+  if (typeof data.status !== "string" || typeof data.reason !== "string" || !["fresh", "stale", "missing"].includes(data.status) || !reasons.has(data.reason)) invalidResponse(path, "freshness status/reason");
   const age = data.received_age_seconds;
   const threshold = data.stale_after_seconds;
   if (age !== null && (typeof age !== "number" || !Number.isFinite(age) || age < 0)) invalidResponse(path, "received age");
@@ -35,7 +35,7 @@ export function channelSupported(channel: Channel): boolean {
 function parseReading(raw: unknown, channel: Channel): Reading {
   if (!channelSupported(channel)) return { status: "missing", value: null };
   const data = record(raw);
-  if (!qualities.has(String(data.status))) invalidResponse(path, "reading status");
+  if (typeof data.status !== "string" || !qualities.has(data.status)) invalidResponse(path, "reading status");
   if (channel.source === "values" && data.unit !== channel.unit) invalidResponse(path, "matching unit");
   const status = data.status as Quality;
   if (status === "missing" || status === "invalid") {
@@ -95,7 +95,7 @@ export function effectiveQuality(status: Quality, freshness: Freshness, elapsedS
 export const qualityLabels: Record<Quality, string> = { fresh: "Свіжі дані", stale: "Застарілі дані", missing: "Немає даних", invalid: "Некоректні дані" };
 export const reasonLabels: Record<Freshness["reason"], string> = { no_telemetry: "Телеметрія ще не надходила", recent: "Телеметрія отримана нещодавно", timeout: "Перевищено час актуальності", session_changed: "Контролер змінив сесію; показання належать попередній сесії", future_timestamp: "Час контролера або повідомлення потребує перевірки", delayed_report: "Повідомлення надійшло із затримкою" };
 const labels: Record<string, string> = { "vfd.frequency_hz": "Частота", "vfd.current_a": "Струм", "pressure.bar": "Тиск", "water_level.percent": "Рівень води", pump_running: "Робота насоса", vfd_fault_code: "Код помилки частотника", local_mode: "Ручний режим", emergency_stop: "Аварійна зупинка" };
-export function channelLabel(key: string): string { return labels[key] ?? key; }
+export function channelLabel(key: string): string { return Object.hasOwn(labels, key) ? labels[key]! : key; }
 export function readingText(channel: Channel & Reading): string {
   if (channel.status === "missing" || channel.status === "invalid" || channel.value === null) return "—";
   if (typeof channel.value === "boolean") return channel.value ? "Так" : "Ні";
