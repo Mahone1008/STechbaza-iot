@@ -33,7 +33,7 @@ Assert-LastExit 'Stage 10.1 cumulative authentication gate'
 
 Write-Host 'PASS: Stage 10.2 HttpOnly session recovery, proactive refresh, single-flight and cross-tab coordination.' -ForegroundColor Green
 Write-Host 'Manual acceptance: log in, press F5 on /devices, then open /devices in a second tab.' -ForegroundColor Cyan
-Write-Host 'Expected status after F5: Сесія відновлена · demo data' -ForegroundColor DarkGray
+Write-Host 'Expected status after F5: session restored; demo data' -ForegroundColor DarkGray
 
 if ($Start) {
     Set-Location $frontend

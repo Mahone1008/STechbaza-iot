@@ -3,7 +3,9 @@
 Дата: 28.09.2026. Разом із [13.1 — аваріями](stage-13-op1-alarms.md).
 Статус: реалізовано; повний Frontend checks CI — **PASS: 75 unit / 115 mocked /
 10 live + 34 додаткові повтори**.
-Windows/manual для 13.1–13.2 ще не підтверджено.
+Windows 28.09.2026 на `b5b400c`: **75 unit / 115 mocked / 10 live — PASS**.
+Ручне приймання часткове: список усунених аварій, деталі та історія показані;
+решта сценаріїв залишається відкритою.
 
 ## Семантика і доступ
 
@@ -74,13 +76,50 @@ Code revision:
 | Додаткові повтори | 34 PASS: 10 login + 15 overview + 9 polling; retries=0 |
 | Live Chromium | 10 PASS; viewer read-only, owner acknowledge, actor/history/F5 і чинні auth/command/telemetry сценарії |
 | Failed / flaky у фінальному прогоні | 0 |
-| Windows/manual 13.1–13.2 | Очікується |
+| Windows/manual 13.1–13.2 | Окремі докази та межі приймання наведено нижче |
 
 Frontend job: `109090808224`; live job: `109093365544`.
 Guarded fixture всередині demo backend — PASS; Linux live suite — 10/10.
 Числа стосуються повних cumulative suites;
 попередні 91 mocked сценарії Етапу 12 залишилися зеленими.
-Коміт із фінальними доказами змінює тільки документацію.
+Коміт `b5b400c` із фінальними CI-доказами змінює тільки документацію.
+
+### Windows і скриншоти — 28.09.2026
+
+Користувач надав 12 скриншотів запуску та UI після оновлення до
+[`b5b400c`](https://github.com/Mahone1008/STechbaza-iot/commit/b5b400c2706b322b10b8ef82622fdf72ef361650).
+Виконано `scripts/check-stage13-op1-op2.ps1 -Start` у Windows PowerShell.
+Це окремий Windows-прогін cumulative suites; 34 додаткові повтори вище
+належать CI й не додаються до Windows-результату.
+
+| Доказ | Що підтверджено |
+|---|---|
+| `image(20260928-192525).png` | Fast-forward `3c8e489` → `b5b400c`, запуск wrapper 13.1–13.2 |
+| `image(20260928-192805).png` | 75 unit/component PASS у 14 файлах, production build та нові alarm routes |
+| `image(20260928-193015).png`, `image(20260928-193246).png` | Mocked Chromium: 115 PASS за 3.3 хв; cumulative clean install / API contract / unit / types / build / Chromium gate PASS |
+| `image(20260928-193254).png`, `image(20260928-193316).png`, `image(20260928-194221).png` | Docker build; чинні demo-дані й паролі збережено; PostgreSQL, Mosquitto, backend і simulator healthy; ізольовану alarm fixture підготовлено зі збереженням історії |
+| `image(20260928-194237).png`, `image(20260928-194247).png` | Live Chromium: 10 PASS за 35.3 с; фінальний gate 13.1–13.2 PASS; Next.js dev server готовий на `http://127.0.0.1:3000` |
+| `image(20260928-194513).png`, `image(20260928-194534).png` | Деталі усуненого `device.reboot` на TB-DEMO-PUMP, окремі стани, час/лічильник, системний автор і transitions; розгорнуті та згорнуті деталі, без залишкової порожньої області після згортання |
+| `image(20260928-194556).png` | Список аварій TB-DEMO-PUMP із фільтром «Усунені», історичними записами та окремими badges важливості / стану / підтвердження |
+
+«Усунена» разом із «Без підтвердження» — коректний стан: backend зафіксував
+recovery без acknowledge оператора. У показаному incident причина переходу —
+надходження наступного пакета тієї самої session; кнопки acknowledge для
+resolved incident немає за чинними правилами. Історичні записи зберігаються.
+
+Live-тести цього запуску автоматично перевірили owner acknowledge, actor,
+active після підтвердження, history/F5 та viewer read-only. Скриншоти ручного
+UI показують інший, уже усунений incident; вони не є доказом ручного ACK.
+Не показано ручні cancel/confirm на активній аварії, viewer/mobile, F5,
+зміну пристрою/вихід, усі фільтри, порожню відповідь і перехід між сторінками.
+Прийнятий frontend progress залишається **10/24** до завершення ручного приймання.
+
+У виводі успадкованого `scripts/check-stage10-op2.ps1` виявлено пошкоджене
+відображення української підказки після F5. Єдиний не-ASCII рядок UTF-8 script
+без BOM замінено ASCII-підказкою `session restored; demo data`, щоб Windows
+PowerShell 5.1 не залежав від системної code page. Логіка wrapper не змінена.
+Перевірено ASCII-сумісність усього файла й точковий diff; повторного Windows
+запуску після цієї текстової зміни ще немає. Вебінтерфейс лишається українським.
 
 ### Live-перевірка
 
@@ -117,7 +156,8 @@ Wrapper запускає cumulative 12.3–12.4 gate, готує guarded alarm f
 frontend через npm.cmd після PASS. Успадкований live command scenario також
 надсилає Stop лише ізольованому TB-DEMO-PUMP simulator.
 Python fixture передається у контейнер як UTF-8; wrapper сумісний із
-Windows PowerShell 5.1. Локальна перевірка Windows тут не виконується.
+Windows PowerShell 5.1. Windows-прогін користувача підтверджено скриншотами
+вище; у поточному Linux-середовищі PowerShell не запускався.
 
 ## Ручне приймання
 

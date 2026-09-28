@@ -3,7 +3,9 @@
 Дата: 28.09.2026. Разом із [13.2 — acknowledge](stage-13-op2-acknowledgement.md).
 База: [досьє Етапу 12](dossier-v3.5-stage-12-telemetry-commands.md), `9ce22e0`.
 Реалізовано; **CI: 75 unit / 115 mocked / 10 live + 34 повтори — PASS**.
-Фінальні докази й Windows-команда — у 13.2; Windows/manual очікується.
+Windows 28.09.2026: **75 unit / 115 mocked / 10 live — PASS**.
+Список усунених аварій, деталі та згортання історії підтверджено скриншотами.
+Докази, Windows-команда та залишок ручного приймання — у 13.2.
 
 ## Навігація та межі
 
@@ -70,4 +72,6 @@ Live suite читає реальний demo incident, permissions та append-on
 Backend executable code, OpenAPI, 47 paths та 17 migrations не змінюються.
 Не реалізовано глобальну агрегацію аварій, export, rule editor, push,
 персональний notification feed (13.3) або новий наскрізний MQTT-сценарій (13.4).
-Windows та ручне приймання нових операцій фіксуються окремо після CI.
+Windows cumulative gate підтверджено окремо від CI; ручне приймання часткове.
+Скриншоти не підтверджують усі фільтри, порожню відповідь і перехід між
+сторінками; перелік решти сценаріїв наведено у 13.2.

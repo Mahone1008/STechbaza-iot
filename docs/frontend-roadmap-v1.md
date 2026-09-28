@@ -147,8 +147,8 @@ Start/frequency не накопичуються локально для відп
 
 | Операція | Результат |
 |---|---|
-| 13.1 — Аварії | Реалізовано: device-scoped lists, filters, severity, active/resolved, detail, transitions; приймання відкрите |
-| 13.2 — Acknowledge | Реалізовано: permission, confirmation, pending/error, idempotency, concurrent resolution; приймання відкрите |
+| 13.1 — Аварії | Реалізовано: device-scoped lists, filters, severity, active/resolved, detail, transitions; CI і Windows PASS, ручне приймання часткове |
+| 13.2 — Acknowledge | Реалізовано: permission, confirmation, pending/error, idempotency, concurrent resolution; CI і Windows PASS, залишок ручного приймання |
 | 13.3 — In-app feed | organization stream, unread count, personal read, tenant isolation |
 | 13.4 — Наскрізний інцидент | MQTT → rule → alarm → notification → ack → recovery |
 
@@ -235,5 +235,10 @@ demo incidents, без fan-out по всіх пристроях. POST має я�
 **Фінальний CI: 75 unit / 115 mocked / 10 live + 34 повтори — PASS**,
 OpenAPI zero diff, types/lint і build PASS. Code revision `e9c0009`,
 workflow #36470368112; докази й Windows-команда — у 13.2.
-Прийнятий прогрес — 10/24; Windows/manual очікується.
+Windows 28.09.2026 на `b5b400c`: **75 unit / 115 mocked / 10 live — PASS**,
+cumulative gate і запуск frontend PASS. Скриншоти підтверджують список
+усунених аварій, деталі, системну історію та звільнення місця після згортання.
+Owner ACK/history/F5 та viewer read-only пройдені автоматично в live suite;
+відповідні ручні сценарії та решта фільтрів/пагінації ще не показані.
+Прийнятий прогрес — 10/24; повний перелік доказів і залишку — у 13.2.
 Наступний блок — 13.3 notifications та 13.4 наскрізний інцидент.
