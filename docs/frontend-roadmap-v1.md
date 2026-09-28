@@ -232,6 +232,8 @@ Windows-приймання виправлення очікується; базо
 та [13.2 — acknowledge](stage-13-op2-acknowledgement.md). Реальні API замінили
 demo incidents, без fan-out по всіх пристроях. POST має явне підтвердження,
 перевірку відповіді та GET reconciliation після невизначеного результату.
-Локально: 75 unit, types/lint і build PASS. Фінальний CI, revisions і
-Windows-команда — у 13.2. Прийнятий прогрес — 10/24; Windows/manual очікується.
+**Фінальний CI: 75 unit / 115 mocked / 10 live + 34 повтори — PASS**,
+OpenAPI zero diff, types/lint і build PASS. Code revision `e9c0009`,
+workflow #36470368112; докази й Windows-команда — у 13.2.
+Прийнятий прогрес — 10/24; Windows/manual очікується.
 Наступний блок — 13.3 notifications та 13.4 наскрізний інцидент.

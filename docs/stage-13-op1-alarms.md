@@ -2,7 +2,8 @@
 
 Дата: 28.09.2026. Разом із [13.2 — acknowledge](stage-13-op2-acknowledgement.md).
 База: [досьє Етапу 12](dossier-v3.5-stage-12-telemetry-commands.md), `9ce22e0`.
-Реалізацію підготовлено; фінальні результати CI та Windows-команда — у 13.2.
+Реалізовано; **CI: 75 unit / 115 mocked / 10 live + 34 повтори — PASS**.
+Фінальні докази й Windows-команда — у 13.2; Windows/manual очікується.
 
 ## Навігація та межі
 

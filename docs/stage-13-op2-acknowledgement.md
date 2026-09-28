@@ -1,7 +1,8 @@
 # Етап 13.2 — підтвердження аварії оператором
 
 Дата: 28.09.2026. Разом із [13.1 — аваріями](stage-13-op1-alarms.md).
-Статус: реалізовано; локальні перевірки та фінальний CI фіксуються нижче.
+Статус: реалізовано; повний Frontend checks CI — **PASS: 75 unit / 115 mocked /
+10 live + 34 додаткові повтори**.
 Windows/manual для 13.1–13.2 ще не підтверджено.
 
 ## Семантика і доступ
@@ -48,7 +49,7 @@ Hidden/offline/logout/unmount скасовують transport. Це припин�
 
 Локально: OpenAPI verify 0.38.0 / 47 paths, TypeScript strict, ESLint,
 **75 unit/component** та production build — PASS.
-Фінальний Chromium/CI результат буде додано після завершення workflow.
+Frontend і live jobs фінального CI завершилися success.
 Backend application code і контракт не змінювалися; backend CI Етапу 12
 залишається попереднім доказом, а не новим прогоном цієї операції.
 
@@ -56,6 +57,30 @@ Backend application code і контракт не змінювалися; backen
 click, першого автора, 409, втрачену відповідь із записом та без нього,
 429, 401/403/404, foreign receipt, F5, offline/reconnect та late response.
 Регресії Етапу 12 залишаються в cumulative suite.
+
+### CI — 28.09.2026
+
+Code revision:
+[`e9c0009`](https://github.com/Mahone1008/STechbaza-iot/commit/e9c0009fec7dcf267df59654484ace19caba6467).
+[Frontend checks #36470368112](https://github.com/Mahone1008/STechbaza-iot/actions/runs/36470368112)
+— **success**.
+
+| Перевірка | Результат |
+|---|---|
+| OpenAPI generation / zero diff / verify | PASS; 0.38.0 / 47 paths |
+| TypeScript strict / ESLint / production build | PASS |
+| Unit/component | 75 PASS, 14 файлів; 7 нових alarm contract tests |
+| Mocked Chromium | 115 PASS, 12 файлів; 24 нові alarm scenarios, retries=0 |
+| Додаткові повтори | 34 PASS: 10 login + 15 overview + 9 polling; retries=0 |
+| Live Chromium | 10 PASS; viewer read-only, owner acknowledge, actor/history/F5 і чинні auth/command/telemetry сценарії |
+| Failed / flaky у фінальному прогоні | 0 |
+| Windows/manual 13.1–13.2 | Очікується |
+
+Frontend job: `109090808224`; live job: `109093365544`.
+Guarded fixture всередині demo backend — PASS; Linux live suite — 10/10.
+Числа стосуються повних cumulative suites;
+попередні 91 mocked сценарії Етапу 12 залишилися зеленими.
+Коміт із фінальними доказами змінює тільки документацію.
 
 ### Live-перевірка
 
