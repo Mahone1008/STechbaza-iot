@@ -5,10 +5,11 @@ import { StableRegion } from "@/components/stable-region";
 import { TelemetryChart } from "@/components/telemetry-chart";
 import { useAuthSession } from "@/features/auth-session";
 import { usePanelQuery } from "@/features/use-panel-query";
+import { historyPreferencesKey, normalizeHistorySelection, readHistorySelection, saveHistorySelection, type HistorySelection } from "@/features/telemetry-preferences";
 import type { ReadyAccessSnapshot } from "@/features/access-context";
 import { apiErrorDisplayMessage, apiQueryKeys, isApiError } from "@/lib/api";
 import { channelLabel, type Channel, type Overview } from "@/lib/api/overview";
-import { parseSeries, periods, seriesChannels, seriesWindow } from "@/lib/api/telemetry-series";
+import { historyBuckets, parseSeries, periods, seriesChannels, seriesWindow } from "@/lib/api/telemetry-series";
 import type { PollSeconds } from "@/lib/api/polling-policy";
 
 function HistoryData({ context, channel, seconds, bucket, poll }: { context: ReadyAccessSnapshot; channel: Channel; seconds: number; bucket: number; poll: PollSeconds }) {
@@ -32,16 +33,22 @@ function HistoryData({ context, channel, seconds, bucket, poll }: { context: Rea
 }
 export function TelemetryHistory({ context, overview, poll }: { context: ReadyAccessSnapshot; overview: Overview; poll: PollSeconds }) {
   const channels = seriesChannels(overview);
-  const [selected, setSelected] = useState("");
-  const [seconds, setSeconds] = useState<number>(3600);
-  const [bucket, setBucket] = useState(60);
-  const channel = channels.find((item) => item.key === selected) ?? channels[0];
+  const storageKey = historyPreferencesKey(context.scope, context.activeOrganization.id, context.activeDevice!.id);
+  const [saved, setSaved] = useState(() => readHistorySelection(storageKey, channels));
+  const selection = normalizeHistorySelection(saved, channels);
+  const { metric, seconds, bucket } = selection;
+  const channel = channels.find((item) => item.key === metric);
+  const change = (patch: Partial<HistorySelection>) => {
+    const next = normalizeHistorySelection({ ...selection, ...patch }, channels);
+    saveHistorySelection(storageKey, next);
+    setSaved(next);
+  };
   return <Card title="Історія телеметрії" description="Час приймання сервером; середнє за валідними зразками, а не за тривалістю. Оновлення пересуває період до поточного часу.">
     {!channel ? <p>Увімкнених каналів з підтримкою історії немає.</p> : <>
       <div className="history-controls">
-        <label>Метрика<select aria-label="Метрика" value={channel.key} onChange={(e) => setSelected(e.target.value)}>{channels.map((c) => <option key={c.key} value={c.key}>{channelLabel(c.key)} · {c.unit}</option>)}</select></label>
-        <label>Період<select aria-label="Період" value={seconds} onChange={(e) => { const period = periods.find((p) => p.seconds === Number(e.target.value))!; setSeconds(period.seconds); setBucket(period.bucket); }}>{periods.map((p) => <option key={p.seconds} value={p.seconds}>{p.label}</option>)}</select></label>
-        <label>Інтервал<select aria-label="Інтервал" value={bucket} onChange={(e) => setBucket(Number(e.target.value))}>{[60, 300, 900, 3600, 86400].map((b) => <option key={b} value={b} disabled={Math.ceil(seconds / b) > 1000}>{b < 3600 ? `${b / 60} хв` : `${b / 3600} год`}</option>)}</select></label>
+        <label>Метрика<select aria-label="Метрика" value={channel.key} onChange={(e) => change({ metric: e.target.value })}>{channels.map((c) => <option key={c.key} value={c.key}>{channelLabel(c.key)} · {c.unit}</option>)}</select></label>
+        <label>Період<select aria-label="Період" value={seconds} onChange={(e) => { const period = periods.find((p) => p.seconds === Number(e.target.value))!; change({ seconds: period.seconds, bucket: period.bucket }); }}>{periods.map((p) => <option key={p.seconds} value={p.seconds}>{p.label}</option>)}</select></label>
+        <label>Інтервал<select aria-label="Інтервал" value={bucket} onChange={(e) => change({ bucket: Number(e.target.value) })}>{historyBuckets.map((b) => <option key={b} value={b} disabled={Math.ceil(seconds / b) > 1000}>{b < 3600 ? `${b / 60} хв` : `${b / 3600} год`}</option>)}</select></label>
       </div>
       <StableRegion className="history-result-region"><HistoryData key={`${channel.key}:${channel.unit}:${seconds}:${bucket}`} context={context} channel={channel} seconds={seconds} bucket={bucket} poll={poll} /></StableRegion>
     </>}

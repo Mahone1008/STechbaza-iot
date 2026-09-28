@@ -26,3 +26,13 @@ export function overviewFixture(device = overviewDevice): Overview {
     state_readings: [{ key: "pump_running", value: false, status: "fresh" }, { key: "vfd_fault_code", value: 0, status: "fresh" }],
   };
 }
+
+export function overviewWithFrequencyFixture(device = overviewDevice) {
+  const data = overviewFixture(device);
+  const capability = { ...data.capabilities[0]!, id: "c41c4b87-b82d-4e35-8faa-000000000004", code: "vfd.frequency.read", name: "Частота" };
+  data.capabilities.push(capability);
+  data.modules.push({ assignment_id: "a41c4b87-b82d-4e35-8faa-000000000004", capability_id: capability.id, code: capability.code, supported: true, channels: [{ key: "vfd.frequency_hz", unit: "Hz", source: "values", data_type: "number", supports_series: true }], command_types: [], allowed_commands: [] });
+  data.readings.push({ key: "vfd.frequency_hz", unit: "Hz", value: 0, status: "fresh" });
+  data.value_keys.push("vfd.frequency_hz");
+  return data;
+}

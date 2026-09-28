@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { overviewFixture } from "../fixtures/overview";
+import { overviewWithFrequencyFixture } from "../fixtures/overview";
 import { seriesFixture } from "../fixtures/series";
 import { API_ORIGIN, DEVICE_ID, devicePayload, fulfillJson, fulfillPreflight, mockAuthenticatedWorkspace } from "./auth-fixtures";
 
@@ -11,15 +11,7 @@ function gate() {
   const promise = new Promise<void>((resolve) => { release = resolve; });
   return { promise, release };
 }
-function overview() {
-  const data = overviewFixture(devicePayload());
-  const capability = { ...data.capabilities[0]!, id: "c41c4b87-b82d-4e35-8faa-000000000004", code: "vfd.frequency.read", name: "Частота" };
-  data.capabilities.push(capability);
-  data.modules.push({ assignment_id: "a41c4b87-b82d-4e35-8faa-000000000004", capability_id: capability.id, code: capability.code, supported: true, channels: [{ key: "vfd.frequency_hz", unit: "Hz", source: "values", data_type: "number", supports_series: true }], command_types: [], allowed_commands: [] });
-  data.readings.push({ key: "vfd.frequency_hz", unit: "Hz", value: 0, status: "fresh" });
-  data.value_keys.push("vfd.frequency_hz");
-  return data;
-}
+
 function series(url: string, populated = true) {
   const params = new URL(url).searchParams;
   const metric = params.get("metric")!;
@@ -52,7 +44,7 @@ async function refreshVisibleHistory(page: Page) {
 }
 test.beforeEach(async ({ page }) => {
   await mockAuthenticatedWorkspace(page);
-  await page.route(overviewUrl, async (route) => { if (await fulfillPreflight(route)) return; await fulfillJson(route, 200, overview()); });
+  await page.route(overviewUrl, async (route) => { if (await fulfillPreflight(route)) return; await fulfillJson(route, 200, overviewWithFrequencyFixture(devicePayload())); });
   await page.route(seriesUrl, async (route) => { if (await fulfillPreflight(route)) return; await fulfillJson(route, 200, series(route.request().url())); });
 });
 
@@ -96,7 +88,7 @@ test("empty and failed history retain space after an expanded table without show
 test("automatic overview and history refresh preserve scroll while old values are hidden", async ({ page }) => {
   await page.clock.install(); await page.setViewportSize({ width: 1280, height: 720 }); await ready(page, false);
   const panel = gate(), history = gate();
-  await page.route(overviewUrl, async (route) => { if (await fulfillPreflight(route)) return; await panel.promise; await fulfillJson(route, 200, overview()).catch(() => {}); });
+  await page.route(overviewUrl, async (route) => { if (await fulfillPreflight(route)) return; await panel.promise; await fulfillJson(route, 200, overviewWithFrequencyFixture(devicePayload())).catch(() => {}); });
   await page.route(seriesUrl, async (route) => { if (await fulfillPreflight(route)) return; await history.promise; await fulfillJson(route, 200, series(route.request().url())).catch(() => {}); });
   try {
     const y = await position(page);

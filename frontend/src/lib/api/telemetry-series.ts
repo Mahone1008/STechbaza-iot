@@ -5,6 +5,7 @@ export type Series = components["schemas"]["TelemetrySeriesRead"];
 export type Bucket = Series["buckets"][number];
 export type SeriesWindow = Readonly<{ start: string; end: string; bucket_seconds: number }>;
 export const periods = [{ seconds: 3600, label: "1 година", bucket: 60 }, { seconds: 21600, label: "6 годин", bucket: 300 }, { seconds: 86400, label: "24 години", bucket: 900 }, { seconds: 604800, label: "7 днів", bucket: 3600 }] as const;
+export const historyBuckets = [60, 300, 900, 3600, 86400] as const;
 export function seriesChannels(overview: Overview): Channel[] {
   return overview.modules.filter((module) => module.supported).flatMap((module) => module.channels).filter((channel) => channel.supports_series && channel.source === "values" && channel.data_type === "number" && channel.unit !== null);
 }

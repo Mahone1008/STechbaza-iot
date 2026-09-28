@@ -33,7 +33,8 @@ export function saveContext(scope: SessionScope, value: SavedContext): void {
 }
 export function forgetContext(scope?: SessionScope): void {
   try {
-    if (scope) sessionStorage.removeItem(contextStorageKey(scope));
-    else Object.keys(sessionStorage).filter((key) => key.startsWith(PREFIX)).forEach((key) => sessionStorage.removeItem(key));
+    const root = scope ? contextStorageKey(scope) : null;
+    // Разом із контекстом очищаємо вкладені UI preferences цієї сесії.
+    Object.keys(sessionStorage).filter((key) => root ? key === root || key.startsWith(`${root}:`) : key.startsWith(PREFIX)).forEach((key) => sessionStorage.removeItem(key));
   } catch { /* Storage може бути недоступним. */ }
 }
