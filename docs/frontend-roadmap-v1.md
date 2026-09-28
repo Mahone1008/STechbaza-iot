@@ -150,7 +150,7 @@ Start/frequency не накопичуються локально для відп
 | 13.1 — Аварії | Реалізовано: device-scoped lists, filters, severity, active/resolved, detail, transitions; CI і Windows PASS, ручне приймання часткове |
 | 13.2 — Acknowledge | Реалізовано: permission, confirmation, pending/error, idempotency, concurrent resolution; CI і Windows PASS, залишок ручного приймання |
 | 13.3 — In-app feed | Реалізовано: organization stream, unread count, personal read, tenant isolation; перевірки та приймання — у 13.4 |
-| 13.4 — Наскрізний інцидент | Реалізовано: MQTT → rule → alarm → notification → personal read → ack → recovery через browser; CI та Windows очікуються |
+| 13.4 — Наскрізний інцидент | Реалізовано: MQTT → rule → alarm → notification → personal read → ack → recovery через browser; CI PASS, Windows/manual очікуються |
 
 Глобальний alarm dashboard не симулюється fan-out запитами без bounded API.
 
@@ -242,7 +242,9 @@ Owner ACK/history/F5 та viewer read-only пройдені автоматичн
 відповідні ручні сценарії та решта фільтрів/пагінації ще не показані.
 Прийнятий прогрес — 10/24; повний перелік доказів і залишку — у 13.2.
 За наступним дорученням реалізовано [13.3 notifications](stage-13-op3-notifications.md)
-та [13.4 browser MQTT incident](stage-13-op4-incident-e2e.md). Локально 83 unit,
-types/lint/build PASS; 133 mocked сценарії й 10 live, включно з MQTT flow,
-підготовлено до CI. Фінальні докази й Windows-команда — у 13.4.
+та [13.4 browser MQTT incident](stage-13-op4-incident-e2e.md). **Фінальний CI:
+83 unit / 133 mocked / 10 live + 44 повтори — PASS**, OpenAPI zero diff,
+types/lint/build PASS. Повний MQTT flow перевірено через browser із незалежним
+прочитанням owner/viewer. Code revision `d7d9f2a`, workflow #36478571392.
+Windows/manual очікуються; фінальні докази й команда — у 13.4.
 Наступний блок — 14.1 UX/accessibility та 14.2 browser regression.

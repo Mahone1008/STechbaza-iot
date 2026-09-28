@@ -1,7 +1,8 @@
 # Етап 13.4 — наскрізний інцидент MQTT → browser → recovery
 
 Дата: 28.09.2026. Разом із [13.3 — повідомленнями](stage-13-op3-notifications.md).
-База: `e7001d7`. Реалізовано; CI очікується, Windows/manual ще не підтверджено.
+База: `e7001d7`. Реалізовано; **повний CI — success: 83 unit / 133 mocked /
+10 live + 44 повтори PASS**. Windows/manual ще не підтверджено.
 
 ## Що перевіряється
 
@@ -73,17 +74,51 @@ live job не запускався. Попередній зелений CI та 
 
 | Перевірка | Стан |
 |---|---|
-| TypeScript strict / ESLint / production build | Локально PASS |
+| OpenAPI generation / zero diff / verify | CI PASS; 0.38.0 / 47 paths |
+| TypeScript strict / ESLint / production build | Локально та CI PASS |
 | Unit/component | 83 PASS у 15 файлах, включно з 8 notification tests |
-| Mocked Chromium | 133 сценарії у 13 файлах; CI очікується |
-| Додаткові CI повтори | 34 успадковані + 10 ACK/read 429; очікується |
-| Live Chromium + MQTT incident | 10 розширених сценаріїв; CI очікується |
+| Mocked Chromium | 133 PASS у 13 файлах за 3.6 хв; 18 нових notification scenarios |
+| Додаткові CI повтори | 44 PASS: 10 login + 15 overview + 9 polling + 10 ACK/read 429; retries=0 |
+| Live Chromium + MQTT incident | 10 PASS за 58.3 с; owner/viewer personal read та повний MQTT incident/recovery |
+| Failed / flaky у фінальному прогоні | 0 |
 | Python helper / PowerShell wrapper | Python syntax і ASCII-сумісність PASS; виконання Windows очікується |
 | Windows/manual 13.3–13.4 | Очікується |
 
-Backend application code, API та migrations не змінюються. Новий повний
-backend suite тут не заявляється. Фінальні workflow/head/results будуть
-дописані після CI. Прийнятий frontend progress лишається 10/24.
+Backend application code, API та 17 migrations не змінюються. Новий повний
+backend suite тут не заявляється. Прийнятий frontend progress лишається 10/24;
+автоматичні докази не закривають непоказані ручні сценарії.
+
+### Фінальні CI-докази — 28.09.2026
+
+Code revision:
+[`d7d9f2a`](https://github.com/Mahone1008/STechbaza-iot/commit/d7d9f2a025c57312532c593f9682b0e3d37f5669).
+[Frontend checks #36478571392](https://github.com/Mahone1008/STechbaza-iot/actions/runs/36478571392)
+завершився **success**; frontend job `109118316921`, live job `109120869889` — success.
+Повний run та обидва job перевірено після завершення, а не за проміжним статусом.
+Нові notification scenarios, alarm suite, live suite та додаткові повтори
+виконуються з retries=0. У фінальних логах немає failed/flaky.
+
+Live log містить PASS для browser MQTT chain та пов’язані записи:
+
+| Доказ | Raised | Recovery |
+|---|---|---|
+| Alarm ID | `0f739a16-54b2-4270-900b-3d1ccb70dfab` | Той самий ID |
+| Тиск із MQTT telemetry | 0.4 bar | 2.484 bar |
+| Sequence тієї самої simulator session | 20 | 26 |
+| Alarm state / acknowledge | active / false | resolved / true |
+| Notification ID | `80f476dd-7bc4-4a88-851f-51a301b8ac1a` | `242f3cf9-83ae-4a21-840c-7a91e59f6b84` |
+| MQTT message ID | `7fd771ae-7bae-4123-8bac-48d52a6c851b` | `fe52d3ef-6284-45b2-b9df-eea66318912f` |
+
+Ці IDs належать тимчасовому CI demo, яке штатно прибране після тестів.
+Логи зберігають зв’язки telemetry → event → transition → notification.
+Browser assertions окремо перевірили незалежні read_at owner/viewer, відсутність
+ACK після personal read, active після owner ACK, автора, F5, незмінність
+raised snapshot і нове unread recovery. Попередній збій 429 проаналізовано за логами й кодом; небезпечний порядок
+тестового годинника виправлено явним очікуванням GET;
+обидва 429 сценарії пройшли основний набір і по п’ять додаткових повторів.
+
+Фінальне доповнення після CI змінює лише документацію. Windows-команда нижче
+потрібна для перевірки на комп’ютері користувача; її результат ще не заявляється.
 
 ## Windows: один блок
 

@@ -1,8 +1,9 @@
 # Етап 13.3 — персональне прочитання повідомлень організації
 
 Дата: 28.09.2026. База: `e7001d7`; разом із [13.4 — MQTT incident E2E](stage-13-op4-incident-e2e.md).
-Реалізовано. Локально: **83 unit/component, types/lint/build — PASS**.
-Browser/CI та Windows/manual докази фіксуються окремо у 13.4.
+Реалізовано. **Фінальний CI: 83 unit / 133 mocked / 10 live + 44 повтори — PASS**.
+OpenAPI zero diff, types/lint/build — PASS. Workflow/head та MQTT-докази — у 13.4.
+Windows/manual очікуються окремо.
 
 ## Реальні API та навігація
 

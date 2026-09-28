@@ -76,8 +76,9 @@ Windows 28.09.2026: **75 unit / 115 mocked / 10 live — PASS**; список у
 аварій, деталі та згортання історії підтверджено скриншотами. Решта ручного
 приймання відкрита. Реалізовано [13.3 — notification feed](docs/stage-13-op3-notifications.md) та
 [13.4 — browser MQTT E2E](docs/stage-13-op4-incident-e2e.md): персональні read,
-unread count, tenant isolation і наскрізний incident/recovery. Локально
-83 unit, types/lint/build PASS; фінальний CI та Windows/manual очікуються.
+unread count, tenant isolation і наскрізний incident/recovery. **CI: 83 unit /
+133 mocked / 10 live + 44 повтори — PASS**; OpenAPI zero diff, types/lint/build
+PASS. Докази й Windows-команда — у 13.4; Windows/manual очікуються.
 
 Поточний статус:
 
@@ -87,7 +88,7 @@ unread count, tenant isolation і наскрізний incident/recovery. Лок
 Frontend roadmap: 10/24
 Етап 11: реалізовано 4/4, прийнято 2/4; CI + Windows PASS, залишок ручного приймання
 Етап 12: реалізовано 4/4; Windows 12.3 + 12.4 PASS, виправлення згортання деталей; ручне приймання відкрите
-Етап 13: реалізовано 4/4; 13.1–13.2 Windows PASS; 13.3–13.4 CI та Windows/manual очікуються
+Етап 13: реалізовано 4/4; CI 83/133/10 + 44 повтори PASS; 13.3–13.4 Windows/manual очікуються
 ```
 
 - [11.1 — Організації та об’єкти](docs/stage-11-op1-organizations-sites.md).
