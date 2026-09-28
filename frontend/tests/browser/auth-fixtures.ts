@@ -1,3 +1,4 @@
+import { overviewFixture } from "../fixtures/overview";
 import type { BrowserContext, Page, Route } from "@playwright/test";
 
 export const API_ORIGIN = "http://127.0.0.1:8001";
@@ -230,6 +231,11 @@ export async function mockIdentity(target: RouteTarget, options: IdentityOptions
   await target.route(`${API_ORIGIN}/api/v1/devices/${DEVICE_ID}/availability`, async (route) => {
     if (await fulfillPreflight(route)) return;
     await fulfillJson(route, 200, availabilityPayload());
+  });
+  await target.route(`${API_ORIGIN}/api/v1/devices/${DEVICE_ID}/overview`, async (route) => {
+    if (await fulfillPreflight(route)) return;
+    const body = overviewFixture(devicePayload());
+    await fulfillJson(route, 200, { ...body, access: accessPayload(options) });
   });
   await target.route(ME_URL, async (route) => {
     if (await fulfillPreflight(route)) return;

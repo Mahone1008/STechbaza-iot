@@ -160,12 +160,3 @@ export function DeviceList() {
   const { snapshot } = useAccessContext();
   return snapshot.status === "ready" ? <DevicePageList key={`${snapshot.scope.userId}:${snapshot.scope.sessionId}:${snapshot.activeOrganization.id}:${snapshot.activeSite?.id}`} context={snapshot} /> : null;
 }
-export function DeviceIdentity() {
-  const { snapshot } = useAccessContext();
-  if (snapshot.status !== "ready" || !snapshot.activeDevice) return null;
-  return <>
-    <PageHeader title={snapshot.activeDevice.name} description="Ідентифікація та стан зв’язку пристрою з API." />
-    <PresenceTable devices={[snapshot.activeDevice]} context={snapshot} version={0} />
-    <Card title="Модулі та канали"><p>Панель фактично призначених модулів буде підключена в операції 11.3. Показання та стан виконавчих механізмів тут ще не відображаються.</p></Card>
-  </>;
-}

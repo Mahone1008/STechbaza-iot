@@ -1,3 +1,4 @@
+import type { components } from "../../src/lib/api/schema";
 import { expect, test } from "@playwright/test";
 
 const API = process.env.KERUMO_API_BASE_URL ?? "http://127.0.0.1:8001";
@@ -41,10 +42,32 @@ test("real organization and site selection shows API devices, presence and resto
   await expect(page.getByRole("navigation", { name: "Шлях до об’єкта" })).toContainText("DEMO: тестовий майданчик A");
   await page.goto("/devices");
   await expect(page.getByRole("navigation", { name: "Шлях до об’єкта" })).toContainText("DEMO: тестовий майданчик A");
+  const overviewPromise = page.waitForResponse((response) => response.request().method() === "GET" && response.url().endsWith("/overview"))
+    .then(async (response) => { expect(response.status()).toBe(200); return await response.json() as components["schemas"]["DeviceOverviewRead"]; });
   await page.getByRole("link", { name: "DEMO: насос з частотником", exact: true }).click();
   await expect(page.getByRole("heading", { name: "DEMO: насос з частотником", exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Модулі та канали" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Запустити" })).toHaveCount(0);
+  const overview = await overviewPromise;
+  expect(overview.modules.length).toBeGreaterThan(0);
+  for (const capability of overview.capabilities) {
+    await expect(page.locator(".overview-modules .card-description").filter({ hasText: capability.code })).toBeVisible();
+  }
+  const channels = overview.modules.flatMap((module) => module.channels);
+  await expect(page.locator(".metric-card")).toHaveCount(channels.length);
+  await expect(page.getByText("TB-DEMO-PUMP", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Оновити панель" }).click();
+  await expect(page.locator(".metric-card")).toHaveCount(channels.length);
+  // Same authenticated test also exercises a different modular composition.
+  const newDevice = rows.find((row) => row.uid === "TB-DEMO-NEW")!;
+  await page.goto(`/devices/${newDevice.id}`);
+  await expect(page.getByRole("heading", { name: newDevice.name, exact: true })).toBeVisible();
+  await expect(page.locator(".overview-modules .card-description")).toHaveText(["water_level.read"]);
+  await expect(page.locator(".metric-card")).toHaveCount(1);
+  await expect(page.locator(".metric-card")).toContainText("Немає даних");
+  await expect(page.locator(".metric-card strong")).toHaveText("—");
+  await expect(page.getByText("TB-DEMO-PUMP", { exact: true })).toHaveCount(0);
+
 });
 
 test("real backend denies foreign organization, site and device deep links", async ({ page }) => {

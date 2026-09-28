@@ -1,4 +1,4 @@
 import type { Metadata } from "next";
-import { DeviceIdentity } from "@/features/inventory";
+import { DeviceOverview } from "@/features/device-overview";
 export const metadata: Metadata = { title: "Пристрій" };
-export default function DevicePage() { return <DeviceIdentity />; }
+export default function DevicePage() { return <DeviceOverview />; }

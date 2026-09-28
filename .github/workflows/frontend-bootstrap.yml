@@ -15,6 +15,7 @@ on:
       - 'scripts/check-stage10-op3.ps1'
       - 'scripts/check-stage10-op4.ps1'
       - 'scripts/check-stage11-op1-op2.ps1'
+      - 'scripts/check-stage11-op3-op4.ps1'
       - '.github/workflows/frontend-bootstrap.yml'
   workflow_dispatch:
 

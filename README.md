@@ -15,7 +15,7 @@ Frontend Foundation KERUMO:
 
 - Етап 9 завершено **4/4**;
 - Етап 10 завершено **4/4**;
-- frontend roadmap — прийнято **8/24**;
+- frontend roadmap — прийнято **10/24**;
 - Next.js/TypeScript strict foundation;
 - design system і responsive shell;
 - OpenAPI 0.38.0 / 47 paths;
@@ -48,16 +48,19 @@ Frontend Foundation KERUMO:
 гонку login navigation виправлено. Повторний CI: **31 unit / 40 mocked /
 10 live — PASS**, ще **10 повторів** регресій login/refresh без retries — PASS.
 Повторний Windows-прогін: **31 / 40 / 10 — PASS**; каталог організацій і список
-пристроїв підтверджені скриншотами. Залишилося ручне приймання решти сценаріїв. [Досьє 11.2](docs/stage-11-op2-device-list.md).
-Модулі й telemetry очікують 11.3–12; alarms поки демонстраційні.
+пристроїв підтверджені скриншотами. Решту ручних сценаріїв користувач підтвердив
+28.09.2026: **11.1 і 11.2 прийнято й закрито**. [Досьє 11.2](docs/stage-11-op2-device-list.md).
+**11.3 і 11.4 реалізуються разом:** [модульна панель](docs/stage-11-op3-module-widgets.md),
+[якість і зміни конфігурації](docs/stage-11-op4-quality-and-configuration.md).
+Графіки й команди — Етап 12; alarms поки демонстраційні.
 
 Поточний статус:
 
 ```text
 Етап 9: 4/4
 Етап 10: 4/4
-Frontend roadmap: 8/24
-Поточна точка: спільна перевірка і приймання 11.1 + 11.2
+Frontend roadmap: 10/24
+Поточна точка: спільна реалізація і перевірка 11.3 + 11.4
 ```
 
 - [11.1 — Організації та об’єкти](docs/stage-11-op1-organizations-sites.md).
