@@ -1,6 +1,6 @@
 # Етап 12.1–12.2 — збереження фільтрів після F5
 
-Дата: 28.09.2026. **Реалізовано; локальні перевірки PASS; CI очікується.**
+Дата: 28.09.2026. **Реалізовано; локальні перевірки та CI 61/71/10 + 34 повтори — PASS.**
 
 ## Причина та поведінка
 
@@ -55,7 +55,28 @@ metric, bucket bounds, ізоляція, blocked storage та очищення �
 - ізоляція між пристроями/сесіями й очищення після logout;
 - заборонений sessionStorage: UI працює, після reload безпечні defaults.
 
-CI очікується. Windows/manual acceptance цього доповнення ще не виконано.
+### Остаточний CI — PASS
+
+[Frontend checks #36453410087](https://github.com/Mahone1008/STechbaza-iot/actions/runs/36453410087)
+завершився success для
+[`f0d4681`](https://github.com/Mahone1008/STechbaza-iot/commit/f0d4681e0b61e0f6fcd7aa39610948f6ecd93389).
+
+| Gate | Результат |
+|---|---|
+| OpenAPI generation / committed artifacts | Zero-diff; 0.38.0 / 47 paths |
+| TypeScript strict / ESLint / production build | PASS |
+| Unit/component | **61 passed**, 12 файлів |
+| Mocked Chromium | **71 passed**, без failed/flaky |
+| Нові F5/preferences сценарії | **4 passed**, retries=0; входять до 71 |
+| Login/refresh navigation | **10 повторів PASS**, retries=0 |
+| Overview 403/404/503 recovery | **15 повторів PASS**, retries=0 |
+| History polling / Retry-After / offline | **9 повторів PASS**, retries=0 |
+| Live Chromium / реальний backend | **10 passed**, без failed/flaky |
+| Windows/manual acceptance доповнення F5 | Очікується |
+
+Jobs: frontend `109033536167`, auth-live `109035482816`.
+Остаточний documentation commit не змінює перевірені code/tests.
+Windows/manual acceptance цього доповнення ще не виконано.
 Попередній код прокрутки мав CI 54/67/10 + 34 повтори PASS. Скриншот
 користувача підтвердив pull до `8fa0812`; PowerShell заблокував npm.ps1,
 тому пряма Windows-команда уточнена до `npm.cmd run dev`.
