@@ -40,7 +40,24 @@ Backend **0.38.0**, OpenAPI **47 paths**, Alembic **20260926_0017**.
 - Локально frontend: OpenAPI export без drift, typecheck, ESLint,
   **23 unit tests** і production build — PASS.
 - Локальне встановлення Chromium не вдалося: отриманий архів некоректний.
-  Нові browser regressions мають бути підтверджені GitHub CI та Windows gate.
+  Нові browser regressions підтверджено в GitHub CI; локальне Windows-приймання
+  цих виправлень користувачем ще очікується.
+
+Повторний CI **на ревізії виправлень `53532de092ffb065ea09799a792ca8379cbbb751`**:
+
+| Перевірка | Результат |
+|---|---|
+| [Frontend checks](https://github.com/Mahone1008/STechbaza-iot/actions/runs/36421633784) | **Success**, обидва jobs |
+| OpenAPI drift, TypeScript, ESLint, production build | **PASS** |
+| Vitest | **23 passed** |
+| Mocked Chromium, включно з новими cooldown та lock-failure сценаріями | **25 passed** |
+| Live Chromium auth/session/permissions/logout | **8 passed** |
+| [Backend checks](https://github.com/Mahone1008/STechbaza-iot/actions/runs/36421633810) | **Success**, hardening та demo |
+| PostgreSQL/MQTT regression та integration suite | **158 tests, zero skips** |
+| Migration rollback/upgrade, browser auth, demo/restart/outage, clean install, exact backup/restore | **PASS** |
+
+Ці результати CI доповнюють локальні перевірки; вони не означають, що
+Windows-приймання нових виправлень або операція 11.1 вже завершені.
 
 Огляд не є penetration test, load test або гарантією відсутності всіх помилок.
 
