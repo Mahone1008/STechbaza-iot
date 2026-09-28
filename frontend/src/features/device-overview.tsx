@@ -57,7 +57,7 @@ function DevicePanel({ context }: { context: ReadyAccessSnapshot }) {
   const denied = isApiError(query.error) && ["forbidden", "not-found"].includes(query.error.kind);
   return <>
     <PageHeader title={device.name} description="Модулі, показання та якість даних пристрою." actions={<Button disabled={!canRead || query.isFetching || !query.active} onClick={query.refresh}>Оновити панель</Button>} />
-    <div className="history-controls"><label>Автооновлення<select value={poll} onChange={(e) => setPoll(Number(e.target.value) as PollSeconds)}><option value={30}>Панель: 30 с; історія: 60 с</option><option value={60}>Щохвилини</option><option value={0}>Лише вручну</option></select></label></div>
+    <div className="history-controls"><label>Автооновлення<select aria-label="Автооновлення" value={poll} onChange={(e) => setPoll(Number(e.target.value) as PollSeconds)}><option value={30}>Панель: 30 с; історія: 60 с</option><option value={60}>Щохвилини</option><option value={0}>Лише вручну</option></select></label></div>
     {!query.active && <p role="status">Автооновлення призупинено: вкладка прихована або немає мережі.</p>}
     {!canRead ? <section className="notice notice-warning" role="alert"><h2>Недостатньо прав для панелі</h2><p>Потрібен доступ до модулів і телеметрії.</p></section>
       : query.isFetching ? <p role="status">Перевіряємо модулі та показання…</p>

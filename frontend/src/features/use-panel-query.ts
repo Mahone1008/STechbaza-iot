@@ -37,7 +37,7 @@ export function usePanelQuery<T>({ queryKey, enabled = true, intervalMs, queryFn
     },
   });
   const refresh = () => {
-    if (!enabled || !active || query.isFetching || budget.blocked(true)) return;
+    if (!enabled || !active || client.isFetching({ queryKey: key, exact: true }) || budget.blocked(true)) return;
     manual.current = true;
     void query.refetch({ cancelRefetch: false });
   };

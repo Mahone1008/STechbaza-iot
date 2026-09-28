@@ -48,7 +48,14 @@ invalid response, disable, 30/60 cadence, hidden/manual pause, Retry-After та
 додаткових login спроб, щоб не перевищувати auth rate limit.
 
 Локально: TypeScript, ESLint, **54 unit/component — PASS**; OpenAPI **0.38.0 / 47 paths — PASS**.
-Production build — PASS. GitHub browser/live результати будуть зафіксовані після завершення.
+Production build — PASS. Перший CI #36437776519: 54 unit PASS,
+60 browser PASS / 3 failed, live skipped. Три failures виявили доступні назви
+select, що включали текст options: точний `getByLabel` не знаходив поля.
+Додано явні aria-label, не послаблюючи перевірки. Ручний dedup також перевіряє
+поточний стан QueryClient, щоб два натискання до React render не залишали
+ознаку ручного refresh для наступного автоматичного запиту.
+Polling/pause regressions додатково повторюються по 3 рази без retries.
+Остаточні GitHub browser/live результати будуть зафіксовані після завершення.
 Локальне середовище не має Docker/PowerShell і придатного Chromium.
 Backend executable code, schema і міграції не змінюються; повний backend suite
 для frontend-зміни повторно не запускається.

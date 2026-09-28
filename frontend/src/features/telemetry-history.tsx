@@ -38,9 +38,9 @@ export function TelemetryHistory({ context, overview, poll }: { context: ReadyAc
   return <Card title="Історія телеметрії" description="Час приймання сервером; середнє за валідними зразками, а не за тривалістю. Оновлення пересуває період до поточного часу.">
     {!channel ? <p>Увімкнених каналів з підтримкою історії немає.</p> : <>
       <div className="history-controls">
-        <label>Метрика<select value={channel.key} onChange={(e) => setSelected(e.target.value)}>{channels.map((c) => <option key={c.key} value={c.key}>{channelLabel(c.key)} · {c.unit}</option>)}</select></label>
-        <label>Період<select value={seconds} onChange={(e) => { const period = periods.find((p) => p.seconds === Number(e.target.value))!; setSeconds(period.seconds); setBucket(period.bucket); }}>{periods.map((p) => <option key={p.seconds} value={p.seconds}>{p.label}</option>)}</select></label>
-        <label>Інтервал<select value={bucket} onChange={(e) => setBucket(Number(e.target.value))}>{[60, 300, 900, 3600, 86400].map((b) => <option key={b} value={b} disabled={Math.ceil(seconds / b) > 1000}>{b < 3600 ? `${b / 60} хв` : `${b / 3600} год`}</option>)}</select></label>
+        <label>Метрика<select aria-label="Метрика" value={channel.key} onChange={(e) => setSelected(e.target.value)}>{channels.map((c) => <option key={c.key} value={c.key}>{channelLabel(c.key)} · {c.unit}</option>)}</select></label>
+        <label>Період<select aria-label="Період" value={seconds} onChange={(e) => { const period = periods.find((p) => p.seconds === Number(e.target.value))!; setSeconds(period.seconds); setBucket(period.bucket); }}>{periods.map((p) => <option key={p.seconds} value={p.seconds}>{p.label}</option>)}</select></label>
+        <label>Інтервал<select aria-label="Інтервал" value={bucket} onChange={(e) => setBucket(Number(e.target.value))}>{[60, 300, 900, 3600, 86400].map((b) => <option key={b} value={b} disabled={Math.ceil(seconds / b) > 1000}>{b < 3600 ? `${b / 60} хв` : `${b / 3600} год`}</option>)}</select></label>
       </div>
       <HistoryData key={`${channel.key}:${channel.unit}:${seconds}:${bucket}`} context={context} channel={channel} seconds={seconds} bucket={bucket} poll={poll} />
     </>}

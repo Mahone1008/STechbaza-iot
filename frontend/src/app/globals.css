@@ -525,9 +525,9 @@ h1, h2, h3 { letter-spacing: -0.02em; }
 /* Історія залишається в межах вузького екрана; таблиця має власний scroll. */
 .history-controls { display: flex; flex-wrap: wrap; gap: 1rem; margin-block: 1rem; }
 .history-controls label { display: grid; gap: .4rem; min-width: 0; max-width: 100%; }
-.history-controls select { max-width: 100%; padding: .65rem; border: 1px solid #52666a; border-radius: .5rem; background: #13272b; color: #eef6f4; }
-.telemetry-chart { display: block; width: 100%; height: auto; color: #69c9b4; margin-top: 1rem; }
+.history-controls select { max-width: 100%; padding: .65rem; border: 1px solid var(--border-strong); border-radius: .5rem; background: var(--surface); color: var(--text); }
+.telemetry-chart { display: block; width: 100%; height: auto; color: var(--brand); margin-top: 1rem; }
 .telemetry-chart text { fill: currentColor; font-size: 11px; }
 .history-table { max-width: 100%; max-height: 28rem; overflow: auto; margin-top: 1rem; }
 .history-table table { width: 100%; border-collapse: collapse; font-size: .85rem; }
-.history-table th, .history-table td { padding: .6rem; text-align: left; white-space: nowrap; border-bottom: 1px solid #52666a; }
+.history-table th, .history-table td { padding: .6rem; text-align: left; white-space: nowrap; border-bottom: 1px solid var(--border); }

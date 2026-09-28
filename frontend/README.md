@@ -88,7 +88,7 @@ Gate запускає всі актуальні suites; credentials і volumes �
 - `/organizations/{id}/sites` — об’єкти;
 - `/organizations/{id}/sites/{siteId}/devices` — реальні пристрої;
 - `/devices` — підтверджений поточний site context;
-- `/devices/{UUID}` — справжня identity й availability;
+- `/devices/{UUID}` — модульний overview, історія телеметрії та bounded polling;
 - `/ui-kit/device-demo` — явно позначений demo dashboard;
 - `/alarms` — protected demo incidents;
 - `/ui-kit` — protected components і real `/health` panel.
@@ -120,4 +120,11 @@ npm.cmd run api:verify
 ```
 
 CI повторює generation і вимагає zero diff. Етап 10 завершено 4/4.
-Поточна точка — спільне приймання 11.1/11.2; наступна реалізація — 11.3.
+11.1/11.2 прийнято; 11.3/11.4 мають CI та Windows PASS із залишком ручних сценаріїв.
+Поточна реалізація — [12.1 історія](../docs/stage-12-op1-telemetry-history.md)
+та [12.2 polling/перевірки](../docs/stage-12-op2-polling.md).
+Спільна Windows-команда з кореня репозиторію:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-stage12-op1-op2.ps1 -Start
+```
