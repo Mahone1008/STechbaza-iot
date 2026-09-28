@@ -6,7 +6,8 @@
 
 ## Поточний стан
 
-**Етап 9 завершено 4/4. Етап 10 завершено 4/4. Frontend roadmap: прийнято 8/24.**
+**Етапи 9 і 10 завершено по 4/4. Frontend roadmap: прийнято 10/24.
+Етапи 11 і 12 реалізовано по 4/4; залишок ручного приймання зафіксовано в досьє.**
 
 - **9.1–9.4 закрито:** UX, Next.js/TypeScript foundation, OpenAPI/API layer,
   unit/component tests, Chromium smoke, production build і Windows acceptance.
@@ -20,18 +21,25 @@
 - **10.4 закрито 27.09.2026:** real browser logout, server-side revoke,
   cross-tab cleanup, abort pending requests, logout failure/retry states,
   no session resurrection і фінальне Windows-приймання.
-- **11.1 і 11.2 реалізовано:** реальні org/site/device API, context restore,
-  pagination, bounded presence і unit/mocked/live регресії. Windows-приймання
-  очікується; поточні докази CI — у досьє 11.2.
-- Telemetry/modules/commands ще не підключені до real device pages;
-  demo dashboard лише у `/ui-kit/device-demo`, alarms поки demo.
+- **11.1 і 11.2 прийнято:** реальні org/site/device API, context restore,
+  pagination і bounded presence; CI та Windows PASS.
+- **11.3 і 11.4 реалізовано:** модульний overview, якість телеметрії та зміни
+  конфігурації; CI та Windows PASS, окремі ручні сценарії відкриті.
+- **12.1–12.4 реалізовано:** реальна історія, bounded polling, фільтри після F5,
+  підтверджувані команди, lifecycle і журнал. Фінальний CI: **68 unit /
+  91 mocked / 10 live + 34 повтори PASS**. Windows бази 12.3–12.4: **88 mocked /
+  10 live / cumulative gate PASS**; ручне приймання останнього виправлення
+  згортання та решти сценаріїв відкрите.
+- `/ui-kit/device-demo` залишається демонстраційним макетом; alarms поки demo.
 
-[Досьє V3.5 — Етап 9](../docs/dossier-v3.5-stage-9-frontend-foundation.md).  
-[Досьє V3.5 — Етап 10](../docs/dossier-v3.5-stage-10-browser-auth-session-rbac.md).  
-[Досьє операції 10.1](../docs/stage-10-op1-browser-login.md).  
-[Досьє операції 10.2](../docs/stage-10-op2-session-recovery.md).  
-[Досьє операції 10.3](../docs/stage-10-op3-permissions-and-guards.md).  
-[Досьє операції 10.4](../docs/stage-10-op4-logout-and-failures.md).
+- [Досьє V3.5 — Етап 9](../docs/dossier-v3.5-stage-9-frontend-foundation.md).
+- [Досьє V3.5 — Етап 10](../docs/dossier-v3.5-stage-10-browser-auth-session-rbac.md).
+- [Досьє V3.5 — Етап 11](../docs/dossier-v3.5-stage-11-inventory-modular-dashboard.md).
+- [Досьє V3.5 — Етап 12](../docs/dossier-v3.5-stage-12-telemetry-commands.md).
+- [Досьє операції 10.1](../docs/stage-10-op1-browser-login.md).
+- [Досьє операції 10.2](../docs/stage-10-op2-session-recovery.md).
+- [Досьє операції 10.3](../docs/stage-10-op3-permissions-and-guards.md).
+- [Досьє операції 10.4](../docs/stage-10-op4-logout-and-failures.md).
 
 ## Стек
 
@@ -88,7 +96,7 @@ Gate запускає всі актуальні suites; credentials і volumes �
 - `/organizations/{id}/sites` — об’єкти;
 - `/organizations/{id}/sites/{siteId}/devices` — реальні пристрої;
 - `/devices` — підтверджений поточний site context;
-- `/devices/{UUID}` — модульний overview, історія телеметрії та bounded polling;
+- `/devices/{UUID}` — модульний overview, історія, bounded polling, керування та журнал команд;
 - `/ui-kit/device-demo` — явно позначений demo dashboard;
 - `/alarms` — protected demo incidents;
 - `/ui-kit` — protected components і real `/health` panel.

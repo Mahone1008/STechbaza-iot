@@ -63,6 +63,9 @@ CI: **42 unit / 52 mocked / 10 live — PASS**, додаткові 25 повто
 
 Windows 12.3–12.4: **88 mocked / 10 live / cumulative gate PASS**.
 [Виправлення порожньої області після згортання деталей](docs/stage-12-details-collapse-2026-09-28.md): **CI 68 unit / 91 mocked / 10 live + 34 повтори — PASS**.
+Загальний результат 12.1–12.4, історія виправлень, revisions, Windows-докази
+та залишок ручного приймання зібрані в
+[досьє V3.5 — Етап 12](docs/dossier-v3.5-stage-12-telemetry-commands.md).
 
 Поточний статус:
 
@@ -82,6 +85,7 @@ Frontend roadmap: 10/24
 - [Досьє V3.5 — Етап 9](docs/dossier-v3.5-stage-9-frontend-foundation.md).
 - [Досьє V3.5 — Етап 10](docs/dossier-v3.5-stage-10-browser-auth-session-rbac.md).
 - [Досьє V3.5 — Етап 11](docs/dossier-v3.5-stage-11-inventory-modular-dashboard.md).
+- [Досьє V3.5 — Етап 12](docs/dossier-v3.5-stage-12-telemetry-commands.md).
 - [Досьє операції 10.1](docs/stage-10-op1-browser-login.md).
 - [Досьє операції 10.2](docs/stage-10-op2-session-recovery.md).
 - [Досьє операції 10.3](docs/stage-10-op3-permissions-and-guards.md).

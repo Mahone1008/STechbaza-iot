@@ -4,6 +4,10 @@
 
 ## Frontend
 
+- [Досьє V3.5 — Етап 12: графіки, оновлення, команди та журнал](dossier-v3.5-stage-12-telemetry-commands.md)
+- [12.3 — Start/Stop/frequency — CI та Windows PASS](stage-12-op3-command-controls.md)
+- [12.4 — Lifecycle, аудит і журнал — CI та Windows PASS](stage-12-op4-command-journal.md)
+- [Виправлення згортання деталей — CI 68/91/10 PASS](stage-12-details-collapse-2026-09-28.md)
 - [Виправлення F5 — збереження фільтрів графіка](stage-12-history-preferences-2026-09-28.md)
 - [12.1 — Історія телеметрії — реалізовано, CI PASS](stage-12-op1-telemetry-history.md)
 - [12.2 — Політика оновлення і Windows-команда](stage-12-op2-polling.md)
@@ -25,7 +29,12 @@
 - [Етап 10.3 — профіль, permissions і route guards — закрито після CI та Windows-приймання](stage-10-op3-permissions-and-guards.md)
 - [Етап 10.4 — logout, revoke і захист від session resurrection — закрито після CI та Windows-приймання](stage-10-op4-logout-and-failures.md)
 
-Поточна точка: **реалізовано 12.1–12.2, CI та Windows PASS; виправлення прокрутки пройшло CI 54/67/10 PASS; збереження фільтрів F5 пройшло CI 61/71/10 PASS, ручна перевірка очікується; 11.1–11.2 прийнято. Для 11.3–11.4 CI та Windows PASS, залишилися окремі ручні сценарії**.
+Поточна точка: **Етап 12 реалізовано 4/4; фінальний CI 68 unit / 91 mocked /
+10 live + 34 повтори PASS, backend 160 tests без skips PASS. Windows бази
+12.3–12.4: 88 mocked / 10 live / cumulative gate PASS; ручне приймання
+останнього виправлення та решти сценаріїв відкрите.** Загальні докази зібрані
+у досьє Етапу 12. Прийнятий прогрес — 10/24; для 11.3–11.4 також залишаються
+окремі ручні сценарії. Наступні за планом — 13.1 та 13.2.
 
 ## Backend: виправлення та перевірки
 
@@ -47,6 +56,7 @@
 - [Етап 10 — Browser Authentication, Session Recovery, RBAC & Logout KERUMO — загальне підсумкове досьє](dossier-v3.5-stage-10-browser-auth-session-rbac.md)
 
 - [Етап 11 — Організації, пристрої та модульна панель KERUMO — загальне досьє](dossier-v3.5-stage-11-inventory-modular-dashboard.md)
+- [Етап 12 — Історія телеметрії, оновлення, команди та журнал KERUMO — загальне досьє](dossier-v3.5-stage-12-telemetry-commands.md)
 
 ## Чинні технічні контракти
 
