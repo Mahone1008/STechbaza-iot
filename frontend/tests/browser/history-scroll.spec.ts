@@ -42,6 +42,14 @@ async function stable(page: Page, y: number, clock = false) {
   else await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
   expect(Math.abs(await page.evaluate(() => scrollY) - y)).toBeLessThanOrEqual(2);
 }
+async function refreshVisibleHistory(page: Page) {
+  const button = page.getByRole("button", { name: "Оновити історію" });
+  await expect(button).toBeEnabled();
+  await expect(button).toBeInViewport({ ratio: 1 });
+  const box = (await button.boundingBox())!;
+  // Натискання користувача без locator.click(), який сам викликає scrollIntoView.
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+}
 test.beforeEach(async ({ page }) => {
   await mockAuthenticatedWorkspace(page);
   await page.route(overviewUrl, async (route) => { if (await fulfillPreflight(route)) return; await fulfillJson(route, 200, overview()); });
@@ -74,12 +82,12 @@ test("empty and failed history retain space after an expanded table without show
   await expect(page.getByRole("table")).toBeVisible();
   const y = await position(page);
   await page.route(seriesUrl, async (route) => { if (await fulfillPreflight(route)) return; await fulfillJson(route, 200, series(route.request().url(), false)); });
-  await page.getByRole("button", { name: "Оновити історію" }).click();
+  await refreshVisibleHistory(page);
   await expect(page.getByText("За цей період немає валідних вимірювань.")).toBeVisible();
   await expect(page.locator(".telemetry-chart")).toHaveCount(0);
   await stable(page, y);
   await page.route(seriesUrl, async (route) => { if (await fulfillPreflight(route)) return; await fulfillJson(route, 503, { detail: "Unavailable" }); });
-  await page.getByRole("button", { name: "Оновити історію" }).click();
+  await refreshVisibleHistory(page);
   await expect(page.getByRole("heading", { name: "Історія недоступна" })).toBeVisible();
   await expect(page.getByRole("table")).toHaveCount(0);
   await stable(page, y);
