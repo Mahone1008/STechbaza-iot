@@ -53,7 +53,8 @@ Frontend Foundation KERUMO:
 **11.3 і 11.4 реалізовано разом:** [модульна панель](docs/stage-11-op3-module-widgets.md),
 [якість і зміни конфігурації](docs/stage-11-op4-quality-and-configuration.md).
 CI: **42 unit / 52 mocked / 10 live — PASS**, додаткові 25 повторів регресій
-без retries — PASS. 11.3/11.4 очікують Windows-приймання.
+без retries — PASS. Windows 28.09.2026: **42 / 52 / 10 — PASS**;
+панель насоса підтверджено скриншотами. Залишилися окремі ручні сценарії 11.3/11.4.
 Графіки й команди — Етап 12; alarms поки демонстраційні.
 
 Поточний статус:
@@ -62,7 +63,7 @@ CI: **42 unit / 52 mocked / 10 live — PASS**, додаткові 25 повто
 Етап 9: 4/4
 Етап 10: 4/4
 Frontend roadmap: 10/24
-Етап 11: прийнято 2/4; 11.3 + 11.4 очікують Windows-приймання
+Етап 11: реалізовано 4/4, прийнято 2/4; CI + Windows PASS, залишок ручного приймання
 ```
 
 - [11.1 — Організації та об’єкти](docs/stage-11-op1-organizations-sites.md).
@@ -72,6 +73,7 @@ Frontend roadmap: 10/24
 - [План frontend 9–14](docs/frontend-roadmap-v1.md).
 - [Досьє V3.5 — Етап 9](docs/dossier-v3.5-stage-9-frontend-foundation.md).
 - [Досьє V3.5 — Етап 10](docs/dossier-v3.5-stage-10-browser-auth-session-rbac.md).
+- [Досьє V3.5 — Етап 11](docs/dossier-v3.5-stage-11-inventory-modular-dashboard.md).
 - [Досьє операції 10.1](docs/stage-10-op1-browser-login.md).
 - [Досьє операції 10.2](docs/stage-10-op2-session-recovery.md).
 - [Досьє операції 10.3](docs/stage-10-op3-permissions-and-guards.md).

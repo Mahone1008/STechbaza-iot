@@ -4,11 +4,14 @@
 
 ## Frontend
 
-- [11.1 — Організації, об’єкти та контекст — очікує приймання](stage-11-op1-organizations-sites.md)
-- [11.2 — Пристрої та спільна перевірка — очікує приймання](stage-11-op2-device-list.md)
+- [11.1 — Організації, об’єкти та контекст — прийнято](stage-11-op1-organizations-sites.md)
+- [11.2 — Пристрої та спільна перевірка — прийнято](stage-11-op2-device-list.md)
+
+- [11.3 — Модульні віджети — CI та Windows PASS](stage-11-op3-module-widgets.md)
+- [11.4 — Якість і конфігурація — CI та Windows PASS](stage-11-op4-quality-and-configuration.md)
 
 - [Огляд після Етапу 10: поточний стан, auth-виправлення і перехід до 11.1](project-review-after-stage10-2026-09-28.md)
-- [План frontend v1 — 24 операції; прийнято 8/24](frontend-roadmap-v1.md)
+- [План frontend v1 — 24 операції; прийнято 10/24](frontend-roadmap-v1.md)
 - [Етап 9.1 — UX-сценарії та макети KERUMO — закрито](stage-9-op1-ux-and-mockups.md)
 - [Етап 9.2 — Next.js/TypeScript foundation — закрито](stage-9-op2-frontend-foundation.md)
 - [Етап 9.3 — API adapter і контракти — закрито](stage-9-op3-api-adapter.md)
@@ -18,7 +21,7 @@
 - [Етап 10.3 — профіль, permissions і route guards — закрито після CI та Windows-приймання](stage-10-op3-permissions-and-guards.md)
 - [Етап 10.4 — logout, revoke і захист від session resurrection — закрито після CI та Windows-приймання](stage-10-op4-logout-and-failures.md)
 
-Поточна точка: **реалізовано 11.1 + 11.2, очікується спільне Windows-приймання**.
+Поточна точка: **реалізовано 11.1–11.4; 11.1–11.2 прийнято. Для 11.3–11.4 CI та Windows PASS, залишилися окремі ручні сценарії**.
 
 ## Backend: виправлення та перевірки
 
@@ -38,6 +41,8 @@
 - [Етап 8 — Test backend](dossier-v3.5-stage-8-test-backend.md)
 - [Етап 9 — Frontend Foundation KERUMO — загальне підсумкове досьє](dossier-v3.5-stage-9-frontend-foundation.md)
 - [Етап 10 — Browser Authentication, Session Recovery, RBAC & Logout KERUMO — загальне підсумкове досьє](dossier-v3.5-stage-10-browser-auth-session-rbac.md)
+
+- [Етап 11 — Організації, пристрої та модульна панель KERUMO — загальне досьє](dossier-v3.5-stage-11-inventory-modular-dashboard.md)
 
 ## Чинні технічні контракти
 
