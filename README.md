@@ -47,7 +47,8 @@ Frontend Foundation KERUMO:
 перевірені deep links/restore та bounded availability. Виявлену у Windows
 гонку login navigation виправлено. Повторний CI: **31 unit / 40 mocked /
 10 live — PASS**, ще **10 повторів** регресій login/refresh без retries — PASS.
-Повторне Windows-приймання очікується. [Досьє 11.2](docs/stage-11-op2-device-list.md).
+Повторний Windows-прогін: **31 / 40 / 10 — PASS**; каталог організацій і список
+пристроїв підтверджені скриншотами. Залишилося ручне приймання решти сценаріїв. [Досьє 11.2](docs/stage-11-op2-device-list.md).
 Модулі й telemetry очікують 11.3–12; alarms поки демонстраційні.
 
 Поточний статус:
