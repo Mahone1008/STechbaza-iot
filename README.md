@@ -44,9 +44,10 @@ Frontend Foundation KERUMO:
 
 Операцію **10.4** прийнято й закрито після локального Windows-приймання.
 **11.1 і 11.2 реалізовано разом:** реальні org/site/device lists, breadcrumbs,
-перевірені deep links/restore та bounded availability. Початковий CI: **31 unit /
-38 mocked / 10 live — PASS**. Windows-прогін виявив гонку login navigation
-(live 9/10); виправлення і нові регресії підготовлено. Приймання очікується. [Досьє 11.2](docs/stage-11-op2-device-list.md).
+перевірені deep links/restore та bounded availability. Виявлену у Windows
+гонку login navigation виправлено. Повторний CI: **31 unit / 40 mocked /
+10 live — PASS**, ще **10 повторів** регресій login/refresh без retries — PASS.
+Повторне Windows-приймання очікується. [Досьє 11.2](docs/stage-11-op2-device-list.md).
 Модулі й telemetry очікують 11.3–12; alarms поки демонстраційні.
 
 Поточний статус:

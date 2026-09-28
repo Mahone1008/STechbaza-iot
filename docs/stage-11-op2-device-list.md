@@ -2,8 +2,9 @@
 
 Дата: 28.09.2026. Реалізовано разом із [11.1](stage-11-op1-organizations-sites.md).
 
-**Основна реалізація пройшла CI. Windows-прогін 28.09.2026 виявив гонку
-login navigation; виправлення підготовлено, його CI перевіряється.
+**Реалізація та виправлення login navigation race, виявленої у Windows
+28.09.2026, пройшли CI: 31 unit / 40 mocked / 10 live та 10 додаткових
+повторів регресій без retries — PASS.
 Windows-приймання не завершене; операції не закрито.**
 
 ## Поведінка й бюджет запитів
@@ -102,8 +103,29 @@ Chromium повідомив `Network.getResponseBody: No data found for resource
   успішний, без abort;
 - CI додатково повторює обидві регресії по 5 разів із `--retries=0`.
 
-Після виправлення очікуються 31 unit, 40 mocked і 10 live. Повторне ручне
-приймання — спільним `check-stage11-op1-op2.ps1 -Start`, наведеним вище.
+Повторне Windows-приймання — спільним `check-stage11-op1-op2.ps1 -Start`,
+наведеним вище. Очікуються 31 unit, 40 mocked і 10 live; додаткові 10 повторів
+регресій запускаються окремим кроком GitHub Actions.
+
+## Докази після виправлення
+
+Повний [Frontend checks #36428489957](https://github.com/Mahone1008/STechbaza-iot/actions/runs/36428489957)
+завершився **success** для code revision
+[`8a6af14`](https://github.com/Mahone1008/STechbaza-iot/commit/8a6af14435e9663b2026a36c59288d2ca4024b4a).
+
+| Gate | Результат |
+|---|---|
+| OpenAPI generation | Zero-diff, 0.38.0 / 47 paths |
+| TypeScript strict / ESLint / production build | PASS |
+| Vitest | **31 passed** |
+| Mocked Chromium | **40 passed** |
+| Затриманий перехід після login/refresh | **10 passed**, по 5 повторів кожного сценарію, `--retries=0` |
+| Live Chromium / справжній backend | **10 passed**, включно з login test, що впав у Windows |
+| Повторне Windows-приймання | Очікується; 11.1/11.2 ще не закрито |
+
+Jobs: `frontend` — `108948303956`, `auth-live` — `108949425836`.
+Failed/flaky tests немає. Цей documentation commit фіксує результати
+перевіреної code revision; повторний Windows-прогін залишається окремим gate.
 
 ## Докази початкової реалізації до Windows-виправлення
 
