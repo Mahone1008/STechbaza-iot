@@ -5,7 +5,7 @@
 **Статус: прийнято 10 із 24 операцій. Етап 9 завершено 4/4.
 Етап 10 завершено 4/4 після CI та локального Windows-приймання.
 11.1 і 11.2 прийнято 28.09.2026 після Windows PASS і ручного підтвердження.
-Поточна робота — перевірка реалізованих 12.1 + 12.2.
+Поточна точка — Windows-приймання реалізованих 12.1 + 12.2 після CI PASS.
 11.3 + 11.4 мають Windows PASS із залишком ручних сценаріїв.**
 
 Frontend поділено на Етапи 9–14. Кожен етап має чотири операції. Наступна
@@ -132,8 +132,8 @@ Summary endpoint додається лише після виміряної по�
 
 | Операція | Результат |
 |---|---|
-| 12.1 — Історія | Реалізовано: metric, unit, period, bucket, min/max/average/count, gaps, timezone; перевірки тривають |
-| 12.2 — Оновлення | Реалізовано: one polling policy, backoff, cancel/dedup, hidden-tab pause, budget; перевірки тривають |
+| 12.1 — Історія | Реалізовано: metric, unit, period, bucket, min/max/average/count, gaps, timezone; CI PASS; очікує Windows-приймання |
+| 12.2 — Оновлення | Реалізовано: one polling policy, backoff, cancel/dedup, hidden-tab pause, budget; CI PASS; очікує Windows-приймання |
 | 12.3 — Start/Stop/frequency | allowed_commands, validation, confirmation, one request_id |
 | 12.4 — Lifecycle/journal | queued→published→ack→result, TTL, audit, stable pagination |
 
@@ -191,6 +191,8 @@ Start/frequency не накопичуються локально для відп
 ## Поточна робота: 12.1–12.2
 
 За дорученням користувача наступні дві операції реалізовано разом.
+**CI 54 unit / 63 mocked / 10 live та 34 додаткові повтори — PASS.**
+Windows та ручне приймання очікуються.
 [12.1 — історія](stage-12-op1-telemetry-history.md),
 [12.2 — оновлення, результати та Windows-команда](stage-12-op2-polling.md).
 Прийнятий прогрес не збільшується до Windows та ручного підтвердження.

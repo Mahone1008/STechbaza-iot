@@ -1,7 +1,7 @@
 # Етап 12.2 — єдина політика оновлення
 
 Дата: 28.09.2026. Реалізовано разом із [12.1](stage-12-op1-telemetry-history.md).
-Статус: реалізовано; локальні перевірки та CI уточнюються після запусків.
+**Статус: реалізовано; локальні перевірки та CI — PASS.**
 Windows та ручне приймання очікуються; прийнятий frontend progress — 10/24.
 
 ## Політика
@@ -59,7 +59,31 @@ Polling/pause regressions додатково повторюються по 3 р�
 Останній matcher `toBeDisabled` перевіряв select через вкладений label,
 хоча option мав native `disabled`. Перевірка уточнена до
 `toHaveJSProperty("disabled", true)` самого option; ліміт 1000 buckets збережено.
-Остаточні GitHub browser/live результати будуть зафіксовані після завершення.
+
+### Остаточний CI — PASS
+
+[Frontend checks #36439217358](https://github.com/Mahone1008/STechbaza-iot/actions/runs/36439217358)
+завершився success для
+[`5f2d8a8`](https://github.com/Mahone1008/STechbaza-iot/commit/5f2d8a8c17e9b558f6ef8429612abea0b924ea4b).
+
+| Gate | Результат |
+|---|---|
+| OpenAPI generation / committed artifacts | Zero-diff; 0.38.0 / 47 paths |
+| TypeScript strict / ESLint / production build | PASS |
+| Unit/component | **54 passed**, 11 файлів |
+| Mocked Chromium | **63 passed**, без failed/flaky |
+| Login/refresh navigation | **10 повторів PASS**, retries=0 |
+| Overview 403/404/503 recovery | **15 повторів PASS**, retries=0 |
+| History polling / Retry-After / offline | **9 повторів PASS**, retries=0 |
+| Live Chromium / реальний backend | **10 passed**, без failed/flaky |
+| Windows та ручне приймання 12.1–12.2 | Очікується |
+
+Jobs: frontend `108985020447`, auth-live `108986653575`.
+Live suite справді запитує series API насоса, перевіряє device identity,
+time_basis, 60 buckets і таблицю з одиницями API. Ці результати не є
+перевіркою фізичного обладнання. Останній documentation commit лише
+фіксує результати перевіреної code revision.
+
 Локальне середовище не має Docker/PowerShell і придатного Chromium.
 Backend executable code, schema і міграції не змінюються; повний backend suite
 для frontend-зміни повторно не запускається.
