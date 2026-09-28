@@ -15,6 +15,9 @@ export function inventoryTarget(pathname: string): InventoryTarget {
   }
   const device = /^\/devices\/([^/]+)$/u.exec(pathname);
   if (device) return device[1] && isUuid(device[1]) ? { deviceId: device[1] } : { invalid: true };
+  const alarm = /^\/alarms\/devices\/([^/]+)(?:\/([^/]+))?$/u.exec(pathname);
+  if (alarm) return alarm[1] && isUuid(alarm[1]) && (!alarm[2] || isUuid(alarm[2])) ? { deviceId: alarm[1] } : { invalid: true };
+  if (pathname.startsWith("/alarms/")) return { invalid: true };
   return pathname.startsWith("/organizations/") ? { invalid: true } : {};
 }
 

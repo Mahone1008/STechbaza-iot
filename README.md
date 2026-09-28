@@ -59,13 +59,19 @@ CI: **42 unit / 52 mocked / 10 live — PASS**, додаткові 25 повто
 та [політика оновлення](docs/stage-12-op2-polling.md). **CI: 61 unit / 71 mocked /
 10 live та 34 додаткові повтори регресій — PASS.** Windows 28.09.2026: **54 / 63 / 10 — PASS**, графіки підтверджено.
 Виправлення прокрутки пройшло CI; очікується повторна ручна перевірка.
-Додано [збереження фільтрів після F5](docs/stage-12-history-preferences-2026-09-28.md); CI **61/71/10 + 34 повтори — PASS**; очікується ручна перевірка F5. Реалізовано **[12.3 — команди](docs/stage-12-op3-command-controls.md)** і **[12.4 — lifecycle та журнал](docs/stage-12-op4-command-journal.md)**; **CI: 68 unit / 88 mocked / 10 live + 34 повтори — PASS; backend 160 tests, zero skips — PASS.** Windows-команда й докази — у досьє 12.4. Alarms поки демонстраційні.
+Додано [збереження фільтрів після F5](docs/stage-12-history-preferences-2026-09-28.md); CI **61/71/10 + 34 повтори — PASS**; очікується ручна перевірка F5. Реалізовано **[12.3 — команди](docs/stage-12-op3-command-controls.md)** і **[12.4 — lifecycle та журнал](docs/stage-12-op4-command-journal.md)**; **CI: 68 unit / 88 mocked / 10 live + 34 повтори — PASS; backend 160 tests, zero skips — PASS.** Windows-команда й докази — у досьє 12.4.
 
 Windows 12.3–12.4: **88 mocked / 10 live / cumulative gate PASS**.
 [Виправлення порожньої області після згортання деталей](docs/stage-12-details-collapse-2026-09-28.md): **CI 68 unit / 91 mocked / 10 live + 34 повтори — PASS**.
 Загальний результат 12.1–12.4, історія виправлень, revisions, Windows-докази
 та залишок ручного приймання зібрані в
 [досьє V3.5 — Етап 12](docs/dossier-v3.5-stage-12-telemetry-commands.md).
+
+**Реалізовано [13.1 — аварії](docs/stage-13-op1-alarms.md) і
+[13.2 — підтвердження оператором](docs/stage-13-op2-acknowledgement.md):**
+реальні списки/фільтри/історія, actor audit, idempotency та concurrent resolution.
+Локально: 75 unit, types/lint, build PASS; фінальний CI фіксується у 13.2.
+Windows/manual очікується. Notification feed і наступний MQTT E2E — 13.3–13.4.
 
 Поточний статус:
 
@@ -75,6 +81,7 @@ Windows 12.3–12.4: **88 mocked / 10 live / cumulative gate PASS**.
 Frontend roadmap: 10/24
 Етап 11: реалізовано 4/4, прийнято 2/4; CI + Windows PASS, залишок ручного приймання
 Етап 12: реалізовано 4/4; Windows 12.3 + 12.4 PASS, виправлення згортання деталей; ручне приймання відкрите
+Етап 13: реалізовано 13.1 + 13.2; CI та ручне приймання фіксуються окремо
 ```
 
 - [11.1 — Організації та об’єкти](docs/stage-11-op1-organizations-sites.md).

@@ -32,4 +32,14 @@ test("real viewer profile drives navigation and blocks command controls", async 
   await expect(page.getByRole("button", { name: "Запустити" })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Зупинити" })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Налаштування" })).toBeDisabled();
+  if (process.env.KERUMO_RUN_ALARM_DEMO === "1") {
+    expect(process.env.KERUMO_API_BASE_URL).toBe("http://127.0.0.1:8001");
+    await page.goto("/alarms");
+    await page.getByRole("link", { name: "DEMO: окремий датчик тиску", exact: true }).click();
+    await page.getByLabel("Тип аварії", { exact: true }).fill("demo.frontend.acknowledgement");
+    await page.getByRole("button", { name: "Застосувати тип" }).click();
+    await page.getByRole("link", { name: "DEMO: acknowledgement check", exact: true }).click();
+    await expect(page.getByText("Ваша роль дозволяє перегляд, але не підтвердження аварій.")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Підтвердити отримання", exact: true })).toHaveCount(0);
+  }
 });

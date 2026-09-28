@@ -5,7 +5,7 @@
 **Статус: прийнято 10 із 24 операцій. Етап 9 завершено 4/4.
 Етап 10 завершено 4/4 після CI та локального Windows-приймання.
 11.1 і 11.2 прийнято 28.09.2026 після Windows PASS і ручного підтвердження.
-Поточна точка — Етап 12 реалізовано 4/4, загальне досьє V3.5 складено;
+Поточна точка — Етап 12 реалізовано 4/4, досьє V3.5 складено; реалізовано 13.1–13.2;
 перевірки та залишок локального приймання наведено нижче.
 11.3 + 11.4 мають Windows PASS із залишком ручних сценаріїв.**
 
@@ -147,8 +147,8 @@ Start/frequency не накопичуються локально для відп
 
 | Операція | Результат |
 |---|---|
-| 13.1 — Аварії | filters, severity, active/resolved, incident detail, transitions |
-| 13.2 — Acknowledge | permission, pending/error, idempotency, concurrent resolution |
+| 13.1 — Аварії | Реалізовано: device-scoped lists, filters, severity, active/resolved, detail, transitions; приймання відкрите |
+| 13.2 — Acknowledge | Реалізовано: permission, confirmation, pending/error, idempotency, concurrent resolution; приймання відкрите |
 | 13.3 — In-app feed | organization stream, unread count, personal read, tenant isolation |
 | 13.4 — Наскрізний інцидент | MQTT → rule → alarm → notification → ack → recovery |
 
@@ -224,5 +224,14 @@ Windows-приймання виправлення очікується; базо
 
 Зведені результати зафіксовано у
 [досьє V3.5 — Етап 12](dossier-v3.5-stage-12-telemetry-commands.md).
-Наступна точка розробки — 13.1 (аварії) та 13.2 (acknowledge);
-складання досьє не змінює прийнятий прогрес 10/24.
+Складання досьє не змінює прийнятий прогрес 10/24.
+
+## Поточна робота: 13.1–13.2
+
+За дорученням користувача реалізовано [13.1 — аварії](stage-13-op1-alarms.md)
+та [13.2 — acknowledge](stage-13-op2-acknowledgement.md). Реальні API замінили
+demo incidents, без fan-out по всіх пристроях. POST має явне підтвердження,
+перевірку відповіді та GET reconciliation після невизначеного результату.
+Локально: 75 unit, types/lint і build PASS. Фінальний CI, revisions і
+Windows-команда — у 13.2. Прийнятий прогрес — 10/24; Windows/manual очікується.
+Наступний блок — 13.3 notifications та 13.4 наскрізний інцидент.

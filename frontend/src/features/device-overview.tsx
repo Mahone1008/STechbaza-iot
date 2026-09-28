@@ -1,5 +1,6 @@
 "use client";
 import { CommandControls } from "@/features/command-controls";
+import { alarmsHref } from "@/features/alarm-shared";
 import { CommandDetail, CommandJournal } from "@/features/command-journal";
 import { usePanelQuery } from "@/features/use-panel-query";
 import { StableRegion } from "@/components/stable-region";
@@ -60,7 +61,7 @@ function DevicePanel({ context }: { context: ReadyAccessSnapshot }) {
   });
   const denied = isApiError(query.error) && ["forbidden", "not-found"].includes(query.error.kind);
   return <>
-    <PageHeader title={device.name} description="Модулі, показання та якість даних пристрою." actions={<Button disabled={!canRead || query.isFetching || !query.active} onClick={query.refresh}>Оновити панель</Button>} />
+    <PageHeader title={device.name} description="Модулі, показання та якість даних пристрою." actions={<>{context.access.permissions.includes("alarm.read") && <Link className="button button-secondary" href={alarmsHref(device.id)}>Аварії пристрою</Link>}<Button disabled={!canRead || query.isFetching || !query.active} onClick={query.refresh}>Оновити панель</Button></>} />
     <div className="history-controls"><label>Автооновлення<select aria-label="Автооновлення" value={poll} onChange={(e) => setPoll(Number(e.target.value) as PollSeconds)}><option value={30}>Панель: 30 с; історія: 60 с</option><option value={60}>Щохвилини</option><option value={0}>Лише вручну</option></select></label></div>
     {!query.active && <p role="status">Автооновлення призупинено: вкладка прихована або немає мережі.</p>}
     <CommandControls context={context} overview={query.isError ? null : query.data?.overview ?? null} receivedAt={query.data?.receivedAt ?? 0} active={query.active} refreshing={query.isFetching} onCreated={setSelectedCommand} />

@@ -30,7 +30,10 @@
   91 mocked / 10 live + 34 повтори PASS**. Windows бази 12.3–12.4: **88 mocked /
   10 live / cumulative gate PASS**; ручне приймання останнього виправлення
   згортання та решти сценаріїв відкрите.
-- `/ui-kit/device-demo` залишається демонстраційним макетом; alarms поки demo.
+- **13.1–13.2 реалізовано:** real alarms, фільтри, transitions і acknowledge.
+  Локально 75 unit, types/lint/build PASS; CI та Windows-докази — у
+  [документі 13.2](../docs/stage-13-op2-acknowledgement.md). Приймання відкрите.
+- `/ui-kit/device-demo` залишається демонстраційним макетом.
 
 - [Досьє V3.5 — Етап 9](../docs/dossier-v3.5-stage-9-frontend-foundation.md).
 - [Досьє V3.5 — Етап 10](../docs/dossier-v3.5-stage-10-browser-auth-session-rbac.md).
@@ -98,7 +101,9 @@ Gate запускає всі актуальні suites; credentials і volumes �
 - `/devices` — підтверджений поточний site context;
 - `/devices/{UUID}` — модульний overview, історія, bounded polling, керування та журнал команд;
 - `/ui-kit/device-demo` — явно позначений demo dashboard;
-- `/alarms` — protected demo incidents;
+- `/alarms` — вибір пристрою для перегляду аварій;
+- `/alarms/devices/{UUID}` — реальні аварії, server filters і pagination;
+- `/alarms/devices/{UUID}/{alarmId}` — incident, transitions і acknowledge;
 - `/ui-kit` — protected components і real `/health` panel.
 
 Route permissions:
@@ -144,3 +149,17 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-stage12-op3-
 `check-stage12-op3-op4.ps1 -Start` виконує cumulative gate. Live suite
 з `KERUMO_RUN_COMMAND_DEMO=1` надсилає Stop лише localhost TB-DEMO-PUMP simulator.
 Без opt-in live suite не надсилає команд. POST не повторюється автоматично.
+
+## Аварії та підтвердження (13.1–13.2)
+
+[Аварії](../docs/stage-13-op1-alarms.md),
+[acknowledge, результати й Windows](../docs/stage-13-op2-acknowledgement.md).
+Актуальний cumulative gate з кореня репозиторію:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-stage13-op1-op2.ps1 -Start
+```
+
+Wrapper явно вмикає `KERUMO_RUN_ALARM_DEMO=1` і готує guarded fixture лише
+в techbaza_demo. Live suite підтверджує цей тестовий incident через UI;
+acknowledge не змінює стан обладнання. Чинний command demo opt-in збережено.

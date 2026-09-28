@@ -101,6 +101,17 @@ $viewerPassword = Read-EnvValue -Path $demoEnv -Name 'DEMO_VIEWER_PASSWORD'
 $previousEnvironment = @{}
 
 try {
+    if ($env:KERUMO_RUN_ALARM_DEMO -eq '1') {
+        # Run the guarded fixture inside the isolated demo backend.
+        # Explicit UTF-8 keeps this portable in Windows PowerShell 5.1.
+        $oldOutputEncoding = $OutputEncoding
+        try {
+            $OutputEncoding = New-Object System.Text.UTF8Encoding $false
+            Get-Content -Raw -Encoding UTF8 (Join-Path $repoRoot 'scripts/prepare-stage13-demo.py') | & docker compose -p techbaza-demo --env-file $demoEnv -f $demoCompose exec -T backend python -
+            Assert-LastExit 'Stage 13 isolated alarm fixture'
+        }
+        finally { $OutputEncoding = $oldOutputEncoding }
+    }
     # Commands target only the isolated TB-DEMO-PUMP simulator on localhost.
     Set-TemporaryEnvironment -Name 'KERUMO_RUN_COMMAND_DEMO' -Value '1' -Previous $previousEnvironment
     Set-TemporaryEnvironment -Name 'KERUMO_API_BASE_URL' -Value 'http://127.0.0.1:8001' -Previous $previousEnvironment

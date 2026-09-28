@@ -46,6 +46,8 @@ export const apiQueryKeys = {
     [...sessionRoot(scope), "devices", deviceId, "commands", { page }] as const,
   deviceAlarms: (scope: SessionScope, deviceId: string, page: number) =>
     [...sessionRoot(scope), "devices", deviceId, "alarms", { page }] as const,
+  alarm: (scope: SessionScope, organizationId: string, deviceId: string, alarmId: string) =>
+    [...sessionRoot(scope), "organizations", organizationId, "devices", deviceId, "alarms", alarmId] as const,
   notifications: (scope: SessionScope, organizationId: string, page: number) =>
     [...sessionRoot(scope), "organizations", organizationId, "notifications", { page }] as const,
 };

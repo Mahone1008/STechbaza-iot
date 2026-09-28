@@ -112,9 +112,10 @@ export function AccessContextProvider({ children }: Readonly<{ children: ReactNo
         }
         if (!activeOrganization.is_active) throw new NoAccess("Організація неактивна. Оберіть іншу організацію.");
         const access = parseOrganizationAccessResponse(await get(`/api/v1/organizations/${organizationId}/access`), organizationId);
-        const siteId = target.siteId ?? (!target.organizationId && !target.deviceId && pathname === "/devices" ? saved?.siteId : null);
+        const siteDirectory = pathname === "/devices" || pathname === "/alarms";
+        const siteId = target.siteId ?? (!target.organizationId && !target.deviceId && siteDirectory ? saved?.siteId : null);
         if (siteId) activeSite = parseSite(await get(`/api/v1/sites/${siteId}`), organizationId, siteId);
-        if (!activeSite && pathname === "/devices" && access.permissions.includes("site.read")) {
+        if (!activeSite && siteDirectory && access.permissions.includes("site.read")) {
           const sites = parsePage(await get(`/api/v1/organizations/${organizationId}/sites`, { limit: 1, offset: 0 }), (item) => parseSite(item, organizationId), 1);
           activeSite = sites[0] ?? null;
         }

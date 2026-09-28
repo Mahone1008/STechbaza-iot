@@ -18,6 +18,8 @@ on:
       - 'scripts/check-stage11-op3-op4.ps1'
       - 'scripts/check-stage12-op1-op2.ps1'
       - 'scripts/check-stage12-op3-op4.ps1'
+      - 'scripts/check-stage13-op1-op2.ps1'
+      - 'scripts/prepare-stage13-demo.py'
       - '.github/workflows/frontend-bootstrap.yml'
   workflow_dispatch:
 
@@ -125,6 +127,8 @@ jobs:
           docker compose -p techbaza-auth-ci --env-file .env.demo -f compose.demo.yml run --rm -T backend python -m app.demo.seed
           docker compose -p techbaza-auth-ci --env-file .env.demo -f compose.demo.yml up -d --no-build --wait --wait-timeout 90 backend simulator
           curl --fail --silent --show-error http://127.0.0.1:8001/health
+      - name: Prepare isolated alarm acknowledgement fixture
+        run: docker compose -p techbaza-auth-ci --env-file .env.demo -f compose.demo.yml exec -T backend python - < scripts/prepare-stage13-demo.py
       - name: Prepare masked live-auth environment
         shell: bash
         run: |
@@ -135,6 +139,7 @@ jobs:
           echo "::add-mask::$owner_password"
           echo "::add-mask::$viewer_password"
           echo "KERUMO_RUN_COMMAND_DEMO=1" >> "$GITHUB_ENV"
+          echo "KERUMO_RUN_ALARM_DEMO=1" >> "$GITHUB_ENV"
           echo "KERUMO_API_BASE_URL=http://127.0.0.1:8001" >> "$GITHUB_ENV"
           echo "KERUMO_DEMO_EMAIL=owner@techbaza-demo.example.com" >> "$GITHUB_ENV"
           echo "KERUMO_DEMO_PASSWORD=$owner_password" >> "$GITHUB_ENV"

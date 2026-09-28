@@ -20,6 +20,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 test("real organization and site selection shows API devices, presence and restored deep links", async ({ page }) => {
+  test.setTimeout(60_000);
   await page.getByRole("navigation", { name: "Шлях до об’єкта" }).getByRole("link", { name: "Організації", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Організації", exact: true })).toBeVisible();
   await page.getByRole("link", { name: "DEMO: клієнт A", exact: true }).click();
@@ -87,6 +88,31 @@ test("real organization and site selection shows API devices, presence and resto
     await expect(details).toContainText(command.request_id); await expect(details).toContainText(email);
     await page.getByRole("button", { name: "Оновити журнал", exact: true }).click();
     await expect(page.getByRole("table", { name: "Журнал команд пристрою" })).toContainText("Контролер повідомив про виконання");
+  }
+  // Лише явно підготовлений demo incident; не підтверджуємо реальні аварії.
+  if (process.env.KERUMO_RUN_ALARM_DEMO === "1") {
+    expect(API).toBe("http://127.0.0.1:8001");
+    const pressure = rows.find((row) => row.uid === "TB-DEMO-PRESSURE")!;
+    expect(pressure).toBeDefined();
+    await page.goto(`/alarms/devices/${pressure.id}`);
+    await page.getByLabel("Тип аварії", { exact: true }).fill("demo.frontend.acknowledgement");
+    await page.getByRole("button", { name: "Застосувати тип" }).click();
+    const incidentPromise = page.waitForResponse((r) => r.request().method() === "GET" && /\/api\/v1\/alarms\/[0-9a-f-]+$/u.test(new URL(r.url()).pathname))
+      .then(async (r) => { expect(r.status()).toBe(200); return await r.json() as components["schemas"]["DeviceAlarmRead"]; });
+    await page.getByRole("link", { name: "DEMO: acknowledgement check", exact: true }).click();
+    const incident = await incidentPromise;
+    expect(incident.device_id).toBe(pressure.id); expect(incident.alarm_type).toBe("demo.frontend.acknowledgement"); expect(incident.acknowledged_at).toBeNull();
+    const incidentCard = page.locator("section.card").filter({ has: page.getByRole("heading", { name: "Стан інциденту", exact: true }) });
+    await incidentCard.getByRole("button", { name: "Підтвердити отримання", exact: true }).click();
+    const ackPromise = page.waitForResponse((r) => r.request().method() === "POST" && r.url() === `${API}/api/v1/alarms/${incident.id}/acknowledge`)
+      .then(async (r) => { expect(r.status()).toBe(200); return await r.json() as components["schemas"]["DeviceAlarmRead"]; });
+    await page.getByRole("dialog").getByRole("button", { name: "Підтвердити отримання", exact: true }).click();
+    const acknowledged = await ackPromise;
+    expect(acknowledged.acknowledged_at).not.toBeNull(); expect(acknowledged.state).toBe("active"); expect(acknowledged.acknowledged_by_email).toBe(email);
+    await expect(incidentCard).toContainText(email);
+    await expect(page.getByRole("table", { name: "Переходи інциденту" })).toContainText("Підтверджена оператором");
+    await page.reload(); await expect(incidentCard).toContainText(email);
+    await expect(incidentCard.getByRole("button", { name: "Підтвердити отримання", exact: true })).toHaveCount(0);
   }
   // Same authenticated test also exercises a different modular composition.
   const newDevice = rows.find((row) => row.uid === "TB-DEMO-NEW")!;
