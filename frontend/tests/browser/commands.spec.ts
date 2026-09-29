@@ -255,3 +255,22 @@ test("missing frequency profile fails closed while Stop accepts default TTL", as
   await confirm(page, "Зупинити"); await expect.poll(() => posts.length).toBe(1);
   expect(posts[0]!.ttl_seconds).toBe(30);
 });
+
+test("repeated uncertain Stop preserves the original Start fence", async ({ page }) => {
+  const posts: CommandInput[] = [];
+  await mockPost(page, async (route, body) => {
+    posts.push(body);
+    if (posts.length < 3) await route.abort("failed");
+    else await fulfillJson(route, 201, commandFixture(body));
+  });
+  await page.goto(path); await confirm(page);
+  await expect(page.getByRole("heading", { name: "Прийом команди не підтверджено" })).toBeVisible();
+  await confirm(page, "Зупинити");
+  await expect.poll(() => posts.length).toBe(2);
+  await expect(page.getByRole("heading", { name: "Прийом команди не підтверджено" })).toBeVisible();
+  await confirm(page, "Зупинити");
+  await expect.poll(() => posts.length).toBe(3);
+  expect(posts[1]!.supersedes_request_id).toBe(posts[0]!.request_id);
+  expect(posts[2]!.supersedes_request_id).toBe(posts[0]!.request_id);
+  await expect(controls(page)).toContainText("Сервер прийняв команду");
+});

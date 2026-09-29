@@ -71,11 +71,12 @@ class CommandAckService:
         if command.device_id != device.id:
             raise CommandAckDeviceMismatchError
 
-        # Receipt time may be later than controller acceptance. Keep the evidence;
-        # never reactivate delivery or extend a deadline on a duplicate ACK.
+        # Відповідь може надійти пізніше фактичного прийому; зберігаємо доказ.
+        # Не відновлюємо доставку та не подовжуємо deadline повторним ACK.
         if command.acknowledged_at is not None or command.status in {"succeeded", "failed"}:
             return CommandAckResult(command, True, False, "already_acknowledged")
-        attempted = bool(command.publish_attempts or command.published_at)
+        attempted = bool(command.publish_attempts or command.published_at) or (
+            command.status == "result_unknown" and command.error_code == "protocol_upgrade_quarantine")
         if command.status not in {"published", "result_unknown", "expired"} or not attempted:
             raise CommandAckInvalidTransitionError(command.status)
         current_time = now or datetime.now(timezone.utc)

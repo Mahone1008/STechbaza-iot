@@ -451,3 +451,24 @@ class ComprehensivePostgresTests(unittest.TestCase):
             self.dispatch(first, allow_retry=True)
             publish.assert_not_called()
         self.assertEqual(self.read(first)["error_code"], "command_frequency_profile_changed")
+
+    def test_late_superseded_stop_cannot_cancel_newer_intent(self):
+        late_stop = self.body(command_type="vfd.stop")
+        self.create(self.body(command_type="vfd.stop", supersedes_request_id=late_stop["request_id"]))
+        current = self.create()
+        self.assertEqual(self.create(late_stop)["status"], "cancelled")
+        self.assertEqual(self.read(current)["status"], "queued")
+
+    def test_upgrade_quarantine_preserves_late_ack_without_old_attempt_counter(self):
+        first = self.create()
+        with SessionLocal() as session:
+            item = session.get(DeviceCommand, uuid.UUID(first["id"]))
+            item.control_sequence = None
+            item.status = "result_unknown"
+            item.error_code = "protocol_upgrade_quarantine"
+            session.commit()
+        self.reply(first)
+        self.assertIsNotNone(self.read(first)["acknowledged_at"])
+        self.assertEqual(self.read(first)["status"], "result_unknown")
+        self.reply(first, result=True)
+        self.assertEqual(self.read(first)["status"], "succeeded")

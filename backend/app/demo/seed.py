@@ -59,8 +59,8 @@ def seed():
                 user = session.get(User, identity("user:" + key))
                 if not user or user.email != email(key) or not verify_password(passwords[key], user.password_hash):
                     raise RuntimeError("Demo credentials не збігаються; пароль не змінено")
-            # Fixed virtual VFD limits are known; upgrade only the missing demo
-            # profile and preserve all explicitly configured values/rules.
+            # Межі віртуального VFD відомі; додаємо лише відсутній demo
+            # профіль, зберігаючи явно налаштовані значення та правила.
             assignment = session.get(DeviceCapability, identity("assignment:pump:vfd.control"))
             if assignment is not None and "frequency_limits" not in assignment.config:
                 assignment.config = {**assignment.config, **FREQUENCY_CONFIG}

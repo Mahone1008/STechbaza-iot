@@ -40,7 +40,7 @@ class CommandDispatchService:
         device_id = self._session.scalar(select(DeviceCommand.device_id).where(DeviceCommand.id == command_id))
         if device_id is None:
             raise CommandDispatchNotFoundError
-        # All command mutation paths use Device -> Command to avoid lock inversion.
+        # Усі зміни блокують Device перед Command, щоб уникнути взаємного очікування.
         device = self._devices.get_for_update(device_id)
         command = self._commands.get_for_update(command_id)
         if command is None or device is None:
@@ -85,8 +85,8 @@ class CommandDispatchService:
             command_id=command.id, request_id=command.request_id, issued_at=command.created_at,
             expires_at=command.expires_at, ttl_seconds=command.ttl_seconds,
             command_type=command.command_type, payload=command.payload)
-        # Durable BEFORE network I/O. A crash after send must not look "never sent".
-        # The attempt also leases this command until retry interval expires.
+        # Спробу фіксуємо ДО мережевого виклику, щоб збій не приховав можливе виконання.
+        # Це також блокує конкурентний повтор до завершення retry interval.
         command.status = "published"
         command.publish_attempts += 1
         command.last_publish_attempt_at = current_time
@@ -96,8 +96,8 @@ class CommandDispatchService:
         self._session.commit()
         published, reason = publish_command_message(topic=topic,
             payload=envelope.model_dump(mode="json"), command_id=command_id, device_uid=uid)
-        # ACK/Result/new Stop may commit while MQTT publish is in flight.
-        # Never overwrite their lifecycle or a newer attempt's diagnostics.
+        # Під час MQTT publish можуть бути збережені ACK/Result або новий Stop.
+        # Не перезаписуємо їхній lifecycle чи діагностику новішої спроби.
         self._devices.get_for_update(device_id)
         command = self._commands.get_for_update(command_id)
         if command is None:

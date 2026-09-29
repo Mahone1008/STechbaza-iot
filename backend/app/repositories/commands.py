@@ -111,7 +111,7 @@ class CommandRepository:
         ).limit(1))
 
     def pending_for_device(self, device_id):
-        # Caller already holds the Device lock: consistent Device -> command order.
+        # Викликач уже заблокував Device; порядок Device → Command є спільним.
         return list(self._session.scalars(select(DeviceCommand).where(
             DeviceCommand.device_id == device_id,
             DeviceCommand.status.in_(("queued", "published")),

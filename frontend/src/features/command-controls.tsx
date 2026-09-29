@@ -102,7 +102,7 @@ export function CommandControls({ context, overview, receivedAt, active, refresh
     const input = makeCommandInput(dialog.type, frequency, seconds, crypto.randomUUID());
     if (dialog.type === "vfd.stop") {
       const prior = pendingIntent.current ?? uncertain?.intent;
-      if (prior) input.supersedes_request_id = prior.input.request_id;
+      if (prior) input.supersedes_request_id = prior.input.supersedes_request_id ?? prior.input.request_id;
     }
     void handleSend({ input, deadline: monotonicNow() + seconds * 1000 }, null);
   }

@@ -1,7 +1,7 @@
-"""Ordered command protocol v2 and durable delivery-attempt evidence.
+"""Впорядковані команди protocol v2 та збережені свідчення спроб доставки.
 
-Upgrade with API/workers stopped. Legacy pending commands are quarantined;
-the migration never sends commands or assumes a published action did not run.
+Міграція потребує зупинених API/workers. Доставку legacy pending припинено;
+міграція не надсилає команди та не припускає невиконання надісланої дії.
 """
 from alembic import op
 import sqlalchemy as sa
@@ -19,8 +19,11 @@ def upgrade():
     op.create_index("ix_device_commands_supersedes_request_id", "device_commands", ["supersedes_request_id"])
     op.create_unique_constraint("uq_device_commands_control_sequence", "device_commands", ["device_id", "control_sequence"])
     op.create_check_constraint("ck_device_commands_control_sequence", "device_commands", "control_sequence IS NULL OR control_sequence > 0")
+    # Старий код фіксував спробу ПІСЛЯ відправлення: навіть queued/0 міг бути
+    # виконаний перед збоєм. Результат кожної legacy pending вважаємо невідомим.
     op.execute("""UPDATE device_commands SET
-        status = CASE WHEN status = 'queued' AND publish_attempts = 0 THEN 'cancelled' ELSE 'result_unknown' END,
+        status = 'result_unknown',
+        completed_at = NULL, result_timed_out_at = now(),
         error_code = 'protocol_upgrade_quarantine',
         error_message = 'Доставку legacy-команди зупинено під час переходу на protocol v2; перевірте стан пристрою',
         updated_at = now()
@@ -28,7 +31,7 @@ def upgrade():
 
 
 def downgrade():
-    # No downgrade may silently re-enable a previously cancelled command.
+    # Downgrade не повинен відновлювати доставку раніше скасованої команди.
     op.execute("""UPDATE device_commands SET status='expired',
         error_code='protocol_downgrade_quarantine', updated_at=now()
         WHERE status IN ('queued', 'published', 'acknowledged', 'cancelled')""")

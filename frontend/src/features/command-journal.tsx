@@ -34,11 +34,11 @@ export function CommandDetail({ context, id, auto }: { context: ReadyAccessSnaps
           <li>Сервер прийняв: {time(command.created_at)}</li>
           <li>Перша спроба доставки: {time(command.published_at)}</li>
           <li>Контролер підтвердив прийом: {time(command.acknowledged_at)}</li>
-          <li>Результат виконання: {time(command.completed_at)}</li>
+          <li>Завершення обробки: {time(command.completed_at)}</li>
         </ol>
         <p>Час на прийняття команди: {command.ttl_seconds} с · до {time(command.expires_at)}. Це не тривалість роботи насоса. Запізнілі відповіді зберігаються в журналі.</p>
         {command.result_deadline_at && <p>Очікування результату: до {time(command.result_deadline_at)}.</p>}
-        {command.result_timed_out_at && <p>Тайм-аут результату: {time(command.result_timed_out_at)}.</p>}
+        {command.result_timed_out_at && <p>Результат став невідомим: {time(command.result_timed_out_at)}.</p>}
         {command.error_message && <p role="alert">{command.error_message}</p>}
         <details><summary>Автор і технічні деталі команди</summary><dl className="overview-details">
           <div><dt>Автор</dt><dd>{command.actor_display_name ?? "Невідомий"} · {command.actor_email ?? "Email не збережено"}</dd></div>

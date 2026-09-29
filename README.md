@@ -25,7 +25,7 @@ Frontend Foundation KERUMO:
 - frontend roadmap — прийнято **10/24**;
 - Next.js/TypeScript strict foundation;
 - design system і responsive shell;
-- OpenAPI 0.38.0 / 47 paths;
+- OpenAPI 0.39.0 / 47 paths;
 - shared API adapter і session-scoped query cache;
 - Vitest, Playwright Chromium і production build — PASS.
 

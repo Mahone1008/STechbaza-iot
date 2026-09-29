@@ -100,8 +100,8 @@ class CommandResultService:
 
         current_time = now or datetime.now(timezone.utc)
 
-        # TTL prevents NEW execution on the controller. It cannot invalidate
-        # evidence of an earlier execution delivered after a network outage.
+        # TTL забороняє НОВЕ виконання контролером, але не спростовує
+        # доказ попереднього виконання, доставлений після відновлення мережі.
         legacy_attempted = command.status == "expired" and bool(command.publish_attempts or command.published_at)
         if command.status not in {"published", "acknowledged", "result_unknown"} and not legacy_attempted:
             raise CommandResultInvalidTransitionError(command.status)

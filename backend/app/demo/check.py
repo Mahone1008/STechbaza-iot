@@ -36,7 +36,7 @@ def wait_for(label, read, timeout=45):
 
 class Client:
     def __init__(self, account, *, session_file=None):
-        # Only multi-process resilience tests use an explicit private cookie file.
+        # Лише міжпроцесні resilience-тести використовують окремий приватний cookie file.
         self.session_file = session_file
         jar = http.cookiejar.LWPCookieJar(str(session_file)) if session_file else http.cookiejar.CookieJar()
         self.opener = build_opener(HTTPCookieProcessor(jar))

@@ -1,4 +1,4 @@
-"""Stop delivery without confusing missing evidence with non-execution."""
+"""Припинення доставки без припущення, що відсутність відповіді означає невиконання."""
 from app.services.system_alarms import SystemAlarmService
 
 

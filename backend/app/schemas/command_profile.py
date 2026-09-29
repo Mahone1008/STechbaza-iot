@@ -1,4 +1,4 @@
-"""Validated equipment limits; absent profile forbids frequency changes."""
+"""Перевірені межі обладнання; без профілю зміна частоти заборонена."""
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from app.numeric import finite_number
 

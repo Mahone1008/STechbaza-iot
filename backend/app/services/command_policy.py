@@ -1,4 +1,4 @@
-"""Authoritative command checks at creation and immediately before dispatch."""
+"""Перевірки команд під час створення та безпосередньо перед доставкою."""
 from datetime import datetime
 
 from fastapi import HTTPException
@@ -27,7 +27,7 @@ def configured_limits(session: Session, device_id) -> FrequencyLimits | None:
             try:
                 return FrequencyLimits.model_validate(raw)
             except ValueError:
-                return None  # Old/invalid configuration fails closed.
+                return None  # Відсутня або некоректна конфігурація забороняє дію.
     return None
 
 
@@ -38,7 +38,7 @@ def frequency_allowed(session: Session, device_id, payload: dict) -> bool:
 
 
 def dispatch_rejection(session: Session, command: DeviceCommand, now: datetime) -> str | None:
-    """A past audit snapshot is not current permission to actuate equipment."""
+    """Історичний audit snapshot не замінює поточний дозвіл керування."""
     if command.control_sequence is None:
         return "legacy_command"
     user = session.get(User, command.actor_user_id, populate_existing=True) if command.actor_user_id else None

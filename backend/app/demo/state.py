@@ -98,7 +98,7 @@ class DemoState:
             raise ValueError("Command timestamps потребують timezone")
         encoded = envelope.model_dump(mode="json")
         if envelope.schema_version == 1:
-            encoded.pop("control_sequence", None)  # Preserve legacy ledger fingerprints.
+            encoded.pop("control_sequence", None)  # Зберігаємо сумісність відбитків legacy ledger.
         fingerprint = hashlib.sha256(json.dumps(encoded, sort_keys=True).encode()).hexdigest()
         command_id = str(envelope.command_id)
         self.db.execute("BEGIN IMMEDIATE")
@@ -125,7 +125,7 @@ class DemoState:
                 error_code, error_message = "command_out_of_order", "Новішу команду вже прийнято; застарілу дію відхилено"
             else:
                 if envelope.control_sequence is not None:
-                    # Atomic with actuation/outbox; never reset this on boot.
+                    # Атомарно зі станом та outbox; номер не скидається під час boot.
                     self.db.execute("UPDATE devices SET control_sequence=? WHERE key=?", (envelope.control_sequence, key))
                 if item["mode"] == "fault" and envelope.command_type != "vfd.stop":
                     error_code, error_message = "demo_vfd_fault", "Demo VFD fault scenario"

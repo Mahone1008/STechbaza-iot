@@ -49,7 +49,7 @@ class CommandRequestConflictError(Exception):
 
 
 class CommandFrequencyProfileError(Exception):
-    """A validated installation-specific frequency range is required."""
+    """Потрібен перевірений робочий діапазон частоти конкретної установки."""
 
 
 class CommandService:
@@ -107,7 +107,7 @@ class CommandService:
         device = self._devices.get_for_update(device_id)
         if device is None:
             raise CommandDeviceNotFoundError
-        # Recheck after serialization; two HTTP retries allocate only one sequence.
+        # Повтор під lock: два HTTP retries отримують один запис та один номер.
         existing = self._commands.get_by_request_id(payload.request_id)
         if existing is not None:
             if not self._matches_request(existing, device_id, payload, actor):
@@ -120,7 +120,8 @@ class CommandService:
         device.command_sequence += 1
         if device.command_sequence > 9007199254740991:
             raise RuntimeError("Command sequence exhausted; re-enrollment required")
-        if payload.command_type == "vfd.stop":
+        superseded = self._commands.superseding_stop(device_id, payload.request_id, actor.user_id) is not None
+        if payload.command_type == "vfd.stop" and not superseded:
             for older in self._commands.pending_for_device(device_id):
                 stop_delivery(self._session, older, created_at, code="command_superseded_by_stop",
                     message="Доставку попередньої команди припинено новішою командою Stop; перевірте результат")
@@ -147,9 +148,9 @@ class CommandService:
 
         try:
             created = self._commands.add(command)
-            # A slow HTTP Start can arrive AFTER its Stop. The Stop's durable
-            # reference cancels that exact intent, scoped to device and author.
-            if self._commands.superseding_stop(device_id, payload.request_id, actor.user_id) is not None:
+            # Повільний HTTP Start може надійти ПІСЛЯ свого Stop. Збережене
+            # посилання скасовує саме цей запит у межах пристрою та автора.
+            if superseded:
                 stop_delivery(self._session, created, created_at, code="command_superseded_by_stop",
                     message="Запит надійшов після Stop, який уже скасував його доставку")
             self._session.commit()
