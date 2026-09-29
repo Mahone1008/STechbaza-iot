@@ -324,6 +324,7 @@ h1, h2, h3 { letter-spacing: -0.02em; }
 
 .table-shell { overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); box-shadow: var(--shadow-sm); }
 .table-scroll { overflow-x: auto; }
+.table-scroll:focus-visible { outline-offset: -3px; }
 .data-table { width: 100%; border-collapse: collapse; text-align: left; }
 .data-table th, .data-table td { padding: 14px 16px; border-bottom: 1px solid var(--border); vertical-align: middle; }
 .data-table th {

@@ -49,7 +49,7 @@ const mobileNavigationItems: readonly MobileNavigationItem[] = [
 
 function Brand({ compact = false }: { compact?: boolean }) {
   return (
-    <span className="brand-lockup" aria-label="KERUMO">
+    <span className="brand-lockup" role="img" aria-label="KERUMO">
       <svg className="brand-mark" viewBox="0 0 64 64" aria-hidden="true">
         <path fill="currentColor" d="M9 9h12v46H9z" />
         <path fill="currentColor" d="M27 10h27L34 31H21z" />

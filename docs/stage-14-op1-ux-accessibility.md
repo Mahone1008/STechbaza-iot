@@ -14,6 +14,8 @@
 | Focus залежав від слабкої напівпрозорої тіні | Спільний видимий outline для keyboard, summary і scroll regions; системний Highlight у forced-colors |
 | Account menu не переводило фокус у menuitem | Enter/Space та ArrowUp/Down відкривають меню з фокусом; Escape повертає trigger; Tab/blur закриває меню |
 | Skip link не мав явно фокусованого target | main отримав tabIndex=-1 |
+| Компактний логотип мав aria-label на generic span | Семантичний role=img із назвою KERUMO |
+| Native dialog допускав вихід Tab у browser chrome | Явне замикання Tab/Shift+Tab між доступними елементами, native inert/Escape/return focus збережені |
 | Device detail не позначав активний mobile route | Спільне правило вкладених routes та aria-current=page |
 | Заголовки й pagination потребували перенесення на вузькому екрані | Wrap для card headers, actions і pagination; mobile labels можуть переноситися |
 | Закріплені панелі займали значну частину низького вікна | До 480 CSS px висоти topbar/mobile navigation переходять у звичайний потік |

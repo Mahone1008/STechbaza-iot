@@ -43,7 +43,18 @@ export function ConfirmDialog({ open, title, description, confirmLabel, confirmV
   }, [onClose]);
 
   return (
-    <dialog className="dialog" ref={dialogRef} aria-labelledby={titleId} aria-describedby={descriptionId}>
+    <dialog className="dialog" ref={dialogRef} aria-labelledby={titleId} aria-describedby={descriptionId}
+      onKeyDown={(event) => {
+        if (event.key !== "Tab") return;
+        // Native modal робить фон inert; явне замикання не випускає Tab у browser chrome.
+        const focusable = Array.from(event.currentTarget.querySelectorAll<HTMLElement>(
+          'button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])',
+        )).filter((element) => element.getClientRects().length > 0);
+        const first = focusable[0], last = focusable.at(-1);
+        if (first && last && (event.shiftKey ? document.activeElement === first : document.activeElement === last)) {
+          event.preventDefault(); (event.shiftKey ? last : first).focus();
+        }
+      }}>
       <header className="dialog-header"><h2 className="dialog-title" id={titleId}>{title}</h2><p className="dialog-description" id={descriptionId}>{description}</p></header>
       {children ? <div className="dialog-body">{children}</div> : null}
       <footer className="dialog-actions">

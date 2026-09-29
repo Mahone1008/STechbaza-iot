@@ -67,6 +67,7 @@
   text-align: left;
 }
 .user-menu-action:hover, .user-menu-action:focus-visible { background: var(--background); }
+.user-menu-action:focus-visible { outline-offset: -3px; }
 .user-menu-action .nav-icon { width: 19px; height: 19px; }
 .user-menu-action > span { display: grid; gap: 2px; }
 .user-menu-action strong { font-size: 13px; }

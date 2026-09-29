@@ -80,6 +80,8 @@ test("confirmation is keyboard-contained, Escape restores focus and never submit
   await trigger.focus(); await page.keyboard.press("Enter");
   const dialog = page.getByRole("dialog");
   await expect(dialog.getByRole("button", { name: "Скасувати" })).toBeFocused();
+  await page.keyboard.press("Shift+Tab");
+  await expect(dialog.getByRole("button", { name: "Підтвердити отримання", exact: true })).toBeFocused();
   for (let i = 0; i < 5; i++) {
     await page.keyboard.press("Tab");
     expect(await dialog.evaluate((el) => el.contains(document.activeElement))).toBe(true);

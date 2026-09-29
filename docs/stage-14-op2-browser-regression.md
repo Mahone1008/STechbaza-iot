@@ -57,6 +57,19 @@ login/overview/polling/429 залишаються окремими переві�
 
 ## Windows: один блок
 
+### Корекція першого CI
+
+[`63331b8`](https://github.com/Mahone1008/STechbaza-iot/commit/63331b8c42bdf0be2bbbfe94bd4bbd3c3b618a66),
+[run #36525679565](https://github.com/Mahone1008/STechbaza-iot/actions/runs/36525679565):
+140 mocked PASS, 6 failed, live skipped. Усі попередні 133 scenarios пройдено.
+Нові перевірки знайшли aria-label на generic compact logo span і вихід Tab
+із native modal у browser chrome. Додано role=img та замикання Tab/Shift+Tab;
+focus outlines у clipped containers перенесено всередину. Два journeys
+очікували графік від порожньої series fixture: fixture тепер містить валідні
+зразки, assertions не послаблені. Повторний повний CI ще очікується.
+
+### Команда
+
 Docker Desktop має працювати. Попередній frontend зупинити через Ctrl+C.
 
 ```powershell

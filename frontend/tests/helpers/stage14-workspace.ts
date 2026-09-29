@@ -2,6 +2,7 @@ import type { BrowserContext, Page } from "@playwright/test";
 import { alarmFixture, acknowledgedFixture, transitionFixture } from "../fixtures/alarms";
 import { notificationFixture } from "../fixtures/notifications";
 import { overviewFixture } from "../fixtures/overview";
+import { seriesFixture } from "../fixtures/series";
 import {
   API_ORIGIN, ORGANIZATION_ID, SITE_ID, DEVICE_ID, ORGANIZATIONS_URL, REFRESH_URL,
   accessPayload, availabilityPayload, devicePayload, fulfillJson, fulfillPreflight,
@@ -25,6 +26,11 @@ export async function stage14Workspace(target: Page | BrowserContext, role: "own
   let signedIn = !loginRequired;
   const writes = { reads: [0, 0], acknowledgements: [0, 0], commands: 0, logouts: 0 };
   await mockAuthenticatedWorkspace(target, { role, memberships: tenants.map((t) => ({ organization_id: t.organization, role })) });
+  await target.route(`${API_ORIGIN}/api/v1/devices/*/telemetry/series?*`, async (route) => {
+    if (await fulfillPreflight(route)) return;
+    const url = new URL(route.request().url()), q = url.searchParams;
+    await fulfillJson(route, 200, seriesFixture({ start: q.get("start")!, end: q.get("end")!, bucket_seconds: Number(q.get("bucket_seconds")) }, q.get("metric")!, url.pathname.split("/")[4], true));
+  });
   await mockBrowserLoginSuccess(target, { onRequest: () => { signedIn = true; } });
   await mockBrowserLogoutSuccess(target, () => { signedIn = false; writes.logouts++; });
   await target.route(REFRESH_URL, async (route) => {
