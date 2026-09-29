@@ -96,10 +96,33 @@ volumes та історія зберігаються. MQTT scenario обмеже
 на <http://127.0.0.1:3000/login>. Це локальна перевірка production mode,
 а не публічний production deployment. Для правок коду потрібна нова збірка.
 
-Новий Windows-прогін 14.3–14.4 ще не підтверджений користувачем. Попередні
-скриншоти з **146 mocked / 10 live / gate PASS** належать до 14.1–14.2;
-їх не перенесено на нові зміни. У локальному середовищі агента немає
-робочого Chromium/Docker; повні browser/live докази беруться з CI.
+### 2.1. Windows-докази 29.09.2026
+
+Переглянуто всі вісім наданих користувачем скриншотів. Файли
+`image(20260929-094311).png`, `image(20260929-094328).png`,
+`image(20260929-094341).png`, `image(20260929-094351).png`,
+`image(20260929-094405).png`, `image(20260929-094420).png`,
+`image(20260929-094430).png`, `image(20260929-094441).png`
+є вхідними доказами цієї фіксації; зображення не дублюються в git.
+
+| Видимий доказ | Результат |
+|---|---|
+| Mocked Chromium suite | **152 passed (4.9m)**; серед видимих PASS — F5 preferences, scroll/collapse, permissions, security, performance |
+| Підготовка demo | PostgreSQL/Mosquitto/backend/simulator **Healthy**; `DEMO seed already exists; data and passwords preserved` |
+| Live browser suite | `Running 10 tests`, усі 10 позначені успішними; наступний cumulative gate завершений |
+| Наскрізний MQTT scenario | Telemetry → rule event → alarm → notification → personal reads → owner ACK → recovery **PASS** |
+| Build budget | 24 chunks; **266 392 / 358 400 bytes gzip**, largest **71 628 / 122 880 bytes** |
+| npm audit | **found 0 vulnerabilities** для цього локального запуску |
+| Фінальний wrapper | **PASS: stage 14.3–14.4 frontend test baseline. This is NOT a production release.** |
+| Запуск frontend | Після PASS видно виклик `npm run start`; наступний рядок Ready і ручні дії в браузері не показані |
+
+**Межі:** SHA локального checkout не показаний. Ці скриншоти підтверджують
+локальний автоматичний прогін, але не встановлюють точну revision. Для
+доповнення provenance зберегти `git rev-parse HEAD` і `git status --short`
+до наступних локальних змін. Окремі Windows unit/repeat підсумки й performance
+JSON не надані; 90 unit, 44 repeats та точні browser timings вище є доказами CI.
+Непоказані ручні дії, zoom/screen reader та фізичне обладнання не позначаються PASS.
+Старі 146 mocked Windows results залишаються історією 14.1–14.2.
 
 ## 3. Артефакти та відтворення
 
@@ -122,7 +145,7 @@ performance JSON у `frontend/test-results`, build budget — в `artifacts/stag
 
 | Напрям | Наступний доказ |
 |---|---|
-| Windows на новій revision | Фінальний PASS wrapper 14.3–14.4 і SHA з `git rev-parse --short HEAD` |
+| Provenance Windows | Wrapper 14.3–14.4 вже PASS; додати SHA з `git rev-parse HEAD` і стан checkout з `git status --short` |
 | Ручний UX | Метрика/період/інтервал без стрибка до верху, F5 збереження, згортання деталей без порожньої області |
 | Ролі/ізоляція | Owner/viewer, дві організації й вкладки; logout прибирає приватні дані; personal read не змінює чужий стан |
 | Доступність | Реальний browser zoom 200/400%, keyboard/focus, screen reader; Chromium axe не означає повну WCAG відповідність |

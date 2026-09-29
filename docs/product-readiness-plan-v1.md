@@ -19,7 +19,7 @@ frontend — `d51841d`. Backend **0.38.0**, PostgreSQL **16**, 17 migrations.
 |---|---|---|
 | База даних | PostgreSQL, SQLAlchemy, 17 Alembic migrations; organizations/sites/devices, users/roles/sessions, telemetry/snapshot, commands, alarms, notifications | Модель фізичних модулів, ownership/replacement, production retention, backup/PITR і capacity |
 | Backend | FastAPI 0.38.0; commands з row locks, TTL, ACK/Result та `result_unknown`; MQTT ACK після успішного processing/commit | Production settings, device identity/TLS, lifecycle policies, масштабування runtime |
-| Frontend | 90 unit / 152 mocked / 10 live + 44 повтори PASS на `d51841d` | Нове Windows/manual acceptance, UX реального обладнання й configuration/provisioning flows |
+| Frontend | CI: 90 unit / 152 mocked / 10 live + 44 повтори PASS на `d51841d`; Windows: 152 mocked / 10 live / gate 14.3–14.4 PASS, SHA checkout не показаний | Завершення manual acceptance, UX реального обладнання й configuration/provisioning flows |
 | Прошивка | У `firmware/` лише README; buildable ESP32 firmware у tracked tree не знайдено | Зібрати наявні локальні Arduino/V2/V3 напрацювання, створити відтворюваний firmware project |
 | MQTT | Mosquitto, QoS 1, durable server commands, retry/recovery | Нинішній broker дозволяє anonymous; додати TLS, окремі device identities, ACL та ротацію |
 | Модульність | Одна capability кожного типу на Device; фіксовані v1 channel keys | Для двох однотипних датчиків потрібен instance/channel contract через усю систему |
@@ -522,6 +522,11 @@ queue age й recovery time. 0 unintended actuation і 0 tenant data leakage
 
 **P0.1:** новий Windows gate 14.3–14.4, потім один acceptance checklist
 з попередніх відкритих manual сценаріїв. Вихід: baseline SHA та defect log.
+
+Оновлення 29.09.2026: Windows automatic gate підтверджений вісьмома
+скриншотами — 152 mocked / 10 live / фінальний PASS, budget PASS, audit 0.
+[Докази](stage-14-op4-test-baseline.md#21-windows-докази-29092026).
+SHA checkout і залишок ручних сценаріїв ще потрібні; P0.1 виконана частково.
 
 **P0.2:** паспорт першого стенда: точна ESP32-S3 board/flash/PSRAM,
 модель і revision modem, модель VFD та її manual, RS-485 converter,

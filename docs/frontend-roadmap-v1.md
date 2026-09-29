@@ -7,7 +7,7 @@
 11.1 і 11.2 прийнято 28.09.2026 після Windows PASS і ручного підтвердження.
 Поточна точка — Етапи 12 і 13 реалізовано по 4/4, досьє V3.5 складено;
 14.1–14.4 реалізовано як тестову базу, не production-реліз;
-фінальний CI 90/152/10 + 44 повтори PASS, audit 0; новий Windows run очікується;
+фінальний CI 90/152/10 + 44 повтори PASS, audit 0; Windows 152/10 + gate 14.3–14.4 PASS;
 перевірки та залишок локального приймання наведено нижче.
 11.3 + 11.4 мають Windows PASS із залишком ручних сценаріїв.**
 
@@ -165,8 +165,8 @@ Start/frequency не накопичуються локально для відп
 |---|---|
 | 14.1 — UX/accessibility | Реалізовано; CI і Windows PASS, 27 CI axe scans / 0 violations, incomplete розглянуто в досьє; ручне zoom/AT приймання відкрите |
 | 14.2 — Browser regression | Реалізовано: owner/viewer, two tenants/tabs, live logout; CI 83 unit / 146 mocked / 10 live + 44 повтори PASS; Windows 146 mocked / 10 live / gate PASS, залишок ручного приймання |
-| 14.3 — Security/performance | Реалізовано: CSP/nonce, API origin/redirect guard, escaping/storage, bundle/request/render/heap gates; докази в 14.4 |
-| 14.4 — Тестова база / досьє | Реалізовано: production-mode build, CI/live gate, Windows wrapper і загальне досьє; подальші випробування відкриті |
+| 14.3 — Security/performance | Реалізовано: CSP/nonce, API origin/redirect guard, escaping/storage, bundle/request/render/heap gates; CI + Windows gate PASS; докази й межі в 14.4 |
+| 14.4 — Тестова база / досьє | Реалізовано: production-mode build, CI/live gate, Windows wrapper і загальне досьє; Windows gate PASS, SHA checkout та подальші випробування відкриті |
 
 ## 10. Незмінні правила
 
@@ -279,3 +279,9 @@ deployment не створювалися. Результати, revisions, budge
 Фінальні докази 14.3–14.4: `d51841d`, CI `36535454970` —
 90 unit / 152 mocked / 10 live + 44 повтори PASS, OpenAPI/types/lint/build/budget
 PASS, npm audit 0 vulnerabilities. Точні виміри збережено в 14.4 та JSON snapshot.
+
+Нові Windows-докази 29.09.2026: вісім скриншотів `094311`–`094441`,
+**152 mocked passed (4.9m) / 10 live / фінальний 14.3–14.4 gate PASS**,
+bundle 266 392 bytes gzip, largest 71 628, npm audit 0 vulnerabilities.
+SHA checkout і ручні сценарії не показані. [Фіксація та межі](stage-14-op4-test-baseline.md#21-windows-докази-29092026).
+Прийнятий прогрес 10/24 не змінюється лише від автоматичного прогону.

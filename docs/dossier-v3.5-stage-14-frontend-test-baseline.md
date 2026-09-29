@@ -6,7 +6,9 @@
 
 **Реалізовано 14.1–14.4 як базову версію для подальших випробувань.**
 Фінальний CI: **90 unit / 152 mocked / 10 live + 44 repeat — PASS**;
-npm audit **0 vulnerabilities**. Нове Windows-приймання очікується.
+npm audit **0 vulnerabilities**. Windows 29.09.2026:
+**152 mocked / 10 live / фінальний gate 14.3–14.4 PASS**;
+SHA локального checkout не показаний, ручне приймання лишається відкритим.
 На прохання користувача колишній пункт «release/dossier» уточнено як
 «тестова база / досьє». Промисловий реліз, deploy чи release tag не робилися.
 Прийнятий frontend roadmap лишається **10/24**: реалізація всіх операцій
@@ -19,7 +21,7 @@ npm audit **0 vulnerabilities**. Нове Windows-приймання очіку�
 | [14.1 — UX/accessibility](stage-14-op1-ux-accessibility.md) | Контраст, видимий focus, keyboard menu/dialog, mobile tables, short viewport reflow, axe scans | CI та попередній Windows PASS; реальний zoom/assistive technology потребують ручної перевірки |
 | [14.2 — Browser regression](stage-14-op2-browser-regression.md) | Owner/viewer journeys, дві організації/вкладки, login → history → alarm → read → logout, live cross-tab logout | Попередні 146 mocked / 10 live Windows PASS; manual acceptance часткове |
 | [14.3 — Security/performance](stage-14-op3-security-performance.md) | CSP/nonce/headers, API origin і redirect guard, escaping/storage tests, formatter reuse, bundle/request/render/heap gates | Автотести та виміри в 14.4; не security certification і не навантажувальна атестація |
-| [14.4 — Тестова база](stage-14-op4-test-baseline.md) | Відтворювана production-mode збірка, CI/live evidence, Windows wrapper, це досьє та залишок випробувань | Новий Windows run і ручні/апаратні випробування відкриті |
+| [14.4 — Тестова база](stage-14-op4-test-baseline.md) | Відтворювана production-mode збірка, CI/live evidence, Windows wrapper, це досьє та залишок випробувань | Windows gate PASS за скриншотами; SHA checkout, ручні/апаратні випробування відкриті |
 
 ## 2. Виправлення та інженерні рішення
 
@@ -76,8 +78,15 @@ Inline styles залишено для чинних React/SVG styles. Це обм
 - Перший CI `36534512798`: 150 pass / 2 fail у нових tests; виправлено
   модель HTML injection та setup browser history. Повторний повний CI зелений;
   опис причин збережено в 14.4. Production CSP/budgets не послаблювали.
-- Новий Windows run 14.3–14.4 ще очікується. Попередній Windows PASS
-  підтверджує лише базу 14.1–14.2, не ці нові зміни.
+- Windows 29.09.2026, вісім скриншотів `094311`–`094441`:
+  **152 mocked passed за 4.9 min**, усі **10 live** позначені успішними,
+  MQTT → alarm → notification → reads → ACK → recovery PASS,
+  фінальний **14.3–14.4 gate PASS**. Bundle: **266 392 / 358 400 bytes gzip**,
+  24 chunks, largest **71 628 / 122 880 bytes**; npm audit **0 vulnerabilities**.
+  PostgreSQL/Mosquitto/backend/simulator — Healthy; demo seed збережено.
+  SHA Windows checkout, точні Windows performance JSON, окремий unit summary
+  і repeat-run на цих скриншотах відсутні; числа CI не переносимо на Windows.
+  Детальна [фіксація доказів і меж](stage-14-op4-test-baseline.md#21-windows-докази-29092026).
 
 Backend source/schema у 14.3–14.4 не змінювався. Frontend CI не є новим
 повним backend unit/integration або hardware test run.
@@ -103,7 +112,7 @@ client navigation з forced GC. Звіти містять фактичні зн�
 
 Послідовність подальшої роботи:
 
-1. Підтвердити новий Windows gate і залишок ручних сценаріїв 11–14:
+1. Windows gate 14.3–14.4 підтверджений; додати SHA checkout і пройти залишок ручних сценаріїв 11–14:
    scroll/F5/collapse, owner/viewer, tenants/tabs, keyboard/zoom/screen reader.
 2. На окремому погодженому стенді перевірити фізичний контролер,
    sensor mapping, ACK/result, втрату зв'язку та аварії.
