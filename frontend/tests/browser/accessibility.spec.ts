@@ -35,6 +35,7 @@ for (const viewport of [{ width: 1440, height: 1000 }, { width: 768, height: 102
       if (heading === "Повідомлення") await expect(page.getByRole("link", { name: "Повідомлення A", exact: true })).toBeVisible();
       await noPageOverflow(page);
       await audit(page, `${viewport.width}-${heading}`);
+      if (heading === "Насос A") await page.screenshot({ path: test.info().outputPath(`device-${viewport.width}.png`), fullPage: true });
     }
     await page.screenshot({ path: test.info().outputPath(`notification-${viewport.width}.png`), fullPage: true });
   });
@@ -65,8 +66,10 @@ for (const width of [1440, 320]) test(`skip link and account menu support keyboa
   await trigger.focus(); await page.keyboard.press("Enter");
   const action = page.getByRole("menuitem", { name: /Вийти з акаунта/u });
   await expect(action).toBeFocused();
+  await expect(page.getByRole("menu")).toHaveAttribute("id", (await trigger.getAttribute("aria-controls"))!);
   await page.keyboard.press("ArrowDown"); await expect(action).toBeFocused();
   await audit(page, `menu-${width}`);
+  await page.screenshot({ path: test.info().outputPath(`menu-${width}.png`) });
   await page.keyboard.press("Escape"); await expect(trigger).toBeFocused();
   await expect(trigger).toHaveAttribute("aria-expanded", "false");
   await page.keyboard.press("ArrowUp"); await expect(action).toBeFocused();
@@ -87,6 +90,7 @@ test("confirmation is keyboard-contained, Escape restores focus and never submit
     expect(await dialog.evaluate((el) => el.contains(document.activeElement))).toBe(true);
   }
   await audit(page, "confirmation");
+  await page.screenshot({ path: test.info().outputPath("confirmation.png") });
   await page.keyboard.press("Escape"); await expect(dialog).not.toBeVisible();
   await expect(trigger).toBeFocused(); expect(writes.acknowledgements).toEqual([0, 0]);
 });

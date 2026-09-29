@@ -55,9 +55,7 @@ login/overview/polling/429 залишаються окремими переві�
 потрібно підтвердити повним GitHub CI. Backend code/API/migrations не змінені,
 новий повний backend suite для цієї операції не заявляється.
 
-## Windows: один блок
-
-### Корекція першого CI
+## Корекції за результатами CI
 
 [`63331b8`](https://github.com/Mahone1008/STechbaza-iot/commit/63331b8c42bdf0be2bbbfe94bd4bbd3c3b618a66),
 [run #36525679565](https://github.com/Mahone1008/STechbaza-iot/actions/runs/36525679565):
@@ -66,9 +64,16 @@ login/overview/polling/429 залишаються окремими переві�
 із native modal у browser chrome. Додано role=img та замикання Tab/Shift+Tab;
 focus outlines у clipped containers перенесено всередину. Два journeys
 очікували графік від порожньої series fixture: fixture тепер містить валідні
-зразки, assertions не послаблені. Повторний повний CI ще очікується.
+зразки, assertions не послаблені.
 
-### Команда
+[`b2b4279`](https://github.com/Mahone1008/STechbaza-iot/commit/b2b427981df8c2edd2aad26702ce755f84b75d15),
+[run #36526330190](https://github.com/Mahone1008/STechbaza-iot/actions/runs/36526330190):
+144 mocked PASS, 2 failed, live skipped. Попередні помилки виправлені;
+подальші mobile/tablet scans знайшли замалу область summary у details.
+Мінімальну висоту збільшено до 44 px із вертикальними відступами.
+Повторний повний CI очікується.
+
+## Windows: один блок
 
 Docker Desktop має працювати. Попередній frontend зупинити через Ctrl+C.
 

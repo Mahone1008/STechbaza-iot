@@ -47,6 +47,7 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 button, input, select, textarea { font: inherit; }
+summary { min-height: 44px; padding-block: 10px; cursor: pointer; }
 :focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
 /* Контур залишається видимим також у системному режимі контрастності. */
 @media (forced-colors: active) { :focus-visible { outline-color: Highlight; } }
@@ -472,9 +473,8 @@ h1, h2, h3 { letter-spacing: -0.02em; }
     grid-auto-flow: column;
     grid-auto-columns: minmax(0, 1fr);
     border-top: 1px solid var(--border);
-    background: rgb(255 255 255 / 96%);
+    background: var(--surface);
     padding: 7px 8px calc(7px + env(safe-area-inset-bottom));
-    backdrop-filter: blur(12px);
   }
   .mobile-nav a { display: grid; min-height: 50px; place-items: center; gap: 2px; border-radius: 9px; color: var(--text-secondary); font-size: 10px; font-weight: 700; }
   .mobile-nav a span { min-width: 0; max-width: 100%; overflow-wrap: anywhere; text-align: center; line-height: 1.3; }

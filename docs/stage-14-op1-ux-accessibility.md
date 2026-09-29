@@ -16,6 +16,8 @@
 | Skip link не мав явно фокусованого target | main отримав tabIndex=-1 |
 | Компактний логотип мав aria-label на generic span | Семантичний role=img із назвою KERUMO |
 | Native dialog допускав вихід Tab у browser chrome | Явне замикання Tab/Shift+Tab між доступними елементами, native inert/Escape/return focus збережені |
+| Рядки розкриття details мали замалу область натискання на mobile/tablet | summary має мінімальну висоту 44 px і вертикальні відступи; native marker і keyboard behavior збережені |
+| Напівпрозоре тло mobile navigation залежало від вмісту під панеллю | Суцільне surface тло для стабільного контрасту |
 | Device detail не позначав активний mobile route | Спільне правило вкладених routes та aria-current=page |
 | Заголовки й pagination потребували перенесення на вузькому екрані | Wrap для card headers, actions і pagination; mobile labels можуть переноситися |
 | Закріплені панелі займали значну частину низького вікна | До 480 CSS px висоти topbar/mobile navigation переходять у звичайний потік |
@@ -43,7 +45,7 @@
 - усі колонки таблиці та keyboard horizontal scroll;
 - reflow 320×256 CSS px — еквівалент доступного простору 1280×1024 при 400%;
 - empty/403 notification states без старих rows;
-- screenshots notification detail на трьох ширинах.
+- screenshots notification/device detail на трьох ширинах, menu та confirmation.
 
 Це Chromium coverage основних станів. Емуляція розміру viewport не є
 натисканням browser zoom, перевіркою ОС scaling чи screen reader.
