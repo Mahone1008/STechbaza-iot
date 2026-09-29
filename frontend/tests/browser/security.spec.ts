@@ -28,18 +28,28 @@ test("production HTML has fresh CSP nonces, private cache and defensive headers"
 });
 
 test("CSP blocks injected inline scripts and inline event handlers", async ({ page }) => {
-  await mockMissingBrowserSession(page); await page.goto("/login");
-  await page.evaluate(() => {
+  await mockMissingBrowserSession(page);
+  await page.addInitScript(() => {
     document.addEventListener("securitypolicyviolation", (event) => {
-      document.documentElement.dataset.cspBlocked = event.violatedDirective;
+      document.documentElement.dataset.cspBlocked = `${document.documentElement.dataset.cspBlocked ?? ""},${event.effectiveDirective}`;
     });
-    const script = document.createElement("script");
-    script.textContent = 'document.documentElement.dataset.injected = "yes"'; document.body.append(script);
-    const button = document.createElement("button");
-    button.setAttribute("onclick", 'document.documentElement.dataset.injected = "yes"'); document.body.append(button); button.click();
   });
-  await expect(page.locator("html")).toHaveAttribute("data-csp-blocked", /script-src/u);
-  await expect(page.locator("html")).not.toHaveAttribute("data-injected", "yes");
+  // Exercise untrusted parser-inserted HTML, not DevTools-authorized JS evaluation.
+  await page.route("http://127.0.0.1:3000/login", async (route) => {
+    const response = await route.fetch();
+    const body = (await response.text()).replace("</head>", '<script>document.documentElement.dataset.injectedScript="yes"</script></head>');
+    await route.fulfill({ response, body });
+  });
+  await page.goto("/login");
+  await expect(page.getByRole("heading", { name: "Вхід до кабінету" })).toBeVisible();
+  await expect(page.locator("html")).toHaveAttribute("data-csp-blocked", /script-src-elem/u);
+  await expect(page.locator("html")).not.toHaveAttribute("data-injected-script", "yes");
+  await page.evaluate(() => {
+    const button = document.createElement("button");
+    button.setAttribute("onclick", 'document.documentElement.dataset.injectedHandler = "yes"'); document.body.append(button); button.click();
+  });
+  await expect(page.locator("html")).toHaveAttribute("data-csp-blocked", /script-src-attr/u);
+  await expect(page.locator("html")).not.toHaveAttribute("data-injected-handler", "yes");
 });
 
 test("notification content is escaped and credentials never enter persistent storage", async ({ page }) => {
@@ -49,6 +59,9 @@ test("notification content is escaped and credentials never enter persistent sto
     if (await fulfillPreflight(route)) return;
     await fulfillJson(route, 200, notificationFixture({ id: tenants[0].notification, organization_id: tenants[0].organization, device_id: tenants[0].device, alarm_id: tenants[0].alarm, title }));
   });
+  // Logout replaces the current entry; retain an earlier protected page for Back.
+  await page.goto("/devices");
+  await expect(page.getByRole("heading", { name: "Пристрої", exact: true })).toBeVisible();
   await page.goto(notificationPath());
   await expect(page.getByRole("heading", { name: title, exact: true })).toBeVisible();
   await expect(page.locator('img[src="x"]')).toHaveCount(0);

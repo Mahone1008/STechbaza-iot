@@ -43,6 +43,9 @@ immutable static assets лишаються кешованими.
 
 Development допускає `unsafe-eval` для Next.js. Браузерні перевірки працюють
 через **`next start` після build**, тому перевіряють production-політику.
+`strict-dynamic` довіряє залежностям, які завантажує вже дозволений script;
+CSP не є sandbox для DevTools або скомпрометованого trusted JavaScript.
+App code не будує script URLs/HTML із notification payload.
 Nonce вимагає server rendering для кожного запиту: HTML не можна
 використовувати як static export/ISR або кешувати на CDN. Це усвідомлена
 вартість захисту для authenticated UI; server capacity ще потрібно виміряти.

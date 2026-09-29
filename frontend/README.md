@@ -71,7 +71,7 @@ Node.js: **20.9.0+**. CI: Node.js 22.16.0. Локально прийняті Е�
 CSP дозволяє API origin з `NEXT_PUBLIC_API_BASE_URL`; змінювати його потрібно
 перед `npm run build`. HTML/RSC динамічні, з per-request nonce і `no-store`;
 CDN-кешування HTML не підтримується. Inline styles дозволені для React/SVG,
-inline scripts без nonce заблоковані. `npm run start` — локальний запуск
+неавторизовані scripts у початковому HTML заблоковані. `npm run start` — локальний запуск
 зібраної версії, а не оголошення production-релізу.
 
 Після build: `npm run check:budget` записує bundle report в

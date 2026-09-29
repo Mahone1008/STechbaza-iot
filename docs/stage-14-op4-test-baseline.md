@@ -25,6 +25,22 @@ unit, production build, bundle budget, dependency audit, mocked browser,
 44 повтори попередніх race/polling/Retry-After регресій без retries і окремий
 live job з новим demo DB/backend/MQTT simulator. Mocked та live не змішуються.
 
+### Історія перевірки 14.3–14.4
+
+Перший run [`36534512798`](https://github.com/Mahone1008/STechbaza-iot/actions/runs/36534512798)
+на `aea94d9`: **150 passed / 2 failed**, live не запускався. Обидва
+падіння в нових security tests досліджено за traces:
+
+- CSP test створював script через DevTools evaluation замість ін'єкції
+  у початковий HTML. Виправлено модель: parser-inserted script у HTTP body
+  без зміни CSP headers, окремі assertions для script і handler.
+- Logout test мав лише один app history entry; `replace` під час logout
+  залишав для Back `about:blank` (підтверджено trace). Тепер перед notification
+  відкривається інша protected page і перевіряється Back саме до неї.
+
+Політику CSP, timeout/budget та перевірки приватних даних не послаблювали.
+Повний suite запускається знову після виправлення test setup.
+
 ## 2. Windows: одна команда
 
 Docker Desktop має працювати в Linux containers mode. Зупинити попередній
