@@ -66,10 +66,15 @@ if (-not (Get-NetFirewallRule -DisplayName 'KERUMO V3 MQTT LAN' -ErrorAction Sil
 | Flash Size | 16MB (128Mb) |
 | PSRAM | OPI PSRAM |
 | Partition Scheme | 16M Flash (3MB APP/9.9MB FATFS) |
-| USB CDC On Boot | Enabled, для native USB порту плати |
+| USB CDC On Boot | Disabled для USB-UART; Enabled для native USB |
 | Port | COM-порт підключеної ESP32 |
 | Erase All Flash Before Sketch Upload | Disabled |
 | Serial Monitor | 115200, Newline |
+
+Використати той самий USB-порт і режим Serial, що працював у попередньому V3.
+У досьє це був `USB Serial Port (COM10)`; номер COM після підключення може змінитися.
+Для підключення через USB-UART обрати **Disabled**: Serial працює через UART0,
+а RS485 — окремо через UART1. **Enabled** потрібне лише для native USB CDC.
 
 UART лишається з попереднього V3: **RX GPIO18, TX GPIO17, 9600, 8N1, slave 1**.
 Використовується перевірений ізольований конвертер з автоматичним керуванням напрямком.
@@ -167,8 +172,10 @@ docker compose -p techbaza-demo --env-file .env.demo -f compose.demo.yml exec -T
 - NVS не стирати для обходу sequence/config помилок. Заміна контролера, IP, сертифіката,
   відновлення старої БД та перенесення до іншої організації потребують окремої процедури.
 
-Команда збірки, яку використовує CI:
+Команда збірки для native USB, яку використовує CI:
 
 ```sh
 arduino-cli compile --fqbn esp32:esp32:esp32s3:CDCOnBoot=cdc,FlashSize=16M,PSRAM=opi,PartitionScheme=app3M_fat9M_16MB firmware/kerumo_v3
 ```
+
+CI також збирає варіант для USB-UART з `CDCOnBoot=default` (Disabled).

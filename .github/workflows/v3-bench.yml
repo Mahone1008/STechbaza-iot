@@ -28,6 +28,8 @@ jobs:
           /tmp/v3-core-test
       - name: Compile read-only firmware for ESP32-S3 N16R8
         run: arduino-cli compile --warnings all --fqbn esp32:esp32:esp32s3:CDCOnBoot=cdc,FlashSize=16M,PSRAM=opi,PartitionScheme=app3M_fat9M_16MB firmware/kerumo_v3
+      - name: Compile read-only USB-UART variant for the original V3 serial port
+        run: arduino-cli compile --warnings all --fqbn esp32:esp32:esp32s3:CDCOnBoot=default,FlashSize=16M,PSRAM=opi,PartitionScheme=app3M_fat9M_16MB firmware/kerumo_v3
       - name: Compile guarded control variant
         run: |
           sed 's/KERUMO_ENABLE_CONTROL false/KERUMO_ENABLE_CONTROL true/' firmware/kerumo_v3/config.example.h > firmware/kerumo_v3/config.local.h

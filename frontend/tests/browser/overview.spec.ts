@@ -15,7 +15,7 @@ test("assigned numeric/state widgets preserve zero and false, with unsupported a
   await expect(page.getByRole("heading", { name: "Модулі та канали", exact: true })).toBeVisible();
   const pressure = page.locator(".metric-card").filter({ hasText: "Тиск" });
   await expect(pressure.locator("strong")).toHaveText("0"); await expect(pressure).toContainText("bar");
-  await expect(page.locator(".metric-card").filter({ hasText: "Робота насоса" }).locator("strong")).toHaveText("Ні");
+  await expect(page.locator(".metric-card").filter({ hasText: "Стан RUN частотника" }).locator("strong")).toHaveText("Ні");
   await expect(page.locator(".metric-card").filter({ hasText: "Код помилки" }).locator("strong")).toHaveText("0");
   await expect(page.getByText("Цей модуль ще не підтримує відображення даних.")).toBeVisible();
   await expect(page.getByText(/Модуль керування без вимірювальних каналів/)).toBeVisible();
@@ -31,7 +31,7 @@ test("online and stale telemetry remain separate; missing and invalid never beco
   await expect(page.getByText("Online", { exact: true })).toBeVisible();
   await expect(page.getByText(/Контролер змінив сесію/)).toBeVisible();
   await expect(page.locator(".metric-card").filter({ hasText: "Тиск" })).toContainText("Останнє відоме значення");
-  await expect(page.locator(".metric-card").filter({ hasText: "Робота насоса" }).locator("strong")).toHaveText("—");
+  await expect(page.locator(".metric-card").filter({ hasText: "Стан RUN частотника" }).locator("strong")).toHaveText("—");
   await expect(page.locator(".metric-card").filter({ hasText: "Код помилки" })).toContainText("Некоректні дані");
 });
 
