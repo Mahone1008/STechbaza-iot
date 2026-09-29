@@ -2,7 +2,8 @@
 
 Дата: 29.09.2026. База: `147a10d`. Разом із [14.1 — UX/accessibility](stage-14-op1-ux-accessibility.md).
 Реалізовано; **фінальний CI PASS: 83 unit / 146 mocked / 10 live + 44 повтори**.
-Windows/manual приймання очікується.
+Windows 29.09.2026: **146 mocked / 10 live / cumulative gate PASS**;
+ручне приймання часткове, докази та залишок наведено нижче.
 
 ## Сценарії
 
@@ -60,12 +61,13 @@ login/overview/polling/429 залишаються окремими переві�
 | Accessibility | 27 axe scans / 0 violations; 8 incomplete scan/rule pairs розглянуто в 14.1, 9 screenshots переглянуто |
 | Повтори регресій | 10 login + 15 overview + 9 polling + 10 ACK/read 429 = 44 PASS, retries=0 |
 | Live FastAPI/MQTT | 10 PASS за 59.7 с, retries=0; incident → notifications → owner/viewer personal read → ACK → MQTT recovery; two-tab logout PASS |
-| Windows wrapper | ASCII check PASS; Windows виконання очікується |
+| Windows wrapper | 29.09.2026 PASS за скриншотами користувача: 146 mocked / 10 live та фінальний gate 14.1–14.2 |
 
-Локальне встановлення Chromium і headless shell завершилось помилкою
-пошкодженого ZIP із CDN, браузера та Docker у цьому середовищі немає.
-Тому локальний browser/live PASS не заявляється; фактичний результат
-підтверджено повним GitHub CI вище. Backend code/API/migrations не змінені,
+У Linux-середовищі розробки встановлення Chromium і headless shell
+завершилось помилкою пошкодженого ZIP із CDN; браузера та Docker там немає.
+Browser/live PASS із цього середовища не заявляється; фактичний результат
+підтверджено GitHub CI вище та Windows-прогоном користувача нижче.
+Backend code/API/migrations не змінені,
 новий повний backend suite для цієї операції не заявляється.
 
 ## Корекції за результатами CI
@@ -86,7 +88,32 @@ focus outlines у clipped containers перенесено всередину. Д
 Мінімальну висоту збільшено до 44 px із вертикальними відступами.
 Наступний commit `19bb2fd` пройшов повний CI, наведений вище.
 
-## Windows: один блок
+## Windows-прогін користувача — 29.09.2026
+
+Переглянуто 10 наданих скриншотів. Зафіксовано такі результати:
+
+| Доказ | Що підтверджено |
+|---|---|
+| `image(20260929-055720).png`, `055748`, `055856`, `055936` | 146 mocked tests PASS за 4.2 хв, включно з 10 accessibility та 3 journeys. На `055936` також є PASS cumulative gate 9.4: clean install, API contract, unit, production build і Chromium |
+| `image(20260929-055950).png`, `060003`, `060028` | Demo seed уже існує, дані й паролі збережені; PostgreSQL/Mosquitto/backend/simulator Healthy, ACK fixture підготовлено без очищення історії |
+| `image(20260929-060028).png`, `060043` | MQTT telemetry → rule event → alarm → notification → personal owner/viewer reads → owner ACK → MQTT recovery PASS; загалом 10 live tests PASS за 58.7 с |
+| `image(20260929-060043).png` | Фінальний `PASS: stage 14.1-14.2 accessibility, keyboard, reflow and workspace journeys`; після gate запущено `npm run dev` |
+| `image(20260929-060239).png`, `060251` | Два стани історії: частота Hz та тиск bar, період 24 години й інтервал 1 година; графіки завантажені, min/max відрізки та focus outline селектора видимі |
+
+SHA локального checkout і окремий підсумок unit tests на цих зображеннях
+не показані. Прохід попередніх перевірок підтверджено cumulative PASS;
+число 83 unit у таблиці CI походить із CI, а не з прочитаного Windows log.
+44 додаткові repeat runs залишаються CI-доказом; окремий Windows повтор
+цих груп не заявляється. Помилок у показаному прогоні немає.
+
+Статичні screenshots графіків не доводять F5, відсутність стрибка scroll,
+масштаб 200/400%, повну послідовність Tab/Shift+Tab/Escape, screen reader
+або ручний cross-tab/logout. Keyboard, F5, scroll і cross-tab/logout мають
+автоматичне покриття; viewport tests не є real browser zoom чи screen-reader
+перевіркою. Ручне приймання нижче залишається відкритим.
+Прийнятий progress 10/24 не змінено самим підтвердженням automated gate.
+
+## Windows: команда для повторної перевірки
 
 Docker Desktop має працювати. Попередній frontend зупинити через Ctrl+C.
 

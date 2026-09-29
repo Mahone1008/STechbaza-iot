@@ -54,7 +54,9 @@ PASS**, повний browser MQTT incident/recovery пройдено. Windows 28
 детальні докази — у 13.4. Реалізовано 14.1 та 14.2; **фінальний CI
 83 unit / 146 mocked / 10 live + 44 повтори — PASS**. У 27 axe scans
 немає violations; `incomplete` та ручні межі розглянуто в 14.1.
-Windows/manual очікується. Наступні — 14.3 та 14.4.
+Windows 29.09.2026: **146 mocked / 10 live / cumulative gate PASS**;
+показано графіки частоти/тиску та focus outline, решта ручного приймання
+відкрита. Докази — у 14.2. Наступні — 14.3 та 14.4.
 
 ## Backend: виправлення та перевірки
 

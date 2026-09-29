@@ -4,7 +4,8 @@
 Разом із [14.2 — browser regression](stage-14-op2-browser-regression.md).
 Реалізовано; фінальний CI на `19bb2fd` — PASS: types/lint, 83 unit,
 146 mocked, 10 live, 44 повтори та production build.
-Windows/manual ще очікується; повні докази — у 14.2.
+Windows 29.09.2026: 146 mocked / 10 live / cumulative gate PASS;
+ручне приймання часткове, повні докази — у 14.2.
 
 ## Знайдені проблеми та зміни
 
@@ -84,6 +85,8 @@ retention 5 днів; висновки зафіксовано тут, щоб н�
 ## Межі ручного приймання
 
 Windows-команда і фінальний CI — у [14.2](stage-14-op2-browser-regression.md).
+29.09.2026 користувач підтвердив Windows automated gate скриншотами;
+на двох UI screenshots показано графіки частоти/тиску й видимий focus outline.
 Окремо потрібні реальний browser zoom 200/400%, Tab/Shift+Tab, forced colors,
 екранна клавіатура, screen reader, довгі назви й дані користувача та перевірка
 того, що фокус не перекритий панелями. Інші browser engines тут не заявляються.
