@@ -11,6 +11,11 @@ Backend: Python/FastAPI, PostgreSQL, SQLAlchemy/Alembic, Mosquitto.
 Backend **0.38.0** прийнято 27.09.2026 після повного CI та Windows-перевірки.
 Етап H завершено 5/5.
 
+[План готовності продукту P0–P9](docs/product-readiness-plan-v1.md):
+розвиток PostgreSQL, firmware ESP32, device identity, MQTT/LTE, deployment,
+OTA, випробування, пілот і підготовка до поставки. Статус — план після
+тестової бази Етапу 14; майбутні роботи ще не прийняті.
+
 Frontend Foundation KERUMO:
 
 - Етап 9 завершено **4/4**;
