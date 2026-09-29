@@ -2,8 +2,9 @@
 
 Дата: 29.09.2026. База: `147a10d`, [досьє Етапу 13](dossier-v3.5-stage-13-alarms-notifications.md).
 Разом із [14.2 — browser regression](stage-14-op2-browser-regression.md).
-Реалізовано; локальні types/lint, 83 unit і production build PASS.
-Фінальний CI та Windows/manual ще очікуються.
+Реалізовано; фінальний CI на `19bb2fd` — PASS: types/lint, 83 unit,
+146 mocked, 10 live, 44 повтори та production build.
+Windows/manual ще очікується; повні докази — у 14.2.
 
 ## Знайдені проблеми та зміни
 
@@ -50,6 +51,27 @@
 Це Chromium coverage основних станів. Емуляція розміру viewport не є
 натисканням browser zoom, перевіркою ОС scaling чи screen reader.
 Автоматичний scan не підтверджує повної відповідності WCAG 2.2 AA.
+
+## Результат axe та візуальний перегляд
+
+Код [`19bb2fd`](https://github.com/Mahone1008/STechbaza-iot/commit/19bb2fd152a8930ec86d5fed1fba46783c841bb3),
+[frontend job](https://github.com/Mahone1008/STechbaza-iot/actions/runs/36527087657/job/109272402093):
+146 browser tests PASS, зокрема всі 10 accessibility tests. **27 axe scans,
+0 violations; 8 scan/rule pairs залишили `incomplete`**. Правила не вимкнено,
+ці записи не приховано та не зараховано як автоматичний PASS відповідних критеріїв.
+
+| `incomplete` | Розгляд |
+|---|---|
+| SVG contrast: чотири labels на кожній із трьох ширин | axe не визначив фон/короткі числові підписи. За CSS brand `#126f69` на surface `#ffffff` = 5.994:1; screenshots переглянуто. На 320 px підписи компактні; точні значення доступні в «Таблиця вимірювань», реальний zoom/AT лишається ручним |
+| Mobile notification label: три screens на 320 px | axe повідомив часткове перекриття. Screenshot показує перенесення назви у два рядки; secondary `#586971` на суцільному білому тлі = 5.716:1. Поведінку під час прокрутки/zoom треба прийняти вручну |
+| Menu aria-controls: desktop і mobile | Додаткова browser assertion підтверджує, що controls посилається на ID видимого menu; keyboard/Escape/Tab PASS |
+| Confirmation description contrast | Screenshot не показує перекриття тексту; secondary/surface = 5.716:1. Focus containment та Escape перевірено окремим тестом |
+
+Переглянуто всі 9 screenshots: device/notification на трьох ширинах,
+два menu й confirmation. Це перегляд фіксованих станів, не ручна Windows
+або screen-reader сесія. JSON і screenshots збережені в
+[`frontend-browser-report`](https://github.com/Mahone1008/STechbaza-iot/actions/runs/36527087657/artifacts/11015700057),
+retention 5 днів; висновки зафіксовано тут, щоб не залежати від строку artifact.
 
 ## Джерела критеріїв
 

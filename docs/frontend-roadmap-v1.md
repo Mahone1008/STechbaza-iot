@@ -5,7 +5,8 @@
 **Статус: прийнято 10 із 24 операцій. Етап 9 завершено 4/4.
 Етап 10 завершено 4/4 після CI та локального Windows-приймання.
 11.1 і 11.2 прийнято 28.09.2026 після Windows PASS і ручного підтвердження.
-Поточна точка — Етап 12 реалізовано 4/4, досьє V3.5 складено; Етап 13 реалізовано 4/4;
+Поточна точка — Етапи 12 і 13 реалізовано по 4/4, досьє V3.5 складено;
+14.1–14.2 реалізовано, CI 83/146/10 + 44 повтори PASS;
 перевірки та залишок локального приймання наведено нижче.
 11.3 + 11.4 мають Windows PASS із залишком ручних сценаріїв.**
 
@@ -161,8 +162,8 @@ Start/frequency не накопичуються локально для відп
 
 | Операція | Результат |
 |---|---|
-| 14.1 — UX/accessibility | Реалізовано: контраст, keyboard/focus, mobile tables, axe та reflow; фінальний CI та ручне zoom/AT приймання очікуються |
-| 14.2 — Browser regression | Реалізовано: owner/viewer journeys, two tenants/tabs, live logout, retries=0 та окремі artifacts; фінальний CI і Windows очікуються |
+| 14.1 — UX/accessibility | Реалізовано; CI PASS, 27 axe scans / 0 violations, incomplete розглянуто в досьє; Windows, zoom/AT приймання очікуються |
+| 14.2 — Browser regression | Реалізовано: owner/viewer, two tenants/tabs, live logout; CI 83 unit / 146 mocked / 10 live + 44 повтори PASS, retries=0; Windows очікується |
 | 14.3 — Security/performance | cache isolation, races, escaping, CSP, bundle/requests/heap/latency |
 | 14.4 — Release/dossier | production build, clean run, real demo E2E, revision evidence |
 
@@ -259,6 +260,7 @@ resolved/acknowledged incident з owner audit й трьома transitions.
 не змінює прийнятий прогрес 10/24.
 
 29.09.2026 реалізовано [14.1 UX/accessibility](stage-14-op1-ux-accessibility.md)
-та [14.2 browser regression](stage-14-op2-browser-regression.md): локально
-83 unit, types/lint/build PASS. Повний CI та Windows/manual очікуються.
+та [14.2 browser regression](stage-14-op2-browser-regression.md): **фінальний
+CI на `19bb2fd`: 83 unit / 146 mocked / 10 live + 44 повтори PASS**,
+27 axe scans / 0 violations. Windows/manual очікується; прийнято 10/24.
 Наступні операції — 14.3 security/performance та 14.4 release/dossier.

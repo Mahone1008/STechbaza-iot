@@ -51,8 +51,10 @@ PASS**, повний browser MQTT incident/recovery пройдено. Windows 28
 **133 mocked / 10 live / cumulative gate PASS**; стрічка, unread recovery та
 історія resolved/acknowledged показані, решта ручного приймання відкрита.
 Зведений результат — у [досьє Етапу 13](dossier-v3.5-stage-13-alarms-notifications.md),
-детальні докази — у 13.4. Реалізовано 14.1 та 14.2; фінальний CI та
-Windows/manual очікуються. Наступні — 14.3 та 14.4.
+детальні докази — у 13.4. Реалізовано 14.1 та 14.2; **фінальний CI
+83 unit / 146 mocked / 10 live + 44 повтори — PASS**. У 27 axe scans
+немає violations; `incomplete` та ручні межі розглянуто в 14.1.
+Windows/manual очікується. Наступні — 14.3 та 14.4.
 
 ## Backend: виправлення та перевірки
 

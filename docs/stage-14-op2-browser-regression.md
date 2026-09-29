@@ -1,7 +1,8 @@
 # Етап 14.2 — наскрізні browser regressions KERUMO
 
 Дата: 29.09.2026. База: `147a10d`. Разом із [14.1 — UX/accessibility](stage-14-op1-ux-accessibility.md).
-Реалізовано; локальні перевірки PASS. Фінальний CI та Windows/manual очікуються.
+Реалізовано; **фінальний CI PASS: 83 unit / 146 mocked / 10 live + 44 повтори**.
+Windows/manual приймання очікується.
 
 ## Сценарії
 
@@ -33,26 +34,38 @@ Mocked suite тепер глобально має retries=0, як live suite. Н
 login/overview/polling/429 залишаються окремими перевірками.
 
 Після основного suite CI одразу зберігає `frontend-browser-report`,
-включно з axe JSON, screenshots і failure traces. Наступні повтори не
+включно з axe JSON attachments у HTML report, screenshots і failure traces. Наступні повтори не
 перезаписують цей artifact. Останній repeat report має окрему назву
 `frontend-repeat-report`; live report лишається окремим. Retention — 5 днів.
 
-## Перевірки на поточному кроці
+## Фінальні докази CI
+
+Перевірений код: [`19bb2fd152a8930ec86d5fed1fba46783c841bb3`](https://github.com/Mahone1008/STechbaza-iot/commit/19bb2fd152a8930ec86d5fed1fba46783c841bb3).
+[Run #36527087657](https://github.com/Mahone1008/STechbaza-iot/actions/runs/36527087657) —
+**completed / success**, обидва jobs успішні. Фінальне доповнення цього звіту
+змінює лише root README та docs; код, залежності й workflow відповідають
+перевіреному commit.
+
+- [Frontend job #109272402093](https://github.com/Mahone1008/STechbaza-iot/actions/runs/36527087657/job/109272402093).
+- [Live job #109274417629](https://github.com/Mahone1008/STechbaza-iot/actions/runs/36527087657/job/109274417629).
+- [Основний browser/axe report](https://github.com/Mahone1008/STechbaza-iot/actions/runs/36527087657/artifacts/11015700057), [repeat report](https://github.com/Mahone1008/STechbaza-iot/actions/runs/36527087657/artifacts/11015406914), [live report](https://github.com/Mahone1008/STechbaza-iot/actions/runs/36527087657/artifacts/11015467155).
 
 | Перевірка | Результат |
 |---|---|
-| OpenAPI verify | Локально PASS, 0.38.0 / 47 paths |
-| TypeScript strict / ESLint | Локально PASS |
-| Unit/component | Локально 83 PASS у 15 файлах |
-| Production build | Локально PASS |
-| Browser discovery | 146 тестів у 15 файлах: 133 попередні + 10 accessibility + 3 journeys; це перелік, не результат прогону |
+| OpenAPI export / generation / verify | CI PASS, zero diff; 0.38.0 / 47 paths |
+| TypeScript strict / ESLint | Локально та CI PASS |
+| Unit/component | Локально та CI 83 PASS у 15 файлах |
+| Production build | Локально та CI PASS |
+| Mocked Chromium | 146 PASS у 15 файлах за 4.9 хв: 133 попередні + 10 accessibility + 3 journeys; 0 failed/flaky/skipped, retries=0 |
+| Accessibility | 27 axe scans / 0 violations; 8 incomplete scan/rule pairs розглянуто в 14.1, 9 screenshots переглянуто |
+| Повтори регресій | 10 login + 15 overview + 9 polling + 10 ACK/read 429 = 44 PASS, retries=0 |
+| Live FastAPI/MQTT | 10 PASS за 59.7 с, retries=0; incident → notifications → owner/viewer personal read → ACK → MQTT recovery; two-tab logout PASS |
 | Windows wrapper | ASCII check PASS; Windows виконання очікується |
-| Full CI / mocked / live | Очікується |
 
 Локальне встановлення Chromium і headless shell завершилось помилкою
 пошкодженого ZIP із CDN, браузера та Docker у цьому середовищі немає.
 Тому локальний browser/live PASS не заявляється; фактичний результат
-потрібно підтвердити повним GitHub CI. Backend code/API/migrations не змінені,
+підтверджено повним GitHub CI вище. Backend code/API/migrations не змінені,
 новий повний backend suite для цієї операції не заявляється.
 
 ## Корекції за результатами CI
@@ -71,7 +84,7 @@ focus outlines у clipped containers перенесено всередину. Д
 144 mocked PASS, 2 failed, live skipped. Попередні помилки виправлені;
 подальші mobile/tablet scans знайшли замалу область summary у details.
 Мінімальну висоту збільшено до 44 px із вертикальними відступами.
-Повторний повний CI очікується.
+Наступний commit `19bb2fd` пройшов повний CI, наведений вище.
 
 ## Windows: один блок
 
@@ -92,7 +105,17 @@ Wrapper включає cumulative 13.3–13.4, усі нові tests і guarded 
 наявні volumes/credentials та історія зберігаються. Після PASS frontend
 запускається через npm.cmd на `http://127.0.0.1:3000`.
 
-Ручне приймання: keyboard/focus/таблиці/zoom за 14.1, owner/viewer,
-F5/read, дві вкладки та logout. Попередні непідтверджені ручні сценарії
+Ручне приймання після PASS wrapper:
+
+1. Tab/Shift+Tab → skip link → account menu; Escape повертає фокус;
+   у confirmation фокус залишається всередині, скасування не надсилає дію.
+2. Browser zoom 200/400% і вузьке вікно: доступні всі поля та дії;
+   таблиці прокручуються всередині, focus не перекритий панелями;
+   розкриття/згортання технічних деталей не залишає порожню область.
+3. Owner/viewer, два tenants/tabs: F5 зберігає history filters і personal
+   read; дані організацій не змішуються, logout прибирає приватний UI
+   обох вкладок. Прикріпити фінальний PASS і screenshots цих станів.
+
+Попередні непідтверджені ручні сценарії
 не закриваються автоматично. Наступні операції — 14.3 security/performance
 і 14.4 release/dossier; вони не виконуються в цьому блоці.
