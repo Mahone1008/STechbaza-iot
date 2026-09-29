@@ -258,12 +258,44 @@ class FrontendPostgresTests(unittest.TestCase):
         self.assertEqual(self.request(notifications), [])
         self.assertEqual(self.request(notifications+"/unread-count"), {"unread_count": 0})
 
+    def test_physical_v3_subset_hides_uninstalled_inputs_and_rejects_their_ingestion(self):
+        cap_id = self.assign("vfd.state.read")
+        voltage_id = self.assign("vfd.voltage.read")
+        with SessionLocal() as session:
+            assignment = session.scalar(select(DeviceCapability).where(DeviceCapability.device_id == self.devices[0],
+                DeviceCapability.capability_id == cap_id))
+            assignment.config = {"telemetry_keys": ["pump_running", "vfd_fault_code"]}
+            session.commit()
+        result = self.request(self.overview)
+        self.assertEqual(result["state_keys"], ["pump_running", "vfd_fault_code"])
+        valid = TelemetryEnvelope(schema_version=1, message_id=uuid.uuid4(), values={"vfd.voltage_v": 0},
+                                  state={"pump_running": False, "vfd_fault_code": 0})
+        with SessionLocal() as session:
+            TelemetryService(session).ingest(device_uid=f"TB-FRONTEND-{self.devices[0].hex}", payload=valid, received_at=self.now)
+        with SessionLocal() as session:
+            with self.assertRaises(TelemetryCapabilityViolationError):
+                TelemetryService(session).ingest(device_uid=f"TB-FRONTEND-{self.devices[0].hex}",
+                    payload=TelemetryEnvelope(schema_version=1, message_id=uuid.uuid4(), state={"emergency_stop": False}))
+        self.assertEqual(self.request(self.overview)["readings"][0]["value"], 0)
+        with SessionLocal() as session:
+            assignment = session.scalar(select(DeviceCapability).where(DeviceCapability.device_id == self.devices[0],
+                DeviceCapability.capability_id == voltage_id))
+            assignment.config = {"telemetry_keys": []}
+            session.commit()
+        query = urlencode({"metric": "vfd.voltage_v", "start": (self.now-timedelta(seconds=1)).isoformat(),
+                           "end": (self.now+timedelta(seconds=1)).isoformat(), "bucket_seconds": 2})
+        self.request(f"/devices/{self.devices[0]}/telemetry/series?{query}", expected=409)
+
     def test_modules_bind_assignments_channels_and_commands_without_config_leak(self):
         expected = {
             "pressure.read": [("pressure.bar", "values", "number", "bar", True)],
             "water_level.read": [("water_level.percent", "values", "number", "%", True)],
             "vfd.frequency.read": [("vfd.frequency_hz", "values", "number", "Hz", True)],
             "vfd.current.read": [("vfd.current_a", "values", "number", "A", True)],
+            "vfd.set_frequency.read": [("vfd.set_frequency_hz", "values", "number", "Hz", True)],
+            "vfd.voltage.read": [("vfd.voltage_v", "values", "number", "V", True)],
+            "vfd.diagnostics.read": [(key, "state", "boolean", None, False) for key in
+                                     ("control_armed", "vfd_configuration_valid", "vfd_link")],
             "vfd.state.read": [(key, "state", "integer" if key == "vfd_fault_code" else "boolean", None, False)
                                for key in ("emergency_stop", "local_mode", "pump_running", "vfd_fault_code")],
             "vfd.control": [],
@@ -388,4 +420,3 @@ class FrontendPostgresTests(unittest.TestCase):
         self.assertEqual((fault["value"], fault["status"]), (None, "invalid"))
         with SessionLocal() as session:
             self.assertEqual(session.get(DeviceState, self.devices[0]).state["vfd_fault_code"], 10**1000)
-

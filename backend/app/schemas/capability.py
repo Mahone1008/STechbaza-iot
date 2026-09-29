@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.schemas.alarm_rule import parse_alarm_rules
 from app.schemas.command_profile import FrequencyLimits
+from app.device_contract import validate_channel_selection
 
 
 class CapabilityCreate(BaseModel):
@@ -44,6 +45,7 @@ class DeviceCapabilityAssign(BaseModel):
     @classmethod
     def validate_alarm_rules(cls, value: dict[str, Any]) -> dict[str, Any]:
         parse_alarm_rules(value)
+        validate_channel_selection(value)
         if "frequency_limits" in value:
             FrequencyLimits.model_validate(value["frequency_limits"])
         return value
@@ -63,7 +65,8 @@ class DeviceCapabilityUpdate(BaseModel):
     ) -> dict[str, Any] | None:
         if value is not None:
             parse_alarm_rules(value)
-        if "frequency_limits" in value:
+            validate_channel_selection(value)
+        if value is not None and "frequency_limits" in value:
             FrequencyLimits.model_validate(value["frequency_limits"])
         return value
 
@@ -79,4 +82,3 @@ class DeviceCapabilityRead(BaseModel):
     capability: CapabilityRead
     created_at: datetime
     updated_at: datetime
-

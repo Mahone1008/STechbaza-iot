@@ -1,0 +1,15 @@
+# Add to compose.demo.yml only. The private demo broker still has no host port.
+services:
+  v3-gateway:
+    image: kerumo-v3-gateway:local
+    build:
+      context: ./infrastructure/v3
+    restart: unless-stopped
+    ports:
+      - "${V3_BIND_IP:?Run scripts/prepare-v3.ps1}:8883:8883"
+    volumes:
+      - ./.local/v3:/work:ro
+    command: ["mosquitto", "-c", "/work/mosquitto.conf"]
+    depends_on:
+      mosquitto:
+        condition: service_started

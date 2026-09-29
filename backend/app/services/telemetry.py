@@ -17,6 +17,7 @@ from app.services.telemetry_ordering import (
     decide_snapshot_update,
 )
 from app.services.telemetry_policy import validate_telemetry_capabilities
+from app.device_contract import selected_channels
 
 
 class TelemetryDeviceNotFoundError(Exception):
@@ -80,9 +81,8 @@ class TelemetryService:
                 ordering_reason="duplicate_message_id",
             )
 
-        enabled_capabilities = self._capabilities.get_enabled_codes_for_device(
-            device.id
-        )
+        assignments = self._capabilities.get_enabled_assignments_for_device(device.id)
+        enabled_capabilities = {item.capability.code for item in assignments}
         policy = validate_telemetry_capabilities(
             value_keys=set(payload.values),
             state_keys=set(payload.state),
@@ -93,6 +93,13 @@ class TelemetryService:
                 missing_capabilities=policy.missing_capabilities,
                 unsupported_keys=policy.unsupported_keys,
             )
+        selected = {(channel.source, channel.key) for assignment in assignments
+                    for channel in selected_channels(assignment.capability.code, assignment.config)}
+        supplied = {("values", key) for key in payload.values} | {("state", key) for key in payload.state}
+        excluded = supplied - selected
+        if excluded:
+            raise TelemetryCapabilityViolationError(missing_capabilities=(),
+                unsupported_keys=tuple(sorted(f"{source}.{key}" for source, key in excluded)))
 
         server_received_at = received_at or datetime.now(timezone.utc)
         current_snapshot = self._telemetry.get_state(device.id)

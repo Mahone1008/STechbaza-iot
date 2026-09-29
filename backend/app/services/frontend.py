@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 
 from sqlalchemy.orm import Session
 
-from app.device_contract import COMMAND_REQUIRED_CAPABILITY, TELEMETRY_CHANNELS
+from app.device_contract import COMMAND_REQUIRED_CAPABILITY, selected_channels
 from app.repositories.capabilities import CapabilityRepository
 from app.repositories.telemetry import TelemetryRepository
 from app.schemas.availability import DeviceAvailabilityRead
@@ -68,9 +68,9 @@ class FrontendReadService:
         )
         can_execute = Permission.COMMAND_EXECUTE in access.permissions
         modules = []
-        channel_definitions = sorted(TELEMETRY_CHANNELS, key=lambda item: (item.source, item.key))
         for assignment in sorted(assignments, key=lambda item: item.capability.code):
             code = assignment.capability.code
+            channel_definitions = sorted(selected_channels(code, assignment.config), key=lambda item: (item.source, item.key))
             channels = [TelemetryChannelRead(
                 key=channel.key, source=channel.source, data_type=channel.data_type,
                 unit=channel.unit, supports_series=channel.supports_series,
@@ -129,4 +129,3 @@ class FrontendReadService:
             telemetry_freshness=quality, readings=metric_readings,
             state_readings=typed_states,
         )
-

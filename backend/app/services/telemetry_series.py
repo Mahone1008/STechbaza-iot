@@ -12,6 +12,7 @@ from app.security.current_user import CurrentUserContext
 from app.security.roles import Permission, role_has_permission
 from app.services.telemetry_policy import VALUE_CAPABILITY_REQUIREMENTS
 from app.services.telemetry_read_config import METRIC_UNITS, SERIES_MAX_MESSAGES
+from app.device_contract import selected_channels
 
 
 class SeriesMetricError(Exception):
@@ -45,8 +46,10 @@ class TelemetrySeriesService:
         capability = VALUE_CAPABILITY_REQUIREMENTS.get(query.metric)
         if capability is None or query.metric not in METRIC_UNITS:
             raise SeriesMetricError
-        codes = CapabilityRepository(self._session).get_enabled_codes_for_device(device_id)
-        if capability not in codes:
+        assignments = CapabilityRepository(self._session).get_enabled_assignments_for_device(device_id)
+        available = {channel.key for item in assignments for channel in selected_channels(item.capability.code, item.config)
+                     if channel.supports_series}
+        if query.metric not in available:
             raise SeriesCapabilityError
         rows = TelemetrySeriesRepository(self._session).aggregate(device_id, query)
         message_count = sum(row["message_count"] for row in rows)

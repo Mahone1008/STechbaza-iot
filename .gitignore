@@ -18,6 +18,8 @@ build/
 # ESP32 / PlatformIO
 .pio/
 .platformio/
+firmware/**/config.local.h
+/.local/
 
 # Logs and runtime files
 *.log
