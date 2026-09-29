@@ -87,7 +87,10 @@ PASS. Windows 28.09.2026: **133 mocked / 10 live / cumulative gate PASS**;
 Поточний статус:
 
 **14.3–14.4 реалізовано як базову версію для подальших випробувань,
-не production-реліз.** CSP/nonce, API origin/redirect guard, formatter reuse
+не production-реліз.**
+**Фінальний CI: 90 unit / 152 mocked / 10 live + 44 повтори — PASS;
+audit 0 vulnerabilities.** Нове Windows-приймання ще очікується.
+CSP/nonce, API origin/redirect guard, formatter reuse
 і performance budgets; актуальні перевірки та Windows-команда —
 у [14.4](docs/stage-14-op4-test-baseline.md). Загальний результат —
 [досьє V3.5 Етапу 14](docs/dossier-v3.5-stage-14-frontend-test-baseline.md).

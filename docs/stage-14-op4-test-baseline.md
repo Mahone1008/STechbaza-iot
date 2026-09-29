@@ -9,16 +9,47 @@
 
 ## 1. Перевірки та provenance
 
-<!-- STAGE14_FINAL_EVIDENCE -->
-Локально: **90 unit / typecheck / lint / production build / bundle budget — PASS**.
-Зареєстровано **152 mocked browser tests у 17 файлах**. Повний CI ще
-очікується; цей запис буде замінено фактичними результатами після запуску.
-HTTP-перевірка зібраного `/login`: 200, новий nonce для другого запиту,
-усі 13 script tags мають nonce, `no-store`, немає `X-Powered-By`.
-Локальний npm audit: **0 vulnerabilities**. Локальний build JS gzip:
-266 392 bytes сумарно, 71 628 bytes найбільший chunk (24 chunks).
-Цей локальний build був до коміту; revision у його JSON ще вказує на базу.
-<!-- /STAGE14_FINAL_EVIDENCE -->
+**Фінальний CI — PASS** на code revision
+[`d51841d848d0bb66eec9cb9dbd09d2b94c5a2e13`](https://github.com/Mahone1008/STechbaza-iot/commit/d51841d848d0bb66eec9cb9dbd09d2b94c5a2e13).
+Реалізація — `aea94d9`; `d51841d` виправляє setup двох нових tests.
+[Run 36535454970](https://github.com/Mahone1008/STechbaza-iot/actions/runs/36535454970),
+[frontend job 109298342943](https://github.com/Mahone1008/STechbaza-iot/actions/runs/36535454970/job/109298342943),
+[live job 109300917845](https://github.com/Mahone1008/STechbaza-iot/actions/runs/36535454970/job/109300917845).
+Обидва jobs завершилися `success`.
+
+| Перевірка | Фактичний результат |
+|---|---|
+| OpenAPI | 0.38.0 / 47 paths, export + generation zero diff |
+| Typecheck / ESLint / production build | PASS |
+| Unit/component | **90 passed**, 16 files |
+| Mocked Chromium | **152 passed**, 17 files, 5.1 min; 0 flaky / 0 skipped |
+| Додаткові повтори | **44 passed**: 10 login + 15 overview + 9 history + 10 Retry-After; retries 0 |
+| Live backend/browser/MQTT | **10 passed**, 1.0 min; incident/read/ACK/recovery chain PASS |
+| Accessibility | **27 axe scans / 0 violations**; 8 incomplete scan/rule pairs, ті самі ручні межі, що в 14.1 |
+| Dependency audit | **0 vulnerabilities** разом із dev dependencies; 482 dependencies за npm metadata |
+| Візуальний перегляд | Свіжі CI screenshots: desktop device, 320px device, confirmation; styles/focus відображаються |
+
+Зафіксовані performance measurements (CI Node **22.16.0**, Chromium,
+mocked API; метод і бюджети — у 14.3):
+
+| Показник | Факт | Gate |
+|---|---:|---:|
+| JS gzip, усі 24 chunks | 266 392 bytes | ≤ 358 400 |
+| Найбільший JS chunk gzip | 71 628 bytes | ≤ 122 880 |
+| Готовність панелі | 1 546 ms | < 8 000 |
+| Історія, 672 buckets | 443 ms | < 4 000 |
+| Початкові API requests без OPTIONS | 9 | ≤ 14 |
+| DOM nodes щільної історії | 9 748 | < 15 000 |
+| Heap після 2 warm-up cycles | 6 126 176 bytes | базова точка |
+| Heap після наступних 6 cycles | 6 684 840 bytes | < 100 663 296 |
+| Heap приріст | 558 664 bytes | < 16 777 216 |
+| Page errors / CSP violations при navigation | 0 / 0 | 0 / 0 |
+
+Точний [JSON snapshot доказів](evidence/stage-14-baseline-2026-09-29.json)
+збережений у git, включно з build chunks, budgets, request paths і audit
+metadata. Він належить до `d51841d`, не до майбутніх змін у main.
+Локально також пройдені 90 unit/types/lint/build/budget та HTTP-перевірка
+`/login`: fresh nonce, усі 13 script tags з nonce, `no-store`, без X-Powered-By.
 
 CI виконує `npm ci`, OpenAPI export/generation/zero-diff, types, lint,
 unit, production build, bundle budget, dependency audit, mocked browser,
@@ -39,7 +70,8 @@ live job з новим demo DB/backend/MQTT simulator. Mocked та live не з�
   відкривається інша protected page і перевіряється Back саме до неї.
 
 Політику CSP, timeout/budget та перевірки приватних даних не послаблювали.
-Повний suite запускається знову після виправлення test setup.
+Повний повторний run `36535454970` на `d51841d` завершився PASS,
+включно з обома security cases та live job.
 
 ## 2. Windows: одна команда
 
@@ -77,6 +109,9 @@ volumes та історія зберігаються. MQTT scenario обмеже
 - `frontend-repeat-report`: окремий report фінального repeat-run;
   точні 44 результати — у log відповідних CI steps.
 - `frontend-auth-live-report`: isolated live E2E report.
+
+Фінальні artifact IDs: browser **11019200042**, repeats **11019065678**,
+live **11018113658**. Всі прив’язані до run `36535454970` / `d51841d`.
 
 Artifacts зберігаються GitHub **5 днів**; стійкі SHA, run/job links і
 числа збережено нижче/в досьє. Після expiry звіти відтворюються запуском

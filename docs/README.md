@@ -62,6 +62,8 @@ Windows 29.09.2026: **146 mocked / 10 live / cumulative gate PASS**;
 показано графіки частоти/тиску та focus outline, решта ручного приймання
 відкрита. Історичні докази — у 14.2.
 **14.3–14.4 реалізовано як тестову базу, не production-реліз.**
+**Фінальний CI: 90 unit / 152 mocked / 10 live + 44 повтори — PASS;
+audit 0 vulnerabilities.** Нове Windows-приймання ще очікується.
 Актуальні CI/виміри та команда — у [14.4](stage-14-op4-test-baseline.md),
 загальний результат — у [досьє Етапу 14](dossier-v3.5-stage-14-frontend-test-baseline.md).
 

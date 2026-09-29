@@ -5,6 +5,8 @@
 Дата: **29.09.2026**. Backend: **0.38.0 / 47 paths / 17 migrations**.
 
 **Реалізовано 14.1–14.4 як базову версію для подальших випробувань.**
+Фінальний CI: **90 unit / 152 mocked / 10 live + 44 repeat — PASS**;
+npm audit **0 vulnerabilities**. Нове Windows-приймання очікується.
 На прохання користувача колишній пункт «release/dossier» уточнено як
 «тестова база / досьє». Промисловий реліз, deploy чи release tag не робилися.
 Прийнятий frontend roadmap лишається **10/24**: реалізація всіх операцій
@@ -55,11 +57,27 @@ Inline styles залишено для чинних React/SVG styles. Це обм
   встановлюється; непоказані manual actions не вважаються підтвердженими.
 - Documentation/Windows evidence: `f5248c5`, `a99c4f2`.
 
-<!-- STAGE14_DOSSIER_EVIDENCE -->
-Для нової 14.3–14.4 бази локально пройдено **90 unit, types, lint,
-production build, budget**, npm audit **0 vulnerabilities**.
-Повний CI та остаточні measured values будуть внесені після завершення run.
-<!-- /STAGE14_DOSSIER_EVIDENCE -->
+Фінальна нова база 14.3–14.4:
+
+- Реалізація [`aea94d9`](https://github.com/Mahone1008/STechbaza-iot/commit/aea94d903c6bf0cb4217c1f9af378a06e3443645),
+  фінальна перевірена revision [`d51841d`](https://github.com/Mahone1008/STechbaza-iot/commit/d51841d848d0bb66eec9cb9dbd09d2b94c5a2e13).
+- [CI 36535454970](https://github.com/Mahone1008/STechbaza-iot/actions/runs/36535454970):
+  **90 unit / 152 mocked / 10 live + 44 repeat — PASS**, browser retries 0.
+  OpenAPI zero diff, types/lint/build/budget/audit — PASS.
+- **27 axe scans / 0 violations**, 8 incomplete scan/rule pairs лишаються
+  предметом ручної оцінки. Переглянуто свіжі desktop/mobile/device/dialog screenshots.
+- npm audit: **0 known vulnerabilities**, включно з dev dependencies.
+- Performance baseline: **266 392 bytes gzip** (24 JS chunks), largest
+  **71 628 bytes**; панель **1 546 ms**, 672 buckets **443 ms**, **9 requests**,
+  **9 748 DOM nodes**; heap **6 126 176 → 6 684 840 bytes** після 6 measured cycles,
+  приріст **558 664 bytes**, page errors/CSP violations **0/0**.
+- Повна [таблиця перевірок, job links і Windows-команда](stage-14-op4-test-baseline.md)
+  та стійкий [JSON evidence snapshot](evidence/stage-14-baseline-2026-09-29.json).
+- Перший CI `36534512798`: 150 pass / 2 fail у нових tests; виправлено
+  модель HTML injection та setup browser history. Повторний повний CI зелений;
+  опис причин збережено в 14.4. Production CSP/budgets не послаблювали.
+- Новий Windows run 14.3–14.4 ще очікується. Попередній Windows PASS
+  підтверджує лише базу 14.1–14.2, не ці нові зміни.
 
 Backend source/schema у 14.3–14.4 не змінювався. Frontend CI не є новим
 повним backend unit/integration або hardware test run.

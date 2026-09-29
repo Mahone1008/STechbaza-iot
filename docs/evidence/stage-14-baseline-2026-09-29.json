@@ -1,0 +1,235 @@
+{
+  "kind": "frontend-test-baseline-evidence",
+  "productionRelease": false,
+  "date": "2026-09-29",
+  "testedRevision": "d51841d848d0bb66eec9cb9dbd09d2b94c5a2e13",
+  "implementationRevision": "aea94d903c6bf0cb4217c1f9af378a06e3443645",
+  "ci": {
+    "run": "https://github.com/Mahone1008/STechbaza-iot/actions/runs/36535454970",
+    "conclusion": "success",
+    "frontendJob": 109298342943,
+    "liveJob": 109300917845,
+    "unit": 90,
+    "mocked": 152,
+    "live": 10,
+    "regressionRepeats": [
+      10,
+      15,
+      9,
+      10
+    ],
+    "mockedSkipped": 0,
+    "mockedFlaky": 0,
+    "browserRetries": 0,
+    "axeScans": 27,
+    "axeViolations": 0,
+    "axeIncompleteScanRulePairs": 8,
+    "browserArtifactId": 11019200042,
+    "repeatArtifactId": 11019065678,
+    "liveArtifactId": 11018113658
+  },
+  "build": {
+    "kind": "frontend-test-baseline",
+    "productionRelease": false,
+    "revision": "d51841d848d0bb66eec9cb9dbd09d2b94c5a2e13",
+    "node": "v22.16.0",
+    "buildId": "YqOuJLo-kbrSGi0Cgf6T8",
+    "dependencies": {
+      "@tanstack/react-query": "5.104.0",
+      "next": "16.3.6",
+      "react": "19.2.8",
+      "react-dom": "19.2.8"
+    },
+    "totalGzipBytes": 266392,
+    "largestGzipBytes": 71628,
+    "budgets": {
+      "totalGzipBytes": 358400,
+      "largestGzipBytes": 122880
+    },
+    "chunks": [
+      {
+        "file": ".next/static/chunks/0bma92pht_c97.js",
+        "bytes": 229156,
+        "gzipBytes": 71628
+      },
+      {
+        "file": ".next/static/chunks/3mbztfr7zgk1o.js",
+        "bytes": 159925,
+        "gzipBytes": 43821
+      },
+      {
+        "file": ".next/static/chunks/0cz1d0mv5g_q7.js",
+        "bytes": 112594,
+        "gzipBytes": 39627
+      },
+      {
+        "file": ".next/static/chunks/2_qk148b8l7mu.js",
+        "bytes": 44297,
+        "gzipBytes": 13623
+      },
+      {
+        "file": ".next/static/chunks/0zbmhx2czgrcy.js",
+        "bytes": 34491,
+        "gzipBytes": 10991
+      },
+      {
+        "file": ".next/static/chunks/3u4-xjlztil5_.js",
+        "bytes": 31066,
+        "gzipBytes": 10525
+      },
+      {
+        "file": ".next/static/chunks/1219hq2zspmkb.js",
+        "bytes": 28053,
+        "gzipBytes": 9897
+      },
+      {
+        "file": ".next/static/chunks/2mmpezlrfmbu5.js",
+        "bytes": 34718,
+        "gzipBytes": 8716
+      },
+      {
+        "file": ".next/static/chunks/06eo0pvkkr-2f.js",
+        "bytes": 20262,
+        "gzipBytes": 6793
+      },
+      {
+        "file": ".next/static/chunks/42dugoqglx1_h.js",
+        "bytes": 19046,
+        "gzipBytes": 6383
+      },
+      {
+        "file": ".next/static/chunks/1nt67qgyfoaix.js",
+        "bytes": 17059,
+        "gzipBytes": 5614
+      },
+      {
+        "file": ".next/static/chunks/0ti8uop1w1csm.js",
+        "bytes": 14140,
+        "gzipBytes": 5083
+      },
+      {
+        "file": ".next/static/chunks/1esodsjxsmlgr.js",
+        "bytes": 13979,
+        "gzipBytes": 4925
+      },
+      {
+        "file": ".next/static/chunks/3gykjhayuvcqk.js",
+        "bytes": 15337,
+        "gzipBytes": 4761
+      },
+      {
+        "file": ".next/static/chunks/0cj_rosryl825.js",
+        "bytes": 10756,
+        "gzipBytes": 3852
+      },
+      {
+        "file": ".next/static/chunks/turbopack-0u1wvqhmpu6g3.js",
+        "bytes": 9721,
+        "gzipBytes": 3851
+      },
+      {
+        "file": ".next/static/chunks/173q3-nrfzkmf.js",
+        "bytes": 14745,
+        "gzipBytes": 3806
+      },
+      {
+        "file": ".next/static/chunks/3fntmmi971322.js",
+        "bytes": 14377,
+        "gzipBytes": 3661
+      },
+      {
+        "file": ".next/static/chunks/17duc9ih3xcm9.js",
+        "bytes": 9300,
+        "gzipBytes": 3598
+      },
+      {
+        "file": ".next/static/chunks/30igxyysbd8gk.js",
+        "bytes": 7647,
+        "gzipBytes": 2822
+      },
+      {
+        "file": ".next/static/chunks/310vm2bl3xxpt.js",
+        "bytes": 5364,
+        "gzipBytes": 1970
+      },
+      {
+        "file": ".next/static/YqOuJLo-kbrSGi0Cgf6T8/_clientMiddlewareManifest.js",
+        "bytes": 343,
+        "gzipBytes": 227
+      },
+      {
+        "file": ".next/static/YqOuJLo-kbrSGi0Cgf6T8/_buildManifest.js",
+        "bytes": 219,
+        "gzipBytes": 154
+      },
+      {
+        "file": ".next/static/YqOuJLo-kbrSGi0Cgf6T8/_ssgManifest.js",
+        "bytes": 80,
+        "gzipBytes": 64
+      }
+    ]
+  },
+  "device": {
+    "kind": "mocked-chromium-test-baseline",
+    "readyMs": 1546,
+    "denseMs": 443,
+    "nodes": 9748,
+    "initialRequests": [
+      "/api/v1/auth/browser/refresh",
+      "/api/v1/auth/me",
+      "/api/v1/devices/a8f2f2d6-e380-492a-a9dc-d0b9ba792136",
+      "/api/v1/sites/739512a9-6ddb-4f8e-99e9-211c8553651e",
+      "/api/v1/organizations/670b979d-9e60-5207-a5d2-5d86ee70c71c",
+      "/api/v1/organizations/670b979d-9e60-5207-a5d2-5d86ee70c71c/access",
+      "/api/v1/devices/a8f2f2d6-e380-492a-a9dc-d0b9ba792136/commands",
+      "/api/v1/devices/a8f2f2d6-e380-492a-a9dc-d0b9ba792136/overview",
+      "/api/v1/devices/a8f2f2d6-e380-492a-a9dc-d0b9ba792136/telemetry/series"
+    ],
+    "budgets": {
+      "readyMs": 8000,
+      "denseMs": 4000,
+      "initialRequests": 14,
+      "nodes": 15000
+    },
+    "note": "Local production build with mocked API, 672 populated buckets; not WAN latency or backend load capacity."
+  },
+  "navigation": {
+    "kind": "mocked-chromium-retained-js-heap",
+    "warmedCycles": 2,
+    "measuredCycles": 6,
+    "beforeBytes": 6126176,
+    "afterBytes": 6684840,
+    "growthBytes": 558664,
+    "budgets": {
+      "afterBytes": 100663296,
+      "growthBytes": 16777216
+    },
+    "errors": [],
+    "violations": [],
+    "note": "Forced GC diagnostic of JS heap; not a long-running leak proof or total browser RSS."
+  },
+  "dependencyAuditMetadata": {
+    "vulnerabilities": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 0,
+      "critical": 0,
+      "total": 0
+    },
+    "dependencies": {
+      "prod": 22,
+      "dev": 423,
+      "optional": 92,
+      "peer": 34,
+      "peerOptional": 0,
+      "total": 482
+    }
+  },
+  "limitations": [
+    "Local production build with mocked API for browser performance; not WAN or backend load measurements.",
+    "Forced-GC JavaScript heap diagnostic; not total browser memory or a long-duration leak proof.",
+    "Live E2E uses a simulator; no physical controller tested.",
+    "New Windows and remaining manual acceptance are pending."
+  ]
+}
