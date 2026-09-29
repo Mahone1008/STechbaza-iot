@@ -22,12 +22,15 @@ class DeviceCommandCreate(BaseModel):
             "request_id не повинен створити другу фізичну команду."
         )
     )
+    supersedes_request_id: uuid.UUID | None = None
     command_type: CommandType
     payload: dict[str, Any] = Field(default_factory=dict, max_length=32)
     ttl_seconds: int = Field(default=30, ge=5, le=300)
 
     @model_validator(mode="after")
     def validate_payload(self) -> "DeviceCommandCreate":
+        if self.supersedes_request_id is not None and (self.command_type != "vfd.stop" or self.supersedes_request_id == self.request_id):
+            raise ValueError("Only Stop may supersede a different request")
         if self.command_type in {"vfd.start", "vfd.stop"}:
             if self.payload:
                 raise ValueError(
@@ -56,7 +59,8 @@ class DeviceCommandCreate(BaseModel):
 class CommandEnvelope(BaseModel):
     """MQTT contract однієї команди Backend → Device."""
 
-    schema_version: Literal[1] = 1
+    schema_version: Literal[1, 2] = 1
+    control_sequence: int | None = Field(default=None, strict=True, ge=1, le=9007199254740991)
     command_id: uuid.UUID
     request_id: uuid.UUID
     issued_at: datetime
@@ -64,6 +68,16 @@ class CommandEnvelope(BaseModel):
     ttl_seconds: int = Field(ge=5, le=300)
     command_type: CommandType
     payload: dict[str, Any] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def validate_protocol(self):
+        if (self.schema_version == 2) != (self.control_sequence is not None):
+            raise ValueError("Protocol v2 requires control_sequence; v1 cannot carry it")
+        if self.issued_at.utcoffset() is None or self.expires_at.utcoffset() is None:
+            raise ValueError("Command timestamps must have a timezone")
+        if self.expires_at <= self.issued_at:
+            raise ValueError("Command expiry must follow issue time")
+        return self
 
 
 class DeviceCommandRead(BaseModel):
@@ -75,6 +89,8 @@ class DeviceCommandRead(BaseModel):
     request_id: uuid.UUID
     device_id: uuid.UUID
     command_type: str
+    control_sequence: int | None = None
+    supersedes_request_id: uuid.UUID | None = None
     payload: dict[str, Any]
     status: str
     ttl_seconds: int

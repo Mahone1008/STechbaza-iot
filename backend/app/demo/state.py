@@ -36,6 +36,8 @@ class DemoState:
                 ack TEXT NOT NULL, result TEXT NOT NULL, pending INTEGER NOT NULL DEFAULT 1
             );
         """)
+        if "control_sequence" not in {row[1] for row in self.db.execute("PRAGMA table_info(devices)")}:
+            self.db.execute("ALTER TABLE devices ADD COLUMN control_sequence INTEGER NOT NULL DEFAULT 0")
         with self.db:
             for key in LIVE_DEVICES:
                 self.db.execute("INSERT OR IGNORE INTO devices (key, session) VALUES (?, ?)", (key, str(uuid.uuid4())))
@@ -95,6 +97,8 @@ class DemoState:
         if envelope.expires_at.tzinfo is None or envelope.issued_at.tzinfo is None:
             raise ValueError("Command timestamps потребують timezone")
         encoded = envelope.model_dump(mode="json")
+        if envelope.schema_version == 1:
+            encoded.pop("control_sequence", None)  # Preserve legacy ledger fingerprints.
         fingerprint = hashlib.sha256(json.dumps(encoded, sort_keys=True).encode()).hexdigest()
         command_id = str(envelope.command_id)
         self.db.execute("BEGIN IMMEDIATE")
@@ -106,13 +110,28 @@ class DemoState:
                 self.db.execute("UPDATE commands SET pending=1 WHERE id=?", (command_id,))
                 self.db.commit()
                 return False
+            if envelope.schema_version != 2:
+                raise ValueError("Нові команди потребують protocol v2")
             item = self.device(key)
             current = now or datetime.now(timezone.utc)
             if current >= envelope.expires_at or envelope.issued_at > current:
                 raise ValueError("Команда прострочена або ще не видана")
             if item["mode"] == "offline":
                 raise ValueError("Demo device offline")
-            failed = item["mode"] == "fault" and envelope.command_type != "vfd.stop"
+            error_code = error_message = None
+            if (envelope.schema_version == 1 and item["control_sequence"] > 0) or (
+                envelope.control_sequence is not None and envelope.control_sequence <= item["control_sequence"]
+            ):
+                error_code, error_message = "command_out_of_order", "Новішу команду вже прийнято; застарілу дію відхилено"
+            else:
+                if envelope.control_sequence is not None:
+                    # Atomic with actuation/outbox; never reset this on boot.
+                    self.db.execute("UPDATE devices SET control_sequence=? WHERE key=?", (envelope.control_sequence, key))
+                if item["mode"] == "fault" and envelope.command_type != "vfd.stop":
+                    error_code, error_message = "demo_vfd_fault", "Demo VFD fault scenario"
+                if envelope.command_type == "vfd.frequency.set" and not 0 <= float(envelope.payload["frequency_hz"]) <= 50:
+                    error_code, error_message = "frequency_out_of_range", "Діапазон demo VFD: 0–50 Гц"
+            failed = error_code is not None
             result = {}
             if not failed:
                 if envelope.command_type == "vfd.frequency.set":
@@ -128,8 +147,8 @@ class DemoState:
                       "sent_at": current.isoformat()}
             ack = {**common, "message_id": str(uuid.uuid4())}
             terminal = {**common, "message_id": str(uuid.uuid4()), "status": "failed" if failed else "succeeded",
-                        "result": result, "error_code": "demo_vfd_fault" if failed else None,
-                        "error_message": "Demo VFD fault scenario" if failed else None}
+                        "result": result, "error_code": error_code,
+                        "error_message": error_message}
             self.db.execute("INSERT INTO commands (id, device, fingerprint, ack, result) VALUES (?, ?, ?, ?, ?)",
                             (command_id, key, fingerprint, json.dumps(ack), json.dumps(terminal)))
             # Стан віртуального пристрою і відповіді фіксуються до першого publish.
@@ -150,3 +169,4 @@ class DemoState:
         records = [tuple(row) for row in self.db.execute("SELECT id, device, fingerprint, ack, result FROM commands ORDER BY id")]
         return {"devices": {key: self.device(key) for key in LIVE_DEVICES},
                 "ledger_digest": hashlib.sha256(json.dumps(records).encode()).hexdigest()}
+

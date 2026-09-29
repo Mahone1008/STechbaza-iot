@@ -22,8 +22,9 @@ test("frequency validation, cancel and confirmation send exactly one immutable r
   await page.goto(path);
   const button = controls(page).getByRole("button", { name: "Задати частоту", exact: true });
   await expect(button).toBeDisabled(); await page.getByLabel("Задана частота, Гц").fill("101"); await expect(button).toBeDisabled();
-  await page.getByLabel("TTL прийому, с").fill("4"); await page.getByLabel("Задана частота, Гц").fill("0"); await expect(button).toBeDisabled();
-  await page.getByLabel("TTL прийому, с").fill("30"); await button.click();
+  await page.getByText("Додаткові налаштування команди", { exact: true }).click();
+  await page.getByLabel("Час на прийняття команди, с").fill("4"); await page.getByLabel("Задана частота, Гц").fill("0"); await expect(button).toBeDisabled();
+  await page.getByLabel("Час на прийняття команди, с").fill("30"); await button.click();
   await expect(page.getByRole("dialog")).toContainText("0 Гц"); await expect(page.getByRole("dialog")).toContainText("TB-TEST-0");
   expect(posts).toHaveLength(0); await page.getByRole("dialog").getByRole("button", { name: "Скасувати" }).click(); expect(posts).toHaveLength(0);
   await button.click();
@@ -48,7 +49,9 @@ test("lost response only retries manually with the same request_id and payload",
 test("request uncertainty expires without a replay after F5 or reconnect", async ({ page, context }) => {
   await page.clock.install(); let posts = 0;
   await mockPost(page, async (route) => { posts++; await route.abort("failed"); });
-  await page.goto(path); await page.getByLabel("TTL прийому, с").fill("5"); await confirm(page);
+  await page.goto(path);
+  await page.getByText("Додаткові налаштування команди", { exact: true }).click();
+  await page.getByLabel("Час на прийняття команди, с").fill("5"); await confirm(page);
   await expect(page.getByRole("heading", { name: "Прийом команди не підтверджено" })).toBeVisible();
   await page.clock.fastForward(6000);
   await expect(page.getByRole("button", { name: "Повторити той самий запит", exact: true })).toBeDisabled();
@@ -198,3 +201,57 @@ for (const viewport of [{ width: 1280, height: 720 }, { width: 390, height: 844 
     await expect.poll(async () => Math.abs(await height() - collapsedHeight)).toBeLessThanOrEqual(2);
   });
 }
+
+
+for (const stalled of [false, true]) test(`Stop remains available with ${stalled ? "in-flight" : "uncertain"} Start`, async ({ page }) => {
+  const posts: CommandInput[] = [];
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => { release = resolve; });
+  await mockPost(page, async (route, body) => {
+    posts.push(body);
+    if (body.command_type === "vfd.start") {
+      if (stalled) { await gate; await fulfillJson(route, 201, commandFixture(body)).catch(() => {}); }
+      else await route.abort("failed");
+    } else await fulfillJson(route, 201, commandFixture(body));
+  });
+  try {
+    await page.goto(path); await confirm(page);
+    await expect.poll(() => posts.length).toBe(1);
+    if (!stalled) await expect(page.getByRole("heading", { name: "Прийом команди не підтверджено" })).toBeVisible();
+    await expect(controls(page).getByRole("button", { name: "Запустити", exact: true })).toBeDisabled();
+    await expect(controls(page).getByRole("button", { name: "Зупинити", exact: true })).toBeEnabled();
+    await confirm(page, "Зупинити");
+    await expect.poll(() => posts.length).toBe(2);
+    expect(posts[1]!.supersedes_request_id).toBe(posts[0]!.request_id);
+    expect(posts[1]!.request_id).not.toBe(posts[0]!.request_id);
+    await expect(controls(page)).toContainText("Сервер прийняв команду");
+    release();
+    await expect(controls(page).getByRole("button", { name: "Зупинити", exact: true })).toBeEnabled();
+    await expect(page.getByRole("heading", { name: "Прийом команди не підтверджено" })).toHaveCount(0);
+  } finally { release(); }
+});
+
+test("frequency uses installation limits and rechecks them before POST", async ({ page }) => {
+  let maximum = 50, posts = 0;
+  await mockOverview(page, () => ({ ...controlOverview(), frequency_limits: { min_hz: 20, max_hz: maximum } }));
+  await mockPost(page, async (route) => { posts++; await route.abort(); });
+  await page.goto(path);
+  const button = controls(page).getByRole("button", { name: "Задати частоту", exact: true });
+  for (const value of ["19", "51"]) { await page.getByLabel("Задана частота, Гц").fill(value); await expect(button).toBeDisabled(); }
+  await page.getByLabel("Задана частота, Гц").fill("45"); await button.click(); maximum = 40;
+  await page.getByRole("dialog").getByRole("button", { name: "Надіслати команду" }).click();
+  await expect(controls(page)).toContainText("Частота поза налаштованими межами"); expect(posts).toBe(0);
+});
+
+test("missing frequency profile fails closed while Stop accepts default TTL", async ({ page }) => {
+  const posts: CommandInput[] = [];
+  await mockOverview(page, () => ({ ...controlOverview(), frequency_limits: null }));
+  await mockPost(page, async (route, body) => { posts.push(body); await fulfillJson(route, 201, commandFixture(body)); });
+  await page.goto(path);
+  await expect(page.getByLabel("Задана частота, Гц")).toBeDisabled();
+  await expect(controls(page)).toContainText("Спочатку налаштуйте допустимі межі");
+  await page.getByText("Додаткові налаштування команди", { exact: true }).click();
+  await page.getByLabel("Час на прийняття команди, с").fill("4");
+  await confirm(page, "Зупинити"); await expect.poll(() => posts.length).toBe(1);
+  expect(posts[0]!.ttl_seconds).toBe(30);
+});

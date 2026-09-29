@@ -1,7 +1,8 @@
 """Живі fault/recovery сценарії demo через HTTP та MQTT без прямого запису в БД.
 
 Фази розділено, щоб зовнішній Docker Compose дійсно перезапускав backend
-та зупиняв broker. Checkpoint не містить токенів/паролів і переживає restart
+та зупиняв broker. Checkpoint не містить токенів/паролів. Окремий cookie file 0600 зберігає
+ту саму operator session до завершення фази; обидва файли переживають restart
 того самого контейнера; recreate між фазами навмисно не підтримується.
 """
 
@@ -15,6 +16,7 @@ from urllib.request import urlopen
 from app.demo.catalog import identity, require_demo
 from app.demo.check import API, Client, command, ensure, scenario, wait_for
 
+SESSION = Path("/tmp/techbaza-demo-resilience.cookies")
 CHECKPOINT = Path("/tmp/techbaza-demo-resilience.json")
 PUMP = f"/api/v1/devices/{identity('device:pump')}"
 
@@ -22,7 +24,7 @@ PUMP = f"/api/v1/devices/{identity('device:pump')}"
 def ready():
     try:
         with urlopen(API + "/health", timeout=2) as response:
-            return json.load(response)["version"] == "0.38.0"
+            return json.load(response)["version"] == "0.39.0"
     except (URLError, TimeoutError, ConnectionError):
         return False
 
@@ -87,12 +89,13 @@ def recover(owner, operator, data):
 
 def run(phase):
     require_demo()
-    wait_for("backend 0.38.0", ready, timeout=60)
+    wait_for("backend 0.39.0", ready, timeout=60)
     clients = []
+    preserve_operator = False
     try:
         owner = Client("owner")
         clients.append(owner)
-        operator = Client("operator")
+        operator = Client("operator", session_file=SESSION)
         clients.append(operator)
         if phase == "prepare-restart":
             scenario("pump", "normal")
@@ -102,6 +105,7 @@ def run(phase):
             alarm = offline(owner)
             pending = queued(operator, 27)
             expired = queued(operator, 19, ttl=5)
+            preserve_operator = True
             save({"phase": "restart", "pending": pending, "expired": expired, "alarm": alarm})
             print("PASS: offline/stale/one alarm; two commands queued, restart checkpoint saved", flush=True)
         elif phase == "verify-restart":
@@ -119,6 +123,7 @@ def run(phase):
             load("restart-passed")
             alarm = offline(owner)
             pending = queued(operator, 29)
+            preserve_operator = True
             save({"phase": "broker", "pending": pending, "alarm": alarm})
             print("PASS: broker outage leaves HTTP readable, shows offline/stale/alarm, preserves queued command", flush=True)
         elif phase == "broker-recovered":
@@ -128,10 +133,12 @@ def run(phase):
             print("PASS: broker reconnect restored telemetry/commands and resolved offline incident; pump stopped", flush=True)
     finally:
         for client in clients:
-            client.logout()
+            if not (preserve_operator and client is operator):
+                client.logout()
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("phase", choices=("prepare-restart", "verify-restart", "broker-down", "broker-recovered"))
     run(parser.parse_args().phase)
+

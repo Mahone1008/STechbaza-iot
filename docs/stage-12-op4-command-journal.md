@@ -1,5 +1,7 @@
 # Етап 12.4 — lifecycle і журнал команд
 
+> Оновлення 0.39.0: поточні правила порядку команд, TTL, пізніх відповідей та міграції описані в [command-safety-v2.md](command-safety-v2.md).
+
 Дата: 28.09.2026. Разом із [12.3 — керуванням](stage-12-op3-command-controls.md).
 Статус: реалізацію завершено, Frontend checks і Backend checks — **PASS**.
 Windows-прогін на `5fa3afe` підтверджено: 88 mocked / 10 live та cumulative gate PASS.
@@ -131,3 +133,4 @@ docker compose -p techbaza-demo --env-file .env.demo -f compose.demo.yml exec -T
 
 CI виправлення згортання: **68 unit / 91 mocked / 10 live + 34 повтори — PASS**,
 [run #36462683461](https://github.com/Mahone1008/STechbaza-iot/actions/runs/36462683461), код `dde31a8`.
+

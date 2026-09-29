@@ -2,6 +2,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.command import DeviceCommand
@@ -10,17 +11,13 @@ from app.repositories.commands import CommandRepository
 from app.repositories.devices import DeviceRepository
 from app.schemas.command import CommandEnvelope
 from app.services.device_presence import DevicePresenceService
-from app.services.system_alarms import SystemAlarmService
-from app.services.command_config import (
-    COMMAND_RESULT_TIMEOUT_SECONDS,
-    COMMAND_RETRY_INTERVAL_SECONDS,
-)
+from app.services.command_config import COMMAND_RESULT_TIMEOUT_SECONDS, COMMAND_RETRY_INTERVAL_SECONDS
+from app.services.command_policy import dispatch_rejection
+from app.services.command_outcomes import stop_delivery
 
 
 @dataclass(frozen=True)
 class CommandDispatchResult:
-    """Результат однієї спроби передати durable-команду в MQTT."""
-
     command: DeviceCommand
     published: bool
     reason: str
@@ -28,167 +25,83 @@ class CommandDispatchResult:
 
 
 class CommandDispatchNotFoundError(Exception):
-    """Команду для dispatch не знайдено."""
+    pass
 
 
 class CommandDispatchService:
-    """Надійно публікує queued/published command з row-level locking."""
-
     def __init__(self, session: Session) -> None:
         self._session = session
         self._commands = CommandRepository(session)
         self._devices = DeviceRepository(session)
         self._presence = DevicePresenceService(session)
-        self._system_alarms = SystemAlarmService(session)
 
-    def dispatch(
-        self,
-        command_id: uuid.UUID,
-        *,
-        now: datetime | None = None,
-        allow_retry: bool = False,
-    ) -> CommandDispatchResult:
-        command = self._commands.get_for_update(command_id)
-        if command is None:
+    def dispatch(self, command_id: uuid.UUID, *, now: datetime | None = None,
+                 allow_retry: bool = False) -> CommandDispatchResult:
+        device_id = self._session.scalar(select(DeviceCommand.device_id).where(DeviceCommand.id == command_id))
+        if device_id is None:
             raise CommandDispatchNotFoundError
-
+        # All command mutation paths use Device -> Command to avoid lock inversion.
+        device = self._devices.get_for_update(device_id)
+        command = self._commands.get_for_update(command_id)
+        if command is None or device is None:
+            raise CommandDispatchNotFoundError
         current_time = now or datetime.now(timezone.utc)
+
+        def finish(reason, published=False, topic=None):
+            self._session.commit()
+            return CommandDispatchResult(command, published, reason, topic)
 
         if command.status == "acknowledged":
             if command.result_deadline_at is None:
-                command.result_deadline_at = (
-                    command.acknowledged_at or command.published_at or command.created_at
-                ) + timedelta(seconds=COMMAND_RESULT_TIMEOUT_SECONDS)
+                command.result_deadline_at = (command.acknowledged_at or command.published_at or command.created_at) + timedelta(seconds=COMMAND_RESULT_TIMEOUT_SECONDS)
             if command.result_deadline_at <= current_time:
-                command.status = "result_unknown"
-                command.result_timed_out_at = current_time
-                command.error_code = "command_result_timeout"
-                command.error_message = "Пристрій прийняв команду, але результат не надійшов"
-                try:
-                    self._system_alarms.record_result_timeout(
-                        command=command, occurred_at=current_time,
-                    )
-                    self._session.commit()
-                except Exception:
-                    self._session.rollback()
-                    raise
-                return CommandDispatchResult(command, False, "result_unknown")
-            self._session.commit()
-            return CommandDispatchResult(command, False, "awaiting_result")
-
+                stop_delivery(self._session, command, current_time, code="command_result_timeout",
+                    message="Результат не надійшов; фактичний стан потребує перевірки")
+                return finish("result_unknown")
+            return finish("awaiting_result")
         if command.status not in {"queued", "published"}:
-            return CommandDispatchResult(
-                command=command,
-                published=False,
-                reason=f"status_{command.status}",
-            )
-
+            return finish(f"status_{command.status}")
         if command.status == "published" and not allow_retry:
-            return CommandDispatchResult(
-                command=command,
-                published=False,
-                reason="already_published",
-            )
-
+            return finish("already_published")
         if command.expires_at <= current_time:
-            command.status = "expired"
-            command.completed_at = current_time
-            command.error_code = "command_expired"
-            command.error_message = (
-                "TTL команди завершився до підтвердження доставки Device"
-            )
-            try:
-                self._system_alarms.record_command_outcome(
-                    command=command,
-                    occurred_at=current_time,
-                )
-                self._session.commit()
-            except Exception:
-                self._session.rollback()
-                raise
-            self._session.refresh(command)
-            return CommandDispatchResult(
-                command=command,
-                published=False,
-                reason="expired",
-            )
+            stop_delivery(self._session, command, current_time, code="command_expired",
+                message="Строк доставки минув; відсутність відповіді не доводить невиконання",
+                unsent_status="expired")
+            return finish(command.status)
+        if (allow_retry and command.last_publish_attempt_at is not None
+                and current_time - command.last_publish_attempt_at < timedelta(seconds=COMMAND_RETRY_INTERVAL_SECONDS)):
+            return finish("retry_not_due")
+        rejection = dispatch_rejection(self._session, command, current_time)
+        if rejection:
+            stop_delivery(self._session, command, current_time, code=rejection,
+                message="Подальшу доставку заборонено: змінився доступ, конфігурація або протокол")
+            return finish(rejection)
+        if not self._presence.get_availability(device_id=device_id, now=current_time).online:
+            return finish("device_offline")
 
-        if (
-            allow_retry
-            and command.last_publish_attempt_at is not None
-            and current_time - command.last_publish_attempt_at
-            < timedelta(seconds=COMMAND_RETRY_INTERVAL_SECONDS)
-        ):
-            return CommandDispatchResult(
-                command=command,
-                published=False,
-                reason="retry_not_due",
-            )
-
-        device = self._devices.get(command.device_id)
-        if device is None:
-            return CommandDispatchResult(
-                command=command,
-                published=False,
-                reason="device_not_found",
-            )
-
-        availability = self._presence.get_availability(
-            device_id=command.device_id,
-            now=current_time,
-        )
-        if not availability.online:
-            return CommandDispatchResult(
-                command=command,
-                published=False,
-                reason="device_offline",
-            )
-
-        topic = command_topic(device.uid)
-        envelope = CommandEnvelope(
-            command_id=command.id,
-            request_id=command.request_id,
-            issued_at=command.created_at,
-            expires_at=command.expires_at,
-            ttl_seconds=command.ttl_seconds,
-            command_type=command.command_type,
-            payload=command.payload,
-        )
-
+        uid = device.uid
+        topic = command_topic(uid)
+        envelope = CommandEnvelope(schema_version=2, control_sequence=command.control_sequence,
+            command_id=command.id, request_id=command.request_id, issued_at=command.created_at,
+            expires_at=command.expires_at, ttl_seconds=command.ttl_seconds,
+            command_type=command.command_type, payload=command.payload)
+        # Durable BEFORE network I/O. A crash after send must not look "never sent".
+        # The attempt also leases this command until retry interval expires.
+        command.status = "published"
         command.publish_attempts += 1
         command.last_publish_attempt_at = current_time
-
-        published, reason = publish_command_message(
-            topic=topic,
-            payload=envelope.model_dump(mode="json"),
-            command_id=command.id,
-            device_uid=device.uid,
-        )
-
-        if not published:
-            command.last_publish_error = reason
-            self._session.commit()
-            self._session.refresh(command)
-            return CommandDispatchResult(
-                command=command,
-                published=False,
-                reason=reason,
-                topic=topic,
-            )
-
-        command.status = "published"
-        if command.published_at is None:
-            command.published_at = current_time
+        command.published_at = command.published_at or current_time
         command.last_publish_error = None
-        command.error_code = None
-        command.error_message = None
-
+        attempt = command.publish_attempts
         self._session.commit()
-        self._session.refresh(command)
-
-        return CommandDispatchResult(
-            command=command,
-            published=True,
-            reason="published",
-            topic=topic,
-        )
+        published, reason = publish_command_message(topic=topic,
+            payload=envelope.model_dump(mode="json"), command_id=command_id, device_uid=uid)
+        # ACK/Result/new Stop may commit while MQTT publish is in flight.
+        # Never overwrite their lifecycle or a newer attempt's diagnostics.
+        self._devices.get_for_update(device_id)
+        command = self._commands.get_for_update(command_id)
+        if command is None:
+            raise CommandDispatchNotFoundError
+        if command.publish_attempts == attempt:
+            command.last_publish_error = None if published else reason
+        return finish(reason, published, topic)

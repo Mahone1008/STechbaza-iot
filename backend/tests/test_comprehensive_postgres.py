@@ -137,10 +137,12 @@ class ComprehensivePostgresTests(unittest.TestCase):
         self.online()
         body = self.body()
         barrier = threading.Barrier(2)
+        first_read = threading.local()
         original = CommandRepository.get_by_request_id
         def same_missing(repo, request_id):
             row = original(repo, request_id)
-            if row is None and str(request_id) == body["request_id"]:
+            if row is None and str(request_id) == body["request_id"] and not getattr(first_read, "seen", False):
+                first_read.seen = True
                 barrier.wait(timeout=5)
             return row
         def send():
@@ -240,7 +242,7 @@ class ComprehensivePostgresTests(unittest.TestCase):
         with patch("app.services.command_dispatch.publish_command_message", return_value=(False, "test_broker_down")) as publish:
             first = self.create()
             sent = publish.call_args.kwargs["payload"]
-        self.assertEqual((first["status"], first["publish_attempts"]), ("queued", 1))
+        self.assertEqual((first["status"], first["publish_attempts"]), ("published", 1))
         retry_time = self.now + timedelta(seconds=15)
         with patch("app.services.command_dispatch.publish_command_message", return_value=(True, "published")) as publish:
             self.dispatch(first, now=retry_time, allow_retry=True)
@@ -314,3 +316,138 @@ class ComprehensivePostgresTests(unittest.TestCase):
         # Історія містить запізнілі унікальні пакети; duplicate message_id — один раз.
         self.assertEqual(chart["message_count"], 4)
         self.assertEqual(chart["sample_count"], 4)
+
+
+    def test_stop_cancels_queued_start_and_blocks_late_http_start(self):
+        first = self.create()
+        stop = self.create(self.body(command_type="vfd.stop"))
+        self.assertGreater(stop["control_sequence"], first["control_sequence"])
+        self.assertEqual(self.read(first)["status"], "cancelled")
+        late_body = self.body()
+        self.create(self.body(command_type="vfd.stop", supersedes_request_id=late_body["request_id"]))
+        late = self.create(late_body)
+        self.assertEqual(late["status"], "cancelled")
+        self.online()
+        with patch("app.services.command_dispatch.publish_command_message") as publish:
+            for item in (first, late):
+                self.dispatch(item, allow_retry=True)
+            publish.assert_not_called()
+
+    def test_stop_during_inflight_publish_does_not_overwrite_result_or_resend_start(self):
+        self.online()
+        started, release = threading.Event(), threading.Event()
+        body = self.body()
+        def blocked_publish(**kwargs):
+            if kwargs["payload"]["command_type"] == "vfd.start":
+                started.set()
+                if not release.wait(timeout=10):
+                    raise RuntimeError("Stop waited on network I/O while holding device lock")
+            return True, "published"
+        with patch("app.services.command_dispatch.publish_command_message", side_effect=blocked_publish) as publish:
+            with ThreadPoolExecutor(max_workers=1) as pool:
+                future = pool.submit(self.create, body)
+                try:
+                    self.assertTrue(started.wait(timeout=5))
+                    stop = self.create(self.body(command_type="vfd.stop", supersedes_request_id=body["request_id"]))
+                finally:
+                    release.set()
+                first = future.result(timeout=5)
+            self.assertEqual(first["status"], "result_unknown")
+            self.assertGreater(stop["control_sequence"], first["control_sequence"])
+            self.dispatch(first, now=self.now + timedelta(seconds=15), allow_retry=True)
+            self.assertEqual(publish.call_count, 2)
+
+    def test_attempt_is_durable_before_network_crash_and_expires_to_unknown(self):
+        self.online()
+        with patch("app.services.command_dispatch.publish_command_message", return_value=(False, "test_disconnected")):
+            first = self.create()
+        # Force the next send to die after its database commit.
+        with patch("app.services.command_dispatch.publish_command_message", side_effect=RuntimeError("injected crash")):
+            with self.assertRaises(RuntimeError):
+                self.dispatch(first, now=self.now + timedelta(seconds=15), allow_retry=True)
+        current = self.read(first)
+        self.assertEqual((current["status"], current["publish_attempts"]), ("published", 2))
+        with patch("app.services.command_dispatch.publish_command_message") as publish:
+            self.dispatch(first, now=self.now + timedelta(seconds=60), allow_retry=True)
+            publish.assert_not_called()
+        self.assertEqual(self.read(first)["status"], "result_unknown")
+
+    def test_late_ack_and_result_after_ttl_preserve_execution_evidence(self):
+        first = self.published()
+        with SessionLocal() as session:
+            session.get(DeviceCommand, uuid.UUID(first["id"])).expires_at = self.now - timedelta(seconds=1)
+            session.commit()
+        ack = self.reply(first)
+        self.assertEqual(ack.reason, "late_acknowledged")
+        current = self.read(first)
+        self.assertEqual(current["status"], "result_unknown")
+        self.assertIsNotNone(current["acknowledged_at"])
+        self.assertIsNone(current["result_deadline_at"])
+        self.assertTrue(self.reply(first).duplicate)
+        self.reply(first, result=True)
+        self.assertEqual(self.read(first)["status"], "succeeded")
+        self.assertTrue(self.reply(first, result=True).duplicate)
+        self.assertTrue(all(a["state"] == "resolved" for a in self.call(self.base + "/alarms")))
+
+    def test_late_result_without_ack_is_accepted_and_cancelled_unsent_replies_rejected(self):
+        from app.services.command_result import CommandResultInvalidTransitionError
+        first = self.published()
+        with SessionLocal() as session:
+            session.get(DeviceCommand, uuid.UUID(first["id"])).expires_at = self.now - timedelta(seconds=1)
+            session.commit()
+        self.reply(first, result=True)
+        self.assertEqual(self.read(first)["status"], "succeeded")
+        with SessionLocal() as session:
+            session.get(Device, self.devices[0]).last_seen_at = None
+            session.commit()
+        unsent = self.create()
+        self.create(self.body(command_type="vfd.stop"))
+        with self.assertRaises(CommandResultInvalidTransitionError):
+            self.reply(unsent, result=True)
+
+    def test_dispatch_rechecks_session_user_membership_capability_and_tenant(self):
+        from app.models.organization_membership import OrganizationMembership
+        for change in ("session", "user", "membership", "capability", "tenant"):
+            with self.subTest(change=change):
+                first = self.create()
+                with SessionLocal() as session:
+                    auth = session.get(AuthSession, self.contexts["operator"].auth_session.id)
+                    user = session.get(User, self.contexts["operator"].user.id)
+                    member = session.scalar(select(OrganizationMembership).where(
+                        OrganizationMembership.user_id == user.id, OrganizationMembership.organization_id == self.orgs[0]))
+                    assignment = session.scalar(select(DeviceCapability).where(
+                        DeviceCapability.device_id == self.devices[0], DeviceCapability.capability_id == self.caps["vfd.control"]))
+                    device = session.get(Device, self.devices[0])
+                    device.last_seen_at = datetime.now(timezone.utc)
+                    if change == "session": auth.revoked_at = self.now
+                    elif change == "user": user.is_active = False
+                    elif change == "membership": member.role = "viewer"
+                    elif change == "capability": assignment.is_enabled = False
+                    else: device.site_id = self.sites[1]
+                    session.commit()
+                    with patch("app.services.command_dispatch.publish_command_message") as publish:
+                        self.dispatch(first, allow_retry=True)
+                        publish.assert_not_called()
+                    self.assertEqual(session.get(DeviceCommand, uuid.UUID(first["id"]), populate_existing=True).status, "cancelled")
+                    auth.revoked_at = None; user.is_active = True; member.role = "operator"
+                    assignment.is_enabled = True; device.site_id = self.sites[0]; device.last_seen_at = None
+                    session.commit()
+
+    def test_frequency_profile_validates_creation_and_revalidates_before_delivery(self):
+        target = self.base + f"/capabilities/{self.caps['vfd.control']}"
+        body = self.body(command_type="vfd.frequency.set", payload={"frequency_hz": 40})
+        self.call(self.command_path, method="POST", body=body, expected=409)
+        for limits in ({"min_hz": 50, "max_hz": 20}, {"min_hz": True, "max_hz": 50}, {"min_hz": 0, "max_hz": 101}):
+            self.call(target, method="PATCH", body={"config": {"frequency_limits": limits}}, who="owner", expected=422)
+        limits = {"min_hz": 20, "max_hz": 50}
+        self.call(target, method="PATCH", body={"config": {"frequency_limits": limits}}, who="owner")
+        self.assertEqual(self.call(self.base + "/overview")["frequency_limits"], limits)
+        for frequency in (19, 51):
+            self.call(self.command_path, method="POST", body=self.body(command_type="vfd.frequency.set", payload={"frequency_hz": frequency}), expected=409)
+        first = self.create(body)
+        self.call(target, method="PATCH", body={"config": {"frequency_limits": {"min_hz": 20, "max_hz": 35}}}, who="owner")
+        self.online()
+        with patch("app.services.command_dispatch.publish_command_message") as publish:
+            self.dispatch(first, allow_retry=True)
+            publish.assert_not_called()
+        self.assertEqual(self.read(first)["error_code"], "command_frequency_profile_changed")

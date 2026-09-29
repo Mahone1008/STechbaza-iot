@@ -2,7 +2,7 @@ name: Backend checks
 
 on:
   push:
-    branches: [main]
+    branches: [main, "codex/**"]
     paths:
       - 'backend/**'
       - 'infrastructure/mosquitto/**'
@@ -126,3 +126,4 @@ jobs:
       - name: Stop isolated CI demo
         if: always()
         run: docker compose -p techbaza-demo --env-file .env.demo -f compose.demo.yml down
+

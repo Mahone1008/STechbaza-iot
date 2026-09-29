@@ -5,6 +5,7 @@ export function controlOverview() {
   const data = overviewFixture();
   data.access.permissions.push("command.read", "command.execute");
   data.command_types = ["vfd.start", "vfd.stop", "vfd.frequency.set"];
+  data.frequency_limits = { min_hz: 0, max_hz: 100 };
   data.allowed_commands = [...data.command_types];
   data.modules[3]!.command_types = [...data.command_types]; data.modules[3]!.allowed_commands = [...data.command_types];
   return data;
@@ -20,3 +21,4 @@ export function commandFixture(changes: Partial<Command> = {}): Command {
     acknowledged_at: null, result_deadline_at: null, result_timed_out_at: null, completed_at: null, result: {}, error_code: null, error_message: null, ...changes,
   };
 }
+

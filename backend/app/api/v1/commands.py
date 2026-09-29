@@ -20,6 +20,7 @@ from app.services.commands import (
     CommandDeviceNotFoundError,
     CommandNotFoundError,
     CommandRequestConflictError,
+    CommandFrequencyProfileError,
     CommandService,
 )
 
@@ -79,6 +80,8 @@ def create_command(
                 f"потрібна capability {exc.capability_code}"
             ),
         ) from exc
+    except CommandFrequencyProfileError as exc:
+        raise HTTPException(status_code=409, detail="Частота поза налаштованими межами або профіль обладнання ще не задано") from exc
     except CommandRequestConflictError as exc:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -93,7 +96,7 @@ def create_command(
         return DeviceCommandRead.model_validate(command)
 
     # Durable record уже закомічено. MQTT publish — окремий крок:
-    # при тимчасовій помилці брокера команда залишається queued, а не губиться.
+    # спроба фіксується до мережевого виклику та не губиться при збої процесу.
     dispatch = CommandDispatchService(session).dispatch(command.id)
     return DeviceCommandRead.model_validate(dispatch.command)
 

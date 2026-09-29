@@ -32,11 +32,11 @@ export function CommandDetail({ context, id, auto }: { context: ReadyAccessSnaps
         {command.status === "result_unknown" && <p className="notice notice-warning">Контролер не надіслав результат вчасно. Автоматичного повтору немає. Пізній результат можна перевірити кнопкою оновлення.</p>}
         <ol className="command-lifecycle">
           <li>Сервер прийняв: {time(command.created_at)}</li>
-          <li>Опубліковано для контролера: {time(command.published_at)}</li>
+          <li>Перша спроба доставки: {time(command.published_at)}</li>
           <li>Контролер підтвердив прийом: {time(command.acknowledged_at)}</li>
           <li>Результат виконання: {time(command.completed_at)}</li>
         </ol>
-        <p>TTL прийому: {command.ttl_seconds} с · до {time(command.expires_at)}. Після підтвердження прийому TTL не обмежує виконання.</p>
+        <p>Час на прийняття команди: {command.ttl_seconds} с · до {time(command.expires_at)}. Це не тривалість роботи насоса. Запізнілі відповіді зберігаються в журналі.</p>
         {command.result_deadline_at && <p>Очікування результату: до {time(command.result_deadline_at)}.</p>}
         {command.result_timed_out_at && <p>Тайм-аут результату: {time(command.result_timed_out_at)}.</p>}
         {command.error_message && <p role="alert">{command.error_message}</p>}
@@ -77,3 +77,4 @@ export function CommandJournal({ context, onSelect }: { context: ReadyAccessSnap
     <div className="ui-row"><Button disabled={pages.length === 1 || query.isFetching || !query.active} onClick={() => setPages((value) => value.slice(0, -1))}>Попередні команди</Button><span>Сторінка {pages.length}</span><Button disabled={!query.data || query.data.length <= 20 || query.isError || query.isFetching || !query.active} onClick={() => setPages((value) => [...value, commandCursor(rows.at(-1)!)])}>Наступні команди</Button></div>
   </Card>;
 }
+

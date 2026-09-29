@@ -18,6 +18,7 @@ from app.schemas.telemetry import DeviceStateRead
 from app.security.authorization import AccessControl
 from app.security.current_user import CurrentUserContext
 from app.security.roles import Permission, role_has_permission
+from app.services.command_policy import configured_limits
 from app.services.device_presence import DevicePresenceService
 from app.services.telemetry_quality import freshness, readings, state_readings, json_safe
 
@@ -111,6 +112,7 @@ class FrontendReadService:
             device_id=device_id, now=generated_at,
         )
         return DeviceOverviewRead(
+            frequency_limits=configured_limits(self._session, device_id),
             generated_at=generated_at,
             device=DeviceRead.model_validate(context.device),
             access=access,
@@ -127,3 +129,4 @@ class FrontendReadService:
             telemetry_freshness=quality, readings=metric_readings,
             state_readings=typed_states,
         )
+

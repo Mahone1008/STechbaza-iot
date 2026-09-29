@@ -74,7 +74,7 @@ def source_resume():
         canary_path = ROOT / "canary-command.json"
         if canary_path.exists():
             record = json.loads(canary_path.read_text())
-            wait_for("source STOP terminal", lambda: client.call("GET", "/api/v1/commands/" + record["id"])["status"] in ("succeeded", "expired"))
+            wait_for("source STOP terminal", lambda: client.call("GET", "/api/v1/commands/" + record["id"])["status"] in ("succeeded", "expired", "cancelled", "result_unknown"))
     finally:
         client.logout()
     print("PASS: source demo resumed; source canary session revoked after backup", flush=True)
@@ -184,7 +184,7 @@ def main():
         http = json.loads((ROOT / "restored-http.json").read_text())
         simulator = json.loads((ROOT / "restored-simulator.json").read_text())
         ensure(simulator == sqlite_fingerprint(ROOT / "simulator.sqlite3"), "Final simulator comparison failed")
-        write_private_json(ROOT / "acceptance-report.json", {"status": "passed", "backend": "0.38.0",
+        write_private_json(ROOT / "acceptance-report.json", {"status": "passed", "backend": "0.39.0",
             "git_revision": manifest["git_revision"], "migration": manifest["migration"],
             "tables_compared": len(source["tables"]), "restore_guard": guard, "restored_http": http,
             "sqlite_exact_match": True, "clean_install_and_live_restore": True})
@@ -196,3 +196,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

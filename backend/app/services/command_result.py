@@ -76,7 +76,7 @@ class CommandResultService:
         payload: CommandResultEnvelope,
         now: datetime | None = None,
     ) -> CommandResultProcessing:
-        device = self._devices.get_by_uid(device_uid)
+        device = self._devices.get_by_uid_for_update(device_uid)
         if device is None:
             raise CommandResultDeviceNotFoundError
 
@@ -100,35 +100,10 @@ class CommandResultService:
 
         current_time = now or datetime.now(timezone.utc)
 
-        # Якщо ACK вже був прийнятий до deadline, виконання може завершитися
-        # пізніше. Але Result не може вперше "підтвердити" прострочену command.
-        if (
-            command.status == "published"
-            and command.expires_at <= current_time
-        ):
-            command.status = "expired"
-            command.completed_at = current_time
-            command.error_code = "command_expired"
-            command.error_message = (
-                "Result без ACK надійшов після завершення TTL команди"
-            )
-            try:
-                self._system_alarms.record_command_outcome(
-                    command=command,
-                    occurred_at=current_time,
-                    source_message_id=payload.message_id,
-                )
-                self._session.commit()
-            except Exception:
-                self._session.rollback()
-                raise
-            self._session.refresh(command)
-            raise CommandResultExpiredError
-
-        if command.status == "expired":
-            raise CommandResultExpiredError
-
-        if command.status not in {"published", "acknowledged", "result_unknown"}:
+        # TTL prevents NEW execution on the controller. It cannot invalidate
+        # evidence of an earlier execution delivered after a network outage.
+        legacy_attempted = command.status == "expired" and bool(command.publish_attempts or command.published_at)
+        if command.status not in {"published", "acknowledged", "result_unknown"} and not legacy_attempted:
             raise CommandResultInvalidTransitionError(command.status)
 
         was_unknown = command.status == "result_unknown"
@@ -165,3 +140,4 @@ class CommandResultService:
             updated=True,
             reason=payload.status,
         )
+

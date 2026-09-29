@@ -143,12 +143,12 @@ class CommandTests(unittest.TestCase):
 
     def test_ack_sets_deadline_and_duplicate_does_not_extend_it(self):
         now = datetime.now(timezone.utc)
-        command = NS(status="published", device_id=uuid.uuid4(), expires_at=now+timedelta(seconds=30))
+        command = NS(status="published", acknowledged_at=None, publish_attempts=1, device_id=uuid.uuid4(), expires_at=now+timedelta(seconds=30))
         service = CommandAckService(Mock())
         service._commands = Mock()
         service._devices = Mock()
         service._commands.get_for_update.return_value = command
-        service._devices.get_by_uid.return_value = NS(id=command.device_id)
+        service._devices.get_by_uid_for_update.return_value = NS(id=command.device_id)
         payload = CommandAckEnvelope(schema_version=1, message_id=uuid.uuid4(),
                                      session_id=uuid.uuid4(), command_id=uuid.uuid4())
         service.acknowledge(device_uid="TB-TEST", payload=payload, now=now)
@@ -165,7 +165,8 @@ class CommandTests(unittest.TestCase):
         service._commands = Mock()
         service._system_alarms = Mock()
         service._commands.get_for_update.return_value = command
-        with patch("app.services.command_dispatch.publish_command_message") as publish:
+        with patch("app.services.command_outcomes.SystemAlarmService", return_value=service._system_alarms), \
+             patch("app.services.command_dispatch.publish_command_message") as publish:
             result = service.dispatch(uuid.uuid4(), now=now, allow_retry=True)
             self.assertEqual(result.reason, "result_unknown")
             service.dispatch(uuid.uuid4(), now=now, allow_retry=True)
@@ -181,7 +182,7 @@ class CommandTests(unittest.TestCase):
         service._devices = Mock()
         service._system_alarms = Mock()
         service._commands.get_for_update.return_value = command
-        service._devices.get_by_uid.return_value = NS(id=command.device_id)
+        service._devices.get_by_uid_for_update.return_value = NS(id=command.device_id)
         payload = CommandResultEnvelope(schema_version=1, message_id=uuid.uuid4(),
             session_id=uuid.uuid4(), command_id=uuid.uuid4(), status="succeeded", result={})
         result = service.complete(device_uid="TB-TEST", payload=payload, now=now)
@@ -238,3 +239,4 @@ class DiagnosticsTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

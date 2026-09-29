@@ -102,6 +102,21 @@ class CommandRepository:
         )
         return self._session.scalar(statement)
 
+    def superseding_stop(self, device_id, request_id, actor_user_id):
+        return self._session.scalar(select(DeviceCommand).where(
+            DeviceCommand.device_id == device_id,
+            DeviceCommand.supersedes_request_id == request_id,
+            DeviceCommand.actor_user_id == actor_user_id,
+            DeviceCommand.command_type == "vfd.stop",
+        ).limit(1))
+
+    def pending_for_device(self, device_id):
+        # Caller already holds the Device lock: consistent Device -> command order.
+        return list(self._session.scalars(select(DeviceCommand).where(
+            DeviceCommand.device_id == device_id,
+            DeviceCommand.status.in_(("queued", "published")),
+        ).order_by(DeviceCommand.id).with_for_update().execution_options(populate_existing=True)))
+
     def list_for_device(
         self,
         device_id: uuid.UUID,

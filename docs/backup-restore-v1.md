@@ -1,5 +1,7 @@
 # Чисте встановлення та backup/restore v1
 
+> Оновлення 0.39.0: поточні правила порядку команд, TTL, пізніх відповідей та міграції описані в [command-safety-v2.md](command-safety-v2.md).
+
 Етап 8, операція 6. Backend **0.37.0**, PostgreSQL **16**, міграція
 **20260926_0017**. Повний CI та локальне приймання пройдено 26.09.2026:
 109 tests без skips, відновлено 20 таблиць і SQLite, live recovery — PASS.
@@ -169,3 +171,4 @@ Retry-After; захист входу на звичайному demo не вим�
 [pg_dump](https://www.postgresql.org/docs/16/app-pgdump.html),
 [pg_restore](https://www.postgresql.org/docs/16/app-pgrestore.html),
 [SQLite Connection.backup](https://docs.python.org/3.13/library/sqlite3.html#sqlite3.Connection.backup).
+

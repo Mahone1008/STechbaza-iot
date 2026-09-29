@@ -1,5 +1,7 @@
 # Command Core v1
 
+> Оновлення 0.39.0: поточні правила порядку команд, TTL, пізніх відповідей та міграції описані в [command-safety-v2.md](command-safety-v2.md).
+
 ## Мета
 
 **V3.5 — Етап 5: Remote Command Core** починає зворотний канал керування:
@@ -250,3 +252,4 @@ new request_id + 150 Hz
 ```
 
 **Операція 1 — Durable Command Queue завершена.**
+

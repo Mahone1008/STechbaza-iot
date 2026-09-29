@@ -92,7 +92,7 @@ class FrontendPostgresTests(unittest.TestCase):
                 self.created_caps.append(created)
             cap_id = session.scalar(select(Capability.id).where(Capability.code == code))
             session.add(DeviceCapability(device_id=self.devices[0], capability_id=cap_id,
-                                         is_enabled=enabled, config={}))
+                                         is_enabled=enabled, config={"frequency_limits": {"min_hz": 0, "max_hz": 50}} if code == "vfd.control" else {}))
             session.commit()
             return cap_id
 
@@ -388,3 +388,4 @@ class FrontendPostgresTests(unittest.TestCase):
         self.assertEqual((fault["value"], fault["status"]), (None, "invalid"))
         with SessionLocal() as session:
             self.assertEqual(session.get(DeviceState, self.devices[0]).state["vfd_fault_code"], 10**1000)
+

@@ -55,9 +55,10 @@ class BackupTests(unittest.TestCase):
 
     def test_patch_release_keeps_previous_backup_compatible(self):
         manifest = self.bundle()
-        self.assertEqual(manifest["backend"], "0.38.0")
+        self.assertEqual(manifest["backend"], "0.39.0")
         for version in ("0.37.0", "0.37.1", "0.37.2", "0.37.3"):
             manifest["backend"] = version
+            manifest["migration"] = "20260926_0017"
             (self.root / "manifest.json").write_text(json.dumps(manifest))
             self.assertEqual(verify_bundle(self.root)["backend"], version)
         manifest["backend"] = "0.36.0"
@@ -110,3 +111,4 @@ class BackupTests(unittest.TestCase):
                 require_target()
         with patch.dict(os.environ, {"TECHBAZA_DEMO_MODE": "1", "TECHBAZA_ACCEPTANCE_MODE": "1"}):
             require_target()
+

@@ -1235,6 +1235,8 @@ export interface components {
              * @description UUID, який генерує клієнт перед POST. Повтор запиту з тим самим request_id не повинен створити другу фізичну команду.
              */
             request_id: string;
+            /** Supersedes Request Id */
+            supersedes_request_id?: string | null;
             /**
              * Ttl Seconds
              * @default 30
@@ -1266,6 +1268,8 @@ export interface components {
             command_type: string;
             /** Completed At */
             completed_at: string | null;
+            /** Control Sequence */
+            control_sequence?: number | null;
             /**
              * Created At
              * Format: date-time
@@ -1317,6 +1321,8 @@ export interface components {
             result_timed_out_at: string | null;
             /** Status */
             status: string;
+            /** Supersedes Request Id */
+            supersedes_request_id?: string | null;
             /** Ttl Seconds */
             ttl_seconds: number;
             /**
@@ -1440,6 +1446,7 @@ export interface components {
              */
             command_types: string[];
             device: components["schemas"]["DeviceRead"];
+            frequency_limits?: components["schemas"]["FrequencyLimits"] | null;
             /**
              * Generated At
              * Format: date-time
@@ -1545,6 +1552,13 @@ export interface components {
             values: {
                 [key: string]: unknown;
             };
+        };
+        /** FrequencyLimits */
+        FrequencyLimits: {
+            /** Max Hz */
+            max_hz: number;
+            /** Min Hz */
+            min_hz: number;
         };
         /** HTTPValidationError */
         HTTPValidationError: {

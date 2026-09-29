@@ -5,7 +5,7 @@ export type CommandType = components["schemas"]["DeviceCommandCreate"]["command_
 export type CommandInput = components["schemas"]["DeviceCommandCreate"];
 export type CommandCursor = Readonly<{ before_created_at: string; before_id: string }>;
 export const commandLabels: Record<CommandType, string> = { "vfd.start": "Запустити", "vfd.stop": "Зупинити", "vfd.frequency.set": "Задати частоту" };
-export const statusLabels: Record<string, string> = { queued: "У черзі", published: "Надіслано контролеру", acknowledged: "Контролер підтвердив прийом", succeeded: "Контролер повідомив про виконання", failed: "Помилка виконання", expired: "Строк прийому минув", result_unknown: "Результат невідомий" };
+export const statusLabels: Record<string, string> = { queued: "У черзі", published: "Розпочато доставку", acknowledged: "Контролер підтвердив прийом", succeeded: "Контролер повідомив про виконання", failed: "Помилка виконання", cancelled: "Доставку скасовано", expired: "Строк доставки минув", result_unknown: "Результат невідомий" };
 export function commandLabel(type: string) { return Object.hasOwn(commandLabels, type) ? commandLabels[type as CommandType] : type; }
 export function commandPending(command: Command) { return ["queued", "published", "acknowledged"].includes(command.status); }
 export function validFrequency(text: string): number | null {
@@ -39,6 +39,8 @@ export function parseCommand(raw: unknown, deviceId: string, organizationId: str
   for (const field of ["actor_platform_role", "actor_organization_role", "actor_email", "actor_display_name", "last_publish_error", "error_code", "error_message"]) {
     if (raw[field] !== null && typeof raw[field] !== "string") invalidResponse(path, field);
   }
+  if (raw.control_sequence !== undefined && raw.control_sequence !== null && (typeof raw.control_sequence !== "number" || !Number.isSafeInteger(raw.control_sequence) || raw.control_sequence < 1)) invalidResponse(path, "control sequence");
+  if (raw.supersedes_request_id !== undefined && raw.supersedes_request_id !== null) requiredUuid(raw, "supersedes_request_id", path);
   requiredString(raw, "command_type", path);
   if (typeof raw.status !== "string" || !Object.hasOwn(statusLabels, raw.status)) invalidResponse(path, "command status");
   if (!isRecord(raw.payload) || !isRecord(raw.result)) invalidResponse(path, "command payload/result");
@@ -49,7 +51,7 @@ export function parseCommand(raw: unknown, deviceId: string, organizationId: str
 }
 export function parseCommandReceipt(raw: unknown, deviceId: string, organizationId: string, userId: string, input: CommandInput): Command {
   const command = parseCommand(raw, deviceId, organizationId);
-  if (command.request_id !== input.request_id || command.command_type !== input.command_type || command.ttl_seconds !== input.ttl_seconds || command.actor_user_id !== userId || command.actor_organization_id !== organizationId || Object.keys(command.payload).length !== Object.keys(input.payload ?? {}).length || Object.entries(input.payload ?? {}).some(([key, value]) => command.payload[key] !== value)) invalidResponse(path, "matching command receipt");
+  if (command.request_id !== input.request_id || command.command_type !== input.command_type || command.ttl_seconds !== input.ttl_seconds || (command.supersedes_request_id ?? null) !== (input.supersedes_request_id ?? null) || command.actor_user_id !== userId || command.actor_organization_id !== organizationId || Object.keys(command.payload).length !== Object.keys(input.payload ?? {}).length || Object.entries(input.payload ?? {}).some(([key, value]) => command.payload[key] !== value)) invalidResponse(path, "matching command receipt");
   return command;
 }
 export function parseCommandPage(raw: unknown, deviceId: string, organizationId: string, cursor: CommandCursor | null): Command[] {
@@ -59,3 +61,4 @@ export function parseCommandPage(raw: unknown, deviceId: string, organizationId:
   commands.forEach((row, index) => { const boundary = index ? commandCursor(commands[index - 1]!) : cursor; if (boundary && !isBefore(row, boundary)) invalidResponse(path, "ordered cursor page"); });
   return commands;
 }
+

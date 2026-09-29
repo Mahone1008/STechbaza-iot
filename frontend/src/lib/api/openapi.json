@@ -838,6 +838,18 @@
             "title": "Request Id",
             "type": "string"
           },
+          "supersedes_request_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supersedes Request Id"
+          },
           "ttl_seconds": {
             "default": 30,
             "maximum": 300.0,
@@ -964,6 +976,17 @@
             ],
             "title": "Completed At"
           },
+          "control_sequence": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Control Sequence"
+          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
@@ -1087,6 +1110,18 @@
           "status": {
             "title": "Status",
             "type": "string"
+          },
+          "supersedes_request_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supersedes Request Id"
           },
           "ttl_seconds": {
             "title": "Ttl Seconds",
@@ -1351,6 +1386,16 @@
           "device": {
             "$ref": "#/components/schemas/DeviceRead"
           },
+          "frequency_limits": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FrequencyLimits"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "generated_at": {
             "format": "date-time",
             "title": "Generated At",
@@ -1588,6 +1633,29 @@
           "updated_at"
         ],
         "title": "DeviceStateRead",
+        "type": "object"
+      },
+      "FrequencyLimits": {
+        "additionalProperties": false,
+        "properties": {
+          "max_hz": {
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Max Hz",
+            "type": "number"
+          },
+          "min_hz": {
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Min Hz",
+            "type": "number"
+          }
+        },
+        "required": [
+          "min_hz",
+          "max_hz"
+        ],
+        "title": "FrequencyLimits",
         "type": "object"
       },
       "HTTPValidationError": {
@@ -2553,7 +2621,7 @@
   "info": {
     "description": "Backend API платформи TechBaza IoT Pump Control",
     "title": "TechBaza Backend",
-    "version": "0.38.0"
+    "version": "0.39.0"
   },
   "openapi": "3.1.0",
   "paths": {

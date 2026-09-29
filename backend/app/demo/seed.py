@@ -18,6 +18,8 @@ from app.models.user import User
 from app.schemas.alarm_rule import parse_alarm_rules
 from app.security.passwords import hash_password, verify_password
 
+FREQUENCY_CONFIG = {"frequency_limits": {"min_hz": 0, "max_hz": 50}}
+
 PRESSURE_CONFIG = {"alarm_rules": [{
     "rule_key": "demo.pressure.low", "alarm_type": "demo.pressure.low",
     "metric": "pressure.bar", "kind": "low", "threshold": 1.0, "clear_threshold": 1.5,
@@ -57,6 +59,11 @@ def seed():
                 user = session.get(User, identity("user:" + key))
                 if not user or user.email != email(key) or not verify_password(passwords[key], user.password_hash):
                     raise RuntimeError("Demo credentials не збігаються; пароль не змінено")
+            # Fixed virtual VFD limits are known; upgrade only the missing demo
+            # profile and preserve all explicitly configured values/rules.
+            assignment = session.get(DeviceCapability, identity("assignment:pump:vfd.control"))
+            if assignment is not None and "frequency_limits" not in assignment.config:
+                assignment.config = {**assignment.config, **FREQUENCY_CONFIG}
             return False
         for model in (Organization, Site, Device, User, Capability):
             if session.scalar(select(func.count()).select_from(model)):
@@ -91,7 +98,7 @@ def seed():
             for code in item["caps"]:
                 session.add(DeviceCapability(id=identity("assignment:" + key + ":" + code),
                     device_id=identity("device:" + key), capability_id=identity("cap:" + code),
-                    is_enabled=True, config=PRESSURE_CONFIG if key == "pressure" else {}))
+                    is_enabled=True, config=PRESSURE_CONFIG if key == "pressure" else FREQUENCY_CONFIG if code == "vfd.control" else {}))
             if key in {"stale", "offline"}:
                 # Лише два явно позначені історичні fixtures. Живі дані надходять через MQTT.
                 record_id = identity("seed-message:" + key)
@@ -110,3 +117,4 @@ if __name__ == "__main__":
     created = seed()
     print("DEMO seed created" if created else "DEMO seed already exists; data and passwords preserved")
     print(json.dumps(manifest(), ensure_ascii=False, indent=2))
+

@@ -7,7 +7,7 @@ export type Freshness = Schemas["TelemetryFreshnessRead"];
 export type Channel = Readonly<{ key: string; source: string; data_type: string; unit: string | null; supports_series?: boolean }>;
 export type Reading = Readonly<{ value: number | boolean | null; status: Quality }>;
 export type Module = Readonly<{ assignmentId: string; code: string; name: string; supported: boolean; channels: (Channel & Reading)[]; commands: string[]; allowedCommands: string[] }>;
-export type Overview = Readonly<{ generatedAt: string; device: Device; availability: Schemas["DeviceAvailabilityRead"]; freshness: Freshness; modules: Module[]; allowedCommands: string[] }>;
+export type Overview = Readonly<{ generatedAt: string; device: Device; availability: Schemas["DeviceAvailabilityRead"]; freshness: Freshness; modules: Module[]; allowedCommands: string[]; frequencyLimits: { min_hz: number; max_hz: number } | null }>;
 const path = "/api/v1/devices/overview";
 const qualities = new Set(["fresh", "stale", "missing", "invalid"]);
 const reasons = new Set(["no_telemetry", "recent", "timeout", "session_changed", "future_timestamp", "delayed_report"]);
@@ -92,7 +92,13 @@ export function parseOverview(value: unknown, expected: Device, organizationId: 
   unique(allowedCommands); unique(commandTypes);
   const moduleCommands = modules.flatMap((module) => module.commands); const moduleAllowed = modules.flatMap((module) => module.allowedCommands);
   if (commandTypes.length !== moduleCommands.length || commandTypes.some((item) => !moduleCommands.includes(item)) || allowedCommands.length !== moduleAllowed.length || allowedCommands.some((item) => !moduleAllowed.includes(item))) invalidResponse(path, "consistent command permissions");
-  return { allowedCommands, generatedAt: requiredDateTime(data, "generated_at", path), device, availability: parseAvailability(data.availability, device), freshness, modules };
+  let frequencyLimits: Overview["frequencyLimits"] = null;
+  if (data.frequency_limits !== undefined && data.frequency_limits !== null) {
+    const limits = record(data.frequency_limits), min = limits.min_hz, max = limits.max_hz;
+    if (typeof min !== "number" || typeof max !== "number" || !Number.isFinite(min) || !Number.isFinite(max) || min < 0 || max > 100 || min >= max) invalidResponse(path, "frequency limits");
+    frequencyLimits = { min_hz: min, max_hz: max };
+  }
+  return { frequencyLimits, allowedCommands, generatedAt: requiredDateTime(data, "generated_at", path), device, availability: parseAvailability(data.availability, device), freshness, modules };
 }
 export function effectiveQuality(status: Quality, freshness: Freshness, elapsedSeconds: number): Quality {
   if (status !== "fresh") return status;
@@ -109,3 +115,4 @@ export function readingText(channel: Channel & Reading): string {
   if (typeof channel.value === "boolean") return channel.value ? "Так" : "Ні";
   return new Intl.NumberFormat("uk-UA", { maximumSignificantDigits: 15 }).format(channel.value);
 }
+

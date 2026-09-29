@@ -73,6 +73,7 @@ class CapabilityRepository:
                 DeviceCapability.is_enabled.is_(True),
             )
             .order_by(DeviceCapability.created_at.asc())
+            .execution_options(populate_existing=True)
         )
         return list(self._session.scalars(statement))
 
@@ -104,3 +105,4 @@ class CapabilityRepository:
         self._session.add(assignment)
         self._session.flush()
         return assignment
+

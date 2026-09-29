@@ -35,13 +35,24 @@ def wait_for(label, read, timeout=45):
 
 
 class Client:
-    def __init__(self, account):
-        self.opener = build_opener(HTTPCookieProcessor(http.cookiejar.CookieJar()))
+    def __init__(self, account, *, session_file=None):
+        # Only multi-process resilience tests use an explicit private cookie file.
+        self.session_file = session_file
+        jar = http.cookiejar.LWPCookieJar(str(session_file)) if session_file else http.cookiejar.CookieJar()
+        self.opener = build_opener(HTTPCookieProcessor(jar))
         self.access = None
-        result = self.call("POST", "/api/v1/auth/browser/login", {
-            "email": email(account), "password": os.environ["DEMO_" + account.upper() + "_PASSWORD"],
-        })
+        if session_file and session_file.exists():
+            jar.load(ignore_discard=True)
+            result = self.call("POST", "/api/v1/auth/browser/refresh")
+        else:
+            result = self.call("POST", "/api/v1/auth/browser/login", {
+                "email": email(account), "password": os.environ["DEMO_" + account.upper() + "_PASSWORD"],
+            })
         self.access = result["access_token"]
+        if session_file:
+            fd = os.open(session_file, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW, 0o600)
+            os.close(fd)
+            jar.save(ignore_discard=True)
 
     def call(self, method, path, body=None, expected=200):
         headers = {"Origin": ORIGIN, "X-TechBaza-CSRF": "1"}
@@ -66,6 +77,8 @@ class Client:
 
     def logout(self):
         self.call("POST", "/api/v1/auth/browser/logout", expected=204)
+        if self.session_file:
+            self.session_file.unlink(missing_ok=True)
 
 
 def scenario(key, mode):
@@ -82,7 +95,7 @@ def command(client, kind, payload=None, expected_result="succeeded"):
 
     def terminal():
         result = client.call("GET", "/api/v1/commands/" + first["id"])
-        if result["status"] in {"failed", "succeeded", "expired", "result_unknown"}:
+        if result["status"] in {"failed", "succeeded", "expired", "result_unknown", "cancelled"}:
             ensure(result["status"] == expected_result, "Unexpected demo command result: " + result["status"])
             ensure(result["actor_organization_role"] == "operator", "Command actor audit missing")
             return result
@@ -124,7 +137,7 @@ def run(quick=False):
             for key in ("pump", "pressure", "stale", "other"):
                 scenario(key, "normal")
         health = owner.call("GET", "/health")
-        ensure(health["version"] == "0.38.0" and health["status"] == "ok", "Expected demo backend 0.38.0")
+        ensure(health["version"] == "0.39.0" and health["status"] == "ok", "Expected demo backend 0.39.0")
         for key, client in clients.items():
             orgs = client.call("GET", "/api/v1/organizations")
             ensure([item["id"] for item in orgs] == [str(identity("org:" + ACCOUNTS[key][0]))], "Tenant list leak")
@@ -209,3 +222,4 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--quick", action="store_true")
     run(parser.parse_args().quick)
+

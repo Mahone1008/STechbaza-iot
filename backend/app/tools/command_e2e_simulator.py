@@ -10,6 +10,8 @@ from typing import Any
 
 import paho.mqtt.client as mqtt
 
+from app.schemas.command import CommandEnvelope, DeviceCommandCreate
+
 
 DEFAULT_HOST = os.getenv("MQTT_HOST", "mosquitto")
 DEFAULT_PORT = int(os.getenv("MQTT_PORT", "1883"))
@@ -207,8 +209,15 @@ def main() -> None:
                 continue
 
             try:
-                command_id = str(command["command_id"])
-                expires_at = _parse_datetime(str(command["expires_at"]))
+                envelope = CommandEnvelope.model_validate(command)
+                if envelope.schema_version != 2:
+                    raise ValueError("New commands require protocol v2")
+                DeviceCommandCreate(request_id=envelope.request_id, command_type=envelope.command_type,
+                    payload=envelope.payload, ttl_seconds=envelope.ttl_seconds)
+                command_id = str(envelope.command_id)
+                expires_at = envelope.expires_at
+                if envelope.issued_at > datetime.now(timezone.utc):
+                    raise ValueError("Command has not been issued yet")
             except Exception as exc:
                 print(f"[REJECT] Invalid CommandEnvelope: {exc}", flush=True)
                 continue
@@ -299,3 +308,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

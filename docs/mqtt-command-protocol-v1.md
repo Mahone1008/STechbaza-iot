@@ -1,5 +1,7 @@
 # MQTT Command Protocol v1
 
+> Оновлення 0.39.0: поточні правила порядку команд, TTL, пізніх відповідей та міграції описані в [command-safety-v2.md](command-safety-v2.md).
+
 ## Призначення
 
 Цей контракт описує напрямок:
@@ -169,3 +171,4 @@ ACK/result у PostgreSQL
 Remote command не обходить локальні safety interlocks.
 
 Навіть валідний MQTT command повинен бути відхилений edge-контролером, якщо локальна логіка забороняє виконання.
+

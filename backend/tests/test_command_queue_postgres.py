@@ -30,6 +30,12 @@ from app.services.presence_config import DEVICE_ONLINE_TIMEOUT_SECONDS
 @unittest.skipUnless(os.getenv("TECHBAZA_RUN_DB_TESTS") == "1", "Requires isolated PostgreSQL")
 class CommandQueueTests(unittest.TestCase):
     def setUp(self):
+        # Queue scheduling isolated from policy; HTTP policy is exercised with
+        # real identities in test_comprehensive_postgres.
+        policy = patch("app.services.command_dispatch.dispatch_rejection", return_value=None)
+        policy.start()
+        self.addCleanup(policy.stop)
+        self.next_sequence = 0
         self.now = datetime.now(timezone.utc)
         self.retry = timedelta(seconds=COMMAND_RETRY_INTERVAL_SECONDS)
         self.online_window = timedelta(seconds=DEVICE_ONLINE_TIMEOUT_SECONDS)
@@ -57,8 +63,9 @@ class CommandQueueTests(unittest.TestCase):
         ids = []
         with SessionLocal() as session:
             for _ in range(count):
+                self.next_sequence += 1
                 fields = dict(id=uuid.uuid4(), request_id=uuid.uuid4(), device_id=self.online,
-                    command_type="vfd.start", status="queued", ttl_seconds=300,
+                    command_type="vfd.start", status="queued", ttl_seconds=300, control_sequence=self.next_sequence,
                     created_at=self.now, expires_at=self.now + timedelta(seconds=300))
                 fields.update(changes)
                 command = DeviceCommand(**fields)
@@ -137,7 +144,7 @@ class CommandQueueTests(unittest.TestCase):
         with SessionLocal() as session:
             command = session.get(DeviceCommand, command_id)
             self.assertEqual((command.status, command.publish_attempts, command.last_publish_error),
-                             ("queued", 1, "mqtt_unavailable"))
+                             ("published", 1, "mqtt_unavailable"))
         with patch("app.services.command_dispatch.publish_command_message", return_value=(True, "published")) as publish:
             self.assertEqual(self.cycle(self.now+self.retry)["published_count"], 1)
             self.assertEqual(publish.call_args.kwargs["payload"], envelope)
@@ -174,20 +181,20 @@ class CommandQueueTests(unittest.TestCase):
         self.assertCountEqual(self.candidates(), expired+[unknown, legacy])
         with patch("app.services.command_dispatch.publish_command_message") as publish:
             result = self.cycle()
-            self.assertEqual(result["reasons"], {"expired": 2, "result_unknown": 2})
+            self.assertEqual(result["reasons"], {"expired": 1, "result_unknown": 3})
             self.assertEqual(self.cycle()["candidate_count"], 0)
             publish.assert_not_called()
         with SessionLocal() as session:
             self.assertEqual(session.get(DeviceCommand, waiting).status, "acknowledged")
             self.assertEqual(session.get(DeviceCommand, terminal).status, "succeeded")
-            for command_id in expired:
-                self.assertEqual(session.get(DeviceCommand, command_id).status, "expired")
+            self.assertEqual(session.get(DeviceCommand, expired[0]).status, "expired")
+            self.assertEqual(session.get(DeviceCommand, expired[1]).status, "result_unknown")
             for command_id in (unknown, legacy):
                 self.assertEqual(session.get(DeviceCommand, command_id).status, "result_unknown")
             alarms = list(session.scalars(select(DeviceAlarm).where(DeviceAlarm.device_id == self.offline)))
             self.assertCountEqual([alarm.alarm_key for alarm in alarms], [
                 "command.failed.vfd.start", f"command.result_unknown.{unknown}",
-                f"command.result_unknown.{legacy}",
+                f"command.result_unknown.{legacy}", f"command.result_unknown.{expired[1]}",
             ])
 
     def test_presence_boundary_and_return_online_without_changing_command(self):
@@ -265,3 +272,4 @@ class CommandQueueTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

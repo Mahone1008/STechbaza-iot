@@ -28,6 +28,16 @@ describe("command trust and intent boundaries", () => {
     expect(parseCommandReceipt(row, row.device_id, overviewOrg, row.actor_user_id!, input)).toEqual(row);
     for (const change of [{ request_id: row.id }, { command_type: "vfd.stop" }, { payload: { frequency_hz: 0 } }, { ttl_seconds: 60 }, { actor_user_id: row.id }]) expect(() => parseCommandReceipt({ ...row, ...change }, row.device_id, overviewOrg, row.actor_user_id!, input)).toThrow();
   });
+  it("validates equipment limits and immutable Stop predecessor", () => {
+    const data = controlOverview();
+    for (const limits of [{ min_hz: 50, max_hz: 20 }, { min_hz: 0, max_hz: Infinity }, { min_hz: "0", max_hz: 50 }]) expect(() => parseOverview({ ...data, frequency_limits: limits }, overviewDevice, overviewOrg)).toThrow();
+    expect(parseOverview({ ...data, frequency_limits: null }, overviewDevice, overviewOrg).frequencyLimits).toBeNull();
+    const input = { ...makeCommandInput("vfd.stop", "", 30, row.request_id), supersedes_request_id: row.id };
+    const receipt = commandFixture({ command_type: "vfd.stop", supersedes_request_id: row.id, control_sequence: 2 });
+    expect(parseCommandReceipt(receipt, row.device_id, overviewOrg, row.actor_user_id!, input)).toEqual(receipt);
+    expect(() => parseCommandReceipt({ ...receipt, supersedes_request_id: null }, row.device_id, overviewOrg, row.actor_user_id!, input)).toThrow();
+    for (const control_sequence of [0, 1.5, "1", Number.MAX_SAFE_INTEGER + 1]) expect(() => parse({ ...row, control_sequence })).toThrow();
+  });
   it("orders microsecond cursors without rounding timestamps to milliseconds", () => {
     const newer = commandFixture({ created_at: "2026-09-28T12:00:00.123456Z" });
     const older = commandFixture({ id: row.request_id, created_at: "2026-09-28T12:00:00.123455Z" });
@@ -45,6 +55,7 @@ describe("command trust and intent boundaries", () => {
   });
   it("ACK remains pending; unknown result does not become success or auto-retry", () => {
     for (const status of ["queued", "published", "acknowledged"]) expect(commandPending(parse({ ...row, status }))).toBe(true);
-    for (const status of ["succeeded", "failed", "expired", "result_unknown"]) expect(commandPending(parse({ ...row, status }))).toBe(false);
+    for (const status of ["succeeded", "failed", "expired", "result_unknown", "cancelled"]) expect(commandPending(parse({ ...row, status }))).toBe(false);
   });
 });
+

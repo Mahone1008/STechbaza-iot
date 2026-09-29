@@ -2,7 +2,7 @@ name: Frontend checks
 
 on:
   push:
-    branches: [main]
+    branches: [main, "codex/**"]
     paths:
       - 'frontend/**'
       - 'backend/**'
@@ -190,3 +190,4 @@ jobs:
       - name: Remove isolated demo
         if: ${{ always() }}
         run: docker compose -p techbaza-auth-ci --env-file .env.demo -f compose.demo.yml down --volumes --remove-orphans
+

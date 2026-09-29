@@ -1,5 +1,7 @@
 # Документація
 
+Оновлення керування 0.39.0: [порядок Start/Stop, TTL, пізні відповіді та безпечна міграція](command-safety-v2.md).
+
 Документація проєкту TechBaza IoT Pump Control / KERUMO.
 
 ## План готовності продукту
@@ -113,3 +115,4 @@ audit 0 vulnerabilities.** Нове Windows-приймання ще очікує
 
 Історичні детальні контракти telemetry, commands, auth, RBAC, events, alarms і
 notifications збережені у цій папці та індексуються GitHub.
+

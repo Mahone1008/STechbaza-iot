@@ -1,5 +1,7 @@
 # MQTT Command Result Protocol v1
 
+> Оновлення 0.39.0: поточні правила порядку команд, TTL, пізніх відповідей та міграції описані в [command-safety-v2.md](command-safety-v2.md).
+
 ## Призначення
 
 Command Result повідомляє backend-у **фінальний результат виконання command на Device**.
@@ -124,3 +126,4 @@ terminal_result_conflict
 Result повинен відображати фактичний edge-рівень.
 
 Для `vfd.frequency.set` майбутній ESP32 firmware не повинен відправляти `succeeded` лише через те, що MQTT command була отримана. Успіх має означати, що локальна логіка виконання завершилася успішно згідно з Modbus/VFD contract.
+

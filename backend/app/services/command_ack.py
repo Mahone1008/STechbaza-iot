@@ -7,7 +7,7 @@ from app.models.command import DeviceCommand
 from app.repositories.commands import CommandRepository
 from app.repositories.devices import DeviceRepository
 from app.schemas.command_ack import CommandAckEnvelope
-from app.services.system_alarms import SystemAlarmService
+from app.services.command_outcomes import stop_delivery
 from app.services.command_config import COMMAND_RESULT_TIMEOUT_SECONDS
 
 
@@ -46,13 +46,12 @@ class CommandAckInvalidTransitionError(Exception):
 
 
 class CommandAckService:
-    """Переводить published command у acknowledged за server receipt time."""
+    """Зберігає ACK, включно із запізнілим, без повторного виконання."""
 
     def __init__(self, session: Session) -> None:
         self._session = session
         self._commands = CommandRepository(session)
         self._devices = DeviceRepository(session)
-        self._system_alarms = SystemAlarmService(session)
 
     def acknowledge(
         self,
@@ -61,7 +60,7 @@ class CommandAckService:
         payload: CommandAckEnvelope,
         now: datetime | None = None,
     ) -> CommandAckResult:
-        device = self._devices.get_by_uid(device_uid)
+        device = self._devices.get_by_uid_for_update(device_uid)
         if device is None:
             raise CommandAckDeviceNotFoundError
 
@@ -72,44 +71,23 @@ class CommandAckService:
         if command.device_id != device.id:
             raise CommandAckDeviceMismatchError
 
-        # Повторний ACK після вже прийнятого ACK/Result є idempotent.
-        if command.status in {"acknowledged", "result_unknown", "succeeded", "failed"}:
-            return CommandAckResult(
-                command=command,
-                duplicate=True,
-                updated=False,
-                reason="already_acknowledged",
-            )
-
-        current_time = now or datetime.now(timezone.utc)
-
-        if command.status == "expired" or command.expires_at <= current_time:
-            if command.status != "expired":
-                command.status = "expired"
-                command.completed_at = current_time
-                command.error_code = "command_expired"
-                command.error_message = (
-                    "ACK надійшов після завершення TTL команди"
-                )
-                try:
-                    self._system_alarms.record_command_outcome(
-                        command=command,
-                        occurred_at=current_time,
-                        source_message_id=payload.message_id,
-                    )
-                    self._session.commit()
-                except Exception:
-                    self._session.rollback()
-                    raise
-                self._session.refresh(command)
-            raise CommandAckExpiredError
-
-        if command.status != "published":
+        # Receipt time may be later than controller acceptance. Keep the evidence;
+        # never reactivate delivery or extend a deadline on a duplicate ACK.
+        if command.acknowledged_at is not None or command.status in {"succeeded", "failed"}:
+            return CommandAckResult(command, True, False, "already_acknowledged")
+        attempted = bool(command.publish_attempts or command.published_at)
+        if command.status not in {"published", "result_unknown", "expired"} or not attempted:
             raise CommandAckInvalidTransitionError(command.status)
-
-        command.status = "acknowledged"
+        current_time = now or datetime.now(timezone.utc)
+        late = command.expires_at <= current_time or command.status in {"result_unknown", "expired"}
         command.acknowledged_at = current_time
-        command.result_deadline_at = current_time + timedelta(seconds=COMMAND_RESULT_TIMEOUT_SECONDS)
+        if late:
+            if command.status != "result_unknown":
+                stop_delivery(self._session, command, current_time, code="command_ack_late",
+                    message="Прийом підтверджено із затримкою; результат потребує перевірки")
+        else:
+            command.status = "acknowledged"
+            command.result_deadline_at = current_time + timedelta(seconds=COMMAND_RESULT_TIMEOUT_SECONDS)
 
         self._session.commit()
         self._session.refresh(command)
@@ -118,5 +96,6 @@ class CommandAckService:
             command=command,
             duplicate=False,
             updated=True,
-            reason="acknowledged",
+            reason="late_acknowledged" if late else "acknowledged",
         )
+

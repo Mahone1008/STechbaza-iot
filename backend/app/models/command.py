@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text, text
+from sqlalchemy import BigInteger, CheckConstraint, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -18,6 +18,8 @@ class DeviceCommand(TimestampMixin, Base):
 
     __tablename__ = "device_commands"
     __table_args__ = (
+        UniqueConstraint("device_id", "control_sequence", name="uq_device_commands_control_sequence"),
+        CheckConstraint("control_sequence IS NULL OR control_sequence > 0", name="ck_device_commands_control_sequence"),
         Index(
             "ix_device_commands_device_created_at",
             "device_id",
@@ -58,6 +60,8 @@ class DeviceCommand(TimestampMixin, Base):
         nullable=False,
         index=True,
     )
+    supersedes_request_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True, index=True)
+    control_sequence: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     payload: Mapped[dict[str, Any]] = mapped_column(
         JSONB,
         nullable=False,

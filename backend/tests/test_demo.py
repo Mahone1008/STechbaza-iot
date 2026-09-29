@@ -24,9 +24,11 @@ class DemoTests(unittest.TestCase):
         self.state = DemoState(self.path)
         self.addCleanup(lambda: self.state.close())
         self.now = datetime.now(timezone.utc)
+        self.command_sequence = 0
 
     def command(self, kind="vfd.start", payload=None, **updates):
-        return {"schema_version": 1, "command_id": str(uuid.uuid4()), "request_id": str(uuid.uuid4()),
+        self.command_sequence += 1
+        return {"schema_version": 2, "control_sequence": self.command_sequence, "command_id": str(uuid.uuid4()), "request_id": str(uuid.uuid4()),
                 "command_type": kind, "payload": payload or {}, "ttl_seconds": 30,
                 "issued_at": (self.now - timedelta(seconds=1)).isoformat(),
                 "expires_at": (self.now + timedelta(seconds=29)).isoformat(), **updates}
@@ -160,3 +162,36 @@ class DemoTests(unittest.TestCase):
         third = self.state.envelope("pump")
         self.assertNotEqual(second["session_id"], third["session_id"])
         self.assertEqual(third["sequence"], 1)
+
+
+    def test_new_stop_fences_old_start_even_after_restart_and_protocol_downgrade(self):
+        old = self.command(schema_version=2, control_sequence=1)
+        stop = self.command("vfd.stop", schema_version=2, control_sequence=2)
+        self.state.command("pump", stop)
+        self.state.close()
+        self.state = DemoState(self.path)
+        self.state.boot()
+        self.state.command("pump", old)
+        self.assertEqual(json.loads(self.state.pending()[-1]["result"])["error_code"], "command_out_of_order")
+        self.assertEqual(self.state.device("pump")["running"], 0)
+        with self.assertRaises(ValueError):
+            self.state.command("pump", self.command(schema_version=1, control_sequence=None))
+        self.assertEqual(self.state.device("pump")["executions"], 1)
+        self.assertFalse(self.state.command("pump", stop))
+        self.state.command("pump", self.command(schema_version=2, control_sequence=3))
+        self.assertEqual(self.state.device("pump")["running"], 1)
+
+    def test_duplicate_sequence_and_out_of_profile_frequency_do_not_actuate(self):
+        self.state.command("pump", self.command("vfd.stop", schema_version=2, control_sequence=8))
+        self.state.command("pump", self.command(schema_version=2, control_sequence=8))
+        self.assertEqual(json.loads(self.state.pending()[-1]["result"])["error_code"], "command_out_of_order")
+        self.state.command("pump", self.command("vfd.frequency.set", {"frequency_hz": 51}, schema_version=2, control_sequence=9))
+        self.assertEqual(json.loads(self.state.pending()[-1]["result"])["error_code"], "frequency_out_of_range")
+        self.assertEqual(self.state.device("pump")["executions"], 1)
+        self.assertEqual(self.state.device("pump")["frequency"], 40)
+
+    def test_v2_requires_strict_sequence_and_v1_cannot_carry_one(self):
+        for version, sequence in [(2, None), (2, True), (2, "1"), (2, 0), (1, 1)]:
+            with self.subTest(version=version, sequence=sequence), self.assertRaises(ValueError):
+                self.state.command("pump", self.command(schema_version=version, control_sequence=sequence))
+        self.assertEqual(self.state.device("pump")["executions"], 0)

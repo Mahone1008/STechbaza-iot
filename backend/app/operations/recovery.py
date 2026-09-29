@@ -76,8 +76,8 @@ def database_fingerprint(engine):
                 connection.execution_options(stream_results=False)
                 result[name] = {"rows": count, "sha256": digest.hexdigest()}
             migration = list(connection.execute(text("SELECT version_num FROM alembic_version ORDER BY version_num")).scalars())
-            if migration != ["20260926_0017"]:
-                raise ValueError("Очікується migration 0017 head")
+            if migration != ["20260929_0018"]:
+                raise ValueError("Очікується migration 0018 head")
             return {"migration": migration, "tables": result, "schema": structure,
                     "schema_sha256": hashlib.sha256(json.dumps(structure, sort_keys=True, default=str).encode()).hexdigest()}
 
@@ -96,7 +96,7 @@ def harden_restored_database(session, *, now=None):
     counts["cleared_rate_limits"] = session.execute(delete(AuthRateLimit)).rowcount
     alarms = SystemAlarmService(session)
     for item in commands:
-        if item.status == "acknowledged":
+        if item.status in {"published", "acknowledged"} or item.publish_attempts or item.published_at:
             item.status = "result_unknown"
             item.result_timed_out_at = now
             item.error_code = "restore_result_unknown"
@@ -112,3 +112,4 @@ def harden_restored_database(session, *, now=None):
             counts["cancelled_delivery"] += 1
     session.flush()
     return counts
+

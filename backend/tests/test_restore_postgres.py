@@ -59,13 +59,14 @@ class RestorePostgresTests(unittest.TestCase):
         result = harden_restored_database(self.session, now=self.now)
         self.session.commit()
         self.assertGreaterEqual(result["revoked_sessions"], 1)
-        self.assertGreaterEqual(result["cancelled_delivery"], 2)
-        self.assertGreaterEqual(result["unknown_results"], 1)
+        self.assertGreaterEqual(result["cancelled_delivery"], 1)
+        self.assertGreaterEqual(result["unknown_results"], 2)
         self.assertIsNotNone(self.session.get(AuthSession, self.auth).revoked_at)
-        for old in ("queued", "published"):
+        for old in ("queued",):
             item = self.session.get(DeviceCommand, self.ids[old])
             self.assertEqual((item.status, item.error_code), ("expired", "restore_delivery_cancelled"))
             self.assertEqual(item.expires_at, self.now + timedelta(minutes=5))
+        self.assertEqual(self.session.get(DeviceCommand, self.ids["published"]).status, "result_unknown")
         unknown = self.session.get(DeviceCommand, self.ids["acknowledged"])
         self.assertEqual(unknown.status, "result_unknown")
         self.assertIsNone(unknown.completed_at)
@@ -149,3 +150,4 @@ class RestorePostgresTests(unittest.TestCase):
         finally:
             with engine.begin() as connection:
                 connection.execute(text(f'DROP TABLE IF EXISTS "{table}"'))
+

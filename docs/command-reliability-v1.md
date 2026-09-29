@@ -1,5 +1,7 @@
 # Command Reliability v1
 
+> Оновлення 0.39.0: поточні правила порядку команд, TTL, пізніх відповідей та міграції описані в [command-safety-v2.md](command-safety-v2.md).
+
 Актуалізовано для backend **0.37.2**. Деталі: [етап H, H-02](stage-h-backend-corrections.md).
 Попередні виправлення: [журнал 0.30.0](hardening-2026-09-25.md).
 
@@ -198,3 +200,4 @@ GET /command/reliability/status
 Для production horizontal scaling цей механізм треба винести у dedicated worker/outbox architecture або додати distributed coordination.
 
 Це свідомо зафіксоване обмеження, а не прихована залежність.
+

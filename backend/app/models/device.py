@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, ForeignKey, String
+from sqlalchemy import BigInteger, DateTime, ForeignKey, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -54,6 +54,7 @@ class Device(TimestampMixin, Base):
         UUID(as_uuid=True),
         nullable=True,
     )
+    command_sequence: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0, server_default="0")
 
     site: Mapped["Site"] = relationship(back_populates="devices")
     capabilities: Mapped[list["DeviceCapability"]] = relationship(
