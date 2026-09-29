@@ -112,6 +112,8 @@ export async function apiRequest<T>(options: ApiRequestOptions): Promise<T> {
       headers,
       credentials: options.credentials ?? "include",
       cache: "no-store",
+      // API paths are canonical; never replay a credentialed request after a redirect.
+      redirect: "error",
       signal: abort.signal,
     };
     if (body !== undefined) requestInit.body = body;

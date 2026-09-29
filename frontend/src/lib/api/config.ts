@@ -52,8 +52,12 @@ export const apiConfig = Object.freeze({
 });
 
 export function buildApiUrl(path: string): URL {
-  if (!path.startsWith("/")) {
-    throw new Error(`API path must start with '/': ${path}`);
+  if (!path.startsWith("/") || path.startsWith("//") || /[\\\u0000-\u0020#]/u.test(path)) {
+    throw new Error("API path must be a root-relative path on the configured backend.");
   }
-  return new URL(path, `${apiConfig.baseUrl}/`);
+  const url = new URL(path, `${apiConfig.baseUrl}/`);
+  if (url.origin !== apiConfig.baseUrl || url.username || url.password) {
+    throw new Error("API request cannot leave the configured backend origin.");
+  }
+  return url;
 }

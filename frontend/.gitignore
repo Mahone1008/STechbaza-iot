@@ -5,6 +5,7 @@ coverage/
 playwright-report/
 test-results/
 test-results-live/
+artifacts/
 .env*.local
 npm-debug.log*
 yarn-debug.log*

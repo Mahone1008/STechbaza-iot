@@ -91,10 +91,18 @@ export async function mapBounded<T, R>(items: readonly T[], concurrency: number,
   return results;
 }
 
+// Only formatter configuration is cached, never dates or tenant data.
+const dateFormatters = new Map<string, Intl.DateTimeFormat>();
 export function formatSeen(value: string | null, timezone = "UTC"): string {
   if (value === null) return "Ще не було зв’язку";
   try {
-    return new Intl.DateTimeFormat("uk-UA", { timeZone: timezone, dateStyle: "short", timeStyle: "medium" }).format(new Date(value));
+    let formatter = dateFormatters.get(timezone);
+    if (!formatter) {
+      formatter = new Intl.DateTimeFormat("uk-UA", { timeZone: timezone, dateStyle: "short", timeStyle: "medium" });
+      if (dateFormatters.size >= 8) dateFormatters.delete(dateFormatters.keys().next().value!);
+      dateFormatters.set(timezone, formatter);
+    }
+    return formatter.format(new Date(value));
   } catch {
     return `${new Date(value).toISOString()} (UTC)`;
   }

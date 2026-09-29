@@ -6,10 +6,11 @@
 
 ## Поточний стан
 
-**14.1–14.2 реалізовано:** UX/accessibility, keyboard, responsive tables,
-axe scans, owner/viewer journeys та two-tenant/two-tab regression.
-Локально 83 unit, types/lint/build PASS. Актуальний CI, межі ручного
-приймання та [Windows-команда](../docs/stage-14-op2-browser-regression.md).
+**14.1–14.4 реалізовано як базу для подальших випробувань:** UX/accessibility,
+browser regression, CSP, захист API та вимірювані performance budgets.
+Це не production-реліз. Актуальний CI, виміри, межі ручного приймання та
+[Windows-команда](../docs/stage-14-op4-test-baseline.md) зібрані в
+[досьє V3.5 — Етап 14](../docs/dossier-v3.5-stage-14-frontend-test-baseline.md).
 
 **Етапи 9 і 10 завершено по 4/4. Frontend roadmap: прийнято 10/24.
 Етапи 11 і 12 реалізовано по 4/4; залишок ручного приймання зафіксовано в досьє.**
@@ -66,6 +67,17 @@ Node.js: **20.9.0+**. CI: Node.js 22.16.0. Локально прийняті Е�
 операції 10.1–10.3 на Node.js 24.21.0.
 
 ## Конфігурація
+
+CSP дозволяє API origin з `NEXT_PUBLIC_API_BASE_URL`; змінювати його потрібно
+перед `npm run build`. HTML/RSC динамічні, з per-request nonce і `no-store`;
+CDN-кешування HTML не підтримується. Inline styles дозволені для React/SVG,
+inline scripts без nonce заблоковані. `npm run start` — локальний запуск
+зібраної версії, а не оголошення production-релізу.
+
+Після build: `npm run check:budget` записує bundle report в
+`artifacts/stage14/build-budget.json`; браузерні performance tests додають
+JSON у `test-results`. Бюджети й обмеження — у
+[14.3](../docs/stage-14-op3-security-performance.md).
 
 ```powershell
 Copy-Item .env.example .env.local

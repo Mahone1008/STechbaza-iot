@@ -86,6 +86,14 @@ PASS. Windows 28.09.2026: **133 mocked / 10 live / cumulative gate PASS**;
 
 Поточний статус:
 
+**14.3–14.4 реалізовано як базову версію для подальших випробувань,
+не production-реліз.** CSP/nonce, API origin/redirect guard, formatter reuse
+і performance budgets; актуальні перевірки та Windows-команда —
+у [14.4](docs/stage-14-op4-test-baseline.md). Загальний результат —
+[досьє V3.5 Етапу 14](docs/dossier-v3.5-stage-14-frontend-test-baseline.md).
+
+Попередня база 14.1–14.2:
+
 Реалізовано [14.1 — UX/accessibility](docs/stage-14-op1-ux-accessibility.md)
 та [14.2 — browser regression](docs/stage-14-op2-browser-regression.md).
 **Фінальний CI: 83 unit / 146 mocked / 10 live + 44 повтори — PASS**;
@@ -100,7 +108,7 @@ Frontend roadmap: 10/24
 Етап 11: реалізовано 4/4, прийнято 2/4; CI + Windows PASS, залишок ручного приймання
 Етап 12: реалізовано 4/4; Windows 12.3 + 12.4 PASS, виправлення згортання деталей; ручне приймання відкрите
 Етап 13: реалізовано 4/4; CI 83/133/10 + 44 повтори PASS; Windows 133 mocked / 10 live PASS; ручне приймання часткове
-Етап 14: реалізовано 14.1–14.2; CI 83/146/10 + 44 повтори PASS; Windows 146/10 + gate PASS; ручне приймання часткове
+Етап 14: реалізовано 4/4 як тестову базу; актуальні докази у 14.4; ручні й апаратні випробування відкриті
 ```
 
 - [11.1 — Організації та об’єкти](docs/stage-11-op1-organizations-sites.md).

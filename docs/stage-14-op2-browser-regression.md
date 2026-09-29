@@ -146,3 +146,7 @@ Wrapper включає cumulative 13.3–13.4, усі нові tests і guarded 
 Попередні непідтверджені ручні сценарії
 не закриваються автоматично. Наступні операції — 14.3 security/performance
 і 14.4 release/dossier; вони не виконуються в цьому блоці.
+
+Актуальна наступна база: [14.3](stage-14-op3-security-performance.md),
+[14.4](stage-14-op4-test-baseline.md) та [загальне досьє V3.5 Етапу 14](dossier-v3.5-stage-14-frontend-test-baseline.md).
+На прохання користувача це базова версія для випробувань, не production-реліз.

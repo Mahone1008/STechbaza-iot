@@ -21,6 +21,7 @@ on:
       - 'scripts/check-stage13-op1-op2.ps1'
       - 'scripts/check-stage13-op3-op4.ps1'
       - 'scripts/check-stage14-op1-op2.ps1'
+      - 'scripts/check-stage14-op3-op4.ps1'
       - 'scripts/stage13-mqtt-scenario.py'
       - 'scripts/prepare-stage13-demo.py'
       - '.github/workflows/frontend-bootstrap.yml'
@@ -70,6 +71,12 @@ jobs:
       - name: Production build
         working-directory: frontend
         run: npm run build
+      - name: Frontend bundle budget
+        working-directory: frontend
+        run: npm run check:budget
+      - name: Dependency vulnerability gate
+        working-directory: frontend
+        run: npm audit --json --audit-level=high > artifacts/stage14/dependency-audit.json
       - name: Install Chromium
         working-directory: frontend
         run: npx playwright install --with-deps chromium
@@ -84,6 +91,7 @@ jobs:
           path: |
             frontend/playwright-report
             frontend/test-results
+            frontend/artifacts/stage14
           if-no-files-found: ignore
           retention-days: 5
       - name: Login navigation race regression (five runs, no retries)

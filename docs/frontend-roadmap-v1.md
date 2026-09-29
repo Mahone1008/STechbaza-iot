@@ -6,7 +6,7 @@
 Етап 10 завершено 4/4 після CI та локального Windows-приймання.
 11.1 і 11.2 прийнято 28.09.2026 після Windows PASS і ручного підтвердження.
 Поточна точка — Етапи 12 і 13 реалізовано по 4/4, досьє V3.5 складено;
-14.1–14.2 реалізовано, CI 83/146/10 + 44 повтори PASS, Windows 146/10 + gate PASS;
+14.1–14.4 реалізовано як тестову базу, не production-реліз; актуальні докази — у 14.4;
 перевірки та залишок локального приймання наведено нижче.
 11.3 + 11.4 мають Windows PASS із залишком ручних сценаріїв.**
 
@@ -22,7 +22,7 @@ Frontend поділено на Етапи 9–14. Кожен етап має ч�
 події та персональні notifications. Інтерфейс працює на desktop і mobile з
 чинним demo API.
 
-За межами першого release: billing, B2B invitation/QR claim, mass provisioning,
+За межами першої тестової бази: billing, B2B invitation/QR claim, mass provisioning,
 повний service portal, alarm rule editor, camera/video, OTA, native app і
 локальна offline queue для command writes.
 
@@ -164,8 +164,8 @@ Start/frequency не накопичуються локально для відп
 |---|---|
 | 14.1 — UX/accessibility | Реалізовано; CI і Windows PASS, 27 CI axe scans / 0 violations, incomplete розглянуто в досьє; ручне zoom/AT приймання відкрите |
 | 14.2 — Browser regression | Реалізовано: owner/viewer, two tenants/tabs, live logout; CI 83 unit / 146 mocked / 10 live + 44 повтори PASS; Windows 146 mocked / 10 live / gate PASS, залишок ручного приймання |
-| 14.3 — Security/performance | cache isolation, races, escaping, CSP, bundle/requests/heap/latency |
-| 14.4 — Release/dossier | production build, clean run, real demo E2E, revision evidence |
+| 14.3 — Security/performance | Реалізовано: CSP/nonce, API origin/redirect guard, escaping/storage, bundle/request/render/heap gates; докази в 14.4 |
+| 14.4 — Тестова база / досьє | Реалізовано: production-mode build, CI/live gate, Windows wrapper і загальне досьє; подальші випробування відкриті |
 
 ## 10. Незмінні правила
 
@@ -266,4 +266,11 @@ CI на `19bb2fd`: 83 unit / 146 mocked / 10 live + 44 повтори PASS**,
 10 live за 58.7 с / cumulative gate PASS**, MQTT chain PASS. На UI screenshots
 показано частоту/тиск, 24 години / 1 година та focus outline; повні ручні
 keyboard/zoom/F5/cross-tab сценарії окремо не підтверджені. Прийнято 10/24.
-Наступні операції — 14.3 security/performance та 14.4 release/dossier.
+На той момент наступними були 14.3 security/performance та 14.4 release/dossier.
+
+29.09.2026 за уточненням користувача реалізовано [14.3](stage-14-op3-security-performance.md)
+і [14.4](stage-14-op4-test-baseline.md) як **базову версію перед подальшими
+випробуваннями, не production-реліз**. Назву 14.4 уточнено; release tag і
+deployment не створювалися. Результати, revisions, budgets та наступний
+план випробувань — у [загальному досьє V3.5 Етапу 14](dossier-v3.5-stage-14-frontend-test-baseline.md).
+Прийнятий прогрес лишається 10/24 до підтвердження ручних сценаріїв.

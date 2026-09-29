@@ -4,6 +4,10 @@
 
 ## Frontend
 
+- [Досьє V3.5 — Етап 14: тестова база frontend](dossier-v3.5-stage-14-frontend-test-baseline.md)
+- [14.3 — Безпека і продуктивність](stage-14-op3-security-performance.md)
+- [14.4 — Перевірки тестової бази та Windows-команда](stage-14-op4-test-baseline.md)
+
 - [14.1 — UX, доступність, keyboard і reflow](stage-14-op1-ux-accessibility.md)
 - [14.2 — Browser regression, докази та Windows-команда](stage-14-op2-browser-regression.md)
 - [Досьє V3.5 — Етап 13: аварії, повідомлення та наскрізний інцидент](dossier-v3.5-stage-13-alarms-notifications.md)
@@ -56,7 +60,10 @@ PASS**, повний browser MQTT incident/recovery пройдено. Windows 28
 немає violations; `incomplete` та ручні межі розглянуто в 14.1.
 Windows 29.09.2026: **146 mocked / 10 live / cumulative gate PASS**;
 показано графіки частоти/тиску та focus outline, решта ручного приймання
-відкрита. Докази — у 14.2. Наступні — 14.3 та 14.4.
+відкрита. Історичні докази — у 14.2.
+**14.3–14.4 реалізовано як тестову базу, не production-реліз.**
+Актуальні CI/виміри та команда — у [14.4](stage-14-op4-test-baseline.md),
+загальний результат — у [досьє Етапу 14](dossier-v3.5-stage-14-frontend-test-baseline.md).
 
 ## Backend: виправлення та перевірки
 

@@ -1,7 +1,8 @@
 import { bucketLabels, type Series } from "@/lib/api/telemetry-series";
 import { formatSeen } from "@/lib/api/inventory";
 
-const number = (value: number | null) => value === null ? "—" : new Intl.NumberFormat("uk-UA", { maximumSignificantDigits: 8 }).format(value);
+const numberFormatter = new Intl.NumberFormat("uk-UA", { maximumSignificantDigits: 8 });
+const number = (value: number | null) => value === null ? "—" : numberFormatter.format(value);
 export function TelemetryChart({ series, timezone }: { series: Series; timezone: string }) {
   const values = series.buckets.flatMap((b) => b.minimum === null ? [] : [b.minimum, b.maximum!]);
   const magnitude = Math.max(1, ...values.map(Math.abs));
