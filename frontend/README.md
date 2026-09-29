@@ -6,6 +6,11 @@
 
 ## Поточний стан
 
+**14.1–14.2 реалізовано:** UX/accessibility, keyboard, responsive tables,
+axe scans, owner/viewer journeys та two-tenant/two-tab regression.
+Локально 83 unit, types/lint/build PASS; фінальний CI та Windows очікуються.
+[Перевірки та Windows-команда](../docs/stage-14-op2-browser-regression.md).
+
 **Етапи 9 і 10 завершено по 4/4. Frontend roadmap: прийнято 10/24.
 Етапи 11 і 12 реалізовано по 4/4; залишок ручного приймання зафіксовано в досьє.**
 

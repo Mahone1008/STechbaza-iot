@@ -22,8 +22,8 @@ export function TelemetryChart({ series, timezone }: { series: Series; timezone:
       <text x="60" y="20" textAnchor="end">{number(high * magnitude)}</text><text x="60" y="220" textAnchor="end">{number(low * magnitude)}</text>
       {series.buckets.map((b, i) => b.average === null ? null : <g key={b.start}>
         <title>{`${formatSeen(b.start, timezone)}: ${number(b.average)} ${series.unit}; min ${number(b.minimum)}, max ${number(b.maximum)}, n=${b.sample_count}; ${bucketLabels[b.status]}`}</title>
-        <line x1={x(i)} x2={x(i)} y1={y(b.minimum!)} y2={y(b.maximum!)} stroke="currentColor" opacity="0.35" strokeWidth="3" />
-        <circle cx={x(i)} cy={y(b.average)} r="3" fill={b.status === "partial" ? "#d99b36" : "currentColor"} />
+        <line x1={x(i)} x2={x(i)} y1={y(b.minimum!)} y2={y(b.maximum!)} stroke="currentColor" strokeWidth="3" />
+        <circle cx={x(i)} cy={y(b.average)} r="3" fill={b.status === "partial" ? "var(--warning)" : "currentColor"} />
       </g>)}
       {segments.map((d, i) => <path key={i} d={d} fill="none" stroke="currentColor" strokeWidth="2" />)}
       <text x="65" y="250">Початок</text><text x="775" y="250" textAnchor="end">Кінець</text>

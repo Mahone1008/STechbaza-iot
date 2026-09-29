@@ -175,16 +175,19 @@ function UserMenu({
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const actionRef = useRef<HTMLButtonElement | null>(null);
   const menuId = useId();
 
   useEffect(() => {
     if (!open) return;
+    actionRef.current?.focus();
 
     const closeFromPointer = (event: PointerEvent) => {
       if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
     };
     const closeFromKeyboard = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
+      event.preventDefault();
       setOpen(false);
       triggerRef.current?.focus();
     };
@@ -198,7 +201,8 @@ function UserMenu({
   }, [open]);
 
   return (
-    <div className={`user-menu${compact ? " user-menu-compact" : ""}`} ref={rootRef}>
+    <div className={`user-menu${compact ? " user-menu-compact" : ""}`} ref={rootRef}
+      onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false); }}>
       <button
         className={compact ? "topbar-account-button" : "icon-button"}
         type="button"
@@ -207,6 +211,9 @@ function UserMenu({
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
         onClick={() => setOpen((value) => !value)}
+        onKeyDown={(event) => {
+          if (event.key === "ArrowDown" || event.key === "ArrowUp") { event.preventDefault(); setOpen(true); }
+        }}
         ref={triggerRef}
       >
         {compact ? (
@@ -217,7 +224,11 @@ function UserMenu({
       </button>
 
       {open ? (
-        <div className="user-menu-popover" id={menuId} role="menu" aria-label="Меню користувача">
+        <div className="user-menu-popover" id={menuId} role="menu" aria-label="Меню користувача"
+          onKeyDown={(event) => {
+            // Меню має одну дію; клавіші навігації лишають фокус у цьому пункті.
+            if (["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) { event.preventDefault(); actionRef.current?.focus(); }
+          }}>
           <div className="user-menu-profile">
             <strong>{presentation.userName}</strong>
             <span>{presentation.userStatus}</span>
@@ -228,6 +239,7 @@ function UserMenu({
             className="user-menu-action user-menu-action-danger"
             type="button"
             role="menuitem"
+            ref={actionRef}
             onClick={() => {
               setOpen(false);
               void logout();
@@ -302,14 +314,14 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
             </div>
           </div>
         </header>
-        <main className="workspace-content" id="main-content"><InventoryBreadcrumbs />{children}</main>
+        <main className="workspace-content" id="main-content" tabIndex={-1}><InventoryBreadcrumbs />{children}</main>
       </section>
 
       <nav className="mobile-nav" aria-label="Мобільна навігація" style={mobileStyle}>
         {mobileNavigation.map((item) => {
-          const active = item.href === "/devices" ? pathname === "/devices" : isActivePath(pathname, item.href);
+          const active = isActivePath(pathname, item.href);
           return (
-            <Link href={item.href} key={item.href} data-active={active ? "true" : "false"}>
+            <Link href={item.href} key={item.href} data-active={active ? "true" : "false"} aria-current={active ? "page" : undefined}>
               <Icon name={item.icon} /><span>{item.label}</span>
             </Link>
           );

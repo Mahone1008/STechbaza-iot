@@ -77,6 +77,12 @@ test("real logout in one tab clears peer tabs and a new protected navigation sta
   await second.goto("/devices");
   await expect(second.getByText(DEMO_EMAIL)).toBeVisible();
 
+  // Живі приватні розділи Етапу 13 також мають зникнути в обох вкладках.
+  await page.goto("/notifications");
+  await expect(page.getByRole("table", { name: "Повідомлення організації" })).toBeVisible();
+  await second.goto("/alarms");
+  await expect(second.getByRole("heading", { name: "Аварії та інциденти", exact: true })).toBeVisible();
+
   let logoutCalls = 0;
   const countLogout = (request: Request) => {
     if (request.url() === LOGOUT_URL && request.method() === "POST") logoutCalls += 1;
@@ -88,6 +94,11 @@ test("real logout in one tab clears peer tabs and a new protected navigation sta
   await expect(second).toHaveURL(/\/login\?loggedOut=1$/u);
   await expect(second.getByText("Сесію завершено")).toBeVisible();
   expect(logoutCalls).toBe(1);
+
+  for (const tab of [page, second]) {
+    await expect(tab.getByRole("table")).toHaveCount(0);
+    expect(await tab.evaluate(() => Object.keys(sessionStorage))).toEqual([]);
+  }
 
   const third = await context.newPage();
   await third.goto("/devices");

@@ -73,7 +73,7 @@ type DataTableProps<T extends { id: string }> = { rows: readonly T[]; columns: r
 
 export function DataTable<T extends { id: string }>({ rows, columns, emptyMessage = "Немає даних для відображення.", caption }: DataTableProps<T>) {
   return (
-    <div className="table-shell"><div className="table-scroll"><table className="data-table">
+    <div className="table-shell"><div className="table-scroll" tabIndex={0} role="region" aria-label={`${caption}: прокручувана таблиця`}><table className="data-table">
       <caption className="visually-hidden">{caption}</caption>
       <thead><tr>{columns.map((column) => <th key={column.key} scope="col">{column.header}</th>)}</tr></thead>
       <tbody>{rows.length ? rows.map((row) => <tr key={row.id}>{columns.map((column) => <td key={column.key}>{column.render(row)}</td>)}</tr>) : <tr><td className="table-empty" colSpan={columns.length}>{emptyMessage}</td></tr>}</tbody>

@@ -4,6 +4,8 @@
 
 ## Frontend
 
+- [14.1 — UX, доступність, keyboard і reflow](stage-14-op1-ux-accessibility.md)
+- [14.2 — Browser regression, докази та Windows-команда](stage-14-op2-browser-regression.md)
 - [Досьє V3.5 — Етап 13: аварії, повідомлення та наскрізний інцидент](dossier-v3.5-stage-13-alarms-notifications.md)
 - [13.3 — Стрічка повідомлень і персональне прочитання](stage-13-op3-notifications.md)
 - [13.4 — Browser MQTT incident E2E, перевірки та Windows-команда](stage-13-op4-incident-e2e.md)
@@ -49,7 +51,8 @@ PASS**, повний browser MQTT incident/recovery пройдено. Windows 28
 **133 mocked / 10 live / cumulative gate PASS**; стрічка, unread recovery та
 історія resolved/acknowledged показані, решта ручного приймання відкрита.
 Зведений результат — у [досьє Етапу 13](dossier-v3.5-stage-13-alarms-notifications.md),
-детальні докази — у 13.4. Наступні — 14.1 та 14.2.
+детальні докази — у 13.4. Реалізовано 14.1 та 14.2; фінальний CI та
+Windows/manual очікуються. Наступні — 14.3 та 14.4.
 
 ## Backend: виправлення та перевірки
 

@@ -161,8 +161,8 @@ Start/frequency не накопичуються локально для відп
 
 | Операція | Результат |
 |---|---|
-| 14.1 — UX/accessibility | mobile/tablet/desktop, keyboard, focus, contrast, zoom, states |
-| 14.2 — Browser regression | Playwright full path, roles, two tenants, two tabs |
+| 14.1 — UX/accessibility | Реалізовано: контраст, keyboard/focus, mobile tables, axe та reflow; фінальний CI та ручне zoom/AT приймання очікуються |
+| 14.2 — Browser regression | Реалізовано: owner/viewer journeys, two tenants/tabs, live logout, retries=0 та окремі artifacts; фінальний CI і Windows очікуються |
 | 14.3 — Security/performance | cache isolation, races, escaping, CSP, bundle/requests/heap/latency |
 | 14.4 — Release/dossier | production build, clean run, real demo E2E, revision evidence |
 
@@ -254,6 +254,11 @@ browser MQTT chain PASS. На 11 скриншотах показано feed, unr
 resolved/acknowledged incident з owner audit й трьома transitions.
 Ручні read/F5, viewer та решта взаємодій окремо не підтверджені; прийнятий
 прогрес лишається 10/24. Докази, межі та команда — у 13.4.
-Наступний блок — 14.1 UX/accessibility та 14.2 browser regression.
+Наступний на цю точку блок — 14.1 UX/accessibility та 14.2 browser regression.
 29.09.2026 складено загальне досьє Етапу 13; документаційне підбиття підсумків
 не змінює прийнятий прогрес 10/24.
+
+29.09.2026 реалізовано [14.1 UX/accessibility](stage-14-op1-ux-accessibility.md)
+та [14.2 browser regression](stage-14-op2-browser-regression.md): локально
+83 unit, types/lint/build PASS. Повний CI та Windows/manual очікуються.
+Наступні операції — 14.3 security/performance та 14.4 release/dossier.

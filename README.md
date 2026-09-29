@@ -86,6 +86,10 @@ PASS. Windows 28.09.2026: **133 mocked / 10 live / cumulative gate PASS**;
 
 Поточний статус:
 
+Реалізовано [14.1 — UX/accessibility](docs/stage-14-op1-ux-accessibility.md)
+та [14.2 — browser regression](docs/stage-14-op2-browser-regression.md).
+Локально 83 unit, types/lint/build PASS; фінальний CI та Windows/manual очікуються.
+
 ```text
 Етап 9: 4/4
 Етап 10: 4/4
@@ -93,6 +97,7 @@ Frontend roadmap: 10/24
 Етап 11: реалізовано 4/4, прийнято 2/4; CI + Windows PASS, залишок ручного приймання
 Етап 12: реалізовано 4/4; Windows 12.3 + 12.4 PASS, виправлення згортання деталей; ручне приймання відкрите
 Етап 13: реалізовано 4/4; CI 83/133/10 + 44 повтори PASS; Windows 133 mocked / 10 live PASS; ручне приймання часткове
+Етап 14: реалізовано 14.1–14.2; фінальні CI-докази та приймання очікуються
 ```
 
 - [11.1 — Організації та об’єкти](docs/stage-11-op1-organizations-sites.md).
