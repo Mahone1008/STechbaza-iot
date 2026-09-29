@@ -51,7 +51,7 @@ try {
     Docker-Checked @demo cp postgres:/tmp/kerumo-before-v3.dump (Join-Path $backup 'postgres.dump')
     Docker-Checked @demo run --rm -T --no-deps -v "${backup}:/backup" simulator python -m app.demo.backup_check sqlite-export
     Docker-Checked @demo run --rm -T --no-deps backend alembic upgrade head
-    Docker-Checked @demo run --rm -T --no-deps backend python -m app.bench.su600
+    Docker-Checked @demo run --rm -T --no-deps backend python -m app.bench.su600 --disable-control
     Docker-Checked @v3 up -d --no-build --wait --wait-timeout 90 backend simulator v3-gateway
 } catch {
     Write-Host "Preparation stopped. Existing data and backup are retained at $backup. Do not reset volumes." -ForegroundColor Yellow
