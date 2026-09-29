@@ -32,7 +32,7 @@ try {
     [IO.File]::WriteAllText((Join-Path $local 'setup.json'), $request, (New-Object Text.UTF8Encoding($false)))
 } finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($ptr); $request = $null }
 try {
-    Docker-Checked @v3 run --rm -T --no-deps -v "${local}:/work:rw" --entrypoint python3 v3-gateway /opt/kerumo/generate.py
+    Docker-Checked run --rm -i --network none -v "${local}:/work:rw" --entrypoint python3 kerumo-v3-gateway:local /opt/kerumo/generate.py
 } finally { Remove-Item (Join-Path $local 'setup.json') -ErrorAction SilentlyContinue }
 $target = Join-Path $repo 'firmware/kerumo_v3/config.local.h'
 $generated = Join-Path $local 'config.local.h'

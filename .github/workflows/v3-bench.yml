@@ -58,7 +58,7 @@ jobs:
       - name: Build bench services and TLS identity
         run: |
           docker compose -p techbaza-v3-ci --env-file .env.demo --env-file .env.v3 -f compose.demo.yml -f compose.v3.yml build backend v3-gateway
-          docker compose -p techbaza-v3-ci --env-file .env.demo --env-file .env.v3 -f compose.demo.yml -f compose.v3.yml run --rm -T --no-deps -v "$PWD/.local/v3:/work:rw" --entrypoint python3 v3-gateway /opt/kerumo/generate.py
+          docker run --rm -i --network none -v "$PWD/.local/v3:/work:rw" --entrypoint python3 kerumo-v3-gateway:local /opt/kerumo/generate.py
       - name: Seed and verify idempotent physical device enrollment
         run: |
           docker compose -p techbaza-v3-ci --env-file .env.demo -f compose.demo.yml up -d --wait postgres mosquitto

@@ -99,6 +99,13 @@ void crashWindowAndStopRetry() {
   timer.bus.stopWorks=true; timer.clock.ms+=1000; timer.controller.tick(true); assert(!timer.controller.journal().motionPossible);
   Fixture offline; assert(offline.controller.arm()); offline.receive(offline.command(1)); offline.controller.tick(false);
   assert(!offline.controller.journal().motionPossible); assert(!offline.controller.isArmed());
+  Fixture recovery; assert(recovery.controller.arm()); recovery.receive(recovery.command(1));
+  recovery.bus.readable=false;
+  Controller disconnectedBoot(recovery.bus,recovery.storage,recovery.clock,recovery.events,true);
+  assert(disconnectedBoot.begin("test-device")); disconnectedBoot.tick(true);
+  assert(disconnectedBoot.journal().motionPossible);
+  recovery.bus.readable=true; recovery.clock.ms+=1000; disconnectedBoot.tick(true);
+  assert(!disconnectedBoot.journal().motionPossible);
 }
 void storageAndBoundedHistory() {
   Fixture f; assert(f.controller.arm()); f.storage.fail=true; f.receive(f.command(1)); assert(f.bus.writes.empty());

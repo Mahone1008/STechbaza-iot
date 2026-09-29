@@ -203,6 +203,8 @@ void Controller::tick(bool networkConnected) {
   if (journal_.motionPossible && static_cast<uint32_t>(now-runSince_)>=AutoStopMs) requestStop();
   if (stopping_ && controls_ && static_cast<uint32_t>(now-lastStopAttempt_)>=1000) {
     lastStopAttempt_=now;
+    // UART may have been unavailable during boot with a persisted RUN intent.
+    if (!config_.profileOk()) { config_=readConfig(bus_); lastConfigRead_=clock_.monotonicMs(); }
     // Recheck protocol before recovery writes. This is NOT automatic hardware identification.
     uint16_t mode{};
     if (config_.profileOk() && bus_.read(0x0605,mode) && mode==0) {
