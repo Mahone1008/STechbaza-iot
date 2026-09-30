@@ -87,6 +87,8 @@ test("empty and failed history retain space after an expanded table without show
 
 test("automatic overview and history refresh preserve scroll while old values are hidden", async ({ page }) => {
   await page.clock.install(); await page.setViewportSize({ width: 1280, height: 720 }); await ready(page, false);
+  // Цей сценарій координує 30/60 с, незалежно від типового інтервалу панелі.
+  await page.getByLabel("Автооновлення", { exact: true }).selectOption("30");
   const panel = gate(), history = gate();
   await page.route(overviewUrl, async (route) => { if (await fulfillPreflight(route)) return; await panel.promise; await fulfillJson(route, 200, overviewWithFrequencyFixture(devicePayload())).catch(() => {}); });
   await page.route(seriesUrl, async (route) => { if (await fulfillPreflight(route)) return; await history.promise; await fulfillJson(route, 200, series(route.request().url())).catch(() => {}); });
