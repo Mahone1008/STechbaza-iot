@@ -1,9 +1,9 @@
 # Авторизація браузера v1 — Етап 8, операція 2
 
-Версія backend: **0.33.0**. Міграція: **20260926_0016**.
-Статус: **операцію закрито 26.09.2026**. CI: 54 тести та Chromium пройдено.
-Локально користувач підтвердив 54 тести без пропусків, міграцію 0016,
-health 0.33.0, CORS 200 і CSRF 403. Докази — у [журналі Етапу 8](stage-8-test-backend.md).
+Чинний browser contract. [Поточні версії](generated-code-reference.md).
+Початкове приймання 26.09.2026 на backend 0.33.0 / migration 0016:
+54 тести та Chromium PASS; це історичні числа з [Етапу 8](stage-8-test-backend.md).
+Frontend session coordinator реалізовано в Етапі 10; [поточні перевірки](audit-2026-09-30.md).
 
 ## Навіщо ця операція
 
@@ -27,7 +27,7 @@ health 0.33.0, CORS 200 і CSRF 403. Докази — у [журналі Ета�
 Frontend зберігає access **лише в пам'яті**; access і refresh не записуються
 в localStorage/sessionStorage. Браузерна JSON-відповідь не містить refresh.
 У БД зберігається SHA-256 hash refresh, не початковий secret.
-HttpOnly не усуває XSS: безпека самого frontend перевірятиметься на Етапі 9.
+HttpOnly не усуває XSS: frontend має CSP та security regressions, але це не усуває потребу в незалежному security review.
 
 ## HTTP-контракт
 
@@ -73,14 +73,15 @@ Logout із поточною refresh cookie відкликає server-side sessi
 Повторний logout або logout без cookie повертає 204.
 Після нового успішного login попередня сесія з надісланої cookie відкликається.
 
-## Обов'язкові правила майбутнього frontend
+## Правила реалізованого frontend
 
 1. Після завантаження сторінки — один refresh для відновлення access у пам'яті.
 2. На 401 API — один спільний refresh для паралельних запитів, потім максимум
-   один повтор початкового запиту. Невдалий refresh веде до екрана входу.
+   один дозволений повтор початкового запиту. Невалідна/revoked session
+   веде до входу; network/5xx/429 має окремий стан recovery і не є доказом logout.
 3. Login/refresh/logout серіалізуються також між вкладками. Потрібні
    Web Locks або еквівалентна міжвкладкова координація та BroadcastChannel
-   для сигналу logout. Це реалізація frontend Етапу 9.
+   для сигналу logout. Це реалізовано frontend coordinator Етапу 10.
 4. Перед logout дочекатися поточного refresh. Logout зі старим secret
    після його rotation не ідентифікує поточну сесію; не запускати ці дії
    паралельно. Після 204 очистити access у всіх вкладках.
@@ -166,7 +167,8 @@ origins/CORS/CSRF, cookie flags, валідація без secrets, недост
 справжній login/rotation/logout, негайний revoke access, invalid credentials,
 disabled/expired sessions, legacy compatibility, account/IP limits,
 expiry ліміту, паралельні входи та refresh.
-Загальний unittest набір: **54 тести**.
+На початковому прийманні загальний unittest набір мав **54 тести**.
+Поточний набір і commit — у [звіті аудиту](audit-2026-09-30.md).
 
 Окремий CI-крок запускає справжній Chromium: login, збереження cookie,
 недоступність для document.cookie, refresh після reload, rotation,

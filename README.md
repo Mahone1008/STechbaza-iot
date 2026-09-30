@@ -1,162 +1,35 @@
 # TechBaza IoT Pump Control / KERUMO
 
-Перший фізичний тест ESP32-S3 / SU600 із сайтом: [V3 — підготовка й запуск](docs/v3-su600-bench.md).
+Модульна платформа керування насосами й частотними перетворювачами:
+ESP32 → MQTT → FastAPI/PostgreSQL → Next.js. Можливості конкретного
+пристрою та права користувача визначають доступні показники й команди.
 
-[V3 — тривалі випробування SU600 з двигуном](docs/v3-su600-extended-test.md):
-окремий режим без 60-секундного таймера, підготовка та перевірки зупинки.
+**Поточний стан і відкриті питання:** [project-status](docs/project-status.md).
+**Аудит 30.09.2026:** [виправлення, перевірки та межі готовності](docs/audit-2026-09-30.md).
+Це перевірена база розробки та фізичний стенд V3; production-приймання ще відкрите.
 
-**30.09.2026: на фізичному V3 через Wi-Fi підтверджено читання,
-START/STOP, зміну частоти, повторний пуск та три сценарії зупинки:**
-втрата gateway, DISARM і знеструмлення ESP32.
-[Нове досьє: керування, докази та відкриті питання](docs/dossier-v3-su600-control-bench.md).
-[Попереднє досьє читання](docs/dossier-v3-su600-read-only-bench.md) збережено як історію етапу.
-Недіагностований Offline після відсутності користувача, окрема втрата Wi-Fi
-та тривала стабільність залишаються відкритими. V4 очікує модуль 4G.
+## Запуск
 
-Оновлення керування 0.39.0: [порядок Start/Stop, TTL, пізні відповіді та безпечна міграція](docs/command-safety-v2.md).
+- [Сайт і demo на Windows](frontend/README.md): UI `http://127.0.0.1:3000`, API `http://127.0.0.1:8001`.
+- [Окреме середовище розробки](docs/local-development.md): API на порту 8000.
+- [V3 ESP32-S3 / SU600](docs/v3-su600-bench.md): підготовка, читання й TLS gateway.
+- [Випробування з двигуном](docs/v3-su600-extended-test.md): EXTENDED, локальний дозвіл та зупинки.
 
-Модульна платформа керування насосами та частотними перетворювачами:
-контролери, MQTT, backend і web UI. Набір показників та команд визначається
-capabilities конкретного пристрою й правами користувача.
+30.09.2026 на V3 через Wi-Fi підтверджені читання, START/STOP, зміна частоти,
+повторний пуск і три сценарії зупинки. [Докази й обмеження](docs/dossier-v3-su600-control-bench.md).
+V4 відкладено до отримання 4G-модуля.
 
-Backend: Python/FastAPI, PostgreSQL, SQLAlchemy/Alembic, Mosquitto.
-Реалізовано telemetry, command ACK/Result, browser auth, tenant RBAC,
-аварії та in-app notifications.
+## Навігація
 
-Backend **0.38.0** прийнято 27.09.2026 після повного CI та Windows-перевірки.
-Етап H завершено 5/5.
+| Частина | Де читати |
+|---|---|
+| Поточні версії, API, канали й права з коду | [Генерований довідник](docs/generated-code-reference.md) |
+| Backend, перевірки | [backend/README.md](backend/README.md) |
+| Frontend, перевірки | [frontend/README.md](frontend/README.md) |
+| Firmware | [firmware/README.md](firmware/README.md) |
+| Інфраструктура й БД | [infrastructure](infrastructure/README.md), [database](database/README.md) |
+| Чинні контракти, runbooks, історичні досьє | [Каталог документації](docs/README.md) |
+| План продукту та приймання UI | [P0–P9](docs/product-readiness-plan-v1.md), [frontend 9–14](docs/frontend-roadmap-v1.md) |
 
-[План готовності продукту P0–P9](docs/product-readiness-plan-v1.md):
-розвиток PostgreSQL, firmware ESP32, device identity, MQTT/LTE, deployment,
-OTA, випробування, пілот і підготовка до поставки. Статус — план після
-тестової бази Етапу 14; майбутні роботи ще не прийняті.
-
-Frontend Foundation KERUMO:
-
-- Етап 9 завершено **4/4**;
-- Етап 10 завершено **4/4**;
-- frontend roadmap — прийнято **10/24**;
-- Next.js/TypeScript strict foundation;
-- design system і responsive shell;
-- OpenAPI 0.39.0 / 47 paths;
-- shared API adapter і session-scoped query cache;
-- Vitest, Playwright Chromium і production build — PASS.
-
-Операції **10.1 — browser login**, **10.2 — session recovery** і
-**10.3 — profile, permissions і route guards** прийнято й закрито після CI
-та локального Windows-приймання.
-
-Операцію **10.4 — logout, revoke і no session resurrection** реалізовано й
-автоматично перевірено:
-
-- real `POST /api/v1/auth/browser/logout` із Origin/CSRF/cookie contract;
-- revoke поточної server-side session і видалення HttpOnly refresh cookie;
-- старий access token відхиляється backend до natural JWT expiry;
-- tenant content приховується від початку logout intent;
-- active authorized requests скасовуються;
-- session-scoped cache очищується, public cache зберігається;
-- logout однієї вкладки очищує всі same-origin вкладки;
-- короткоживучий logout marker не містить tokens, email або tenant ids;
-- F5 і новий protected route не відновлюють завершену session;
-- ambiguous network/5xx result не видається за успішний logout;
-- `429 Retry-After` керує повторною спробою;
-- 23 unit tests, 23 mocked browser tests і 8 live browser tests — PASS.
-
-Операцію **10.4** прийнято й закрито після локального Windows-приймання.
-**11.1 і 11.2 реалізовано разом:** реальні org/site/device lists, breadcrumbs,
-перевірені deep links/restore та bounded availability. Виявлену у Windows
-гонку login navigation виправлено. Повторний CI: **31 unit / 40 mocked /
-10 live — PASS**, ще **10 повторів** регресій login/refresh без retries — PASS.
-Повторний Windows-прогін: **31 / 40 / 10 — PASS**; каталог організацій і список
-пристроїв підтверджені скриншотами. Решту ручних сценаріїв користувач підтвердив
-28.09.2026: **11.1 і 11.2 прийнято й закрито**. [Досьє 11.2](docs/stage-11-op2-device-list.md).
-**11.3 і 11.4 реалізовано разом:** [модульна панель](docs/stage-11-op3-module-widgets.md),
-[якість і зміни конфігурації](docs/stage-11-op4-quality-and-configuration.md).
-CI: **42 unit / 52 mocked / 10 live — PASS**, додаткові 25 повторів регресій
-без retries — PASS. Windows 28.09.2026: **42 / 52 / 10 — PASS**;
-панель насоса підтверджено скриншотами. Залишилися окремі ручні сценарії 11.3/11.4.
-**12.1 і 12.2 реалізовано разом:** [історія телеметрії](docs/stage-12-op1-telemetry-history.md)
-та [політика оновлення](docs/stage-12-op2-polling.md). **CI: 61 unit / 71 mocked /
-10 live та 34 додаткові повтори регресій — PASS.** Windows 28.09.2026: **54 / 63 / 10 — PASS**, графіки підтверджено.
-Виправлення прокрутки пройшло CI; очікується повторна ручна перевірка.
-Додано [збереження фільтрів після F5](docs/stage-12-history-preferences-2026-09-28.md); CI **61/71/10 + 34 повтори — PASS**; очікується ручна перевірка F5. Реалізовано **[12.3 — команди](docs/stage-12-op3-command-controls.md)** і **[12.4 — lifecycle та журнал](docs/stage-12-op4-command-journal.md)**; **CI: 68 unit / 88 mocked / 10 live + 34 повтори — PASS; backend 160 tests, zero skips — PASS.** Windows-команда й докази — у досьє 12.4.
-
-Windows 12.3–12.4: **88 mocked / 10 live / cumulative gate PASS**.
-[Виправлення порожньої області після згортання деталей](docs/stage-12-details-collapse-2026-09-28.md): **CI 68 unit / 91 mocked / 10 live + 34 повтори — PASS**.
-Загальний результат 12.1–12.4, історія виправлень, revisions, Windows-докази
-та залишок ручного приймання зібрані в
-[досьє V3.5 — Етап 12](docs/dossier-v3.5-stage-12-telemetry-commands.md).
-
-**Реалізовано [13.1 — аварії](docs/stage-13-op1-alarms.md) і
-[13.2 — підтвердження оператором](docs/stage-13-op2-acknowledgement.md):**
-реальні списки/фільтри/історія, actor audit, idempotency та concurrent resolution.
-**CI: 75 unit / 115 mocked / 10 live + 34 повтори — PASS**;
-OpenAPI zero diff, types/lint і production build PASS. Докази — у 13.2.
-Windows 28.09.2026: **75 unit / 115 mocked / 10 live — PASS**; список усунених
-аварій, деталі та згортання історії підтверджено скриншотами. Решта ручного
-приймання відкрита. Реалізовано [13.3 — notification feed](docs/stage-13-op3-notifications.md) та
-[13.4 — browser MQTT E2E](docs/stage-13-op4-incident-e2e.md): персональні read,
-unread count, tenant isolation і наскрізний incident/recovery. **CI: 83 unit /
-133 mocked / 10 live + 44 повтори — PASS**; OpenAPI zero diff, types/lint/build
-PASS. Windows 28.09.2026: **133 mocked / 10 live / cumulative gate PASS**;
-стрічку повідомлень, unread recovery та історію resolved/acknowledged показано.
-Докази й Windows-команда — у 13.4; решта ручного приймання відкрита.
-Загальний результат усіх чотирьох операцій, історію виправлень і межі
-приймання зібрано в [досьє V3.5 — Етап 13](docs/dossier-v3.5-stage-13-alarms-notifications.md).
-
-Поточний статус:
-
-**14.3–14.4 реалізовано як базову версію для подальших випробувань,
-не production-реліз.**
-**Фінальний CI: 90 unit / 152 mocked / 10 live + 44 повтори — PASS;
-audit 0 vulnerabilities.** Windows 29.09.2026: **152 mocked / 10 live /
-фінальний gate 14.3–14.4 PASS**, bundle budget PASS, audit 0.
-SHA Windows checkout на скриншотах не показаний; ручне приймання відкрите.
-CSP/nonce, API origin/redirect guard, formatter reuse
-і performance budgets; актуальні перевірки та Windows-команда —
-у [14.4](docs/stage-14-op4-test-baseline.md). Загальний результат —
-[досьє V3.5 Етапу 14](docs/dossier-v3.5-stage-14-frontend-test-baseline.md).
-
-Попередня база 14.1–14.2:
-
-Реалізовано [14.1 — UX/accessibility](docs/stage-14-op1-ux-accessibility.md)
-та [14.2 — browser regression](docs/stage-14-op2-browser-regression.md).
-**Фінальний CI: 83 unit / 146 mocked / 10 live + 44 повтори — PASS**;
-27 axe scans без violations, межі ручного оцінювання описано в 14.1.
-Windows 29.09.2026: **146 mocked / 10 live / cumulative gate PASS**;
-графіки та focus outline показано, решта ручного приймання відкрита. Докази — у 14.2.
-
-```text
-Етап 9: 4/4
-Етап 10: 4/4
-Frontend roadmap: 10/24
-Етап 11: реалізовано 4/4, прийнято 2/4; CI + Windows PASS, залишок ручного приймання
-Етап 12: реалізовано 4/4; Windows 12.3 + 12.4 PASS, виправлення згортання деталей; ручне приймання відкрите
-Етап 13: реалізовано 4/4; CI 83/133/10 + 44 повтори PASS; Windows 133 mocked / 10 live PASS; ручне приймання часткове
-Етап 14: реалізовано 4/4 як тестову базу; актуальні докази у 14.4; ручні й апаратні випробування відкриті
-```
-
-- [11.1 — Організації та об’єкти](docs/stage-11-op1-organizations-sites.md).
-- [11.2 — Пристрої, перевірки й Windows-команда](docs/stage-11-op2-device-list.md).
-- [Backend: структура й запуск перевірок](backend/README.md).
-- [Frontend: поточна точка й запуск](frontend/README.md).
-- [План frontend 9–14](docs/frontend-roadmap-v1.md).
-- [Досьє V3.5 — Етап 9](docs/dossier-v3.5-stage-9-frontend-foundation.md).
-- [Досьє V3.5 — Етап 10](docs/dossier-v3.5-stage-10-browser-auth-session-rbac.md).
-- [Досьє V3.5 — Етап 11](docs/dossier-v3.5-stage-11-inventory-modular-dashboard.md).
-- [Досьє V3.5 — Етап 12](docs/dossier-v3.5-stage-12-telemetry-commands.md).
-- [Досьє V3.5 — Етап 13](docs/dossier-v3.5-stage-13-alarms-notifications.md).
-- [Досьє операції 10.1](docs/stage-10-op1-browser-login.md).
-- [Досьє операції 10.2](docs/stage-10-op2-session-recovery.md).
-- [Досьє операції 10.3](docs/stage-10-op3-permissions-and-guards.md).
-- [Досьє операції 10.4](docs/stage-10-op4-logout-and-failures.md).
-- [Browser authentication contract](docs/browser-auth-v1.md).
-- [Current user context](docs/current-user-context-v1.md).
-- [RBAC + multi-tenant guards](docs/rbac-multitenant-guards-v1.md).
-- [API для frontend](docs/frontend-api-contract-v1.md).
-- [Модулі та канали](docs/module-channel-contract-v1.md).
-- [Demo-стенд](docs/demo-stand-v1.md), API на `127.0.0.1:8001`.
-
-Розробка ведеться поетапно: обмежена зміна, автоматичні перевірки, локальне
-приймання користувачем і фіксація результату. Production-готовність,
-інтегрована firmware та навантаження 10 000 контролерів потребують окремих етапів.
+Історичні числа тестів і статуси етапів залишаються в датованих досьє.
+Вони не замінюють перевірку поточного commit та актуальний статус вище.

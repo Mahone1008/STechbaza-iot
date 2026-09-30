@@ -1,4 +1,6 @@
 # Досьє V3.5 — Етап 4
+
+> **Історичний запис.** Версії, числа тестів, «поточні» кроки й команди нижче належать описаному етапу. Для роботи з нинішнім кодом: [статус](project-status.md), [чинні інструкції та контракти](README.md).
 ## IoT Telemetry & Reliability: MQTT ingestion, current state, heartbeat, ordering та reboot/session protection
 
 **Статус:** завершено  

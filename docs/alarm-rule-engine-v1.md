@@ -95,7 +95,8 @@ Event та Alarm під час ingestion, імітує збій після за�
 
 ## Межі
 
-System alarms для offline/reboot/command failure належать наступній операції.
+System alarms для offline/reboot/command failure реалізовані окремо:
+[system alarms](system-alarms-v1.md).
 Acknowledge, notifications і UI реалізуються окремо. Автоматичне повторення
 MQTT-пакета після помилки БД цією перевіркою не підтверджено; перед
 production-використанням потрібна окрема перевірка доставки та повторної

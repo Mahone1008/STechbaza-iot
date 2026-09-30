@@ -1,127 +1,120 @@
-# Документація
+# Документація KERUMO
 
-Оновлення керування 0.39.0: [порядок Start/Stop, TTL, пізні відповіді та безпечна міграція](command-safety-v2.md).
+Почніть з [поточного стану](project-status.md) та [аудиту 30.09.2026](audit-2026-09-30.md).
+Чинні документи описують реалізацію; плани — майбутні критерії; історичні
+досьє — докази своїх дат і revisions. Старий PASS не означає PASS поточного commit.
+Назви/посилання збережено, щоб не втрачати історію та зовнішні bookmarks.
 
-Документація проєкту TechBaza IoT Pump Control / KERUMO.
+Швидкий запуск: [сайт на Windows](../frontend/README.md), [dev](local-development.md),
+[V3 читання](v3-su600-bench.md), [V3 з двигуном](v3-su600-extended-test.md).
 
-## Фізичний стенд V3 / SU600
+## Поточна точка та аудит
 
-- [Досьє читання: показання, сесія сайту, gateway та живлення SU600](dossier-v3-su600-read-only-bench.md).
-- [Досьє керування: START/STOP, частота, захисні зупинки та відкриті питання](dossier-v3-su600-control-bench.md).
-- [Підготовка V3 та початковий режим читання](v3-su600-bench.md).
-- [EXTENDED: випробування з двигуном і актуальний статус приймання](v3-su600-extended-test.md).
+- [Аудит документації та коду — 30.09.2026](audit-2026-09-30.md)
+- [Довідник поточної реалізації](generated-code-reference.md)
+- [Поточний стан KERUMO](project-status.md)
 
-30.09.2026 базове керування й три сценарії зупинки прийняті в описаних
-циклах. Тривала стабільність та всі відмови ще не прийняті; V4 очікує 4G-модуль.
+## Чинні контракти й інструкції
 
-## План готовності продукту
+- [Alarm Lifecycle v1](alarm-lifecycle-v1.md)
+- [Alarm Rule Engine v1](alarm-rule-engine-v1.md)
+- [HTTP API v1](api-v1.md)
+- [Authentication Token Protocol v1](auth-token-v1.md)
+- [Backend — локальна розробка та діагностика](backend-development.md)
+- [Чисте встановлення та backup/restore v1](backup-restore-v1.md)
+- [Авторизація браузера v1 — Етап 8, операція 2](browser-auth-v1.md)
+- [Command Actor Audit v1](command-actor-audit-v1.md)
+- [Безпечний порядок команд — backend 0.39.0](command-safety-v2.md)
+- [Current User / Session Context v1](current-user-context-v1.md)
+- [Демонстраційний стенд v1](demo-stand-v1.md)
+- [Стандарти розробки TechBaza](development-standards.md)
+- [Device Presence v1](device-presence-v1.md)
+- [Events & Alarms Data Model v1](events-alarms-data-model-v1.md)
+- [Контракт API перших екранів — Етап 8, операції 1–3](frontend-api-contract-v1.md)
+- [Локальне середовище розробки](local-development.md)
+- [Membership Management v1](membership-management-v1.md)
+- [Модулі та канали першого UI — H-04](module-channel-contract-v1.md)
+- [MQTT Command ACK Protocol v1](mqtt-command-ack-v1.md)
+- [MQTT Command Result Protocol v1](mqtt-command-result-v1.md)
+- [Notifications foundation v1 — Етап 7, операція 7](notifications-foundation-v1.md)
+- [RBAC + Multi-tenant Guards v1](rbac-multitenant-guards-v1.md)
+- [System Alarms v1 — Етап 7, операція 5](system-alarms-v1.md)
+- [Технологічний стек TechBaza / KERUMO](technology-stack.md)
+- [Capability-aware Telemetry Policy v1](telemetry-capability-policy-v1.md)
+- [Telemetry Contract v1](telemetry-contract-v1.md)
+- [Telemetry Ordering v1](telemetry-ordering-v1.md)
+- [Показання панелі та графіки v1](telemetry-panel-charts-v1.md)
+- [Telemetry Session Protection v1](telemetry-session-protection-v1.md)
+- [V3 — перший фізичний стенд SU600 і сайт KERUMO](v3-su600-bench.md)
+- [V3 / SU600 — тривалі випробування з двигуном](v3-su600-extended-test.md)
 
-- [P0–P9: база даних, прошивка, MQTT/LTE, сервер, OTA, випробування та пілот](product-readiness-plan-v1.md).
-- План від 29.09.2026 спирається на перевірену базу Етапу 14; він містить
-  залежності, операції, критерії PASS і потрібні вхідні дані для першого стенда.
+## Плани та критерії приймання
 
-## Frontend
+- [Frontend v1 — поетапний план KERUMO](frontend-roadmap-v1.md)
+- [KERUMO — план готовності продукту v1](product-readiness-plan-v1.md)
 
-- [Досьє V3.5 — Етап 14: тестова база frontend](dossier-v3.5-stage-14-frontend-test-baseline.md)
-- [14.3 — Безпека і продуктивність](stage-14-op3-security-performance.md)
-- [14.4 — Перевірки тестової бази та Windows-команда](stage-14-op4-test-baseline.md)
+## Попередній command protocol
 
-- [14.1 — UX, доступність, keyboard і reflow](stage-14-op1-ux-accessibility.md)
-- [14.2 — Browser regression, докази та Windows-команда](stage-14-op2-browser-regression.md)
-- [Досьє V3.5 — Етап 13: аварії, повідомлення та наскрізний інцидент](dossier-v3.5-stage-13-alarms-notifications.md)
-- [13.3 — Стрічка повідомлень і персональне прочитання](stage-13-op3-notifications.md)
-- [13.4 — Browser MQTT incident E2E, перевірки та Windows-команда](stage-13-op4-incident-e2e.md)
+- [Command Core v1](command-core-v1.md)
+- [Command Reliability v1](command-reliability-v1.md)
+- [MQTT Command Protocol v1](mqtt-command-protocol-v1.md)
 
-- [13.1 — Реальні аварії, фільтри та історія](stage-13-op1-alarms.md)
-- [13.2 — Acknowledge, перевірки та Windows-команда](stage-13-op2-acknowledgement.md)
-- [Досьє V3.5 — Етап 12: графіки, оновлення, команди та журнал](dossier-v3.5-stage-12-telemetry-commands.md)
-- [12.3 — Start/Stop/frequency — CI та Windows PASS](stage-12-op3-command-controls.md)
-- [12.4 — Lifecycle, аудит і журнал — CI та Windows PASS](stage-12-op4-command-journal.md)
-- [Виправлення згортання деталей — CI 68/91/10 PASS](stage-12-details-collapse-2026-09-28.md)
-- [Виправлення F5 — збереження фільтрів графіка](stage-12-history-preferences-2026-09-28.md)
-- [12.1 — Історія телеметрії — реалізовано, CI PASS](stage-12-op1-telemetry-history.md)
-- [12.2 — Політика оновлення і Windows-команда](stage-12-op2-polling.md)
+## Історія етапів і докази
 
-- [11.1 — Організації, об’єкти та контекст — прийнято](stage-11-op1-organizations-sites.md)
-- [11.2 — Пристрої та спільна перевірка — прийнято](stage-11-op2-device-list.md)
-
-- [11.3 — Модульні віджети — CI та Windows PASS](stage-11-op3-module-widgets.md)
-- [11.4 — Якість і конфігурація — CI та Windows PASS](stage-11-op4-quality-and-configuration.md)
-
-- [Огляд після Етапу 10: поточний стан, auth-виправлення і перехід до 11.1](project-review-after-stage10-2026-09-28.md)
-- [План frontend v1 — 24 операції; прийнято 10/24](frontend-roadmap-v1.md)
-- [Етап 9.1 — UX-сценарії та макети KERUMO — закрито](stage-9-op1-ux-and-mockups.md)
-- [Етап 9.2 — Next.js/TypeScript foundation — закрито](stage-9-op2-frontend-foundation.md)
-- [Етап 9.3 — API adapter і контракти — закрито](stage-9-op3-api-adapter.md)
-- [Етап 9.4 — відтворюваний frontend baseline — закрито](stage-9-op4-frontend-baseline.md)
-- [Етап 10.1 — справжній browser login — закрито](stage-10-op1-browser-login.md)
-- [Етап 10.2 — відновлення browser session — закрито](stage-10-op2-session-recovery.md)
-- [Етап 10.3 — профіль, permissions і route guards — закрито після CI та Windows-приймання](stage-10-op3-permissions-and-guards.md)
-- [Етап 10.4 — logout, revoke і захист від session resurrection — закрито після CI та Windows-приймання](stage-10-op4-logout-and-failures.md)
-
-Поточна точка: **Етап 12 реалізовано 4/4; фінальний CI 68 unit / 91 mocked /
-10 live + 34 повтори PASS, backend 160 tests без skips PASS. Windows бази
-12.3–12.4: 88 mocked / 10 live / cumulative gate PASS; ручне приймання
-останнього виправлення та решти сценаріїв відкрите.** Загальні докази зібрані
-у досьє Етапу 12. Прийнятий прогрес — 10/24; для 11.3–11.4 також залишаються
-окремі ручні сценарії. **13.1 та 13.2 реалізовано; CI 75 unit / 115 mocked /
-10 live + 34 повтори — PASS**. Windows 28.09.2026: **75 unit / 115 mocked /
-10 live — PASS**; список усунених аварій, деталі та згортання історії показані.
-Ручне приймання часткове; докази, залишок і команда наведені в документі 13.2.
-13.3 та 13.4 реалізовано; **CI 83 unit / 133 mocked / 10 live + 44 повтори —
-PASS**, повний browser MQTT incident/recovery пройдено. Windows 28.09.2026:
-**133 mocked / 10 live / cumulative gate PASS**; стрічка, unread recovery та
-історія resolved/acknowledged показані, решта ручного приймання відкрита.
-Зведений результат — у [досьє Етапу 13](dossier-v3.5-stage-13-alarms-notifications.md),
-детальні докази — у 13.4. Реалізовано 14.1 та 14.2; **фінальний CI
-83 unit / 146 mocked / 10 live + 44 повтори — PASS**. У 27 axe scans
-немає violations; `incomplete` та ручні межі розглянуто в 14.1.
-Windows 29.09.2026: **146 mocked / 10 live / cumulative gate PASS**;
-показано графіки частоти/тиску та focus outline, решта ручного приймання
-відкрита. Історичні докази — у 14.2.
-**14.3–14.4 реалізовано як тестову базу, не production-реліз.**
-**Фінальний CI: 90 unit / 152 mocked / 10 live + 44 повтори — PASS;
-audit 0 vulnerabilities.** Нове Windows-приймання ще очікується.
-Актуальні CI/виміри та команда — у [14.4](stage-14-op4-test-baseline.md),
-загальний результат — у [досьє Етапу 14](dossier-v3.5-stage-14-frontend-test-baseline.md).
-
-## Backend: виправлення та перевірки
-
-- [Повторний огляд backend після H — оцінка, межі та backlog](backend-review-after-h-2026-09-27.md)
-- [Етап H — завершено 5/5](stage-h-backend-corrections.md)
-- [Hardening 25.09.2026](hardening-2026-09-25.md)
-
-## Досьє V3.5
-
-- [Етап 1 — Local Infrastructure](dossier-v3.5-stage-1-local-infrastructure.md)
-- [Етап 2 — Backend Core](dossier-v3.5-stage-2-backend-core.md)
-- [Етап 3 — Data Model v1](dossier-v3.5-stage-3-data-model.md)
-- [Етап 4 — IoT Telemetry & Reliability](dossier-v3.5-stage-4-iot-telemetry-reliability.md)
-- [Етап 5 — Remote Command Core](dossier-v3.5-stage-5-remote-command-core.md)
-- [Етап 6 — Users, Authentication & RBAC](dossier-v3.5-stage-6-users-auth-rbac.md)
-- [Етап 7 — Events & Alarms Core](dossier-v3.5-stage-7-events-alarms-core.md)
-- [Етап 8 — Test backend](dossier-v3.5-stage-8-test-backend.md)
-- [Етап 9 — Frontend Foundation KERUMO — загальне підсумкове досьє](dossier-v3.5-stage-9-frontend-foundation.md)
-- [Етап 10 — Browser Authentication, Session Recovery, RBAC & Logout KERUMO — загальне підсумкове досьє](dossier-v3.5-stage-10-browser-auth-session-rbac.md)
-
-- [Етап 11 — Організації, пристрої та модульна панель KERUMO — загальне досьє](dossier-v3.5-stage-11-inventory-modular-dashboard.md)
-- [Етап 12 — Історія телеметрії, оновлення, команди та журнал KERUMO — загальне досьє](dossier-v3.5-stage-12-telemetry-commands.md)
-- [Етап 13 — Аварії, підтвердження оператора, повідомлення та наскрізний інцидент KERUMO — загальне досьє](dossier-v3.5-stage-13-alarms-notifications.md)
-
-## Чинні технічні контракти
-
-- [Test backend release v1](test-backend-release-v1.md)
-- [Frontend API contract](frontend-api-contract-v1.md)
-- [Browser authentication](browser-auth-v1.md)
-- [Current user context](current-user-context-v1.md)
-- [RBAC + multi-tenant guards](rbac-multitenant-guards-v1.md)
-- [Module/channel contract](module-channel-contract-v1.md)
-- [Telemetry panel/charts](telemetry-panel-charts-v1.md)
-- [Demo stand](demo-stand-v1.md)
-- [Comprehensive checks](comprehensive-checks-v1.md)
-- [Backup/restore](backup-restore-v1.md)
-- [Technology stack](technology-stack.md)
-- [Development standards](development-standards.md)
-
-Історичні детальні контракти telemetry, commands, auth, RBAC, events, alarms і
-notifications збережені у цій папці та індексуються GitHub.
+- [Повторний огляд backend після Етапу H](backend-review-after-h-2026-09-27.md)
+- [Комплексні перевірки v1 — Етап 8, операція 5](comprehensive-checks-v1.md)
+- [Модель даних TechBaza v1](database-model-v1.md)
+- [Досьє V3 — керування SU600 з двигуном та перевірки зупинки](dossier-v3-su600-control-bench.md)
+- [Досьє V3 — читання SU600 на фізичному стенді та відображення на сайті](dossier-v3-su600-read-only-bench.md)
+- [Досьє V3.5 — Етап 1  ](dossier-v3.5-stage-1-local-infrastructure.md)
+- [Досьє V3.5 — Етап 10](dossier-v3.5-stage-10-browser-auth-session-rbac.md)
+- [Досьє V3.5 — Етап 11](dossier-v3.5-stage-11-inventory-modular-dashboard.md)
+- [Досьє V3.5 — Етап 12](dossier-v3.5-stage-12-telemetry-commands.md)
+- [Досьє V3.5 — Етап 13](dossier-v3.5-stage-13-alarms-notifications.md)
+- [Досьє V3.5 — Етап 14](dossier-v3.5-stage-14-frontend-test-baseline.md)
+- [Досьє V3.5 — Етап 2](dossier-v3.5-stage-2-backend-core.md)
+- [Досьє V3.5 — Етап 3](dossier-v3.5-stage-3-data-model.md)
+- [Досьє V3.5 — Етап 4](dossier-v3.5-stage-4-iot-telemetry-reliability.md)
+- [Досьє V3.5 — Етап 5](dossier-v3.5-stage-5-remote-command-core.md)
+- [Досьє V3.5 — Етап 6](dossier-v3.5-stage-6-users-auth-rbac.md)
+- [Досьє V3.5 — Етап 7](dossier-v3.5-stage-7-events-alarms-core.md)
+- [Досьє V3.5 — Етап 8](dossier-v3.5-stage-8-test-backend.md)
+- [Досьє V3.5 — Етап 9](dossier-v3.5-stage-9-frontend-foundation.md)
+- [End-to-End Command Test v1](end-to-end-command-test-v1.md)
+- [Виправлення надійності та доступу — 25.09.2026](hardening-2026-09-25.md)
+- [Identity & RBAC Foundation v1](identity-rbac-foundation-v1.md)
+- [Огляд KERUMO після Етапу 10](project-review-after-stage10-2026-09-28.md)
+- [Security End-to-End Test v1](security-e2e-test-v1.md)
+- [Етап 10, операція 1 — справжній browser login KERUMO](stage-10-op1-browser-login.md)
+- [Етап 10, операція 2 — відновлення browser session KERUMO](stage-10-op2-session-recovery.md)
+- [Етап 10, операція 3 — профіль, permissions і route guards KERUMO](stage-10-op3-permissions-and-guards.md)
+- [Етап 10, операція 4 — logout, revoke і захист від session resurrection KERUMO](stage-10-op4-logout-and-failures.md)
+- [Етап 11.1 — організації, об’єкти та перевірений контекст](stage-11-op1-organizations-sites.md)
+- [Етап 11.2 — список пристроїв та обмежені перевірки зв’язку](stage-11-op2-device-list.md)
+- [Етап 11.3 — registry віджетів модулів і каналів](stage-11-op3-module-widgets.md)
+- [Етап 11.4 — якість даних і зміни конфігурації](stage-11-op4-quality-and-configuration.md)
+- [Етап 12 — згортання технічних деталей без порожньої області](stage-12-details-collapse-2026-09-28.md)
+- [Етап 12.1–12.2 — збереження фільтрів після F5](stage-12-history-preferences-2026-09-28.md)
+- [Етап 12.1 — історія телеметрії](stage-12-op1-telemetry-history.md)
+- [Етап 12.2 — єдина політика оновлення](stage-12-op2-polling.md)
+- [Етап 12.3 — Start / Stop / frequency](stage-12-op3-command-controls.md)
+- [Етап 12.4 — lifecycle і журнал команд](stage-12-op4-command-journal.md)
+- [Етап 13.1 — реальні аварії та історія інцидентів](stage-13-op1-alarms.md)
+- [Етап 13.2 — підтвердження аварії оператором](stage-13-op2-acknowledgement.md)
+- [Етап 13.3 — персональне прочитання повідомлень організації](stage-13-op3-notifications.md)
+- [Етап 13.4 — наскрізний інцидент MQTT → browser → recovery](stage-13-op4-incident-e2e.md)
+- [Етап 14.1 — UX та доступність основних екранів KERUMO](stage-14-op1-ux-accessibility.md)
+- [Етап 14.2 — наскрізні browser regressions KERUMO](stage-14-op2-browser-regression.md)
+- [Етап 14.3 — Безпека та продуктивність тестової бази](stage-14-op3-security-performance.md)
+- [Етап 14.4 — Тестова база frontend і досьє](stage-14-op4-test-baseline.md)
+- [V3.5 — Етап 5](stage-5-remote-command-core.md)
+- [Етап 6 — Users, Authentication & RBAC](stage-6-users-auth-rbac.md)
+- [Етап 7 — Events & Alarms Core](stage-7-events-alarms-core.md)
+- [Етап 8 — Підготовка тестової версії backend](stage-8-test-backend.md)
+- [Етап 9, операція 1 — UX-сценарії та макети KERUMO](stage-9-op1-ux-and-mockups.md)
+- [Етап 9, операція 2 — каркас і базові компоненти KERUMO](stage-9-op2-frontend-foundation.md)
+- [Етап 9, операція 3 — API adapter і контракти KERUMO](stage-9-op3-api-adapter.md)
+- [Етап 9, операція 4 — відтворюваний frontend baseline KERUMO](stage-9-op4-frontend-baseline.md)
+- [Етап H — коригування backend перед frontend](stage-h-backend-corrections.md)
+- [Telemetry ingestion — локальна перевірка](telemetry-ingestion-local-test.md)
+- [Тестова збірка backend v1 — межі приймання](test-backend-release-v1.md)

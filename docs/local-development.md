@@ -1,49 +1,54 @@
 # Локальне середовище розробки
 
-На цьому етапі Docker Compose запускає два базові сервіси TechBaza:
+Для сайту з готовими тестовими обліковими записами використовуйте
+[frontend README](../frontend/README.md) і [demo](demo-stand-v1.md).
+Нижче — окремий dev stack з `compose.yml`, без demo seed.
 
-- PostgreSQL — база даних;
-- Eclipse Mosquitto — MQTT-брокер.
+## Перший запуск dev stack
 
-## Запуск
-
-У корені репозиторію:
-
-```powershell
-docker compose up -d
-```
-
-## Перевірка
+Потрібні Git та Docker Desktop у Linux containers mode. З кореня репозиторію
+створіть `.env` із `.env.example`, якщо його ще немає. Наявні credentials
+та volumes зберігайте разом; зміна пароля в `.env` не змінює пароль існуючої БД.
 
 ```powershell
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }
+docker compose up -d --wait postgres mosquitto
+docker compose build backend
+docker compose run --rm -T backend alembic upgrade head
+docker compose up -d backend
 docker compose ps
+Invoke-RestMethod http://127.0.0.1:8000/health
 ```
 
-Очікувані контейнери:
+Compose містить **три** сервіси: PostgreSQL, Mosquitto й backend.
+Створення таблиць виконує Alembic, а не HTTP startup. Порожній dev stack
+не створює автоматично demo users; для роботи користувача із сайтом призначено demo.
 
-- `techbaza-postgres`;
-- `techbaza-mosquitto`.
+## Оновлення
 
-## Зупинка
+Перед зміною схеми потрібна узгоджена резервна копія. Після отримання коду
+зупиніть backend, зберіть image, виконайте міграції та запустіть його знову:
 
 ```powershell
-docker compose down
+git pull --ff-only origin main
+docker compose stop backend
+docker compose build backend
+docker compose run --rm -T backend alembic upgrade head
+docker compose up -d backend
 ```
 
-Звичайна команда `down` не видаляє дані PostgreSQL, оскільки вони зберігаються в Docker volume.
+Перехід до command v2 має додаткові правила [міграції](command-safety-v2.md).
+Ці команди не оновлюють окремий demo stack.
 
-## Локальні порти
+## Адреси та зупинка
 
-- PostgreSQL: `127.0.0.1:5433`;
-- MQTT: `127.0.0.1:1883`.
+| Сервіс | Dev | Demo |
+|---|---|---|
+| API | `127.0.0.1:8000` | `127.0.0.1:8001` |
+| PostgreSQL host port | `127.0.0.1:5433` | Немає |
+| MQTT host port | `127.0.0.1:1883` | Немає; V3 має окремий TLS gateway |
+| Frontend | Окремий Next.js процес на `127.0.0.1:3000`; API задає `.env.local` | Те саме |
 
-Порти навмисно прив'язані до `127.0.0.1`, тому на цьому етапі сервіси доступні лише з поточного комп'ютера.
-
-## Важливо
-
-Поточний Mosquitto дозволяє анонімні підключення лише для локальної розробки. Перед виходом у production необхідно додати:
-
-- окремі облікові дані для пристроїв;
-- ACL для MQTT-топіків;
-- TLS;
-- обмеження доступу з Інтернету.
+`docker compose stop` зупиняє dev stack; `docker compose down` також видаляє
+його контейнери/мережу, але зберігає named volumes. `down --volumes` видаляє дані.
+[Діагностика backend](backend-development.md), [інфраструктура](../infrastructure/README.md).

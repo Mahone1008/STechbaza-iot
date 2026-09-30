@@ -90,6 +90,11 @@ succeeded / failed
 
 У такому випадку Result є сильнішим доказом того, що Device отримав command, і backend автоматично заповнює `acknowledged_at`, якщо його ще немає.
 
+Пізній Result після TTL також приймається з `result_unknown` або legacy
+`expired` зі спробою доставки. Він завершує історичну команду, не запускає
+її знову й для `result_unknown` закриває timeout alarm. `queued`/`cancelled`
+без допустимого переходу відхиляються. [Правила v2](command-safety-v2.md).
+
 ## Terminal state
 
 Після `succeeded` або `failed` command вважається завершеною:
@@ -125,5 +130,5 @@ terminal_result_conflict
 
 Result повинен відображати фактичний edge-рівень.
 
-Для `vfd.frequency.set` майбутній ESP32 firmware не повинен відправляти `succeeded` лише через те, що MQTT command була отримана. Успіх має означати, що локальна логіка виконання завершилася успішно згідно з Modbus/VFD contract.
+Для `vfd.frequency.set` чинна V3 firmware не повинен відправляти `succeeded` лише через те, що MQTT command була отримана. Успіх має означати, що локальна логіка виконання завершилася успішно згідно з Modbus/VFD contract.
 

@@ -1,104 +1,31 @@
-# Технологічний стек TechBaza
+# Технологічний стек TechBaza / KERUMO
 
-Цей документ фіксує базовий технологічний стек платформи TechBaza IoT Pump Control.
+Документ описує реалізацію станом на 30.09.2026.
+[Точні версії та registry з коду](generated-code-reference.md),
+[поточний статус](project-status.md), [майбутня архітектура](product-readiness-plan-v1.md).
 
-## 1. Польовий контролер
+| Рівень | Реалізовано | Ще не прийнято / заплановано |
+|---|---|---|
+| V3 | ESP32-S3 N16R8, C++, Arduino IDE/CLI, Wi-Fi, Modbus RTU/RS485, профіль SU600 | Інші VFD profiles, повна fault/soak матриця |
+| Firmware | Portable control core, NVS ledger/sequence, local ARM/DISARM, read-only та EXTENDED | OTA, fleet provisioning, production runtime; ESP-IDF — пропозиція плану |
+| MQTT | Mosquitto, QoS 1, telemetry/heartbeat, commands/ACK/Result; V3 gateway TLS + device password/ACL | Production lifecycle credentials, rotation/revocation, fleet isolation |
+| Backend | Python/FastAPI, Pydantic, SQLAlchemy, psycopg, Alembic, paho-mqtt | Розділення API/ingestion/workers для масштабування |
+| БД | PostgreSQL 16, доменні дані, snapshots/history, commands/audit, sessions/roles, alarms/notifications | Multiple-instance channels, retention, PITR, capacity acceptance |
+| Frontend | Next.js/React, TypeScript strict, TanStack Query, REST із bounded polling | SSE/WebSocket не реалізовані; configuration/provisioning UI — план |
+| Simulator | Python, MQTT, SQLite state/ledger/outbox; синтетичні пристрої та faults | Не є моделлю фізики насоса або hardware acceptance |
+| Локальна інфраструктура | Docker Compose dev/demo, окремий V3 gateway | Production HTTPS/reverse proxy, monitoring, deployment/restore drills |
+| V4 | Очікування 4G-модуля | LTE transport, modem fault/recovery, польове приймання |
 
-- **Мікроконтролер:** ESP32-S3
-- **Мова / середовище прошивки:** C++ з PlatformIO / Arduino framework для прототипних етапів
-- **Промислова шина:** RS485
-- **Протокол пристрою:** Modbus RTU
-- **Підключення до Інтернету:** Wi-Fi для розробки, 4G/LTE для польових об'єктів
-- **Хмарний протокол:** MQTT через TLS
-- **Локальний резервний режим:** контролер повинен зберігати безпечну локальну логіку навіть при втраті Інтернету або зв'язку з сервером
+Події й аварії формує backend; окремого device `events` MQTT topic зараз немає.
+Шляхи повідомлень та версії — у [контракті команд](command-safety-v2.md)
+і [телеметрії](telemetry-contract-v1.md).
 
-## 2. MQTT-рівень
+ESP32 не звертається до PostgreSQL; браузер працює з авторизованим HTTP API.
+Modbus є локальним зв'язком ESP32 ↔ VFD; однакова RS485-шина не означає
+однакові регістри й правила для всіх SUSWE/інших частотників.
+Capabilities описують логічні можливості, а не автоматично виявлені плати.
+Один key кожного типу на Device — поточне обмеження v1.
 
-- **Протокол:** MQTT
-- **Брокер:** Eclipse Mosquitto для розробки та першого production-розгортання
-- **Безпека:** TLS, окремі облікові дані для кожного пристрою, авторизація на рівні топіків
-- **Модель повідомлень:** телеметрія, стан, команди, підтвердження та події передаються окремими топіками
-
-MQTT використовується між польовими контролерами та сервером. Modbus RTU залишається локальним протоколом між ESP32, частотним перетворювачем і сумісними датчиками.
-
-## 3. Backend
-
-- **Мова:** Python
-- **Фреймворк:** FastAPI
-- **API:** REST для вебзастосунку; за потреби WebSocket / SSE для даних у реальному часі
-- **MQTT-інтеграція:** backend отримує телеметрію та події від пристроїв і надсилає команди
-- **Валідація даних:** Pydantic
-- **Робота з БД:** SQLAlchemy
-- **Міграції:** Alembic
-
-Backend є центральним рівнем бізнес-логіки. Він не повинен бути жорстко прив'язаний до одного фіксованого комплекту обладнання для всіх клієнтів.
-
-## 4. База даних
-
-- **СУБД:** PostgreSQL
-- **Модель:** модульна, на основі фактично доступних можливостей обладнання
-- **Зберігає:** користувачів, організації, об'єкти, контролери, модулі, встановлені можливості, телеметрію, команди, аварії, події та журнал дій
-
-Кожен контролер або об'єкт може мати різний набір датчиків і модулів. Backend і frontend мають визначати доступні функції на основі фактично встановленого обладнання.
-
-## 5. Frontend
-
-- **Мова:** TypeScript
-- **Фреймворк:** React + Next.js
-- **Формат:** адаптивний вебзастосунок
-- **Дані в реальному часі:** API + WebSocket / SSE там, де це потрібно
-- **Доступ:** інтерфейс враховує роль користувача та його організацію
-- **Модульний інтерфейс:** показуються лише ті віджети та елементи керування, які підтримує обладнання конкретного об'єкта
-
-Основні ролі:
-- клієнт;
-- сервісний інженер;
-- адміністратор.
-
-## 6. Інфраструктура
-
-- **Контейнери:** Docker
-- **Локальний запуск:** Docker Compose
-- **Reverse proxy / HTTPS:** Caddy або Nginx
-- **Сервіси:** frontend, backend, PostgreSQL, MQTT broker
-- **Секрети:** змінні середовища та secret-файли; секрети не зберігаються в Git
-- **Перший production-сервер:** Linux VPS / сервер
-
-## 7. Симулятор
-
-Програмний симулятор дозволить тестувати TechBaza без фізичного частотника або насоса.
-
-Він має вміти імітувати:
-- online/offline стан;
-- частоту;
-- струм;
-- тиск та інші опціональні датчики;
-- аварії частотного перетворювача;
-- тривоги;
-- підтвердження виконання команд.
-
-## 8. Шлях даних
-
-```text
-Насос / двигун
-    ↑
-Частотний перетворювач
-    ↕ Modbus RTU / RS485
-Контролер ESP32-S3
-    ↕ MQTT через TLS (Wi-Fi або 4G)
-MQTT broker
-    ↕
-FastAPI backend
-    ↕
-PostgreSQL
-    ↕
-Next.js frontend
-    ↓
-Клієнт / сервіс / адміністратор
-```
-
-## 9. Головне архітектурне правило
-
-TechBaza — це **модульний конструктор**, а не один фіксований комплект обладнання.
-
-Базова платформа є спільною, але кожен об'єкт може мати власний набір додаткових датчиків, виконавчих механізмів і модулів. Backend, база даних та frontend повинні відображати реальну конфігурацію конкретного пристрою або об'єкта, а не припускати, що всі клієнти мають однакові можливості.
+Права перевіряє backend: platform roles `user`, `service_admin`, `superadmin`;
+organization roles `owner`, `admin`, `operator`, `viewer`, `service`.
+[Точна матриця](generated-code-reference.md), [tenant guards](rbac-multitenant-guards-v1.md).

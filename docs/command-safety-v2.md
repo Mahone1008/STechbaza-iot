@@ -3,6 +3,32 @@
 Міграція: `20260929_0018`. Outbound MQTT command: `schema_version: 2`.
 ACK та Result зберігають envelope v1. Історичні документи v1 описують попередній контракт; наведені нижче правила мають пріоритет.
 
+## MQTT envelope v2
+
+Topic: `techbaza/devices/{device_uid}/commands`, QoS 1, `retain=false`.
+Приклад структури, не команда для надсилання на обладнання:
+
+```json
+{
+  "schema_version": 2,
+  "control_sequence": 42,
+  "command_id": "1d33fb54-c803-4af8-a589-6cdd7e9dc1a0",
+  "request_id": "fdf611c5-e19b-47b0-bcd2-2a9a32e3b9a5",
+  "issued_at": "2026-09-30T10:00:00Z",
+  "expires_at": "2026-09-30T10:00:30Z",
+  "ttl_seconds": 30,
+  "command_type": "vfd.frequency.set",
+  "payload": {"frequency_hz": 30}
+}
+```
+
+Це дев'ять полів. Backend формує UTC timestamps; `expires_at = issued_at + TTL`.
+Sequence — ціле 1..2^53−1. V3 strict parser відхиляє зайві/неправильні поля,
+неузгоджений TTL, retained та unsupported version. Start/Stop мають `{}` payload.
+`supersedes_request_id` є HTTP/backend полем і не додається до MQTT envelope.
+[ACK v1](mqtt-command-ack-v1.md) та [Result v1](mqtt-command-result-v1.md)
+публікуються у дочірні `commands/ack` і `commands/result` topics.
+
 ## Що означає час на прийняття команди
 
 TTL — час від реєстрації команди сервером до `expires_at`, протягом якого контролер може **вперше прийняти її до виконання**. Типово 30 с, дозволено 5–300 с. Це не тривалість роботи насоса: після Start він не вимкнеться через TTL. Для зупинки потрібні Stop та локальні захисти обладнання.
@@ -51,12 +77,16 @@ UI дозволяє Stop під час іншого незавершеного �
 4. Запустіть backend та simulator нової версії, перебудуйте frontend. Перевірте `/health` → 0.39.0 та поточну міграцію → 0018.
 5. Перевірте журнал та фактичний стан пристрою перед новим Start. Міграція припиняє доставку всіх legacy pending команд: усі стають result_unknown. Стара версія записувала спробу після мережевого виклику, тому навіть queued/0 міг бути виконаний перед збоєм процесу.
 
-Новий симулятор не приймає нові v1-команди; лише повторює збережені відповіді legacy ledger. Для першого фізичного тесту додано [firmware ESP32-S3 / SU600](v3-su600-bench.md) з protocol v2, NVS sequence/ledger та UTC. Початково це read-only стенд без двигуна; реальне апаратне приймання й виробничі захисти залишаються окремою роботою.
+Новий симулятор не приймає нові v1-команди; лише повторює збережені відповіді legacy ledger. Для першого фізичного тесту додано [firmware ESP32-S3 / SU600](v3-su600-bench.md) з protocol v2, NVS sequence/ledger та UTC. Read-only був початковим етапом. 30.09.2026 на V3 прийнято базове
+керування SU600 з двигуном та три сценарії зупинки; [досьє з межами доказів](dossier-v3-su600-control-bench.md).
+Повна fault/soak матриця та виробничі захисти залишаються відкритими.
 
-Downgrade не відновлює стару чергу. Після відновлення старої БД або заміни контролера потрібне контрольоване узгодження sequence; не скидайте збережений номер контролера для обходу відмов. Старі backup bundles перевіряються за власною версією/міграцією; їх відновлюють з відповідним source archive, після чого окремо оновлюють схему. Restore quarantine позначає published-команди як result_unknown.
+Downgrade не відновлює стару чергу. Після відновлення старої БД або заміни контролера потрібне контрольоване узгодження sequence; не скидайте збережений номер контролера для обходу відмов. Старі backup bundles перевіряються за власною версією/міграцією; їх відновлюють з відповідним source archive, після чого окремо оновлюють схему. Restore quarantine позначає published/acknowledged і queued зі спробою
+як result_unknown; лише queued без спроби стає expired. [Точна таблиця](backup-restore-v1.md).
 
 ## Перевірки та межі готовності
 
 Регресії охоплюють Stop перед старим Start, HTTP Start після Stop, Stop під час MQTT publish, durable attempt при збої процесу, запізнілі ACK/Result, відкликання session/прав/capability, tenant move, зміну профілю частоти, reboot симулятора та downgrade протоколу. Backend CI виконує PostgreSQL/MQTT suite без skips, міграції, live demo і backup/restore. Frontend CI перевіряє контракт API, типи, lint, unit, production build, браузерні та live сценарії.
 
-Це посилює поточний demo, але не завершує виробничу готовність. Device identity/TLS/ACL, реальна firmware, перевірка апаратних interlocks, навантаження та решта [product-readiness-plan-v1.md](product-readiness-plan-v1.md) залишаються окремою роботою. Раніше непідтверджені ручні acceptance-пункти не закриваються цими змінами автоматично.
+Це посилює поточний demo, але не завершує виробничу готовність. V3 firmware та TLS gateway з device password/ACL вже існують. Production
+provisioning/rotation/revocation, повна перевірка апаратних interlocks, навантаження та решта [product-readiness-plan-v1.md](product-readiness-plan-v1.md) залишаються окремою роботою. Раніше непідтверджені ручні acceptance-пункти не закриваються цими змінами автоматично.

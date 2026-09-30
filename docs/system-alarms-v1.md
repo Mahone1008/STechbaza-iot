@@ -57,7 +57,7 @@ docker compose exec -T backend alembic upgrade head
 docker compose exec -T backend alembic current
 docker compose exec -T backend python -m app.tools.system_alarm_check
 Invoke-RestMethod http://127.0.0.1:8000/health
-Invoke-RestMethod http://127.0.0.1:8000/system/alarms/status | ConvertTo-Json -Depth 5
+Invoke-RestMethod http://127.0.0.1:8000/system/alarms/status -Headers @{Authorization="Bearer $accessToken"} | ConvertTo-Json -Depth 5
 ```
 
 Перевірочна команда створює тимчасовий Device в ізольованій зовнішній
@@ -66,9 +66,13 @@ session, невдалий/дубльований/успішний Result і TTL 
 перевірки зовнішня транзакція відкочується: тестовий Device,
 команди, події та Alarm не залишаються в базі.
 
+Діагностичний `$accessToken` у прикладі має належати superadmin; звичайний
+demo owner не отримує системної діагностики.
+
 ## Межі
 
 Фоновий цикл запускається одним backend process у поточній локальній
 конфігурації Compose. При горизонтальному масштабуванні потрібен
-окремий worker або координоване виконання. Acknowledge, доставки
-сповіщень і UI входять до наступних операцій; hardware tests окремі.
+окремий worker або координоване виконання. Acknowledge, in-app notifications
+та UI вже реалізовані. Зовнішні доставки й production hardware acceptance
+залишаються окремими роботами.

@@ -1,7 +1,7 @@
 # Модулі та канали першого UI — H-04
 
-Backend **0.38.0**, API v1, migration **20260926_0017**.
-Статус приймання: [Етап H](stage-h-backend-corrections.md).
+Чинний контракт overview. [Версії та повний registry з коду](generated-code-reference.md).
+Первинне приймання H-04 збережено в [історії Етапу H](stage-h-backend-corrections.md).
 
 ## 1. Модель
 
@@ -23,7 +23,13 @@ capability assignments цього Device. Модуль тут є логічно�
 | `allowed_commands` | Команди з урахуванням поточного `command.execute` |
 
 Каталожні name/description беруться з `capabilities` за capability_id.
-Довільний assignment config у цей DTO не копіюється.
+Довільний assignment config у цей DTO не копіюється. Опціональний
+`config.telemetry_keys` обирає підмножину зареєстрованих каналів capability
+для конкретної установки. Порожній список не рекламує каналів; відсутнє
+поле використовує всі канали capability. Невалідний/чужий список не створює
+каналів. Overview і series враховують цю підмножину; ingestion перевіряє
+registry та enabled capability, а не цей фільтр відображення.
+`command_profile` окремо повідомляє валідований діапазон частоти.
 Невідомий enabled code має `supported=false`, порожні channels/commands.
 Запис довільних `channels` або `command_types` у config не додає підтримку.
 
@@ -36,16 +42,10 @@ commands за назвою ASC. Вимкнений або непризначен
 
 Канал ідентифікується парою `(source, key)` у межах Device.
 
-| Capability | source | key | data_type | unit | supports_series |
-|---|---|---|---|---|---|
-| pressure.read | values | pressure.bar | number | bar | true |
-| water_level.read | values | water_level.percent | number | % | true |
-| vfd.frequency.read | values | vfd.frequency_hz | number | Hz | true |
-| vfd.current.read | values | vfd.current_a | number | A | true |
-| vfd.state.read | state | emergency_stop | boolean | null | false |
-| vfd.state.read | state | local_mode | boolean | null | false |
-| vfd.state.read | state | pump_running | boolean | null | false |
-| vfd.state.read | state | vfd_fault_code | integer | null | false |
+Повна таблиця 13 підтримуваних каналів, типів, одиниць і series:
+[генерований довідник](generated-code-reference.md#канали-телеметрії).
+До початкових каналів додано `vfd.set_frequency_hz`, `vfd.voltage_v`,
+`vfd_link`, `vfd_configuration_valid` і `control_armed`.
 
 `vfd.control` не має telemetry-каналів; надає `vfd.start`, `vfd.stop`,
 `vfd.frequency.set`. `vfd.state.read` сам по собі не дозволяє керування.
@@ -95,7 +95,8 @@ Write API повторно перевіряє permission і capability. `allowed
 не враховує фізичні блокування й не є підтвердженням доставки або виконання.
 Tenant isolation, session revocation та `Cache-Control: no-store` збережені.
 
-Нові поля є сумісним розширенням overview. Нових таблиць чи міграцій немає.
+Нові поля є сумісним розширенням overview. Саме додавання modules/state_readings у H-04 не вимагало нової міграції.
+Пізніше command v2 додав міграцію 0018; поточний head наведено в довіднику.
 Клієнти повинні ігнорувати незнайомі additive response fields.
 Актуальна машинна схема — `/openapi.json`.
 

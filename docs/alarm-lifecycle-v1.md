@@ -4,7 +4,7 @@
 
 Alarm Lifecycle Service керує durable incident-state поверх append-only Events.
 
-Він не вирішує, коли саме pressure/current/fault має вважатися аварією. Це завдання Rule Engine наступної операції.
+Він не вирішує, коли саме pressure/current/fault має вважатися аварією. Це завдання вже реалізованого [Rule Engine](alarm-rule-engine-v1.md).
 
 ## Lifecycle
 

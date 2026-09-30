@@ -1,284 +1,56 @@
-# API v1 TechBaza
-
-Публічний прикладний API версіонується через префікс:
-
-```text
-/api/v1
-```
-
-Це дозволяє надалі змінювати контракт API без раптового ламання старих клієнтів.
-
-## Перший доменний ресурс: organizations
-
-Доступні endpoint-и:
-
-```text
-GET  /api/v1/organizations
-GET  /api/v1/organizations/{organization_id}
-POST /api/v1/organizations
-```
-
-## Архітектурні шари
-
-```text
-HTTP request
-    ↓
-FastAPI router
-    ↓
-Service
-    ↓
-Repository
-    ↓
-SQLAlchemy Session
-    ↓
-PostgreSQL
-```
-
-Router відповідає лише за HTTP-контракт.
-
-Service містить бізнес-правила.
-
-Repository містить SQL/ORM-запити.
-
-Таке розділення потрібне, щоб логіка не накопичувалась у великих endpoint-функціях і могла тестуватися окремо.
-
-## Створення тестової організації
-
-Через Swagger:
-
-```text
-POST /api/v1/organizations
-```
-
-Приклад body:
-
-```json
-{
-  "name": "TechBaza Test Farm",
-  "slug": "techbaza-test-farm"
-}
-```
-
-Очікуваний HTTP status:
-
-```text
-201 Created
-```
-
-Після цього:
-
-```text
-GET /api/v1/organizations
-```
-
-повинен повернути створений запис.
-
-Повторне створення того самого `slug` має повернути:
-
-```text
-409 Conflict
-```
-
-Це перевіряє не лише API, а повний ланцюг запису даних у PostgreSQL.
-
-
-## Другий доменний ресурс: sites
-
-Site — це конкретний фізичний об'єкт організації.
-
-Доступні endpoint-и:
-
-```text
-GET  /api/v1/organizations/{organization_id}/sites
-POST /api/v1/organizations/{organization_id}/sites
-GET  /api/v1/sites/{site_id}
-```
-
-Приклад створення Site:
-
-```json
-{
-  "name": "Поле 1",
-  "code": "field-1",
-  "timezone": "Europe/Kyiv"
-}
-```
-
-Архітектурний зв'язок:
-
-```text
-Organization
-    ↓ 1:N
-Site
-```
-
-Поле `code` унікальне не глобально, а в межах конкретної організації.
-
-Це означає, що дві різні організації можуть мати, наприклад, власний `field-1`, але одна організація не може створити два Site з однаковим code.
-
-
-## Третій доменний ресурс: devices
-
-Device — фізичний контролер або інший керований пристрій на конкретному Site.
-
-Доступні endpoint-и:
-
-```text
-GET  /api/v1/sites/{site_id}/devices
-POST /api/v1/sites/{site_id}/devices
-GET  /api/v1/devices/{device_id}
-```
-
-Приклад створення контролера:
-
-```json
-{
-  "uid": "TB-ESP32-001",
-  "name": "Контролер свердловини 1",
-  "device_type": "controller"
-}
-```
-
-Архітектурний зв'язок:
-
-```text
-Organization
-    ↓
-Site
-    ↓
-Device
-```
-
-Поле `uid` є глобально унікальним. Один фізичний контролер не може бути одночасно зареєстрований на двох Site.
-
-Новий Device створюється зі статусом:
-
-```text
-provisioning
-```
-
-Це означає, що запис у системі вже існує, але пристрій ще не вважається повністю введеним в експлуатацію.
-
-
-## Четвертий доменний ресурс: capabilities
-
-Capability описує функцію, яку може підтримувати конкретний Device.
-
-Каталог capabilities є глобальним:
-
-```text
-GET  /api/v1/capabilities
-POST /api/v1/capabilities
-```
-
-Прив'язка до конкретного пристрою:
-
-```text
-GET  /api/v1/devices/{device_id}/capabilities
-POST /api/v1/devices/{device_id}/capabilities/{capability_id}
-```
-
-Приклади capability code:
-
-```text
-vfd.control
-vfd.frequency.read
-pressure.read
-current.read
-water_level.read
-fertilizer.control
-camera.view
-```
-
-Приклад створення capability:
-
-```json
-{
-  "code": "vfd.control",
-  "name": "Керування частотним перетворювачем",
-  "description": "Дозволяє запуск, зупинку та передачу команд керування VFD."
-}
-```
-
-Приклад прив'язки до Device:
-
-```json
-{
-  "is_enabled": true,
-  "config": {
-    "modbus_slave_id": 1
-  }
-}
-```
-
-Поле `config` зберігається як JSONB та містить параметри саме цього встановлення.
-
-Архітектура:
-
-```text
-Organization
-    ↓
-Site
-    ↓
-Device
-    ↓
-DeviceCapability
-    ↓
-Capability
-```
-
-Таким чином frontend і backend можуть визначати функції конкретного контролера на основі фактичної конфігурації, а не жорстко зашитого набору датчиків.
-
-
-## Commands
-
-Базовий command API зберігає команду в PostgreSQL перед майбутньою MQTT-публікацією.
-
-```text
-POST /api/v1/devices/{device_id}/commands
-GET  /api/v1/devices/{device_id}/commands
-GET  /api/v1/commands/{command_id}
-```
-
-Початкові `command_type`:
-
-```text
-vfd.start
-vfd.stop
-vfd.frequency.set
-```
-
-Приклад створення:
-
-```json
-{
-  "request_id": "11111111-2222-4333-8444-555555555555",
-  "command_type": "vfd.frequency.set",
-  "payload": {
-    "frequency_hz": 45.0
-  },
-  "ttl_seconds": 30
-}
-```
-
-На поточній операції нова команда отримує статус `queued`. MQTT publish та ACK реалізуються окремими наступними операціями.
-
-
-### Ідемпотентність створення command
-
-`request_id` генерується клієнтом до POST.
-
-- перший валідний запит → `201 Created`;
-- повтор ідентичного POST з тим самим `request_id` → `200 OK` і той самий command;
-- той самий `request_id` з іншим Device/type/payload/TTL → `409 Conflict`.
-
-Це не дозволяє HTTP retry випадково створити дві фізичні команди.
-
-
-## Command reliability diagnostics
-
-```text
-GET /command/reliability/status
-```
-
-Показує стан локального reliability worker, polling interval, batch size та результат останнього циклу.
+# HTTP API v1
+
+Прикладні маршрути мають префікс `/api/v1`. [Генерований перелік усіх paths](generated-code-reference.md#http-api)
+отримується з committed OpenAPI; `/openapi.json` працюючого backend є машинним
+контрактом DTO, query limits та responses. CI перевіряє zero diff зі schema TypeScript.
+
+## Групи та доступ
+
+| Група | Призначення | Доступ |
+|---|---|---|
+| `/auth/browser/*` | Browser login/refresh/logout | Exact Origin, CSRF header, HttpOnly cookie; login credentials |
+| `/auth/login`, `/auth/refresh`, `/auth/logout` | JSON flow для CLI | Credentials/refresh secret, спільний rate limiter |
+| `/auth/me` | User/session/memberships | Bearer JWT та активна server-side session |
+| `/organizations`, `/organizations/{id}/access` | Доступні клієнти й permissions | Tenant membership; superadmin bypass |
+| Sites/devices | Каталог установок та контролерів | Відповідні read/create permissions |
+| Capabilities | Каталог та assignments конкретного Device | Read/manage; catalog create — platform service_admin/superadmin |
+| Telemetry/state/availability/overview/series | Показники, якість, присутність та історія | Tenant scope і відповідні permissions/capabilities |
+| Commands | Створення, поточний lifecycle та журнал | command.execute/read, capability; profile/dispatch guards |
+| Events/alarms/transitions/acknowledge | Історія інцидентів та actor audit | event.read, alarm.read/acknowledge |
+| Notifications/count/read | Персональна стрічка та прочитання | notification.read та поточний tenant scope |
+
+Створення Organization дозволяється superadmin. Platform service_admin не має
+автоматичного доступу до всіх клієнтів. [Точна матриця](rbac-multitenant-guards-v1.md).
+Чужий tenant і відсутній ресурс повертають однаковий 404; UI guard не замінює API guard.
+
+## Browser flow
+
+Frontend отримує access у memory через browser login/refresh, потім передає
+`Authorization: Bearer <access>`. Refresh cookie сама по собі не авторизує
+звичайні resource endpoints. На F5 frontend відновлює session; logout
+відкликає її на сервері. [Cookie/CORS/CSRF та помилки](browser-auth-v1.md).
+
+## Команди
+
+`POST /api/v1/devices/{device_id}/commands` приймає `request_id`,
+`command_type`, `payload`, `ttl_seconds` і опціональний `supersedes_request_id`
+для Stop. Типи: `vfd.start`, `vfd.stop`, `vfd.frequency.set`.
+При тотожному повторі того самого автора повертається та сама команда:
+201 для нової, 200 для повтору; конфлікт намірів — 409.
+
+API зберігає команду до MQTT dispatch. Новий POST/ACK не доводить запуск двигуна.
+TTL 5–300 с (типово 30) обмежує перше прийняття; тривалість RUN він не задає.
+Діапазон frequency визначає валідований профіль установки, крім загальної
+API-межі 0..100 Гц. Порядок Stop, повторна перевірка прав, пізні відповіді,
+sequence та `result_unknown`: [чинний command v2](command-safety-v2.md).
+
+## Діагностика й помилки
+
+`/health` публічний та показує liveness/version. DB/MQTT/reliability/system
+діагностика потребує Bearer superadmin; [поведінка](backend-development.md).
+Помилки доступу зазвичай мають `{"detail":"…"}`, 422 — validation detail;
+єдиного універсального machine error envelope ще немає.
+401/403/404/409/422 не можна трактувати як успішне виконання; 429 має Retry-After.
+
+[Контракт frontend](frontend-api-contract-v1.md) пояснює projection, pagination,
+свіжість даних та доступні дії. Актуальні обмеження — у [статусі](project-status.md).

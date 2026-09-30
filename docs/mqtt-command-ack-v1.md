@@ -18,7 +18,7 @@ ACK
 Backend: status = acknowledged
 ```
 
-Фактичний результат виконання буде окремим message у наступній операції.
+Фактичний результат обробляється окремим [Result v1](mqtt-command-result-v1.md).
 
 ## Topic
 
@@ -75,7 +75,13 @@ ACK для command іншого Device відхиляється.
 
 ACK для невідомого `command_id` відхиляється.
 
-ACK для lifecycle status, з якого підтвердження нелогічне, відхиляється як `invalid_transition`.
+Після TTL ACK зберігається як пізній доказ, якщо спроба доставки вже була.
+Допустимі `published`, `result_unknown`, а також legacy `expired` зі спробою;
+для upgrade quarantine враховується невизначеність старої реалізації.
+Пізній ACK не відновлює доставку і залишає результат невідомим; повторний ACK
+не подовжує deadline. `queued`/`cancelled` без спроби не підтверджуються.
+ACK після acknowledged/final idempotent. Інші нелогічні переходи відхиляються.
+[Чинний lifecycle](command-safety-v2.md) має пріоритет над старими v1 схемами.
 
 ## Safety
 

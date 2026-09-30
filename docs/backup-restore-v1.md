@@ -7,10 +7,10 @@
 109 tests без skips, відновлено 20 таблиць і SQLite, live recovery — PASS.
 Операцію 6 та Етап 8 закрито; докази — у [журналі](stage-8-test-backend.md).
 
-Поточний сценарій оновлено в H-05 для backend **0.38.0**: **158 tests**,
-H-03 preflight перед promotion, без повторного seed наявного demo або
-restored copy. Схема 20260926_0017 та принципи ізоляції незмінні.
-Статус спільного приймання H-04/H-05 — у [досьє Етапу H](stage-h-backend-corrections.md).
+Чинний сценарій використовує [поточні версії](generated-code-reference.md),
+H-03 preflight перед promotion, без повторного seed наявного demo/restored copy.
+Пізніша міграція 0018 і правила command v2 враховані в recovery policy нижче.
+[Актуальний CI та його commit](audit-2026-09-30.md); числа 109/158 — історичні прогони.
 
 ## 1. Що доводить перевірка
 
@@ -47,7 +47,7 @@ restored copy. Схема 20260926_0017 та принципи ізоляції �
 1. `git archive HEAD`: tracked source експортується в окремий каталог.
    Docker image збирається з цього експорту з `--no-cache`.
 2. Новий PostgreSQL проходить усі міграції, строгий regression suite
-   **158 tests, zero skips**, seed і живий HTTP/MQTT demo test.
+   **без skips** (кількість фіксує поточний runner), seed і живий HTTP/MQTT demo test.
 3. Наявний demo коротко зупиняється. Новий image виконує read-only preflight
    його правил/аварій; тільки після PASS image використовується для demo.
    При відмові перевірки відновлюється попередній image. Seed на наявному
@@ -113,9 +113,9 @@ SHA-256 виявляє пошкодження; manifest не є цифровим
 | Дані в backup | Дія перед запуском |
 |---|---|
 | Невідкликані auth sessions | Усі відкликаються; потрібен новий login |
-| queued / published commands | `expired`, `restore_delivery_cancelled`; доставка заборонена, історичні ID/TTL/payload/actor збережено |
-| acknowledged commands | `result_unknown`, `restore_result_unknown`; автоматичного retry немає, completed_at не встановлюється |
-| succeeded / failed / expired / result_unknown | Наявна історія не переписується |
+| queued без спроби доставки | `expired`, `restore_delivery_cancelled`; доставка заборонена, ID/TTL/payload/actor збережено |
+| published / acknowledged або queued зі спробою (`publish_attempts` чи `published_at`) | `result_unknown`, `restore_result_unknown`; автоматичного retry немає, completed_at не встановлюється |
+| succeeded / failed / expired / cancelled / result_unknown | Наявна історія не переписується |
 | Auth rate limits | Старі вікна/IP очищаються на ізольованій цілі; наступні входи проходять звичайний limiter |
 
 Створюються відповідні системні аварії/notifications. Повторний запуск
@@ -139,7 +139,8 @@ request_id не оживляє команду. Перевірка повторю
 opt-in guard. Нові 4 PostgreSQL tests: round-trip CHECK та виявлення зміни правил/timezone, точність PostgreSQL numeric/JSONB fingerprint, транзакційність, rollback та
 ідемпотентність recovery policy зі збереженням terminal history.
 Історичний підсумок Етапу 8 — **109 regression tests**.
-Після H-01–H-05 набір містить **158 tests**; актуальні докази в досьє Етапу H.
+На прийманні H-01–H-05 було **158 tests**; це історичний результат.
+[Поточний прогін](audit-2026-09-30.md) виконує розширений набір.
 
 Fingerprint читає всі public tables у read-only REPEATABLE READ, UTC;
 порівнює PostgreSQL JSON row text без перетворення чисел на Python float,

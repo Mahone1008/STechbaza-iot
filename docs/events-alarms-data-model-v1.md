@@ -191,9 +191,10 @@ Actor metadata у transition зберігається snapshot-ом, як і Com
 
 ## 8. Межа v1
 
-Data Model v1 ще не генерує alarms автоматично.
-
-Rule Engine, debounce, hysteresis, offline detector та acknowledge API реалізуються наступними операціями.
+Таблиці самі не генерують alarms. У чинному застосунку це виконують
+[Rule Engine](alarm-rule-engine-v1.md) із debounce/hysteresis та
+[system alarms](system-alarms-v1.md). Lifecycle/acknowledge API й UI також
+реалізовані; початковий результат міграції 0011 нижче збережено як історію.
 
 ## 9. Verification
 

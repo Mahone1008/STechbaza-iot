@@ -85,9 +85,9 @@ updated_at
 
 Password hash, token або auth session data не повертаються.
 
-## Наступна verification
+## Початковий checklist перевірки
 
-Потрібно локально довести:
+Ці сценарії були заплановані для першого приймання; його результат наведено нижче:
 
 ```text
 admin → list memberships                    200

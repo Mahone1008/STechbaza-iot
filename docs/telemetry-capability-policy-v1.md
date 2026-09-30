@@ -19,23 +19,14 @@ telemetry key
 
 ## Поточна мапа v1
 
-### values
+Повний registry 13 каналів генерується з `backend/app/device_contract.py`:
+[канал → capability, тип та одиниця](generated-code-reference.md#канали-телеметрії).
+Окрема неповна копія таблиці тут не підтримується.
 
-```text
-vfd.frequency_hz      → vfd.frequency.read
-vfd.current_a         → vfd.current.read
-pressure.bar          → pressure.read
-water_level.percent   → water_level.read
-```
-
-### state
-
-```text
-pump_running          → vfd.state.read
-vfd_fault_code        → vfd.state.read
-local_mode            → vfd.state.read
-emergency_stop        → vfd.state.read
-```
+`config.telemetry_keys` обмежує advertised overview/series канали установки,
+але не є ACL для MQTT ingestion. Пакет перевіряється за відомими keys та
+активними capabilities; будь-який невідомий key/відсутня capability
+відхиляє весь пакет. [Межі моделі](module-channel-contract-v1.md).
 
 ## Чому vfd.control недостатньо
 
@@ -70,7 +61,7 @@ is_enabled = true
 
 ## Діагностика
 
-`GET /mqtt/ingestion/last` для відхиленого пакета повертає:
+`GET /mqtt/ingestion/last` потребує Bearer superadmin. Для відхиленого пакета повертає:
 
 ```json
 {
@@ -89,4 +80,4 @@ is_enabled = true
 
 ## Подальший розвиток
 
-Коли telemetry contract розширюється, новий key спочатку додається до документованої policy map і лише після цього може прийматися production backend.
+Коли telemetry contract розширюється, новий key додається до registry разом з валідацією, firmware/ingestion/series/UI підтримкою та тестами. `python scripts/check-docs.py --write` оновлює довідник; саме редагування документа не додає handler.

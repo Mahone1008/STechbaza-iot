@@ -1,6 +1,6 @@
 # KERUMO — план готовності продукту v1
 
-Дата: **29.09.2026, Europe/Kyiv**. Перевірена база репозиторію:
+Початковий план: **29.09.2026, Europe/Kyiv**. Історична база репозиторію:
 `f2fb50b2396ddb905485f61a4700afa32f0470f1`, перевірений виконуваний код
 frontend — `d51841d`. Backend **0.38.0**, PostgreSQL **16**, 17 migrations.
 
@@ -17,23 +17,44 @@ frontend — `d51841d`. Backend **0.38.0**, PostgreSQL **16**, 17 migrations.
 
 | Область | Перевірений стан | Наступна робота |
 |---|---|---|
-| База даних | PostgreSQL, SQLAlchemy, 17 Alembic migrations; organizations/sites/devices, users/roles/sessions, telemetry/snapshot, commands, alarms, notifications | Модель фізичних модулів, ownership/replacement, production retention, backup/PITR і capacity |
-| Backend | FastAPI 0.38.0; commands з row locks, TTL, ACK/Result та `result_unknown`; MQTT ACK після успішного processing/commit | Production settings, device identity/TLS, lifecycle policies, масштабування runtime |
-| Frontend | CI: 90 unit / 152 mocked / 10 live + 44 повтори PASS на `d51841d`; Windows: 152 mocked / 10 live / gate 14.3–14.4 PASS, SHA checkout не показаний | Завершення manual acceptance, UX реального обладнання й configuration/provisioning flows |
-| Прошивка | У `firmware/` лише README; buildable ESP32 firmware у tracked tree не знайдено | Зібрати наявні локальні Arduino/V2/V3 напрацювання, створити відтворюваний firmware project |
-| MQTT | Mosquitto, QoS 1, durable server commands, retry/recovery | Нинішній broker дозволяє anonymous; додати TLS, окремі device identities, ACL та ротацію |
+| База даних | PostgreSQL, SQLAlchemy, 18 Alembic migrations; organizations/sites/devices, users/roles/sessions, telemetry/snapshot, commands, alarms, notifications | Модель фізичних модулів, ownership/replacement, production retention, backup/PITR і capacity |
+| Backend | Версія застосунку 0.39.0; command v2, sequence/Stop ordering, TTL, пізні ACK/Result, повторна перевірка прав/профілю перед dispatch | Production settings, lifecycle identities, масштабування runtime |
+| Frontend | Етапи 9–14 реалізовано; Windows 29.09: gate 14.3–14.4 PASS, SHA checkout не показаний; поточний CI у [аудиті](audit-2026-09-30.md) | Завершення manual acceptance, UX реального обладнання й configuration/provisioning flows |
+| Прошивка | Tracked Arduino V3 0.2.1, portable core, native tests та CI compile ESP32-S3; NVS ledger/sequence | Повний hardware fault/soak, modular runtime, OTA; ESP-IDF ще не прийнятий як міграція |
+| MQTT | Mosquitto/QoS 1; V3 LAN gateway TLS, device password/ACL, bridge; внутрішній local/demo broker anonymous | Production credentials lifecycle, rotation/revocation, backend transport identity та fleet isolation |
 | Модульність | Одна capability кожного типу на Device; фіксовані v1 channel keys | Для двох однотипних датчиків потрібен instance/channel contract через усю систему |
 | Runtime | API lifespan запускає MQTT та два фонові workers; MQTT client ID фіксований | Розділити ролі процесів до горизонтального масштабування, перевірити ownership workers |
 | Backup | Є перевірене ізольоване demo backup/restore з recovery policy | Production storage, WAL/PITR, захист ключів, виміряні RPO/RTO, restore drill |
-| Обладнання | Історичні стендові роботи користувача існують; у цьому огляді фізичний стенд не випробовувався | Точний BOM, pin map, manual VFD, живлення/захист, HIL та польові випробування |
+| Обладнання | V3 ESP32-S3 N16R8 / SU600: читання, моторне керування й три зупинки прийняті 30.09 у конкретних циклах | Повний BOM/схема захисту, решта fault matrix, незалежні вимірювання й польовий пілот; V4 очікує 4G |
 
 Докази: [Етап 14](dossier-v3.5-stage-14-frontend-test-baseline.md),
 [module contract](module-channel-contract-v1.md),
-[command reliability](command-reliability-v1.md),
+[command v2](command-safety-v2.md),
 [backup/restore](backup-restore-v1.md).
 Старий [огляд backend після H](backend-review-after-h-2026-09-27.md) містить
 корисний backlog, але кожен його пункт треба повторно перевіряти: частину
 frontend/command змін уже виконано після дати того огляду.
+
+### Звірення P0–P9 на 30.09.2026
+
+| Пункт | Що вже виконано | Що залишається для закриття |
+|---|---|---|
+| P0.1 | Windows baseline 29.09; CI та defect audit 30.09 | Точний Windows SHA, решта manual/multi-role/mobile сценаріїв |
+| P0.2 | V3 source, N16R8, SU600 profile/pins, показані шильдики двигуна/VFD | Повний BOM/схема захисту та modem revision після доставки |
+| P0.3–P0.4 | TTL/Stop/replay правила, три фізичні зупинки | Повна погоджена safety/fault matrix, ADR та межі продукту |
+| P1 | Command v2/0018, поточний registry | Instances/channel identity, retention/rollups, compatibility нового config contract |
+| P2.1–P2.2 | Ідемпотентна реєстрація V3, TLS/device ACL на gateway | Production enrollment, ротація/відкликання, backend identity; P2.3–P2.4 відкриті |
+| P3.1–P3.2 | Arduino build/CI та SU600 read-only перевірені | Повний board acceptance і рішення щодо production framework |
+| P3.3–P3.4 | V3 telemetry через Wi-Fi доходить до UI | Додаткові сенсори, повний storage/quality/fault acceptance |
+| P4.1–P4.2 | START/STOP/frequency, повторний RUN, NVS ledger; gateway/DISARM/ESP power stop | Вся interlock/fault matrix, точні затримки, фактичне Wi-Fi/RS485 fault injection |
+| P4.3 | Не починали для V4 | 4G-модуль ще не отримано |
+| P4.4 | Три конкретні цикли зупинки підтверджені | Інші відмови й soak; недіагностований Offline залишається відкритим |
+| P5–P9 | Локальна тестова база та план | Production operations, OTA, security/load/soak, пілот, поставка не прийняті |
+
+Жоден великий етап P0–P9 не закрито лише за ознакою наявності прототипу.
+[Фізичні докази](dossier-v3-su600-control-bench.md), [реєстр відкритих питань](project-status.md).
+Таймери/програми частоти, повний редактор F-параметрів і синхронний
+LOCAL/REMOTE hardware switch + сайт залишаються вимогами до майбутньої функціональності.
 
 ## 2. Цільова архітектура та межі відповідальності
 
@@ -205,11 +226,11 @@ quarantine publish → reconcile controller state → відкликання/о�
 
 ### 4.1. Відтворювана база
 
-Рекомендована база нової firmware — **ESP-IDF для ESP32-S3**, C/C++,
-із зафіксованими версіями framework/components/toolchain. Arduino напрацювання
-корисні як перевірені приклади, але спочатку треба отримати їхній source
-і встановити фактичні register maps/pins. Перенесення виконується по
-функціях, зі стендовим порівнянням, без одночасної зміни всіх шарів.
+Поточний V3 уже має Arduino IDE/CLI project з pinned ESP32 core/libraries,
+GPIO/profile, compile CI та фізичним прийманням базових функцій.
+Початкова пропозиція ESP-IDF залишається архітектурним варіантом для
+майбутньої production firmware, а не завершеною або обов’язковою зараз міграцією.
+Перехід потребує окремого рішення й стендового порівняння функцій.
 
 Під час P3.1 перевіряємо точну board revision, flash/PSRAM, GPIO,
 UART allocation для modem і RS-485, керування DE/RE, живлення й service port.
@@ -535,9 +556,9 @@ pins/serial settings. Для відсутніх даних записуєтьс�
 Вихід: BOM/pin/resource map і перелік того, що можна перевіряти read-only.
 
 Далі P0.3/P0.4 визначають безпечну поведінку й scope, після них P1.1/P1.2
-формалізують DB/protocol design. Рекомендована перша корисна вертикаль:
-**один реальний канал → ESP32 → TLS MQTT → PostgreSQL → графік**, із
-перевіркою відключення й reboot, до віддалених physical writes.
+формалізують DB/protocol design. Перша вертикаль **SU600 → ESP32 → TLS MQTT → PostgreSQL → UI** уже
+підтверджена на V3; також виконано базові physical writes. Це не закриває
+контракт multiple-instance, LTE або всі production interlocks.
 
 До завершення P0 не встановлюємо остаточну дату продажу, server sizing,
 flash partitions або точні costs. V5 PCB розробляється після стабілізації

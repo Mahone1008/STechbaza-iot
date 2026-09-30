@@ -1,16 +1,9 @@
 # Контракт API перших екранів — Етап 8, операції 1–3
 
-Поточна версія backend: **0.38.0**, міграція **20260926_0017**.
-H-04 додає [модулі, канали й типізовані state readings](module-channel-contract-v1.md).
-Статус фінального приймання H-04/H-05: [журнал Етапу H](stage-h-backend-corrections.md).
-Початковий контракт створено в операції 1 для 0.32.0; нижче враховано
-browser auth операції 2 та якість показань і графіки операції 3.
-В операції 4 додано [окремий demo-стенд](demo-stand-v1.md) на порту 8001
-для цих API; формат відповідей цією операцією не змінено.
-Операція 5 додає [комплексні перевірки та recovery](comprehensive-checks-v1.md);
-контракт HTTP та міграція залишаються без змін.
-Цей документ закріплює інтеграцію перших екранів; UI ще не реалізовано.
-Статус операції та приймання: [журнал Етапу 8](stage-8-test-backend.md).
+Чинний контракт реалізованого frontend. [Версії та API paths з коду](generated-code-reference.md).
+[Модулі й канали](module-channel-contract-v1.md), [browser auth](browser-auth-v1.md),
+[command v2](command-safety-v2.md). Історія першого контракту й приймання
+Етапів 8/H наведена нижче; вона не є поточним станом UI.
 
 ## 1. Що означає контракт
 
@@ -86,6 +79,7 @@ Service admin без активного membership не отримує дост�
 | `state_keys` | Підтримувані ключі `state` для цього набору capabilities |
 | `command_types` | Команди, підтримувані enabled capabilities пристрою |
 | `allowed_commands` | Підмножина command_types з урахуванням `command.execute` поточного користувача |
+| `command_profile` | Валідований профіль керування, включно з frequency_limits; не довільний config |
 | `snapshot` | `DeviceStateRead` або `null`; значення відфільтровані за доступними ключами |
 | `telemetry_freshness` | Давність пакета: missing/fresh/stale, причина, timestamps і поріг |
 | `readings` | Показники enabled capabilities: key, unit, nullable numeric value і missing/invalid/fresh/stale |
@@ -145,7 +139,8 @@ Overview не читає нескінченні журнали та не вик�
 єдину мить. Після зміни ролі або складу модулів наступний запит показує
 новий стан. Остаточне рішення про дію приймає відповідний write endpoint.
 Allowed_commands не враховує фізичні блокування VFD і не гарантує зв'язок
-або виконання. Фізичний результат підтверджує тільки command Result.
+або виконання. Result повідомляє висновок контролера за його readback-критерієм;
+це не незалежний доказ механічного руху, витрати води або безпеки установки.
 
 ## 5. Списки та сторінки
 
@@ -196,12 +191,17 @@ Loading, empty, offline, no telemetry та access denied — різні UI-ст�
 POST повертає 201 для нової команди та 200 для тотожного повтору.
 TTL від 5 до 300 секунд, типово 30. Start/stop мають порожній payload;
 frequency.set — `{"frequency_hz": 40}`. Поточна API-межа частоти 0..100
-є протокольною; межі конкретної установки потребують окремої конфігурації.
+є протокольною; обов’язковий `vfd.control.config.frequency_limits` задає
+межі конкретної установки. Вони перевіряються при POST і перед кожною доставкою.
+TTL обмежує перше прийняття команди, а не час роботи двигуна.
+Backend виділяє монотонний `control_sequence`. Stop може мати HTTP
+`supersedes_request_id` для ще непідтвердженого запиту цього автора/Device;
+цей намір не губиться при повторі HTTP. [Точні правила](command-safety-v2.md).
 
 Успішний POST або command ACK не означає фізичний запуск. UI читає
 command status. `result_unknown` відображається як невідомий результат,
 а не як успіх; він не є підставою автоматично створювати новий Start.
-Докладний lifecycle: [Command Reliability v1](command-reliability-v1.md).
+Докладний lifecycle: [Command safety v2](command-safety-v2.md).
 
 ## 8. Історія перевірок
 
@@ -243,8 +243,8 @@ PostgreSQL/MQTT. Без flags перевірено лише 17, це не пов
 [Тестова збірка 0.37.0 прийнята](test-backend-release-v1.md).
 Коригувальний [Етап H](stage-h-backend-corrections.md) завершено 27.09.2026:
 5/5 операцій, backend **0.38.0** пройшов CI та спільне Windows-приймання.
-Наступний функціональний етап — **Етап 9: фронтенд**; можна переходити до
-його поетапної реалізації, яку ще не розпочато.
+Після цього реалізовано frontend Етапів 9–14 і фізичний V3.
+[Поточний статус і залишок ручного приймання](project-status.md).
 B2B/QR onboarding, зовнішні notification channels, production TLS/ACL
 та фізичний пілот мають окремі критерії готовності.
 

@@ -1,116 +1,42 @@
-# Backend TechBaza — локальна розробка
+# Backend — локальна розробка та діагностика
 
-Backend TechBaza працює на FastAPI.
+Запуск, міграції й порти: [local-development](local-development.md).
+Сайт використовує [demo API](demo-stand-v1.md) на 8001, якщо `.env.local`
+frontend не задає іншої адреси. Dev API на 8000 має власну БД.
 
-## Поточні endpoint-и
+## HTTP
 
-### Перевірка backend
+| Маршрут | Доступ | Що перевіряє |
+|---|---|---|
+| `/health` | Публічний | Liveness процесу та версію; не DB/MQTT/VFD readiness |
+| `/openapi.json`, `/docs` | Публічний | Поточну машинну схему та Swagger |
+| `/health/db` | Bearer superadmin | SQL-запит до PostgreSQL |
+| `/health/mqtt` | Bearer superadmin | Підключення backend до broker |
+| `/mqtt/last` | Bearer superadmin | Останній діагностичний MQTT message |
+| `/mqtt/ingestion/last` | Bearer superadmin | Результат обробки telemetry/heartbeat/ACK/Result |
 
-```text
-GET /health
-```
+Звичайні demo users не є superadmin. Відповідь 401/403 на діагностиці
+сама по собі не означає несправність MQTT. Для оператора доступні
+авторизовані overview, availability, command journal та alarms.
 
-### Перевірка backend → PostgreSQL
-
-```text
-GET /health/db
-```
-
-Цей endpoint виконує реальний SQL-запит через SQLAlchemy та psycopg.
-
-### Перевірка backend → MQTT
-
-```text
-GET /health/mqtt
-```
-
-Якщо backend підключений до Mosquitto, endpoint повертає `status: ok`.
-
-### Останнє MQTT-повідомлення
-
-```text
-GET /mqtt/last
-```
-
-Backend підписаний на тестовий topic:
-
-```text
-techbaza/test/backend
-```
-
-Після отримання повідомлення endpoint `/mqtt/last` показує останній topic, payload, QoS, retain та час отримання.
-
-## Локальні адреси
-
-```text
-Backend:
-http://127.0.0.1:8000
-
-Health:
-http://127.0.0.1:8000/health
-
-PostgreSQL health:
-http://127.0.0.1:8000/health/db
-
-MQTT health:
-http://127.0.0.1:8000/health/mqtt
-
-Останнє MQTT-повідомлення:
-http://127.0.0.1:8000/mqtt/last
-
-Swagger / OpenAPI:
-http://127.0.0.1:8000/docs
-```
-
-## Внутрішня Docker-схема
-
-```text
-PostgreSQL
-    ↑
-    │ postgres:5432
-    │
-FastAPI Backend
-    │
-    │ mosquitto:1883
-    ↓
-Mosquitto MQTT
-```
-
-## Тест отримання MQTT-повідомлення backend-ом
-
-Після запуску контейнерів відправити:
+Діагностичний topic `techbaza/test/backend` не є telemetry конкретного Device.
+Для dev broker тестове повідомлення можна надіслати так:
 
 ```powershell
-docker exec -it techbaza-mosquitto mosquitto_pub -h localhost -t techbaza/test/backend -m "message for backend"
+docker compose exec -T mosquitto mosquitto_pub -h localhost -t techbaza/test/backend -m "message for backend"
 ```
 
-Потім відкрити:
+Потім перевірте `/mqtt/last` з чинним Bearer superadmin. Саме повідомлення
+не оновлює physical device presence або показання SU600.
 
-```text
-http://127.0.0.1:8000/mqtt/last
-```
+## Перевірки
 
-Очікується, що backend покаже отримане повідомлення.
+[Backend README](../backend/README.md) містить повний Windows gate.
+GitHub Actions запускає integration suite з PostgreSQL/MQTT, міграції,
+ізольований demo та backup/restore. Поточні результати з commit/межами —
+[аудит](audit-2026-09-30.md). Python unittest без opt-in сервісів пропускає
+integration tests і не замінює цей gate.
 
-## Запуск після змін
-
-```powershell
-git pull
-docker compose up -d --build
-docker compose ps
-```
-
-## Поточний стан
-
-Завершено:
-
-1. окремий FastAPI-сервіс;
-2. `GET /health`;
-3. реальне підключення backend до PostgreSQL;
-4. `GET /health/db`;
-5. MQTT-клієнт всередині backend;
-6. `GET /health/mqtt`;
-7. підписка backend на тестовий MQTT-topic;
-8. `GET /mqtt/last`.
-
-Наступний крок — перевірити реальне MQTT-повідомлення, яке отримує сам backend.
+API/controllers, services, repositories та security guards перевіряються
+разом. Зміни HTTP DTO потребують `scripts/export_openapi.py`, frontend
+`npm run api:generate` та committed OpenAPI zero diff.

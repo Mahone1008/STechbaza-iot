@@ -1,58 +1,54 @@
 # Backend
 
-Серверна логіка TechBaza IoT: FastAPI, SQLAlchemy/PostgreSQL, Alembic та MQTT.
+FastAPI, SQLAlchemy/PostgreSQL, Alembic та MQTT. Реалізовані організації,
+об'єкти, пристрої, browser auth/session recovery, tenant RBAC, телеметрія,
+історія/якість даних, команди, аварії та in-app notifications. Основні екрани
+frontend працюють із цими API. `/ui-kit/device-demo` — окремий демонстраційний макет.
 
-## Поточний стан
+[Поточний стан](../docs/project-status.md), [версії та API з коду](../docs/generated-code-reference.md).
+Приймання backend 0.38.0 / Етапу H є історичною базою; чинні правила команд —
+[protocol v2](../docs/command-safety-v2.md).
 
-Прийнята тестова версія **0.38.0**, схема **20260926_0017**. Етапи 1–8
-та всі 5 операцій Етапу H завершені. Спільне Windows-приймання H-04/H-05
-підтверджене 27.09.2026: 158 tests без пропусків, clean install,
-exact backup/restore та live demo PASS. Frontend Етапи 9 і 10 вже завершені;
-поточна функціональна точка — **11.1: організації, об'єкти та tenant context**.
-Актуальні докази й статус: [досьє Етапу H](../docs/stage-h-backend-corrections.md).
+## Запуск і перевірки
 
-Реалізовано organization/site/device model, memberships/RBAC, browser auth,
-телеметрію та її якість/історію, чергу команд з ACK/Result, аварії й in-app
-notifications. API перших екранів відображає enabled capabilities та
-типізовані канали конкретного Device. UI має реальний browser auth, session
-recovery, permissions і logout; devices/telemetry/alarms поки показують demo
-fixtures. Актуальний стан: [frontend roadmap](../docs/frontend-roadmap-v1.md).
-
-## Запуск і перевірка
-
-Демонстраційний стенд має окремі PostgreSQL/Mosquitto та simulator:
-[інструкція demo](../docs/demo-stand-v1.md). Його API працює на
-`http://127.0.0.1:8001`; основний dev stack на 8000 є окремим оточенням.
-
-У корені репозиторію, з Docker Desktop і вже прийнятим `.env.demo`:
+[Demo](../docs/demo-stand-v1.md) має окремі PostgreSQL/Mosquitto/simulator та API
+`http://127.0.0.1:8001`. [Dev stack](../docs/local-development.md) на 8000 — інше оточення.
+З кореня репозиторію, з Docker Desktop і налаштованим `.env.demo`:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-stage-h-final.ps1
 ```
 
-Повне приймання вимагає **158 tests, zero skips**; звичайний unittest без
-PostgreSQL/MQTT пропускає інтеграційні перевірки й не є повним gate.
-Скрипт також виконує clean install, live demo та exact backup/restore.
+Це повний backend gate: усі зібрані regression tests **без skips**, міграції,
+clean install, live demo та exact backup/restore. Кількість тестів і commit
+фіксуються результатом запуску, а не старим числом у README.
 
-Діагностика API:
+Швидка перевірка без PostgreSQL/MQTT з папки `backend`:
 
-```text
-GET /health
-GET /openapi.json
-GET /docs
+```powershell
+python -m unittest discover -s tests -v
 ```
 
-`/health` перевіряє HTTP-сервіс та версію; це не доказ справності фізичного VFD.
+Пропуски integration tests у цьому режимі очікувані; це не повне приймання.
+Результати поточного аудиту — у [звіті](../docs/audit-2026-09-30.md).
 
-## Структура та контракти
+`GET /health` — публічний liveness/version. `/health/db`, `/health/mqtt`,
+`/mqtt/last` та `/mqtt/ingestion/last` потребують Bearer superadmin.
+[Діагностика](../docs/backend-development.md) не доводить справність фізичного VFD.
 
-- `app/api` — HTTP, `schemas` — DTO, `services` — бізнес-логіка.
-- `models` / `repositories` — дані; `alembic` — міграції.
-- `security` — identity, sessions, права та tenant guards.
-- `device_contract.py` — підтримувані канали/команди протоколу v1.
-- `demo` / `tools` / `tests` — стенд, операційні перевірки й регресії.
+## Структура
+
+- `app/api`, `schemas` — HTTP та DTO; `services` — бізнес-логіка.
+- `models`, `repositories`, `alembic` — дані та міграції.
+- `security` — identity, sessions, permissions та tenant guards.
+- `device_contract.py` — спільний registry каналів і підтримуваних команд.
+- `mqtt_client.py` — MQTT ingestion; `operations` — preflight/recovery.
+- `demo`, `tools`, `tests` — simulator, операційні перевірки та регресії.
+
+API lifespan запускає MQTT і фонові workers. Поточне локальне розгортання
+використовує один API-процес; горизонтальне масштабування потребує
+розділення runtime та перевірки ownership workers.
 
 [Frontend API](../docs/frontend-api-contract-v1.md),
-[module/channel контракт](../docs/module-channel-contract-v1.md),
-[browser auth](../docs/browser-auth-v1.md),
-[межі готовності та наступні етапи](../docs/test-backend-release-v1.md).
+[канали](../docs/module-channel-contract-v1.md),
+[auth](../docs/browser-auth-v1.md), [план продукту](../docs/product-readiness-plan-v1.md).

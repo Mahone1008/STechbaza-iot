@@ -32,20 +32,11 @@ service
 
 ## Permission matrix v1
 
-| Permission | owner | admin | operator | viewer | service |
-|---|---:|---:|---:|---:|---:|
-| organization.read | ✅ | ✅ | ✅ | ✅ | ✅ |
-| site.read | ✅ | ✅ | ✅ | ✅ | ✅ |
-| site.create | ✅ | ✅ | ❌ | ❌ | ❌ |
-| device.read | ✅ | ✅ | ✅ | ✅ | ✅ |
-| device.create | ✅ | ✅ | ❌ | ❌ | ✅ |
-| telemetry.read | ✅ | ✅ | ✅ | ✅ | ✅ |
-| command.read | ✅ | ✅ | ✅ | ✅ | ✅ |
-| command.execute | ✅ | ✅ | ✅ | ❌ | ✅ |
-| capability.read | ✅ | ✅ | ✅ | ✅ | ✅ |
-| capability.manage | ✅ | ✅ | ❌ | ❌ | ✅ |
-| membership.read | ✅ | ✅ | ❌ | ❌ | ❌ |
-| membership.manage | ✅ | ✅ | ❌ | ❌ | ❌ |
+[Повна актуальна матриця всіх 16 permissions](generated-code-reference.md#tenant-permissions)
+генерується з `backend/app/security/roles.py`, включно з events, alarms,
+notifications та `alarm.acknowledge`. Owner/admin мають однаковий набір
+атомарних permissions, але membership service додатково захищає owner-role
+та останнього owner: [membership management](membership-management-v1.md).
 
 Permission перевіряється централізовано через `AccessControl`, а не окремими role-if у кожному endpoint.
 
@@ -157,7 +148,7 @@ POST /api/v1/devices/{device_id}/capabilities/{capability_id}
 
 Operation 4.1 створює permission matrix та накладає guards на існуючі business endpoints.
 
-Наступна перевірка повинна довести:
+Історичний checklist Operation 4.1 (результати наступних підоперацій зафіксовані):
 
 ```text
 без membership → чужий tenant прихований
@@ -168,4 +159,5 @@ viewer → command execute заборонено
 tenant A → tenant B resource hidden
 ```
 
-Membership management API та повний tenant-isolation E2E закриваються наступними підопераціями Operation 4.
+[Membership management](membership-management-v1.md) та tenant-isolation E2E
+реалізовані й перевірені. Поточний CI — у [аудиті](audit-2026-09-30.md).

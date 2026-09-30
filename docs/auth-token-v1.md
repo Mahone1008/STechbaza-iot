@@ -166,7 +166,10 @@ revoked_at != null
 
 Операція idempotent: unknown/repeated token не розкриває session state.
 
-Короткоживучий access JWT може існувати до свого `exp`. На наступній операції Current User Context може додатково перевіряти server-side session state.
+Access JWT залишається підписаним до `exp`, але чинний
+[Current User Context](current-user-context-v1.md) на кожному захищеному
+запиті перевіряє server-side session; logout/revoke одразу блокує access.
+Browser використовує [cookie flow](browser-auth-v1.md), JSON flow нижче збережено для CLI.
 
 ## User creation
 

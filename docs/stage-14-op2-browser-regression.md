@@ -1,5 +1,7 @@
 # Етап 14.2 — наскрізні browser regressions KERUMO
 
+> **Історичний запис.** Версії, числа тестів, «поточні» кроки й команди нижче належать описаному етапу. Для роботи з нинішнім кодом: [статус](project-status.md), [чинні інструкції та контракти](README.md).
+
 Дата: 29.09.2026. База: `147a10d`. Разом із [14.1 — UX/accessibility](stage-14-op1-ux-accessibility.md).
 Реалізовано; **фінальний CI PASS: 83 unit / 146 mocked / 10 live + 44 повтори**.
 Windows 29.09.2026: **146 mocked / 10 live / cumulative gate PASS**;

@@ -1,6 +1,8 @@
 # Стандарти розробки TechBaza
 
-Цей документ фіксує базові правила якості коду та документації для всього проєкту TechBaza.
+Цей документ фіксує правила та цільові вимоги якості. Він не є заявою,
+що кожна production-вимога вже реалізована. Поточне виконання й прогалини:
+[статус](project-status.md), [аудит](audit-2026-09-30.md).
 
 ## 1. Загальний принцип
 
@@ -145,15 +147,19 @@ API повинно мати:
 
 MQTT topic-и повинні мати передбачувану структуру.
 
-Майбутній принцип:
+Чинні topics (UID, а не DB UUID):
 
 ```text
-techbaza/{device_id}/telemetry
-techbaza/{device_id}/state
-techbaza/{device_id}/events
-techbaza/{device_id}/commands
-techbaza/{device_id}/ack
+techbaza/devices/{device_uid}/telemetry
+techbaza/devices/{device_uid}/heartbeat
+techbaza/devices/{device_uid}/commands
+techbaza/devices/{device_uid}/commands/ack
+techbaza/devices/{device_uid}/commands/result
 ```
+
+State є частиною telemetry; alarms/events формує backend. Outbound commands
+мають schema v2, решта перелічених envelopes — v1. V3 gateway вже має TLS
+і device ACL; це не закриває production lifecycle credentials.
 
 Production-вимоги:
 
@@ -219,3 +225,16 @@ Production-вимоги:
 ## 14. Основне правило
 
 Код TechBaza має бути написаний так, щоб через декілька місяців інший розробник міг відкрити репозиторій, зрозуміти структуру системи та продовжити роботу без необхідності вгадувати, чому були прийняті ті чи інші рішення.
+
+## 15. Чинна документація та історія
+
+- `project-status.md` — одна поточна точка стану та відкритих питань.
+- Runbook/contract описує чинну поведінку; датоване досьє зберігає докази своєї ревізії.
+- Старі counts/SHA не підміняються новими; закриття пункту потребує нового доказу.
+- `python scripts/check-docs.py` перевіряє локальні file links та генерований
+  довідник версій, Alembic, OpenAPI, каналів і permissions. Після зміни registry
+  виконайте `python scripts/check-docs.py --write` та перевірте diff.
+- Цей gate не перевіряє зовнішні URL, anchors, фізичні вимірювання або всю семантику prose.
+
+Структуровані logs/metrics, backend lint/type/dependency gates і повна модульність
+firmware залишаються цілями з [аудиту](audit-2026-09-30.md), а не завершеними пунктами.
