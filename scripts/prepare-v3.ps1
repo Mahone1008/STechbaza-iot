@@ -58,6 +58,7 @@ try {
     throw
 }
 Write-Host 'READY: V3 bench registered; control disabled. Open firmware/kerumo_v3/kerumo_v3.ino in Arduino IDE.' -ForegroundColor Green
-Write-Host 'API: http://127.0.0.1:8001/health ; website: http://localhost:3000' -ForegroundColor Cyan
+Write-Host 'API: http://127.0.0.1:8001/health ; website: http://127.0.0.1:3000' -ForegroundColor Cyan
+Write-Host 'Open the website using 127.0.0.1, matching the API host, so browser session recovery works.'
 Write-Host 'The PC and ESP32 must share the LAN. Allow incoming TCP 8883 only from the local subnet on the Private firewall profile.'
 Write-Host 'Do not share .local/v3, .env.demo, .env.v3 or config.local.h. See docs/v3-su600-bench.md for Arduino settings and checks.'
