@@ -85,7 +85,7 @@ test("empty and failed history retain space after an expanded table without show
   await stable(page, y);
 });
 
-test("automatic overview and history refresh preserve scroll while old values are hidden", async ({ page }) => {
+test("automatic refresh preserves scroll, retains the panel and hides old history only while history reloads", async ({ page }) => {
   await page.clock.install(); await page.setViewportSize({ width: 1280, height: 720 }); await ready(page, false);
   // Цей сценарій координує 30/60 с, незалежно від типового інтервалу панелі.
   await page.getByLabel("Автооновлення", { exact: true }).selectOption("30");
@@ -95,11 +95,13 @@ test("automatic overview and history refresh preserve scroll while old values ar
   try {
     const y = await position(page);
     await page.clock.runFor(31000);
-    await expect(page.getByText("Перевіряємо модулі та показання…")).toBeVisible();
-    await expect(page.locator(".telemetry-chart")).toBeHidden();
-    await expect(page.getByLabel("Метрика", { exact: true })).toBeHidden();
+    await expect(page.getByRole("button", { name: "Оновити панель" })).toBeDisabled();
+    await expect(page.getByText("Перевіряємо модулі та показання…")).toHaveCount(0);
+    await expect(page.locator(".telemetry-chart")).toBeVisible();
+    await expect(page.getByLabel("Метрика", { exact: true })).toBeVisible();
     await stable(page, y, true);
     panel.release();
+    await expect(page.getByRole("button", { name: "Оновити панель" })).toBeEnabled();
     await expect(page.locator(".telemetry-chart")).toBeVisible();
     await stable(page, y, true);
     await page.clock.runFor(31000);

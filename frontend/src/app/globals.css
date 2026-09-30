@@ -549,7 +549,6 @@ h1, h2, h3 { letter-spacing: -0.02em; }
 
 /* Оновлення приховує неактуальні дані, але зберігає місце в документі. */
 .stable-region-content { display: flow-root; }
-.panel-refresh-hidden { visibility: hidden; }
 
 .command-lifecycle { padding-left: 1.5rem; line-height: 1.8; }
 .command-json { white-space: pre-wrap; overflow-wrap: anywhere; }
