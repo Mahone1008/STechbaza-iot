@@ -49,10 +49,24 @@ struct Fixture {
   }
   void receive(const Command& c) { controller.receive(c,"11111111-1111-4111-8111-111111111111","22222222-2222-4222-8222-222222222222","33333333-3333-4333-8333-333333333333"); }
   bool armExtended() {
-    bus.registers[0x602]=50; bus.registers[0x500]=1; bus.registers[0x408]=0;
+    // Physical SU600A: keypad F5.00=1001 is returned as 0x1001 (decimal 4097).
+    bus.registers[0x602]=50; bus.registers[0x500]=0x1001; bus.registers[0x408]=0;
     return controller.arm(SessionMode::ExtendedTest);
   }
 };
+void protectionRegisterEncoding() {
+  Fixture f; assert(f.armExtended()); assert(f.bus.writes.empty());
+  auto config=readConfig(f.bus); assert(config.protection==4097);
+  // Manual: overload enabled, PID break protection 0/1, loss action 0/2,
+  // oscillation suppression 0/1. These are all permitted keypad combinations.
+  const uint16_t permitted[]={0x0001,0x0011,0x0201,0x0211,0x1001,0x1011,0x1201,0x1211};
+  for (uint32_t raw=0;raw<=0xFFFF;++raw) {
+    bool expected=false;
+    for (const auto word:permitted) if (raw==word) expected=true;
+    config.protection=static_cast<uint16_t>(raw);
+    assert(config.extendedTestOk()==expected);
+  }
+}
 void extendedTestSession() {
   Fixture f; assert(f.armExtended()); f.receive(f.command(1)); f.controller.tick(true);
   const size_t writes=f.bus.writes.size();
@@ -78,19 +92,19 @@ void extendedGuardsAndRecovery() {
   Fixture disabled(false); assert(!disabled.armExtended() && disabled.bus.writes.empty());
   Fixture missing; assert(!missing.controller.arm(SessionMode::ExtendedTest));
   for (auto [address,value]:std::vector<std::pair<uint16_t,uint16_t>>{{0x602,0},{0x602,49},{0x602,101},
-      {0x500,101},{0x500,0},{0x500,301},{0x500,21},{0x408,1}}) {
+      {0x500,0x1101},{0x500,0x1000},{0x500,0x1301},{0x500,0x1021},{0x500,0x2001},{0x408,1}}) {
     Fixture f; assert(f.armExtended()); f.bus.registers[address]=value;
     assert(!f.controller.arm(SessionMode::ExtendedTest)); assert(!f.controller.isArmed()); assert(f.bus.writes.empty());
   }
-  Fixture ramp; assert(ramp.armExtended()); ramp.bus.registers[0x500]=201;
-  assert(ramp.controller.arm(SessionMode::ExtendedTest));
+  Fixture configuredStop; assert(configuredStop.armExtended()); configuredStop.bus.registers[0x500]=0x1201;
+  assert(configuredStop.controller.arm(SessionMode::ExtendedTest));
   for (unsigned failure=0;failure<6;++failure) {
     Fixture f; assert(f.armExtended()); f.receive(f.command(1)); f.controller.tick(true);
     if(failure==0) f.controller.tick(false);
     if(failure==1) { f.bus.registers[0x2100]=16; f.controller.sample(); }
     if(failure==2) { f.bus.readable=false; f.controller.sample(); f.bus.readable=true; }
     if(failure==3) { f.bus.registers[0x602]=0; f.clock.ms+=10001; f.controller.tick(true); }
-    if(failure==4) { f.bus.registers[0x500]=101; f.receive(f.command(2,Type::Frequency,20)); }
+    if(failure==4) { f.bus.registers[0x500]=0x1101; f.receive(f.command(2,Type::Frequency,20)); }
     if(failure==5) { f.storage.fail=true; f.receive(f.command(2,Type::Frequency,20)); f.storage.fail=false; }
     f.clock.ms+=1000; f.controller.tick(true);
     assert(!f.controller.isArmed() && !f.controller.journal().motionPossible);
@@ -204,6 +218,6 @@ void protocol() {
 int main() {
   readOnlyAndConfiguration(); timingAndOrdering(); echoIsNotPhysicalResult(); duplicateAndRestart();
   crashWindowAndStopRetry(); storageAndBoundedHistory(); profilesAndFrames(); protocol();
-  extendedTestSession(); extendedGuardsAndRecovery();
-  puts("PASS: read-only, profile/scaling, TTL, sequence, duplicate/reboot, crash window, stop retry, network loss, storage, CRC, strict v2 parsing, extended session and loss-of-permission recovery");
+  protectionRegisterEncoding(); extendedTestSession(); extendedGuardsAndRecovery();
+  puts("PASS: read-only, profile/scaling, TTL, sequence, duplicate/reboot, crash window, stop retry, network loss, storage, CRC, strict v2 parsing, all 65536 F5.00 words, extended session and loss-of-permission recovery");
 }

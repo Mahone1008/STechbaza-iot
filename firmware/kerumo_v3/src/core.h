@@ -75,7 +75,7 @@ struct Su600Config {
   uint16_t runSource{}, frequencySource{}, maxRaw{}, upperRaw{}, lowerRaw{};
   uint16_t address{}, serial{}, timeoutRaw{}, responseDelay{}, scaleRaw{}, protocol{};
   bool readOk{};
-  uint16_t protection{}, autoReset{};
+  uint16_t protection{}, autoReset{}; // F5.00 keeps its raw, four-bits-per-digit register encoding.
   bool protectionReadOk{};
   bool profileOk() const;
   bool controlOk() const;

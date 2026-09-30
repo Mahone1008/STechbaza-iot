@@ -135,8 +135,9 @@ void deviceTask(void*) {
       const auto& c=controller.config();
       Serial.printf("SU600: read=%d profile=%d config=%d F0.02=%u F0.03=%u F0.04=%u F0.05=%u F0.06=%u F6.00=%u F6.01=%u F6.02=%u F6.03=%u F6.04=%u F6.05=%u armed=%d\n",
         c.readOk,c.profileOk(),c.controlOk(),c.runSource,c.frequencySource,c.maxRaw,c.upperRaw,c.lowerRaw,c.address,c.serial,c.timeoutRaw,c.responseDelay,c.scaleRaw,c.protocol,controller.isArmed());
-      Serial.printf("TEST: session=%s guards_read=%d ready=%d F5.00=%u F4.08=%u last_stop=%s\n",
-        controller.sessionMode()==SessionMode::ExtendedTest?"EXTENDED":"BENCH",c.protectionReadOk,c.extendedTestOk(),c.protection,c.autoReset,stopReasonCode(controller.stopReason()));
+      Serial.printf("TEST: session=%s guards_read=%d ready=%d F5.00=%04X (raw=%u) F4.08=%u last_stop=%s\n",
+        controller.sessionMode()==SessionMode::ExtendedTest?"EXTENDED":"BENCH",c.protectionReadOk,c.extendedTestOk(),
+        static_cast<unsigned>(c.protection),static_cast<unsigned>(c.protection),c.autoReset,stopReasonCode(controller.stopReason()));
       Serial.printf("READ: fault=%s:%u state=%s:%u set=%s:%.2f out=%s:%.2f I=%s:%.1f U=%s:%.1f\n",
         sample.ok[0]?"OK":"MISSING",sample.raw[0],sample.ok[1]?"OK":"MISSING",sample.raw[1],
         sample.ok[2]?"OK":"MISSING",sample.raw[2]/100.0,sample.ok[3]?"OK":"MISSING",sample.raw[3]/100.0,
@@ -220,7 +221,7 @@ void setup() {
   transport.setCACert(KERUMO_MQTT_CA); transport.setHandshakeTimeout(5); transport.setTimeout(2000);
   mqtt.setId(String(KERUMO_DEVICE_UID)+"-esp32"); mqtt.setUsernamePassword(KERUMO_DEVICE_UID,KERUMO_MQTT_PASSWORD);
   mqtt.setCleanSession(true); mqtt.setConnectionTimeout(2000); mqtt.setKeepAliveInterval(5000); mqtt.onMessage(received);
-  Serial.println("KERUMO V3 test 0.2.0. Serial: ARM SU600 / ARM SU600 TEST / DISARM. No local HTTP command endpoint.");
+  Serial.println("KERUMO V3 test 0.2.1. Serial: ARM SU600 / ARM SU600 TEST / DISARM. No local HTTP command endpoint.");
 }
 void loop() {
   static uint32_t reconnectAt=0,lastHeartbeat=0,lastTelemetry=0;

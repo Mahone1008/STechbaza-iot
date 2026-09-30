@@ -83,11 +83,16 @@ bool Su600Config::controlOk() const {
   return profileOk() && runSource==2 && frequencySource==6 && maxRaw==500 && upperRaw==500 && lowerRaw==0 && scaleRaw==100;
 }
 bool Su600Config::extendedTestOk() const {
-  // SU600 manual: F6.02 is in 0.1 s; F5.00 hundreds digit selects loss-of-RS485 action.
+  // SU600A bench: keypad F5.00=1001 is register 0x1001 (decimal 4097).
+  // Each keypad digit occupies four bits; decimal /100 and %10 are incorrect.
+  // F6.02 is an ordinary numeric register in 0.1 s, not packed digits.
   // These are communication checks, not a certification of motor protection or wiring.
-  const unsigned lossAction=(protection/100)%10;
+  const unsigned overload=protection&0xF;
+  const unsigned pidBreak=(protection>>4)&0xF;
+  const unsigned lossAction=(protection>>8)&0xF;
+  const unsigned suppression=(protection>>12)&0xF;
   return controlOk() && protectionReadOk && timeoutRaw>=50 && timeoutRaw<=100 && autoReset==0 &&
-    protection<=1211 && protection%10==1 && (protection/10)%10<=1 && (lossAction==0 || lossAction==2);
+    overload==1 && pidBreak<=1 && (lossAction==0 || lossAction==2) && suppression<=1;
 }
 Su600Config readConfig(Bus& bus) {
   Su600Config result{};
