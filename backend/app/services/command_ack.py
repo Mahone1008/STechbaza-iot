@@ -33,10 +33,6 @@ class CommandAckDeviceMismatchError(Exception):
     """Command належить іншому Device."""
 
 
-class CommandAckExpiredError(Exception):
-    """ACK прийшов після завершення TTL."""
-
-
 class CommandAckInvalidTransitionError(Exception):
     """ACK не дозволений з поточного lifecycle status."""
 
@@ -99,4 +95,3 @@ class CommandAckService:
             updated=True,
             reason="late_acknowledged" if late else "acknowledged",
         )
-

@@ -32,10 +32,6 @@ class CommandResultDeviceMismatchError(Exception):
     """Command належить іншому Device."""
 
 
-class CommandResultExpiredError(Exception):
-    """Final result без ACK надійшов після завершення TTL."""
-
-
 class CommandResultInvalidTransitionError(Exception):
     """Result не дозволений з поточного lifecycle status."""
 
@@ -140,4 +136,3 @@ class CommandResultService:
             updated=True,
             reason=payload.status,
         )
-
