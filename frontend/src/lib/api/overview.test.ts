@@ -1,8 +1,24 @@
 import { describe, expect, it } from "vitest";
 import { overviewDevice, overviewFixture, overviewOrg } from "../../../tests/fixtures/overview";
-import { channelLabel, effectiveQuality, parseOverview, readingText } from "./overview";
+import { channelLabel, controlBlockReason, effectiveQuality, parseOverview, readingText, type Overview } from "./overview";
 const parse = (value: unknown) => parseOverview(value, overviewDevice, overviewOrg);
 describe("module overview boundary", () => {
+  it("gates only installed VFD diagnostics, refuses stale or missing ARM, and does not invent sensors", () => {
+    const base = parse(overviewFixture());
+    expect(controlBlockReason(base)).toBeNull();
+    const data: Overview = { ...base, modules: [...base.modules, {
+      assignmentId: "diagnostics", code: "vfd.diagnostics.read", name: "V3", supported: true, commands: [], allowedCommands: [],
+      channels: ["vfd_link", "vfd_configuration_valid", "control_armed"].map((key) => ({ key, source: "state", data_type: "boolean", unit: null, status: "fresh", value: true })),
+    }] };
+    expect(controlBlockReason(data)).toBeNull();
+    expect(controlBlockReason(data, 121)).toContain("свіжу діагностику");
+    const diagnostics = data.modules.at(-1)!;
+    const withoutArm = diagnostics.channels.filter((channel) => channel.key !== "control_armed");
+    const arm = diagnostics.channels.at(-1)!;
+    expect(controlBlockReason({ ...data, modules: [{ ...diagnostics, channels: [...withoutArm, { ...arm, value: false }] }] })).toContain("Локальний дозвіл");
+    expect(controlBlockReason({ ...data, modules: [{ ...diagnostics, channels: [...withoutArm, { ...arm, status: "missing", value: null }] }] })).toContain("свіжу діагностику");
+    expect(controlBlockReason({ ...data, modules: [{ ...diagnostics, channels: withoutArm }] })).toContain("свіжу діагностику");
+  });
   it("preserves zero, false, units, assignments and unsupported modules", () => {
     const data = parse(overviewFixture());
     expect(data.modules[0]!.channels[0]!.value).toBe(0);

@@ -6,7 +6,7 @@ import type { ReadyAccessSnapshot } from "./access-context";
 import { useAuthSession } from "./auth-session";
 import { apiErrorDisplayMessage, isApiError } from "@/lib/api";
 import { commandLabel, makeCommandInput, parseCommandReceipt, validFrequency, type CommandInput, type CommandType } from "@/lib/api/commands";
-import { parseOverview, type Overview } from "@/lib/api/overview";
+import { controlBlockReason, parseOverview, type Overview } from "@/lib/api/overview";
 
 type Intent = Readonly<{ input: CommandInput; deadline: number }>;
 type Uncertain = Readonly<{ intent: Intent; retryAt: number; message: string }>;
@@ -41,12 +41,13 @@ export function CommandControls({ context, overview, receivedAt, active, refresh
   }, []);
   const elapsed = Math.max(0, (now - receivedAt) / 1000);
   const online = overview?.availability.online && overview.availability.seconds_since_seen !== null && overview.availability.seconds_since_seen + elapsed <= overview.availability.timeout_seconds;
+  const blockedReason = overview ? controlBlockReason(overview, elapsed) : null;
   const validTtl = ttl.trim() !== "" && Number.isInteger(Number(ttl)) && Number(ttl) >= 5 && Number(ttl) <= 300;
-  const permitted = (type: CommandType) => canExecute && !!overview?.allowedCommands.includes(type) && (type === "vfd.stop" || online);
+  const permitted = (type: CommandType) => canExecute && !!overview?.allowedCommands.includes(type) && (type === "vfd.stop" || (online && !blockedReason));
   const limits = overview?.frequencyLimits;
   const hz = validFrequency(frequency);
   const frequencyValid = !!limits && hz !== null && hz >= limits.min_hz && hz <= limits.max_hz;
-  const enabled = (type: CommandType) => permitted(type) && active && !refreshing && (type === "vfd.stop" ? busyType !== "vfd.stop" : !busy && !uncertain && validTtl && (type !== "vfd.frequency.set" || frequencyValid));
+  const enabled = (type: CommandType) => permitted(type) && active && (type === "vfd.stop" ? busyType !== "vfd.stop" : !refreshing && !busy && !uncertain && validTtl && (type !== "vfd.frequency.set" || frequencyValid));
   const retryEnabled = !!uncertain && permitted(uncertain.intent.input.command_type) && active && !refreshing && !busy && now < uncertain.intent.deadline && now >= uncertain.retryAt;
 
   async function handleSend(intent: Intent, previous: Uncertain | null) {
@@ -67,6 +68,8 @@ export function CommandControls({ context, overview, receivedAt, active, refresh
       const fresh = parseOverview(raw, device, context.activeOrganization.id);
       if (!fresh.allowedCommands.includes(intent.input.command_type)) throw new Error("Команда більше недоступна. Оновіть панель та права доступу.");
       if (intent.input.command_type !== "vfd.stop" && !fresh.availability.online) throw new Error("Пристрій offline. Запуск і зміна частоти не надсилаються.");
+      const freshBlock = controlBlockReason(fresh);
+      if (intent.input.command_type !== "vfd.stop" && freshBlock) throw new Error(freshBlock);
       if (intent.input.command_type === "vfd.frequency.set") {
         const value = Number(intent.input.payload?.frequency_hz), profile = fresh.frequencyLimits;
         if (!profile || value < profile.min_hz || value > profile.max_hz) throw new Error("Частота поза налаштованими межами обладнання. Оновіть панель.");
@@ -116,6 +119,7 @@ export function CommandControls({ context, overview, receivedAt, active, refresh
         {overview.allowedCommands.includes("vfd.frequency.set") && <TextField label="Задана частота, Гц" type="number" min={limits?.min_hz} max={limits?.max_hz} step="any" value={frequency} disabled={busy || !!uncertain || !limits} onChange={(event) => setFrequency(event.target.value)} hint={limits ? `Робочі межі пристрою: ${limits.min_hz}–${limits.max_hz} Гц.` : "Спочатку налаштуйте допустимі межі частоти обладнання."} />}</div>
       <div className="ui-row">{(["vfd.start", "vfd.stop", "vfd.frequency.set"] as const).filter((type) => overview.allowedCommands.includes(type)).map((type) => <Button key={type} variant={type === "vfd.stop" ? "danger" : "primary"} disabled={!enabled(type)} onClick={() => setDialog({ kind: "new", type })}>{commandLabel(type)}</Button>)}</div>
       {!online && <p>Запуск і зміна частоти недоступні без актуального зв’язку. Зупинка може очікувати доставки на сервері до завершення TTL; фізична зупинка не гарантована.</p>}
+      {online && blockedReason && <p role="status">{blockedReason} Команда зупинки залишається доступною.</p>}
     </>}
     {busy && <p role="status">Перевіряємо доступ і надсилаємо команду…</p>}
     {notice && <p role="status">{notice}</p>}
@@ -130,4 +134,3 @@ export function CommandControls({ context, overview, receivedAt, active, refresh
     </ConfirmDialog>
   </Card>;
 }
-

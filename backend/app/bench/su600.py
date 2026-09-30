@@ -23,13 +23,17 @@ CAPABILITIES = {
     "vfd.voltage.read": "Вихідна напруга",
     "vfd.state.read": "Стан частотника",
     "vfd.diagnostics.read": "Діагностика контролера V3",
-    "vfd.control": "Керування SU600 — стенд без двигуна",
+    "vfd.control": "Керування SU600",
 }
 CONTROL_CONFIG = {"driver_profile": "suswe.su600.delta_m.v1", "bench_without_motor": True,
                   "frequency_limits": {"min_hz": 0, "max_hz": 50}}
+EXTENDED_CONTROL_CONFIG = {"driver_profile": "suswe.su600.delta_m.v1", "bench_without_motor": False,
+                          "test_session": "extended", "frequency_limits": {"min_hz": 0, "max_hz": 50}}
 
 
-def prepare(*, enable_control: bool | None = None) -> dict:
+def prepare(*, enable_control: bool | None = None, extended_test: bool = False) -> dict:
+    if extended_test and enable_control is not True:
+        raise ValueError("Extended test requires an explicit enable action")
     with SessionLocal.begin() as session:
         assert_database(session)
         session.execute(text("SELECT pg_advisory_xact_lock(8340005)"))
@@ -60,6 +64,8 @@ def prepare(*, enable_control: bool | None = None) -> dict:
                 cap = Capability(id=uuid.uuid4(), code=code, name=name)
                 session.add(cap)
                 session.flush()
+            elif code == "vfd.control" and cap.name == "Керування SU600 — стенд без двигуна":
+                cap.name = name
             assignment = session.scalar(select(DeviceCapability).where(
                 DeviceCapability.device_id == device.id, DeviceCapability.capability_id == cap.id))
             if assignment is None:
@@ -71,18 +77,23 @@ def prepare(*, enable_control: bool | None = None) -> dict:
             if code == "vfd.control":
                 control = assignment
         if enable_control is not None:
-            if enable_control and control.config != CONTROL_CONFIG:
+            if enable_control and control.config not in (CONTROL_CONFIG, EXTENDED_CONTROL_CONFIG):
                 raise RuntimeError("Bench control config changed; review it explicitly before enabling")
+            if enable_control:
+                control.config = EXTENDED_CONTROL_CONFIG if extended_test else CONTROL_CONFIG
             control.is_enabled = enable_control
         return {"organization_id": str(org.id), "site_id": str(SITE_ID), "device_id": str(DEVICE_ID),
-                "uid": UID, "control_enabled": control.is_enabled, "firmware_profile": "suswe.su600.delta_m.v1"}
+                "uid": UID, "control_enabled": control.is_enabled, "firmware_profile": "suswe.su600.delta_m.v1",
+                "test_session": control.config.get("test_session", "bench_60_seconds")}
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     group = parser.add_mutually_exclusive_group()
     group.add_argument("--enable-control-bench-without-motor", action="store_true")
+    group.add_argument("--enable-control-extended-test", action="store_true",
+                       help="Enable the 0–50 Hz test profile after motor commissioning; firmware still requires local ARM")
     group.add_argument("--disable-control", action="store_true")
     args = parser.parse_args()
-    control = True if args.enable_control_bench_without_motor else False if args.disable_control else None
-    print(json.dumps(prepare(enable_control=control), ensure_ascii=False, indent=2))
+    control = True if args.enable_control_bench_without_motor or args.enable_control_extended_test else False if args.disable_control else None
+    print(json.dumps(prepare(enable_control=control, extended_test=args.enable_control_extended_test), ensure_ascii=False, indent=2))

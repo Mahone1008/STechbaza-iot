@@ -37,9 +37,9 @@ export function CommandDetail({ context, id, auto }: { context: ReadyAccessSnaps
           <li>Завершення обробки: {time(command.completed_at)}</li>
         </ol>
         <p>Час на прийняття команди: {command.ttl_seconds} с · до {time(command.expires_at)}. Це не тривалість роботи насоса. Запізнілі відповіді зберігаються в журналі.</p>
-        {command.result_deadline_at && <p>Очікування результату: до {time(command.result_deadline_at)}.</p>}
+        {command.result_deadline_at && commandPending(command) && <p>Очікування результату: до {time(command.result_deadline_at)}.</p>}
         {command.result_timed_out_at && <p>Результат став невідомим: {time(command.result_timed_out_at)}.</p>}
-        {command.error_message && <p role="alert">{command.error_message}</p>}
+        {command.error_message && <p role="alert">{command.error_code === "not_armed" ? "Локальний дозвіл керування вимкнено. Перевірте причину зупинки та відновіть дозвіл на контролері." : command.error_message}</p>}
         <details><summary>Автор і технічні деталі команди</summary><dl className="overview-details">
           <div><dt>Автор</dt><dd>{command.actor_display_name ?? "Невідомий"} · {command.actor_email ?? "Email не збережено"}</dd></div>
           <div><dt>Роль під час запиту</dt><dd>{command.actor_organization_role ?? command.actor_platform_role ?? "Невідома"}</dd></div>
@@ -53,7 +53,7 @@ export function CommandDetail({ context, id, auto }: { context: ReadyAccessSnaps
     </StableRegion>
   </Card>;
 }
-export function CommandJournal({ context, onSelect }: { context: ReadyAccessSnapshot; onSelect: (id: string) => void }) {
+export function CommandJournal({ context, onSelect, auto = false }: { context: ReadyAccessSnapshot; onSelect: (id: string) => void; auto?: boolean }) {
   const { authorizedRequest } = useAuthSession();
   const [pages, setPages] = useState<(CommandCursor | null)[]>([null]);
   const [revision, setRevision] = useState(0);
@@ -61,13 +61,13 @@ export function CommandJournal({ context, onSelect }: { context: ReadyAccessSnap
   const device = context.activeDevice!;
   const query = usePanelQuery({
     queryKey: [...apiQueryKeys.deviceCommands(context.scope, device.id, pages.length), context.activeOrganization.id, cursor, revision],
-    intervalMs: 0,
+    intervalMs: auto && pages.length === 1 ? 5000 : 0,
     queryFn: async (signal) => parseCommandPage(await authorizedRequest({ path: `/api/v1/devices/${device.id}/commands`, query: { limit: 21, ...(cursor ?? {}) }, signal, timeoutMs: 10_000 }), device.id, context.activeOrganization.id, cursor),
   });
   const rows = query.isError ? [] : query.data?.slice(0, 20) ?? [];
-  return <Card title="Журнал команд" description="Історія не переміщується під час надходження нових команд. Оновлення відкриває першу сторінку." actions={<Button disabled={!query.active || query.isFetching} onClick={() => { if (pages.length === 1) query.refresh(); else { setPages([null]); setRevision((value) => value + 1); } }}>Оновити журнал</Button>}>
+  return <Card title="Журнал команд" description={auto ? "Перша сторінка оновлюється кожні 5 с. Старі сторінки залишаються на місці; кнопка оновлення повертає до нових команд." : "Ручне оновлення відкриває першу сторінку."} actions={<Button disabled={!query.active || query.isFetching} onClick={() => { if (pages.length === 1) query.refresh(); else { setPages([null]); setRevision((value) => value + 1); } }}>Оновити журнал</Button>}>
     <StableRegion>
-      {query.isFetching ? <p role="status">Завантажуємо журнал…</p> : query.isError ? <p role="alert">{apiErrorDisplayMessage(query.error)}</p> : rows.length === 0 ? <p>Команд ще немає.</p> : <DataTable caption="Журнал команд пристрою" rows={rows} columns={[
+      {query.isFetching && !query.data ? <p role="status">Завантажуємо журнал…</p> : query.isError ? <p role="alert">{apiErrorDisplayMessage(query.error)}</p> : rows.length === 0 ? <p>Команд ще немає.</p> : <DataTable caption="Журнал команд пристрою" rows={rows} columns={[
         { key: "created", header: "Створено", render: (row) => formatSeen(row.created_at, context.activeSite?.timezone ?? "UTC") },
         { key: "type", header: "Команда", render: (row) => <>{commandLabel(row.command_type)}{typeof row.payload.frequency_hz === "number" ? ` · ${row.payload.frequency_hz} Гц` : ""}{" "}<a className="button button-ghost button-small" href="#selected-command" aria-label={`Переглянути команду ${commandLabel(row.command_type)}`} onClick={() => onSelect(row.id)}>Деталі</a></> },
         { key: "status", header: "Стан на час завантаження", render: (row) => <CommandStatus command={row} /> },
@@ -77,4 +77,3 @@ export function CommandJournal({ context, onSelect }: { context: ReadyAccessSnap
     <div className="ui-row"><Button disabled={pages.length === 1 || query.isFetching || !query.active} onClick={() => setPages((value) => value.slice(0, -1))}>Попередні команди</Button><span>Сторінка {pages.length}</span><Button disabled={!query.data || query.data.length <= 20 || query.isError || query.isFetching || !query.active} onClick={() => setPages((value) => [...value, commandCursor(rows.at(-1)!)])}>Наступні команди</Button></div>
   </Card>;
 }
-

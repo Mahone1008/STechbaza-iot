@@ -16,6 +16,39 @@ async function confirm(page: Page, label = "Запустити") { await control
 async function mockDetail(page: Page, get: () => Command = commandFixture) { await page.route(detailUrl, async (route) => { if (await fulfillPreflight(route)) return; await fulfillJson(route, 200, get()); }); }
 test.beforeEach(async ({ page }) => { await mockAuthenticatedWorkspace(page); await mockOverview(page); await mockDetail(page); });
 
+test("default polling keeps a 15-second presence lease current and refreshes journal without hiding readings", async ({ page }) => {
+  await page.clock.install(); let gets = 0; let records: Command[] = [];
+  await mockOverview(page, () => { gets++; const data = controlOverview(); data.availability.timeout_seconds = 15; data.availability.seconds_since_seen = 0; return data; });
+  await page.route(`${commandsUrl}?*`, async (route) => { if (await fulfillPreflight(route)) return; await fulfillJson(route, 200, records); });
+  await page.goto(path);
+  await expect(page.getByLabel("Автооновлення", { exact: true })).toHaveValue("5");
+  await expect(controls(page).getByRole("button", { name: "Запустити", exact: true })).toBeEnabled();
+  for (let i = 0; i < 4; i++) {
+    const before = gets; await page.clock.fastForward(5100); await expect.poll(() => gets).toBeGreaterThan(before);
+    await expect(controls(page).getByRole("button", { name: "Запустити", exact: true })).toBeEnabled();
+    await expect(page.getByText("Потрібно оновити зв’язок", { exact: true })).toHaveCount(0);
+  }
+  records = [commandFixture({ status: "succeeded" })]; await page.clock.fastForward(5100);
+  const journal = page.getByRole("table", { name: "Журнал команд пристрою" });
+  await expect(journal).toContainText("Контролер повідомив про виконання");
+  await page.getByLabel("Автооновлення", { exact: true }).selectOption("0");
+  records = []; const stopped = gets; await page.clock.fastForward(16000);
+  expect(gets).toBe(stopped); await expect(journal).toBeVisible();
+  await expect(controls(page).getByRole("button", { name: "Запустити", exact: true })).toBeDisabled();
+  await expect(controls(page).getByRole("button", { name: "Зупинити", exact: true })).toBeEnabled();
+});
+
+test("background overview refresh retains readings and does not disable Stop", async ({ page }) => {
+  await page.goto(path); await expect(page.locator(".metric-card").first()).toBeVisible();
+  let release!: () => void; const gate = new Promise<void>((resolve) => { release = resolve; }); let started = false;
+  await page.route(overviewUrl, async (route) => { if (await fulfillPreflight(route)) return; started = true; await gate; await fulfillJson(route, 200, controlOverview()).catch(() => {}); });
+  try {
+    await page.getByRole("button", { name: "Оновити панель" }).click(); await expect.poll(() => started).toBe(true);
+    await expect(page.locator(".metric-card").first()).toBeVisible();
+    await expect(controls(page).getByRole("button", { name: "Зупинити", exact: true })).toBeEnabled();
+  } finally { release(); }
+});
+
 test("frequency validation, cancel and confirmation send exactly one immutable request", async ({ page }) => {
   const posts: CommandInput[] = [];
   await mockPost(page, async (route, body) => { posts.push(body); await fulfillJson(route, 201, commandFixture(body)); });

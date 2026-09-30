@@ -49,7 +49,8 @@ function DevicePanel({ context }: { context: ReadyAccessSnapshot }) {
   const device = context.activeDevice!;
   const canRead = context.access.permissions.includes("telemetry.read") && context.access.permissions.includes("capability.read");
   const [selectedCommand, setSelectedCommand] = useState<string | null>(null);
-  const [poll, setPoll] = useState<PollSeconds>(30);
+  // The demo presence lease is 15 s; refresh well before it expires.
+  const [poll, setPoll] = useState<PollSeconds>(5);
   const query = usePanelQuery({
     queryKey: [...apiQueryKeys.deviceOverview(context.scope, device.id), context.activeOrganization.id, device.site_id],
     enabled: canRead, intervalMs: poll * 1000,
@@ -62,16 +63,16 @@ function DevicePanel({ context }: { context: ReadyAccessSnapshot }) {
   const denied = isApiError(query.error) && ["forbidden", "not-found"].includes(query.error.kind);
   return <>
     <PageHeader title={device.name} description="Модулі, показання та якість даних пристрою." actions={<>{context.access.permissions.includes("alarm.read") && <Link className="button button-secondary" href={alarmsHref(device.id)}>Аварії пристрою</Link>}<Button disabled={!canRead || query.isFetching || !query.active} onClick={query.refresh}>Оновити панель</Button></>} />
-    <div className="history-controls"><label>Автооновлення<select aria-label="Автооновлення" value={poll} onChange={(e) => setPoll(Number(e.target.value) as PollSeconds)}><option value={30}>Панель: 30 с; історія: 60 с</option><option value={60}>Щохвилини</option><option value={0}>Лише вручну</option></select></label></div>
+    <div className="history-controls"><label>Автооновлення<select aria-label="Автооновлення" value={poll} onChange={(e) => setPoll(Number(e.target.value) as PollSeconds)}><option value={5}>Панель: 5 с; історія: 60 с</option><option value={30}>Панель: 30 с; історія: 60 с</option><option value={60}>Щохвилини</option><option value={0}>Лише вручну</option></select></label></div>
     {!query.active && <p role="status">Автооновлення призупинено: вкладка прихована або немає мережі.</p>}
     <CommandControls context={context} overview={query.isError ? null : query.data?.overview ?? null} receivedAt={query.data?.receivedAt ?? 0} active={query.active} refreshing={query.isFetching} onCreated={setSelectedCommand} />
     <div id="selected-command">{selectedCommand && context.access.permissions.includes("command.read") && <CommandDetail key={selectedCommand} context={context} id={selectedCommand} auto={poll > 0} />}</div>
     <StableRegion className="overview-result-region">{!canRead ? <section className="notice notice-warning" role="alert"><h2>Недостатньо прав для панелі</h2><p>Потрібен доступ до модулів і телеметрії.</p></section>
-      : query.isFetching ? <p role="status">Перевіряємо модулі та показання…</p>
+      : query.isFetching && !query.data ? <p role="status">Перевіряємо модулі та показання…</p>
         : query.isError ? <section className="notice notice-warning" role="alert"><h2>{denied ? "Дані більше недоступні" : "Не вдалося завантажити панель"}</h2><p>{apiErrorDisplayMessage(query.error)}</p><div className="ui-row"><Button onClick={query.refresh}>Повторити</Button><Link className="button button-secondary" href="/organizations">Обрати організацію</Link></div></section>
           : query.data ? <OverviewContent key={query.dataUpdatedAt} overview={query.data.overview} receivedAt={query.data.receivedAt} timezone={context.activeSite?.timezone ?? "UTC"} /> : null}</StableRegion>
-    {canRead && query.data && !query.isError && <div className={query.isFetching ? "panel-refresh-hidden" : undefined} inert={query.isFetching} aria-hidden={query.isFetching}><TelemetryHistory context={context} overview={query.data.overview} poll={poll} /></div>}
-    {context.access.permissions.includes("command.read") && <CommandJournal context={context} onSelect={setSelectedCommand} />}
+    {canRead && query.data && !query.isError && <TelemetryHistory context={context} overview={query.data.overview} poll={poll} />}
+    {context.access.permissions.includes("command.read") && <CommandJournal context={context} onSelect={setSelectedCommand} auto={poll > 0} />}
   </>;
 }
 export function DeviceOverview() {

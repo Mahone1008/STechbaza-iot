@@ -34,6 +34,10 @@ jobs:
         run: |
           sed 's/KERUMO_ENABLE_CONTROL false/KERUMO_ENABLE_CONTROL true/' firmware/kerumo_v3/config.example.h > firmware/kerumo_v3/config.local.h
           arduino-cli compile --warnings all --fqbn esp32:esp32:esp32s3:CDCOnBoot=cdc,FlashSize=16M,PSRAM=opi,PartitionScheme=app3M_fat9M_16MB firmware/kerumo_v3
+      - name: Compile extended test USB-UART variant
+        run: |
+          sed -e 's/KERUMO_ENABLE_CONTROL false/KERUMO_ENABLE_CONTROL true/' -e 's/KERUMO_ENABLE_EXTENDED_TEST false/KERUMO_ENABLE_EXTENDED_TEST true/' firmware/kerumo_v3/config.example.h > firmware/kerumo_v3/config.local.h
+          arduino-cli compile --warnings all --fqbn esp32:esp32:esp32s3:CDCOnBoot=default,FlashSize=16M,PSRAM=opi,PartitionScheme=app3M_fat9M_16MB firmware/kerumo_v3
       - name: Parse Windows preparation script
         shell: pwsh
         run: |

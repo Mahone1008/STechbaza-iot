@@ -6,6 +6,9 @@ namespace kerumo {
 constexpr size_t LedgerSize = 8;
 constexpr uint64_t MaxSequence = 9007199254740991ULL;
 constexpr uint32_t AutoStopMs = 60000;
+enum class SessionMode : uint8_t { Bench, ExtendedTest };
+enum class StopReason : uint8_t { None, Command, LocalDisarm, BenchTimer, Network, Link, Fault, Config, Storage, Unconfirmed, Restart };
+const char* stopReasonCode(StopReason reason);
 enum class Type : uint8_t { Start, Stop, Frequency };
 enum class Outcome : uint8_t { Empty, Pending, Succeeded, Failed, Unknown };
 enum class Error : uint8_t {
@@ -72,8 +75,11 @@ struct Su600Config {
   uint16_t runSource{}, frequencySource{}, maxRaw{}, upperRaw{}, lowerRaw{};
   uint16_t address{}, serial{}, timeoutRaw{}, responseDelay{}, scaleRaw{}, protocol{};
   bool readOk{};
+  uint16_t protection{}, autoReset{};
+  bool protectionReadOk{};
   bool profileOk() const;
   bool controlOk() const;
+  bool extendedTestOk() const;
 };
 Su600Config readConfig(Bus& bus);
 bool frequencyWord(double hz, const Su600Config& config, uint16_t& result);
@@ -91,8 +97,8 @@ class Controller {
  public:
   Controller(Bus& bus, Storage& storage, Clock& clock, Events& events, bool controls);
   bool begin(const char* uid);
-  bool arm();
-  void disarm();
+  bool arm(SessionMode mode = SessionMode::Bench);
+  void disarm(StopReason reason = StopReason::LocalDisarm);
   void receive(const Command& command, const char* session, const char* ackId, const char* resultId);
   void tick(bool networkConnected);
   Sample sample();
@@ -100,15 +106,20 @@ class Controller {
   const Journal& journal() const { return journal_; }
   const Su600Config& config() const { return config_; }
   bool isArmed() const { return armed_; }
+  SessionMode sessionMode() const { return mode_; }
+  StopReason stopReason() const { return stopReason_; }
  private:
   bool save();
   void finish(Record& record, Outcome outcome, Error error = Error::None, double actual = 0);
-  void requestStop();
+  void requestStop(StopReason reason);
+  bool sessionConfigOk() const;
   Bus& bus_; Storage& storage_; Clock& clock_; Events& events_;
   const bool controls_;
   Journal journal_{};
   Su600Config config_{};
   bool storageOk_{}, armed_{}, stopping_{};
+  SessionMode mode_{SessionMode::Bench}; // RAM only: reboot never restores permission.
+  StopReason stopReason_{StopReason::None};
   uint32_t runSince_{}, lastStopAttempt_{}, lastConfigRead_{};
   int pending_{-1};
   uint32_t pendingSince_{};

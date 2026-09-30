@@ -1,7 +1,13 @@
 """Physical V3 channels and installation subsets must preserve modularity and null quality."""
 import unittest
+import copy
+import uuid
 from types import SimpleNamespace
-from app.bench.su600 import CAPABILITIES, CONTROL_CONFIG, UID
+from unittest.mock import MagicMock, patch
+from app.bench.su600 import CAPABILITIES, CONTROL_CONFIG, EXTENDED_CONTROL_CONFIG, UID, DEVICE_ID, SITE_ID, prepare
+from app.models.device import Device
+from app.models.site import Site
+from app.models.organization import Organization
 from app.demo.catalog import DEVICES, uid
 from app.device_contract import selected_channels
 from app.schemas.capability import DeviceCapabilityAssign, DeviceCapabilityUpdate
@@ -12,6 +18,45 @@ from app.schemas.telemetry_read import TelemetryFreshnessRead
 
 
 class V3ContractTests(unittest.TestCase):
+    def test_explicit_test_mode_switch_preserves_identity_and_refuses_foreign_profile(self):
+        org = SimpleNamespace(id=uuid.uuid4(), slug="techbaza-demo-a", is_active=True)
+        site = SimpleNamespace(id=SITE_ID, organization_id=org.id, code="v3-su600-bench")
+        device = SimpleNamespace(id=DEVICE_ID, site_id=SITE_ID, uid=UID)
+        control = SimpleNamespace(config=copy.deepcopy(CONTROL_CONFIG), is_enabled=False)
+        session = MagicMock()
+        session.get.side_effect = lambda model, key: {Organization: org, Site: site, Device: device}[model]
+
+        def run(**kwargs):
+            rows = []
+            for code, name in CAPABILITIES.items():
+                rows += [SimpleNamespace(id=uuid.uuid4(), name=name), control if code == "vfd.control" else SimpleNamespace()]
+            session.scalar.side_effect = rows
+            with patch("app.bench.su600.SessionLocal") as factory, patch("app.bench.su600.assert_database"):
+                factory.begin.return_value.__enter__.return_value = session
+                return prepare(**kwargs)
+
+        result = run(enable_control=True, extended_test=True)
+        self.assertEqual(result["device_id"], str(DEVICE_ID))
+        self.assertEqual(result["site_id"], str(SITE_ID))
+        self.assertEqual(control.config, EXTENDED_CONTROL_CONFIG)
+        self.assertTrue(control.is_enabled)
+        run()  # A read-only enrollment call must not downgrade an existing profile.
+        self.assertEqual(control.config, EXTENDED_CONTROL_CONFIG)
+        run(enable_control=False)
+        self.assertFalse(control.is_enabled)
+        self.assertEqual(control.config, EXTENDED_CONTROL_CONFIG)
+        run(enable_control=True)
+        self.assertEqual(control.config, CONTROL_CONFIG)
+        session.add.assert_not_called()
+        session.delete.assert_not_called()
+        control.config = {**CONTROL_CONFIG, "frequency_limits": {"min_hz": 20, "max_hz": 40}}
+        before = copy.deepcopy(control.config)
+        with self.assertRaises(RuntimeError):
+            run(enable_control=True, extended_test=True)
+        self.assertEqual(control.config, before)
+        with self.assertRaises(ValueError):
+            prepare(extended_test=True)
+
     def test_physical_identity_and_channels_do_not_claim_optional_sensors(self):
         self.assertNotIn(UID, [uid(key) for key in DEVICES])
         envelope = TelemetryEnvelope(schema_version=1, message_id="12b88b70-d0f6-4c77-b461-247229542727",

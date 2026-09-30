@@ -48,7 +48,65 @@ struct Fixture {
     c.sequence=sequence; c.issuedMs=clock.utcMs(); c.expiresMs=c.issuedMs+30000; c.ttl=30; c.type=type; c.hz=hz; return c;
   }
   void receive(const Command& c) { controller.receive(c,"11111111-1111-4111-8111-111111111111","22222222-2222-4222-8222-222222222222","33333333-3333-4333-8333-333333333333"); }
+  bool armExtended() {
+    bus.registers[0x602]=50; bus.registers[0x500]=1; bus.registers[0x408]=0;
+    return controller.arm(SessionMode::ExtendedTest);
+  }
 };
+void extendedTestSession() {
+  Fixture f; assert(f.armExtended()); f.receive(f.command(1)); f.controller.tick(true);
+  const size_t writes=f.bus.writes.size();
+  // Command TTL and the old one-minute bench timer cannot stop an accepted extended run.
+  f.clock.ms+=120000; f.controller.tick(true);
+  assert(f.bus.writes.size()==writes && f.controller.isArmed() && f.controller.journal().motionPossible);
+  assert(!f.controller.arm()); // Cannot switch a moving session back to the bench timer.
+  assert(f.controller.sessionMode()==SessionMode::ExtendedTest);
+  f.receive(f.command(2,Type::Frequency,25)); f.controller.tick(true);
+  assert(f.events.records.back().outcome==Outcome::Succeeded);
+  f.receive(f.command(3,Type::Stop)); f.controller.tick(true);
+  assert(f.events.records.back().outcome==Outcome::Succeeded);
+  assert(f.controller.isArmed() && !f.controller.journal().motionPossible);
+  assert(f.controller.stopReason()==StopReason::Command);
+  f.receive(f.command(4)); f.controller.tick(true); assert(f.controller.journal().motionPossible);
+  f.clock.ms=std::numeric_limits<uint32_t>::max()-1000; f.controller.tick(true);
+  f.clock.ms=2000; f.controller.tick(true); assert(f.controller.isArmed());
+  f.controller.disarm(); f.controller.tick(true);
+  assert(!f.controller.isArmed() && !f.controller.journal().motionPossible);
+  assert(f.controller.stopReason()==StopReason::LocalDisarm);
+}
+void extendedGuardsAndRecovery() {
+  Fixture disabled(false); assert(!disabled.armExtended() && disabled.bus.writes.empty());
+  Fixture missing; assert(!missing.controller.arm(SessionMode::ExtendedTest));
+  for (auto [address,value]:std::vector<std::pair<uint16_t,uint16_t>>{{0x602,0},{0x602,49},{0x602,101},
+      {0x500,101},{0x500,0},{0x500,301},{0x500,21},{0x408,1}}) {
+    Fixture f; assert(f.armExtended()); f.bus.registers[address]=value;
+    assert(!f.controller.arm(SessionMode::ExtendedTest)); assert(!f.controller.isArmed()); assert(f.bus.writes.empty());
+  }
+  Fixture ramp; assert(ramp.armExtended()); ramp.bus.registers[0x500]=201;
+  assert(ramp.controller.arm(SessionMode::ExtendedTest));
+  for (unsigned failure=0;failure<6;++failure) {
+    Fixture f; assert(f.armExtended()); f.receive(f.command(1)); f.controller.tick(true);
+    if(failure==0) f.controller.tick(false);
+    if(failure==1) { f.bus.registers[0x2100]=16; f.controller.sample(); }
+    if(failure==2) { f.bus.readable=false; f.controller.sample(); f.bus.readable=true; }
+    if(failure==3) { f.bus.registers[0x602]=0; f.clock.ms+=10001; f.controller.tick(true); }
+    if(failure==4) { f.bus.registers[0x500]=101; f.receive(f.command(2,Type::Frequency,20)); }
+    if(failure==5) { f.storage.fail=true; f.receive(f.command(2,Type::Frequency,20)); f.storage.fail=false; }
+    f.clock.ms+=1000; f.controller.tick(true);
+    assert(!f.controller.isArmed() && !f.controller.journal().motionPossible);
+    const size_t n=f.bus.writes.size(); f.receive(f.command(3)); f.controller.tick(true);
+    assert(f.bus.writes.size()==n && f.events.records.back().error==Error::NotArmed);
+  }
+  Fixture pending; assert(pending.armExtended()); pending.receive(pending.command(1)); pending.controller.tick(true);
+  pending.bus.stopWorks=false; pending.receive(pending.command(2,Type::Stop));
+  pending.clock.ms+=10001; pending.controller.tick(true); assert(!pending.controller.isArmed());
+  pending.bus.stopWorks=true; pending.clock.ms+=1000; pending.controller.tick(true);
+  assert(!pending.controller.journal().motionPossible && !pending.controller.isArmed());
+  Fixture reset; assert(reset.armExtended()); reset.receive(reset.command(1)); reset.controller.tick(true);
+  Controller reboot(reset.bus,reset.storage,reset.clock,reset.events,true); assert(reboot.begin("test-device"));
+  assert(!reboot.isArmed() && reboot.sessionMode()==SessionMode::Bench);
+  reboot.tick(true); assert(!reboot.journal().motionPossible && !reboot.isArmed());
+}
 void readOnlyAndConfiguration() {
   Fixture f(false); assert(f.bus.writes.empty()); assert(!f.controller.arm());
   f.receive(f.command(1)); f.receive(f.command(2,Type::Stop)); f.clock.ms+=90000; f.controller.tick(false);
@@ -146,5 +204,6 @@ void protocol() {
 int main() {
   readOnlyAndConfiguration(); timingAndOrdering(); echoIsNotPhysicalResult(); duplicateAndRestart();
   crashWindowAndStopRetry(); storageAndBoundedHistory(); profilesAndFrames(); protocol();
-  puts("PASS: read-only, profile/scaling, TTL, sequence, duplicate/reboot, crash window, stop retry, network loss, storage, CRC and strict v2 parsing");
+  extendedTestSession(); extendedGuardsAndRecovery();
+  puts("PASS: read-only, profile/scaling, TTL, sequence, duplicate/reboot, crash window, stop retry, network loss, storage, CRC, strict v2 parsing, extended session and loss-of-permission recovery");
 }

@@ -5,6 +5,11 @@
 #include <limits>
 
 namespace kerumo {
+const char* stopReasonCode(StopReason reason) {
+  static const char* codes[] = {"none", "command", "local_disarm", "bench_timer", "network_lost", "vfd_link_lost",
+    "vfd_fault", "configuration_mismatch", "storage_failed", "physical_result_unconfirmed", "restart_recovery"};
+  return codes[static_cast<unsigned>(reason)];
+}
 const char* errorCode(Error error) {
   static const char* codes[] = {"none", "read_only", "not_armed", "clock_unsynchronized", "expired",
     "stale_sequence", "configuration_mismatch", "vfd_fault", "frequency_out_of_range", "busy",
@@ -77,6 +82,13 @@ bool Su600Config::profileOk() const { return readOk && protocol==0 && address==1
 bool Su600Config::controlOk() const {
   return profileOk() && runSource==2 && frequencySource==6 && maxRaw==500 && upperRaw==500 && lowerRaw==0 && scaleRaw==100;
 }
+bool Su600Config::extendedTestOk() const {
+  // SU600 manual: F6.02 is in 0.1 s; F5.00 hundreds digit selects loss-of-RS485 action.
+  // These are communication checks, not a certification of motor protection or wiring.
+  const unsigned lossAction=(protection/100)%10;
+  return controlOk() && protectionReadOk && timeoutRaw>=50 && timeoutRaw<=100 && autoReset==0 &&
+    protection<=1211 && protection%10==1 && (protection/10)%10<=1 && (lossAction==0 || lossAction==2);
+}
 Su600Config readConfig(Bus& bus) {
   Su600Config result{};
   const uint16_t addresses[] = {0x0002,0x0003,0x0004,0x0005,0x0006,0x0600,0x0601,0x0602,0x0603,0x0604,0x0605};
@@ -84,6 +96,8 @@ Su600Config readConfig(Bus& bus) {
     &result.address,&result.serial,&result.timeoutRaw,&result.responseDelay,&result.scaleRaw,&result.protocol};
   result.readOk=true;
   for (size_t i=0;i<11;++i) if (!bus.read(addresses[i],*values[i])) { result.readOk=false; break; }
+  // Optional for the old read-only/60 s bench; required before an extended test.
+  if (result.readOk) result.protectionReadOk=bus.read(0x0500,result.protection) && bus.read(0x0408,result.autoReset);
   return result;
 }
 bool frequencyWord(double hz, const Su600Config& config, uint16_t& result) {
@@ -98,7 +112,7 @@ Controller::Controller(Bus& bus, Storage& storage, Clock& clock, Events& events,
 bool Controller::save() {
   journal_.checksum=checksum(journal_);
   storageOk_=storage_.save(journal_);
-  if (!storageOk_) { armed_=false; if (journal_.motionPossible) stopping_=true; }
+  if (!storageOk_) disarm(StopReason::Storage);
   return storageOk_;
 }
 bool Controller::begin(const char* uid) {
@@ -116,19 +130,38 @@ bool Controller::begin(const char* uid) {
   config_=readConfig(bus_); lastConfigRead_=clock_.monotonicMs();
   // No blanket boot write: a persisted run intent is stopped only in the verified profile.
   stopping_=controls_ && journal_.motionPossible;
+  if (stopping_) stopReason_=StopReason::Restart;
   return true;
 }
-bool Controller::arm() {
+bool Controller::sessionConfigOk() const {
+  return mode_==SessionMode::ExtendedTest?config_.extendedTestOk():config_.controlOk();
+}
+bool Controller::arm(SessionMode mode) {
+  // A repeated ARM during motion must not change the session or the timer.
+  if (journal_.motionPossible || pending_>=0 || stopping_) return false;
   armed_=false;
-  if (!controls_ || !storageOk_ || journal_.motionPossible || pending_>=0 || !clock_.utcMs()) return false;
+  mode_=SessionMode::Bench;
+  if (!controls_ || !storageOk_ || !clock_.utcMs()) return false;
   config_=readConfig(bus_); lastConfigRead_=clock_.monotonicMs();
   uint16_t state{},output{},fault{};
-  armed_=config_.controlOk() && bus_.read(0x2101,state) && bus_.read(0x2103,output) &&
+  armed_=(mode==SessionMode::ExtendedTest?config_.extendedTestOk():config_.controlOk()) && bus_.read(0x2101,state) && bus_.read(0x2103,output) &&
     bus_.read(0x2100,fault) && fault==0 && stopped(state,output);
+  if (armed_) mode_=mode;
   return armed_;
 }
-void Controller::requestStop() { stopping_=true; armed_=false; }
-void Controller::disarm() { armed_=false; if (journal_.motionPossible) requestStop(); }
+void Controller::requestStop(StopReason reason) {
+  // Only a normal, verified STOP may retain the current extended session.
+  if (reason!=StopReason::Command || mode_!=SessionMode::ExtendedTest) {
+    armed_=false; mode_=SessionMode::Bench;
+  }
+  if (!stopping_ || reason==StopReason::LocalDisarm || (stopReason_==StopReason::Command && reason!=StopReason::Command)) stopReason_=reason;
+  stopping_=true;
+}
+void Controller::disarm(StopReason reason) {
+  armed_=false; mode_=SessionMode::Bench;
+  if (journal_.motionPossible) requestStop(reason);
+  else stopReason_=reason;
+}
 void Controller::finish(Record& record, Outcome outcome, Error error, double actual) {
   record.outcome=outcome; record.error=error; record.actualHz=actual; record.completedMs=clock_.utcMs();
   if (save()) events_.emit(record);
@@ -171,11 +204,11 @@ void Controller::receive(const Command& c,const char* session,const char* ackId,
   auto& record=journal_.records[slot]; events_.emit(record);
   if (record.outcome!=Outcome::Pending) return;
   config_=readConfig(bus_); lastConfigRead_=clock_.monotonicMs();
-  if (!(c.type==Type::Stop?config_.profileOk():config_.controlOk())) { finish(record,Outcome::Failed,Error::Config); disarm(); return; }
+  if (!(c.type==Type::Stop?config_.profileOk():sessionConfigOk())) { finish(record,Outcome::Failed,Error::Config); disarm(StopReason::Config); return; }
   // Configuration reads take time; expiry is checked again immediately before actuation.
   if (!clock_.utcMs() || clock_.utcMs()>=c.expiresMs) { finish(record,Outcome::Failed,Error::Expired); return; }
   uint16_t fault{},value{};
-  if (c.type!=Type::Stop && (!bus_.read(0x2100,fault) || fault!=0)) { finish(record,Outcome::Failed,Error::Fault); return; }
+  if (c.type!=Type::Stop && (!bus_.read(0x2100,fault) || fault!=0)) { finish(record,Outcome::Failed,Error::Fault); disarm(StopReason::Fault); return; }
   if (c.type==Type::Frequency && !frequencyWord(c.hz,config_,value)) { finish(record,Outcome::Failed,Error::Frequency); return; }
   if (c.type==Type::Start) {
     uint16_t state{},setpoint{};
@@ -183,14 +216,14 @@ void Controller::receive(const Command& c,const char* session,const char* ackId,
       finish(record,Outcome::Failed,Error::Frequency); return;
     }
     if (!clock_.utcMs() || clock_.utcMs()>=c.expiresMs) { finish(record,Outcome::Failed,Error::Expired); return; }
-    journal_.motionPossible=true; runSince_=clock_.monotonicMs();
+    journal_.motionPossible=true; runSince_=clock_.monotonicMs(); stopReason_=StopReason::None;
   }
-  if (c.type==Type::Stop) { journal_.motionPossible=true; requestStop(); }
+  if (c.type==Type::Stop) { journal_.motionPossible=true; requestStop(StopReason::Command); }
   // Persist possible physical execution BEFORE the write, including a lost echo/crash window.
   if (!save()) return;
   if (!clock_.utcMs() || clock_.utcMs()>=c.expiresMs) {
     finish(record,Outcome::Failed,Error::Expired);
-    if (journal_.motionPossible) requestStop();
+    if (journal_.motionPossible) requestStop(StopReason::Unconfirmed);
     return;
   }
   pending_=static_cast<int>(slot); pendingSince_=clock_.monotonicMs();
@@ -199,8 +232,8 @@ void Controller::receive(const Command& c,const char* session,const char* ackId,
 }
 void Controller::tick(bool networkConnected) {
   const uint32_t now=clock_.monotonicMs();
-  if (!networkConnected) { armed_=false; if (journal_.motionPossible) requestStop(); }
-  if (journal_.motionPossible && static_cast<uint32_t>(now-runSince_)>=AutoStopMs) requestStop();
+  if (!networkConnected && (armed_ || journal_.motionPossible)) disarm(StopReason::Network);
+  if (journal_.motionPossible && !stopping_ && mode_==SessionMode::Bench && static_cast<uint32_t>(now-runSince_)>=AutoStopMs) requestStop(StopReason::BenchTimer);
   if (stopping_ && controls_ && static_cast<uint32_t>(now-lastStopAttempt_)>=1000) {
     lastStopAttempt_=now;
     // UART may have been unavailable during boot with a persisted RUN intent.
@@ -227,12 +260,12 @@ void Controller::tick(bool networkConnected) {
       if (type==Type::Stop) { journal_.motionPossible=false; stopping_=false; }
       finish(record,Outcome::Succeeded,Error::None,actual);
     } else if (static_cast<uint32_t>(now-pendingSince_)>=10000) {
-      finish(record,Outcome::Unknown,Error::Unconfirmed); requestStop();
+      finish(record,Outcome::Unknown,Error::Unconfirmed); requestStop(StopReason::Unconfirmed);
     }
   }
-  if (!journal_.motionPossible && pending_<0 && static_cast<uint32_t>(now-lastConfigRead_)>=10000) {
+  if ((!journal_.motionPossible || mode_==SessionMode::ExtendedTest) && pending_<0 && static_cast<uint32_t>(now-lastConfigRead_)>=10000) {
     config_=readConfig(bus_); lastConfigRead_=clock_.monotonicMs();
-    if (!config_.controlOk()) armed_=false;
+    if (!sessionConfigOk()) disarm(StopReason::Config);
   }
 }
 Sample Controller::sample() {
@@ -240,9 +273,10 @@ Sample Controller::sample() {
   const uint16_t addresses[]={0x2100,0x2101,0x2102,0x2103,0x2104,0x2106};
   // If the configured map is not confirmed, do not label arbitrary registers as SU600 telemetry.
   if (config_.profileOk()) for (size_t i=0;i<6;++i) sample.ok[i]=bus_.read(addresses[i],sample.raw[i]);
-  if (journal_.motionPossible && (!sample.ok[0] || !sample.ok[1] || !sample.ok[3] || sample.raw[0]!=0)) requestStop();
+  if (journal_.motionPossible && (!sample.ok[0] || !sample.ok[1] || !sample.ok[3])) requestStop(StopReason::Link);
+  else if (journal_.motionPossible && sample.raw[0]!=0) requestStop(StopReason::Fault);
   sample.sampledMs=clock_.monotonicMs(); sample.sampledUtcMs=clock_.utcMs();
-  sample.configOk=config_.controlOk(); sample.armed=armed_; sample.storageOk=storageOk_;
+  sample.configOk=sessionConfigOk(); sample.armed=armed_; sample.storageOk=storageOk_;
   return sample;
 }
 void Controller::replay() const {

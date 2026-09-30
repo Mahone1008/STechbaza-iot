@@ -106,6 +106,21 @@ export function effectiveQuality(status: Quality, freshness: Freshness, elapsedS
   const lag = freshness.reported_at && freshness.received_at ? Math.max(0, (Date.parse(freshness.received_at) - Date.parse(freshness.reported_at)) / 1000) : 0;
   return freshness.status !== "fresh" || age + lag + Math.max(0, elapsedSeconds) > freshness.stale_after_seconds ? "stale" : "fresh";
 }
+// Apply firmware interlocks only when this optional diagnostic capability is assigned.
+export function controlBlockReason(overview: Overview, elapsedSeconds = 0): string | null {
+  const diagnostics = overview.modules.find((module) => module.code === "vfd.diagnostics.read");
+  if (!diagnostics) return null;
+  for (const [key, message] of [
+    ["vfd_link", "Немає зв’язку контролера з частотником."],
+    ["vfd_configuration_valid", "Налаштування частотника не відповідають профілю керування."],
+    ["control_armed", "Локальний дозвіл керування вимкнено. Увімкніть його на контролері."],
+  ]) {
+    const channel = diagnostics.channels.find((item) => item.key === key && item.source === "state");
+    if (!channel || effectiveQuality(channel.status, overview.freshness, elapsedSeconds) !== "fresh") return "Очікуємо свіжу діагностику контролера для запуску та зміни частоти.";
+    if (channel.value !== true) return message!;
+  }
+  return null;
+}
 export const qualityLabels: Record<Quality, string> = { fresh: "Свіжі дані", stale: "Застарілі дані", missing: "Немає даних", invalid: "Некоректні дані" };
 export const reasonLabels: Record<Freshness["reason"], string> = { no_telemetry: "Телеметрія ще не надходила", recent: "Телеметрія отримана нещодавно", timeout: "Перевищено час актуальності", session_changed: "Контролер змінив сесію; показання належать попередній сесії", future_timestamp: "Час контролера або повідомлення потребує перевірки", delayed_report: "Повідомлення надійшло із затримкою" };
 const labels: Record<string, string> = { "vfd.frequency_hz": "Вихідна частота", "vfd.set_frequency_hz": "Задана частота", "vfd.current_a": "Струм", "vfd.voltage_v": "Вихідна напруга", "pressure.bar": "Тиск", "water_level.percent": "Рівень води", pump_running: "Стан RUN частотника", vfd_fault_code: "Код помилки частотника", local_mode: "Ручний режим", emergency_stop: "Аварійна зупинка", vfd_link: "Зв’язок із частотником", vfd_configuration_valid: "Налаштування профілю перевірено", control_armed: "Локальний дозвіл керування" };

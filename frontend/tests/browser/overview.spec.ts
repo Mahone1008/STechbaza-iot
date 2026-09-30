@@ -58,6 +58,7 @@ for (const status of [403, 404, 503]) test(`overview ${status} on refresh hides 
 test("quality expires while idle without a background overview request", async ({ page }) => {
   let requests = 0; const data = fixture(); data.telemetry_freshness.stale_after_seconds = 2;
   await mockOverview(page, () => { requests += 1; return data; }); await page.goto(path);
+  await page.getByLabel("Автооновлення", { exact: true }).selectOption("0");
   await expect(page.getByText("Перевищено час актуальності")).toBeVisible({ timeout: 8000 });
   await expect(page.locator(".metric-card").filter({ hasText: "Тиск" })).toContainText("Застарілі дані");
   expect(requests).toBe(1);

@@ -16,13 +16,16 @@
 #else
 #include "config.example.h"
 #endif
+#ifndef KERUMO_ENABLE_EXTENDED_TEST
+#define KERUMO_ENABLE_EXTENDED_TEST false
+#endif
 
 using namespace kerumo;
 namespace {
 std::atomic<int64_t> syncEpochMs{0}, syncMonoMs{0};
 std::atomic<bool> networkReady{false};
 std::atomic<uint32_t> networkCheckedMs{0};
-std::atomic<uint8_t> localAction{0}; // 1 arm, 2 disarm, 3 replay
+std::atomic<uint8_t> localAction{0}; // 1 bench arm, 2 disarm, 3 replay, 4 extended test arm
 QueueHandle_t commands, stopCommands, responses, samples;
 char sessionId[37]{};
 String baseTopic;
@@ -108,11 +111,19 @@ void deviceTask(void*) {
   const bool ready=controller.begin(KERUMO_DEVICE_UID);
   Serial.printf("V3: storage=%s mode=%s UID=%s\n",ready?"OK":"LOCKED",KERUMO_ENABLE_CONTROL?"CONTROL / DISARMED":"READ ONLY",KERUMO_DEVICE_UID);
   uint32_t lastSample=0,lastReplay=0;
+  StopReason lastReason=StopReason::None;
   for (;;) {
     uint8_t action=localAction.exchange(0);
     if (action==1) Serial.println(controller.arm()?"ARMED: SU600 bench, automatic STOP after 60 seconds":"ARM DENIED: inspect configuration, clock and stopped state");
+    if (action==4) Serial.println(!KERUMO_ENABLE_EXTENDED_TEST?"ARM TEST DENIED: extended test is disabled in config.local.h":
+      controller.arm(SessionMode::ExtendedTest)?"ARMED: SU600 EXTENDED TEST, no duration cap; normal STOP keeps permission":
+      "ARM TEST DENIED: verify STOP, clock, profile, F6.02=5.0..10.0s, F5.00 stop-on-loss + overload enabled, F4.08=0");
     if (action==2) { controller.disarm(); Serial.println("DISARMED; pending local STOP is retried until verified"); }
     controller.tick(networkReady.load() && static_cast<uint32_t>(millis()-networkCheckedMs.load())<8000);
+    if (controller.stopReason()!=lastReason) {
+      lastReason=controller.stopReason();
+      Serial.printf("CONTROL: last_stop=%s armed=%d\n",stopReasonCode(lastReason),controller.isArmed());
+    }
     Command command{};
     if (xQueueReceive(stopCommands,&command,0)==pdTRUE || xQueueReceive(commands,&command,0)==pdTRUE) {
       char ack[37],result[37]; uuid(ack); uuid(result);
@@ -124,6 +135,8 @@ void deviceTask(void*) {
       const auto& c=controller.config();
       Serial.printf("SU600: read=%d profile=%d config=%d F0.02=%u F0.03=%u F0.04=%u F0.05=%u F0.06=%u F6.00=%u F6.01=%u F6.02=%u F6.03=%u F6.04=%u F6.05=%u armed=%d\n",
         c.readOk,c.profileOk(),c.controlOk(),c.runSource,c.frequencySource,c.maxRaw,c.upperRaw,c.lowerRaw,c.address,c.serial,c.timeoutRaw,c.responseDelay,c.scaleRaw,c.protocol,controller.isArmed());
+      Serial.printf("TEST: session=%s guards_read=%d ready=%d F5.00=%u F4.08=%u last_stop=%s\n",
+        controller.sessionMode()==SessionMode::ExtendedTest?"EXTENDED":"BENCH",c.protectionReadOk,c.extendedTestOk(),c.protection,c.autoReset,stopReasonCode(controller.stopReason()));
       Serial.printf("READ: fault=%s:%u state=%s:%u set=%s:%.2f out=%s:%.2f I=%s:%.1f U=%s:%.1f\n",
         sample.ok[0]?"OK":"MISSING",sample.raw[0],sample.ok[1]?"OK":"MISSING",sample.raw[1],
         sample.ok[2]?"OK":"MISSING",sample.raw[2]/100.0,sample.ok[3]?"OK":"MISSING",sample.raw[3]/100.0,
@@ -207,7 +220,7 @@ void setup() {
   transport.setCACert(KERUMO_MQTT_CA); transport.setHandshakeTimeout(5); transport.setTimeout(2000);
   mqtt.setId(String(KERUMO_DEVICE_UID)+"-esp32"); mqtt.setUsernamePassword(KERUMO_DEVICE_UID,KERUMO_MQTT_PASSWORD);
   mqtt.setCleanSession(true); mqtt.setConnectionTimeout(2000); mqtt.setKeepAliveInterval(5000); mqtt.onMessage(received);
-  Serial.println("KERUMO V3 bench 0.1.0. No local HTTP command endpoint. Serial: ARM SU600 / DISARM.");
+  Serial.println("KERUMO V3 test 0.2.0. Serial: ARM SU600 / ARM SU600 TEST / DISARM. No local HTTP command endpoint.");
 }
 void loop() {
   static uint32_t reconnectAt=0,lastHeartbeat=0,lastTelemetry=0;
@@ -219,6 +232,7 @@ void loop() {
     if(ch=='\n') {
       line[lineSize]=0;
       if(strcmp(line,"ARM SU600")==0) localAction.store(1);
+      else if(strcmp(line,"ARM SU600 TEST")==0) localAction.store(4);
       else if(strcmp(line,"DISARM")==0) localAction.store(2);
       lineSize=0;
     } else if (ch!='\r') { if(lineSize+1<sizeof(line)) line[lineSize++]=ch; else lineSize=0; }

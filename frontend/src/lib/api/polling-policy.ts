@@ -1,5 +1,5 @@
 import { isApiError } from "./errors";
-export type PollSeconds = 0 | 30 | 60;
+export type PollSeconds = 0 | 5 | 30 | 60;
 const transient = new Set(["network", "timeout", "server", "rate-limited"]);
 // Один бюджет на query: ручне оновлення також поважає Retry-After.
 export class PollingBudget {
