@@ -9,8 +9,6 @@ import { StableRegion } from "@/components/stable-region";
 import { TelemetryHistory } from "@/features/telemetry-history";
 import type { PollSeconds } from "@/lib/api/polling-policy";
 import Link from "next/link";
-import dynamic from "next/dynamic";
-const SchedulePanel = dynamic(() => import("./schedule-panel").then((module) => module.SchedulePanel));
 import { useEffect, useState } from "react";
 import { Button, Card, MetricCard, PageHeader, StatusBadge } from "@/components/ui";
 import { useAccessContext, type ReadyAccessSnapshot } from "@/features/access-context";
@@ -54,7 +52,6 @@ function DevicePanel({ context }: { context: ReadyAccessSnapshot }) {
   const { authorizedRequest } = useAuthSession();
   const device = context.activeDevice!;
   const canRead = context.access.permissions.includes("telemetry.read") && context.access.permissions.includes("capability.read");
-  const [schedulesOpen, setSchedulesOpen] = useState(false);
   const [selectedCommand, setSelectedCommand] = useState<string | null>(null);
   // The demo presence lease is 15 s; refresh well before it expires.
   const [poll, setPoll] = useState<PollSeconds>(5);
@@ -76,8 +73,7 @@ function DevicePanel({ context }: { context: ReadyAccessSnapshot }) {
     <PageHeader title={device.name} description="Модулі, показання та якість даних пристрою." actions={<>{context.access.permissions.includes("alarm.read") && <Link className="button button-secondary" href={alarmsHref(device.id)}>Аварії пристрою</Link>}<Button disabled={!canRead || query.isFetching || !query.active} onClick={query.refresh}>Оновити панель</Button></>} />
     <div className="history-controls"><label>Автооновлення<select aria-label="Автооновлення" value={poll} onChange={(e) => setPoll(Number(e.target.value) as PollSeconds)}><option value={5}>Панель: 5 с; історія: 60 с</option><option value={30}>Панель: 30 с; історія: 60 с</option><option value={60}>Щохвилини</option><option value={0}>Лише вручну</option></select></label></div>
     {!query.active && <p role="status">Автооновлення призупинено: вкладка прихована або немає мережі.</p>}
-    <CommandControls context={context} overview={query.isError ? null : query.data?.overview ?? null} receivedAt={query.data?.receivedAt ?? 0} active={query.active} refreshing={query.isFetching} onCreated={setSelectedCommand} onSchedules={() => setSchedulesOpen(true)} />
-    {query.data?.overview.modules.some((module) => module.code === "vfd.schedule") && context.access.permissions.includes("command.read") && <details open={schedulesOpen} onToggle={(event) => setSchedulesOpen(event.currentTarget.open)}><summary>Розклади пристрою</summary>{schedulesOpen && <SchedulePanel context={context} limits={query.data.overview.frequencyLimits} supported={query.data.overview.diagnostics?.program?.supports_schedule === true} onCommand={setSelectedCommand} />}</details>}
+    <CommandControls context={context} overview={query.isError ? null : query.data?.overview ?? null} receivedAt={query.data?.receivedAt ?? 0} active={query.active} refreshing={query.isFetching} onCreated={setSelectedCommand} />
     <div id="selected-command">{displayedCommand && context.access.permissions.includes("command.read") && <CommandDetail key={displayedCommand} context={context} id={displayedCommand} auto={poll > 0} />}</div>
     <StableRegion className="overview-result-region" preserveHeight={query.isFetching || query.isError}>{!canRead ? <section className="notice notice-warning" role="alert"><h2>Недостатньо прав для панелі</h2><p>Потрібен доступ до модулів і телеметрії.</p></section>
       : query.isFetching && !query.data ? <p role="status">Перевіряємо модулі та показання…</p>

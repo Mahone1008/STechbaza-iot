@@ -48,8 +48,8 @@ export function TextField({ label, hint, error, id, className, ...props }: TextF
   const descriptionId = error ? `${fieldId}-error` : hint ? `${fieldId}-hint` : undefined;
   return (
     <label className="field" htmlFor={fieldId}>
-      <span className="field-label">{label}</span>
-      <input className={classNames("input", className)} id={fieldId} aria-invalid={Boolean(error)} aria-describedby={descriptionId} {...props} />
+      <span className="field-label" id={`${fieldId}-label`}>{label}</span>
+      <input className={classNames("input", className)} id={fieldId} aria-labelledby={`${fieldId}-label`} aria-invalid={Boolean(error)} aria-describedby={descriptionId} {...props} />
       {error ? <span className="field-error" id={descriptionId}>{error}</span> : hint ? <span className="field-hint" id={descriptionId}>{hint}</span> : null}
     </label>
   );
@@ -61,8 +61,8 @@ export function SelectField({ label, hint, error, id, className, children, ...pr
   const descriptionId = error ? `${fieldId}-error` : hint ? `${fieldId}-hint` : undefined;
   return (
     <label className="field" htmlFor={fieldId}>
-      <span className="field-label">{label}</span>
-      <select className={classNames("select", className)} id={fieldId} aria-invalid={Boolean(error)} aria-describedby={descriptionId} {...props}>{children}</select>
+      <span className="field-label" id={`${fieldId}-label`}>{label}</span>
+      <select className={classNames("select", className)} id={fieldId} aria-labelledby={`${fieldId}-label`} aria-invalid={Boolean(error)} aria-describedby={descriptionId} {...props}>{children}</select>
       {error ? <span className="field-error" id={descriptionId}>{error}</span> : hint ? <span className="field-hint" id={descriptionId}>{hint}</span> : null}
     </label>
   );

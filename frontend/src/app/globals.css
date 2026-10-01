@@ -550,10 +550,10 @@ h1, h2, h3 { letter-spacing: -0.02em; }
 }
 /* Native select semantics and keyboard handling; older browsers keep their system picker. */
 @supports (appearance: base-select) {
-  :is(.telemetry-history-controls, .program-settings, .schedule-form) select,
-  :is(.telemetry-history-controls, .program-settings, .schedule-form) select::picker(select) { appearance: base-select; }
-  :is(.telemetry-history-controls, .program-settings, .schedule-form) select { align-items: center; gap: .5rem; }
-  :is(.telemetry-history-controls, .program-settings, .schedule-form) select::picker(select) {
+  :is(.telemetry-history-controls, .work-mode-settings, .schedule-form) select,
+  :is(.telemetry-history-controls, .work-mode-settings, .schedule-form) select::picker(select) { appearance: base-select; }
+  :is(.telemetry-history-controls, .work-mode-settings, .schedule-form) select { align-items: center; gap: .5rem; }
+  :is(.telemetry-history-controls, .work-mode-settings, .schedule-form) select::picker(select) {
     box-sizing: border-box;
     inline-size: anchor-size(self-inline);
     max-inline-size: calc(100vw - 2rem);
@@ -568,10 +568,10 @@ h1, h2, h3 { letter-spacing: -0.02em; }
     padding: .25rem;
     font: inherit;
   }
-  :is(.telemetry-history-controls, .program-settings, .schedule-form) option { min-height: 44px; padding: .5rem .65rem; gap: .5rem; white-space: normal; overflow-wrap: anywhere; }
-  :is(.telemetry-history-controls, .program-settings, .schedule-form) option:checked { background: var(--brand-soft); color: var(--brand); }
-  :is(.telemetry-history-controls, .program-settings, .schedule-form) option:not(:disabled):is(:hover, :focus-visible) { background: var(--surface-muted); }
-  :is(.telemetry-history-controls, .program-settings, .schedule-form) option:disabled { color: var(--text-soft); opacity: .55; }
+  :is(.telemetry-history-controls, .work-mode-settings, .schedule-form) option { min-height: 44px; padding: .5rem .65rem; gap: .5rem; white-space: normal; overflow-wrap: anywhere; }
+  :is(.telemetry-history-controls, .work-mode-settings, .schedule-form) option:checked { background: var(--brand-soft); color: var(--brand); }
+  :is(.telemetry-history-controls, .work-mode-settings, .schedule-form) option:not(:disabled):is(:hover, :focus-visible) { background: var(--surface-muted); }
+  :is(.telemetry-history-controls, .work-mode-settings, .schedule-form) option:disabled { color: var(--text-soft); opacity: .55; }
 }
 .telemetry-chart { display: block; width: 100%; height: auto; color: var(--brand); margin-top: 1rem; }
 .telemetry-chart text { fill: currentColor; font-size: 11px; }
@@ -586,7 +586,12 @@ h1, h2, h3 { letter-spacing: -0.02em; }
 .command-json { white-space: pre-wrap; overflow-wrap: anywhere; }
 .alarm-title { overflow-wrap: anywhere; }
 
-.program-settings { max-width: 42rem; margin-block: 1rem; }
+.program-settings, .work-mode-settings { max-width: 42rem; margin-block: 1rem; }
+.work-mode-label { color: var(--text-soft); font-size: .875rem; }
+.command-settings { margin-bottom: 1rem; }
+.schedule-panel { min-width: 0; margin-block: 1rem; padding-block: 1rem; border-top: 1px solid var(--border); }
+.schedule-window { min-width: 0; margin: 0; padding: 1rem; border: 1px solid var(--border); border-radius: .75rem; display: grid; gap: .75rem; }
+.schedule-window legend { padding-inline: .4rem; font-weight: 600; }
 .schedule-form { min-width: 0; border: 0; padding: 0; margin-block: 1rem; display: grid; gap: 1rem; }
 .schedule-form > legend { font-weight: 600; margin-bottom: .75rem; }
 .schedule-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); gap: .75rem; }
@@ -609,5 +614,5 @@ h1, h2, h3 { letter-spacing: -0.02em; }
 @media (max-width: 520px) {
   .program-step { padding: .75rem; }
   .program-duration { gap: .4rem; }
-  .program-settings input, .program-settings select { font-size: 16px; }
+  .program-settings input, .work-mode-settings select { font-size: 16px; }
 }
