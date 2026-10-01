@@ -39,10 +39,16 @@ template<class T> inline uint32_t legacyChecksum(const T& value) {
   }
   return ~crc;
 }
+inline void resetUpgradeTarget(Journal& next) {
+  // Один іменований шаблон: без великого stack temporary та ICE Xtensa GCC
+  // на повторному присвоєнні Journal{} у двох overload міграції.
+  static const Journal empty{};
+  next=empty;
+}
 inline bool upgradeJournal(const ProgramJournalV3& old,Journal& next) {
   if (old.magic!=0x4B563302 || old.checksum!=legacyChecksum(old) || old.next>=LedgerSize ||
       old.highest>MaxSequence || !std::memchr(old.uid,0,sizeof(old.uid))) return false;
-  next=Journal{}; std::memcpy(next.uid,old.uid,sizeof(old.uid));
+  resetUpgradeTarget(next); std::memcpy(next.uid,old.uid,sizeof(old.uid));
   next.highest=old.highest; next.next=old.next; next.motionPossible=old.motionPossible;
   for(size_t i=0;i<LedgerSize;++i) {
     const auto& a=old.records[i]; auto& b=next.records[i];
@@ -61,7 +67,7 @@ inline bool upgradeJournal(const ProgramJournalV3& old,Journal& next) {
 inline bool upgradeJournal(const LegacyJournal& old,Journal& next) {
   if (old.magic!=0x4B563301 || old.checksum!=legacyChecksum(old) || old.next>=LedgerSize ||
       old.highest>MaxSequence || !std::memchr(old.uid,0,sizeof(old.uid))) return false;
-  next=Journal{}; std::memcpy(next.uid,old.uid,sizeof(old.uid));
+  resetUpgradeTarget(next); std::memcpy(next.uid,old.uid,sizeof(old.uid));
   next.highest=old.highest; next.next=old.next; next.motionPossible=old.motionPossible;
   for(size_t i=0;i<LedgerSize;++i) {
     const auto& a=old.records[i]; auto& b=next.records[i];
