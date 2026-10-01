@@ -114,7 +114,7 @@ class SchedulePostgresTests(unittest.TestCase):
             result = CommandDispatchService(session).dispatch(command.id, now=self.due + timedelta(seconds=11), allow_retry=True)
             self.assertEqual(result.reason, "command_access_revoked")
 
-    def test_offline_and_missed_starts_are_recorded_without_catchup(self):
+    def test_missed_start_is_recorded_without_catchup(self):
         row, _ = self.save_rule()
         self.assertEqual(self.process(row, self.due + timedelta(seconds=31)), "schedule_missed")
         self.assertEqual(self.history(row)[0]["reason"], "schedule_missed")
@@ -124,6 +124,19 @@ class SchedulePostgresTests(unittest.TestCase):
             session.commit()
         self.assertEqual(self.process(row), "duplicate")
         self.assertIsNone(self.history(row)[0]["command_id"])
+
+    def test_offline_start_does_not_queue_a_late_run(self):
+        row, _ = self.save_rule()
+        with SessionLocal() as session:
+            session.get(Device, self.devices[0]).last_seen_at = None
+            session.commit()
+        self.assertEqual(self.process(row), "device_offline")
+        self.fresh(self.due + timedelta(seconds=5))
+        self.assertEqual(self.process(row, self.due + timedelta(seconds=5)), "not_due")
+        history = self.history(row)
+        self.assertEqual(len(history), 1)
+        self.assertEqual(history[0]["reason"], "device_offline")
+        self.assertIsNone(history[0]["command_id"])
 
     def test_pause_blocks_queued_delivery_and_revision_is_audited(self):
         row, data = self.save_rule(); self.assertEqual(self.process(row), "queued")

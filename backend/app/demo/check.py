@@ -10,6 +10,7 @@ from datetime import datetime, timedelta, timezone
 from urllib.error import HTTPError
 from urllib.parse import urlencode
 from urllib.request import HTTPCookieProcessor, Request, build_opener
+from zoneinfo import ZoneInfo
 
 from paho.mqtt.publish import single
 
@@ -126,6 +127,58 @@ def check_module_contract(overview):
             ensure(channel["unit"] == numeric[channel["key"]]["unit"], "Channel unit differs from reading")
 
 
+def check_calendar(operator, owner):
+    """Реальний календарний worker → MQTT → локальні межі симулятора → Result."""
+    path = f"/api/v1/devices/{identity('device:pump')}/schedules"
+    site = owner.call("GET", f"/api/v1/sites/{identity('site:a')}")
+    zone = ZoneInfo(site["timezone"])
+    # Залишити щонайменше 15 с для preview/PUT, не змінювати годинник сервісів.
+    start = (datetime.now(timezone.utc) + timedelta(seconds=15)).replace(second=0, microsecond=0) + timedelta(minutes=1)
+    stop = start + timedelta(minutes=1)
+    local_start, local_stop = start.astimezone(zone), stop.astimezone(zone)
+    body = {"id": str(uuid.uuid4()), "expected_revision": 0, "enabled": True, "spec": {
+        "name": "CI calendar execution", "timezone": site["timezone"],
+        "start_date": local_start.date().isoformat(), "until_date": local_start.date().isoformat(),
+        "start_time": local_start.strftime("%H:%M"), "stop_time": local_stop.strftime("%H:%M"),
+        "stop_day_offset": (local_stop.date() - local_start.date()).days, "frequency_hz": 35,
+    }}
+    preview = operator.call("POST", path + "/preview", body)
+    ensure(len(preview["runs"]) == 1 and not preview["conflicts"], "Calendar preview was not a single valid run")
+    ensure(datetime.fromisoformat(preview["runs"][0]["starts_at"]) == start
+           and datetime.fromisoformat(preview["runs"][0]["stops_at"]) == stop, "Calendar preview changed UTC bounds")
+    saved = operator.call("PUT", path + "/" + body["id"], body)
+    try:
+        ensure(operator.call("PUT", path + "/" + body["id"], body)["revision"] == 1,
+               "Repeated calendar PUT created a revision")
+
+        def accepted():
+            rows = operator.call("GET", path + "/" + body["id"] + "/runs")
+            if not rows:
+                return None
+            ensure(len(rows) == 1 and rows[0]["status"] not in {"skipped", "failed", "expired", "result_unknown"},
+                   "Calendar start was not delivered: " + str(rows[0].get("reason")))
+            return rows[0] if rows[0]["status"] == "acknowledged" else None
+
+        occurrence = wait_for("calendar ACK", accepted, timeout=100)
+        wait_for("calendar running telemetry", lambda: owner.overview("pump")["snapshot"]["values"].get("vfd.frequency_hz") == 35)
+
+        def finished():
+            record = operator.call("GET", "/api/v1/commands/" + occurrence["command_id"])
+            ensure(record["status"] not in {"failed", "expired", "result_unknown", "cancelled"}, "Calendar execution failed")
+            return record if record["status"] == "succeeded" else None
+
+        result = wait_for("calendar final STOP", finished, timeout=90)
+        ensure(result["command_type"] == "vfd.schedule.start" and result["schedule_id"] == body["id"]
+               and result["result"].get("steps_completed") == 1 and result["result"].get("stop_confirmed") is True,
+               "Calendar audit/result did not confirm the fixed plan and STOP")
+        ensure(datetime.fromisoformat(result["completed_at"]) >= stop, "Calendar stopped before its boundary")
+        wait_for("calendar stopped telemetry", lambda: owner.overview("pump")["snapshot"]["state"].get("pump_running") is False)
+        ensure(len(operator.call("GET", path + "/" + body["id"] + "/runs")) == 1, "Calendar occurrence duplicated")
+        print("PASS: calendar preview, idempotent save, due worker, real MQTT ACK/Result and fixed final STOP", flush=True)
+    finally:
+        operator.call("PUT", path + "/" + body["id"], {**body, "expected_revision": saved["revision"], "enabled": False})
+
+
 def run(quick=False):
     require_demo()
     clients = {}
@@ -191,6 +244,7 @@ def run(quick=False):
         ensure(operator.call("POST", path, body)["id"] == started["id"], "Cancelled program retry created another run")
         wait_for("cancelled program telemetry", lambda: owner.overview("pump")["diagnostics"]["program"]["state"] == "interrupted")
         print("PASS: program stages, independent TTL, final STOP, active setpoint lock and duplicate cancellation over HTTP/MQTT", flush=True)
+        check_calendar(operator, owner)
 
         end = datetime.now(timezone.utc)
         query = urlencode({"metric": "pressure.bar", "start": (end - timedelta(minutes=5)).isoformat(),
@@ -241,4 +295,3 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--quick", action="store_true")
     run(parser.parse_args().quick)
-
