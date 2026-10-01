@@ -1,5 +1,5 @@
 import type { Command } from "../../src/lib/api/commands";
-import { overviewFixture } from "./overview";
+import { diagnosticsFixture, overviewFixture } from "./overview";
 export const commandId = "b8f2f2d6-e380-492a-a9dc-d0b9ba792136";
 export function controlOverview() {
   const data = overviewFixture();
@@ -22,3 +22,18 @@ export function commandFixture(changes: Partial<Command> = {}): Command {
   };
 }
 
+
+export function programOverview() {
+  const data = controlOverview();
+  const id = "c41c4b87-b82d-4e35-8faa-000000000009", now = new Date().toISOString();
+  data.capabilities.push({ id, code: "vfd.program", name: "Програми роботи", description: null, created_at: now, updated_at: now });
+  data.modules.push({ assignment_id: "c41c4b87-b82d-4e35-8faa-000000000019", capability_id: id, code: "vfd.program", supported: true,
+    channels: [], command_types: ["vfd.program.start"], allowed_commands: ["vfd.program.start"] });
+  data.command_types.push("vfd.program.start"); data.allowed_commands.push("vfd.program.start");
+  data.frequency_limits = { min_hz: 20, max_hz: 50 };
+  data.diagnostics = { ...diagnosticsFixture(), firmware_version: "0.3.0", last_stop: null, program: {
+    version: 1, ready: true, command_id: null, state: "idle", step_index: 0, step_count: 0,
+    target_frequency_hz: null, remaining_seconds: null, reason: null,
+  } };
+  return data;
+}

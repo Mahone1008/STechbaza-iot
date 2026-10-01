@@ -104,6 +104,50 @@ class FrontendPostgresTests(unittest.TestCase):
                                     values=values or {}, state=state or {}))
             session.commit()
 
+    def test_program_http_permissions_profile_and_long_result_deadline(self):
+        from app.models.command import DeviceCommand
+        from app.schemas.command_ack import CommandAckEnvelope
+        from app.services.command_ack import CommandAckService
+        from app.services.command_dispatch import CommandDispatchService
+        self.assign("vfd.control"); self.assign("vfd.program"); self.assign("vfd.state.read")
+        path = f"/devices/{self.devices[0]}/commands"
+        body = {"request_id": str(uuid.uuid4()), "command_type": "vfd.program.start", "ttl_seconds": 30,
+                "payload": {"version": 1, "steps": [{"frequency_hz": 40, "duration_seconds": 7200}]}}
+        self.request(path, who="viewer", method="POST", expected=403, body=body)
+        self.request(path, who="outsider", method="POST", expected=404, body=body)
+        self.request(path, who="operator", method="POST", expected=409, body=body)
+        self.store_snapshot(seen_at=self.now, received_at=self.now, state={"pump_running": False})
+        progress = {"version": 1, "ready": True, "command_id": None, "state": "idle", "step_index": 0,
+                    "step_count": 0, "target_frequency_hz": None, "remaining_seconds": None, "reason": None}
+        with SessionLocal() as session:
+            session.get(DeviceState, self.devices[0]).diagnostics = {**diagnostic_payload(), "program": progress}
+            session.commit()
+        wrong = {**body, "request_id": str(uuid.uuid4()), "payload": {"version": 1, "steps": [{"frequency_hz": 60, "duration_seconds": 10}]}}
+        self.request(path, who="operator", method="POST", expected=409, body=wrong)
+        with patch("app.services.command_dispatch.publish_command_message", return_value=(True, "published")) as publish:
+            result = self.request(path, who="operator", method="POST", expected=201, body=body)
+            replay = self.request(path, who="operator", method="POST", expected=200, body=body)
+            self.assertEqual(result["id"], replay["id"]); self.assertEqual(publish.call_count, 1)
+        command_id = uuid.UUID(result["id"])
+        with SessionLocal() as session:
+            ack = CommandAckEnvelope(schema_version=1, message_id=uuid.uuid4(), command_id=command_id, session_id=uuid.uuid4())
+            CommandAckService(session).acknowledge(device_uid=f"TB-FRONTEND-{self.devices[0].hex}", payload=ack, now=self.now + timedelta(seconds=1))
+            command = session.get(DeviceCommand, command_id)
+            deadline = command.result_deadline_at
+            self.assertEqual(deadline, self.now + timedelta(seconds=7441))
+            CommandAckService(session).acknowledge(device_uid=f"TB-FRONTEND-{self.devices[0].hex}", payload=ack, now=self.now + timedelta(seconds=5))
+            self.assertEqual(command.result_deadline_at, deadline)
+            self.assertEqual(CommandDispatchService(session).dispatch(command_id, now=self.now + timedelta(seconds=300)).reason, "awaiting_result")
+            snapshot = session.get(DeviceState, self.devices[0])
+            snapshot.diagnostics = {**diagnostic_payload(), "program": {**progress, "command_id": str(command_id),
+                "state": "holding", "step_index": 1, "step_count": 1, "target_frequency_hz": 40, "remaining_seconds": 7000}}
+            session.commit()
+        manual = {"request_id": str(uuid.uuid4()), "command_type": "vfd.frequency.set", "payload": {"frequency_hz": 30}}
+        self.request(path, who="operator", method="POST", expected=409, body=manual)
+        with patch("app.services.command_dispatch.publish_command_message", return_value=(True, "published")):
+            self.request(path, who="operator", method="POST", expected=201,
+                         body={"request_id": str(uuid.uuid4()), "command_type": "vfd.stop"})
+
     def test_new_device_has_explicit_empty_state(self):
         result = self.request(self.overview)
         self.assertEqual(result["device"]["id"], str(self.devices[0]))

@@ -21,6 +21,7 @@ from app.services.commands import (
     CommandNotFoundError,
     CommandRequestConflictError,
     CommandFrequencyProfileError,
+    CommandProgramError,
     CommandService,
 )
 
@@ -82,6 +83,15 @@ def create_command(
         ) from exc
     except CommandFrequencyProfileError as exc:
         raise HTTPException(status_code=409, detail="Частота поза налаштованими межами або профіль обладнання ще не задано") from exc
+    except CommandProgramError as exc:
+        messages = {
+            "program_active": "Програма вже виконується. Спочатку зупиніть її кнопкою STOP.",
+            "program_control_disabled": "Керування частотником вимкнено.",
+            "program_firmware_unavailable": "Потрібна свіжа телеметрія контролера з підтримкою програм v1.",
+            "program_requires_stopped_device": "Перед запуском програми потрібна підтверджена зупинка частотника.",
+            "program_frequency_profile_changed": "Частота етапу поза робочими межами або профіль обладнання не задано.",
+        }
+        raise HTTPException(status_code=409, detail=messages[str(exc)]) from exc
     except CommandRequestConflictError as exc:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,

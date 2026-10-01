@@ -11,8 +11,9 @@ from app.repositories.capabilities import CapabilityRepository
 from app.repositories.commands import CommandRepository
 from app.repositories.devices import DeviceRepository
 from app.schemas.command import DeviceCommandCreate
-from app.services.command_policy import frequency_allowed
+from app.services.command_profile import frequency_allowed
 from app.services.command_outcomes import stop_delivery
+from app.services.program_policy import program_rejection
 
 
 @dataclass(frozen=True)
@@ -50,6 +51,10 @@ class CommandRequestConflictError(Exception):
 
 class CommandFrequencyProfileError(Exception):
     """Потрібен перевірений робочий діапазон частоти конкретної установки."""
+
+
+class CommandProgramError(Exception):
+    """Підтримка програм, поточне керування або профіль обладнання змінилися."""
 
 
 class CommandService:
@@ -117,6 +122,9 @@ class CommandService:
             raise CommandCapabilityViolationError(required_capability)
         if payload.command_type == "vfd.frequency.set" and not frequency_allowed(self._session, device_id, payload.payload):
             raise CommandFrequencyProfileError
+        rejection = program_rejection(self._session, device, payload.command_type, payload.payload, created_at)
+        if rejection:
+            raise CommandProgramError(rejection)
         device.command_sequence += 1
         if device.command_sequence > 9007199254740991:
             raise RuntimeError("Command sequence exhausted; re-enrollment required")

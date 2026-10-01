@@ -4,12 +4,13 @@ from datetime import datetime
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from app.schemas.program import ProgramProgress
 
 UptimeMs = Annotated[int, Field(strict=True, ge=0, le=2**53 - 1)]
 StopReason = Literal[
     "command", "local_disarm", "bench_timer", "network_lost", "vfd_link_lost",
     "vfd_fault", "configuration_mismatch", "storage_failed",
-    "physical_result_unconfirmed", "restart_recovery",
+    "physical_result_unconfirmed", "restart_recovery", "program_completed",
 ]
 ResetReason = Literal[
     "unknown", "power_on", "external", "software", "panic", "interrupt_watchdog",
@@ -65,6 +66,7 @@ class ControllerDiagnostics(DiagnosticModel):
     reset_reason: ResetReason
     connection: ConnectionDiagnostics
     last_stop: StopDiagnostics | None = None
+    program: ProgramProgress | None = None
 
     @field_validator("version", mode="before")
     @classmethod

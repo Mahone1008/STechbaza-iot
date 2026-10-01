@@ -30,7 +30,7 @@ def email(account):
 
 DEVICES = {
     "pump": {"org": "a", "name": "DEMO: насос з частотником", "caps": (
-        "vfd.control", "vfd.frequency.read", "vfd.current.read", "vfd.state.read", "pressure.read")},
+        "vfd.control", "vfd.program", "vfd.frequency.read", "vfd.current.read", "vfd.state.read", "pressure.read")},
     "pressure": {"org": "a", "name": "DEMO: окремий датчик тиску", "caps": ("pressure.read",)},
     "stale": {"org": "a", "name": "DEMO: зв'язок є, показання старі", "caps": ("pressure.read",)},
     "offline": {"org": "a", "name": "DEMO: відключений датчик", "caps": ("pressure.read",)},

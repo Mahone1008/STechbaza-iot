@@ -4,7 +4,7 @@ export const overviewDevice = { id: "a8f2f2d6-e380-492a-a9dc-d0b9ba792136", site
 export const overviewOrg = "670b979d-9e60-5207-a5d2-5d86ee70c71c";
 export function diagnosticsFixture(): components["schemas"]["ControllerDiagnostics"] {
   return {
-    version: 1, firmware_version: "0.2.2", uptime_ms: 90061000, reset_reason: "brownout",
+    program: null, version: 1, firmware_version: "0.2.2", uptime_ms: 90061000, reset_reason: "brownout",
     connection: { transport: "wifi", signal: { metric: "rssi", dbm: -67 } },
     last_stop: { reason: "network_lost", uptime_ms: 60000, requested_at: null, confirmed: false },
   };

@@ -1,19 +1,20 @@
 #pragma once
 #include <cstddef>
 #include <cstdint>
+#include "program.h"
 
 namespace kerumo {
 constexpr size_t LedgerSize = 8;
 constexpr uint64_t MaxSequence = 9007199254740991ULL;
 constexpr uint32_t AutoStopMs = 60000;
 enum class SessionMode : uint8_t { Bench, ExtendedTest };
-enum class StopReason : uint8_t { None, Command, LocalDisarm, BenchTimer, Network, Link, Fault, Config, Storage, Unconfirmed, Restart };
+enum class StopReason : uint8_t { None, Command, LocalDisarm, BenchTimer, Network, Link, Fault, Config, Storage, Unconfirmed, Restart, ProgramCompleted };
 const char* stopReasonCode(StopReason reason);
-enum class Type : uint8_t { Start, Stop, Frequency };
+enum class Type : uint8_t { Start, Stop, Frequency, Program };
 enum class Outcome : uint8_t { Empty, Pending, Succeeded, Failed, Unknown };
 enum class Error : uint8_t {
   None, ReadOnly, NotArmed, Clock, Expired, Stale, Config, Fault,
-  Frequency, Busy, Storage, Unconfirmed, Restarted
+  Frequency, Busy, Storage, Unconfirmed, Restarted, ProgramCancelled, ProgramTimeout, ProgramInvalid
 };
 const char* errorCode(Error error);
 struct Command {
@@ -24,6 +25,7 @@ struct Command {
   uint16_t ttl{};
   Type type{};
   double hz{};
+  ProgramPlan program{};
 };
 struct Record {
   Command command{};
@@ -32,10 +34,12 @@ struct Record {
   Outcome outcome{Outcome::Empty};
   Error error{Error::None};
   double actualHz{};
+  uint8_t stepsCompleted{};
+  bool programStopConfirmed{};
 };
 // One committed NVS blob contains the sequence, intent, responses and run latch.
 struct Journal {
-  uint32_t magic{0x4B563301};
+  uint32_t magic{0x4B563302};
   uint32_t checksum{};
   char uid[97]{};
   uint64_t highest{};
@@ -101,6 +105,8 @@ struct Sample {
   bool configOk{}, armed{}, storageOk{};
   uint64_t uptimeMs{};
   StopDiagnostic lastStop{};
+  ProgramProgress program{};
+  StopReason programReason{StopReason::None};
 };
 class Controller {
  public:
@@ -123,6 +129,9 @@ class Controller {
   void requestStop(StopReason reason);
   void recordStop(StopReason reason);
   bool sessionConfigOk() const;
+  void beginProgramStep();
+  void tickProgram();
+  void completeProgram(bool stopConfirmed);
   Bus& bus_; Storage& storage_; Clock& clock_; Events& events_;
   const bool controls_;
   Journal journal_{};
@@ -130,9 +139,14 @@ class Controller {
   bool storageOk_{}, armed_{}, stopping_{};
   SessionMode mode_{SessionMode::Bench}; // RAM only: reboot never restores permission.
   StopReason stopReason_{StopReason::None};
-  StopDiagnostic lastStop_{}; // лише поточний boot; формат NVS journal незмінний
+  StopDiagnostic lastStop_{}; // лише поточний boot; сама STOP-діагностика не записується в NVS
   uint32_t runSince_{}, lastStopAttempt_{}, lastConfigRead_{};
   int pending_{-1};
   uint32_t pendingSince_{};
+  int programSlot_{-1};
+  ProgramProgress program_{};
+  StopReason programReason_{StopReason::None};
+  Error programError_{Error::None};
+  uint64_t programPhaseSince_{}, programHoldSince_{}, lastProgramPoll_{};
 };
 } // namespace kerumo

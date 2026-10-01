@@ -1,7 +1,8 @@
 # Поточний стан KERUMO
 
-Оновлено **01.10.2026**: базову діагностику контролера V3 0.2.2 прийнято на
-фізичному стенді; зафіксовано докази зі скриншотів та підтвердження оператора.
+Оновлено **01.10.2026**: додано таймер і програми частоти (backend 0.41.0,
+firmware 0.3.0); їх фізичне приймання ще попереду. Базову діагностику V3
+0.2.2 прийнято на стенді з доказами та підтвердженням оператора.
 Це поточний реєстр стану; датовані досьє зберігають історичні докази.
 [Версії/схема/API/канали/права з коду](generated-code-reference.md),
 [звіт аудиту та точні CI revisions](audit-2026-09-30.md).
@@ -12,6 +13,7 @@
 |---|---|---|
 | Backend | Real auth/RBAC, tenant isolation, telemetry/history, commands, alarms, notifications; integration/restore CI | Локальний single-process runtime, не production scale |
 | Команди | Outbound v2, monotonic sequence, Stop ordering, HTTP idempotency, TTL, late replies, перевірка прав і frequency profile при dispatch | ACK/Result — повідомлення edge; не незалежний фізичний вимір |
+| Таймер / програми | Прихований вибір режиму; до 8 етапів/24 год; локальний відлік, STOP скасовує решту, прогрес і фінальний результат у журналі | Потрібні capability і firmware 0.3.0; фізичний тест активної програми ще не прийнято |
 | Frontend | Етапи 9–14 реалізовано; реальні API, polling, command journal | Повністю прийнято 10/24 операцій; залишок manual acceptance у roadmap |
 | V3 читання | ESP32-S3 N16R8 → SU600 → Wi-Fi/TLS → API/UI підтверджено | Це конкретний SU600 profile, не всі SUSWE/RS485 моделі |
 | V3 керування | Частота 20→30 Гц, START/STOP, повторний пуск; оператор підтвердив обертання/зупинку | Не прийнято повний діапазон/навантаження/польові умови |
@@ -22,14 +24,18 @@
 Докази: [читання](dossier-v3-su600-read-only-bench.md),
 [керування та зупинки](dossier-v3-su600-control-bench.md),
 [діагностика V3 0.2.2 — приймання 01.10](controller-diagnostics-v1.md),
+[програми v1 — контракт, оновлення і приймання](control-programs-v1.md),
 [frontend roadmap](frontend-roadmap-v1.md), [P0–P9](product-readiness-plan-v1.md).
 
 ## Поведінка, яку не слід плутати
 
-- Backend application 0.40.0, schema head 0019; firmware V3 0.2.2.
+- Backend application 0.41.0, schema head 0019; firmware V3 0.3.0.
   Номер API `/v1`, версія застосунку та MQTT `schema_version` — різні речі.
 - Outbound command — v2; telemetry, heartbeat, ACK і Result — v1.
 - TTL типово 30 с, 5–300 с: час першого прийняття, не таймер RUN.
+- Програма отримує окремий час витримки після досягнення кожної частоти.
+  Весь план виконує контролер; F5/закриття вкладки його не скасовують.
+  STOP, reboot і втрата готовності мережі переривають без самовідновлення.
 - `ARM SU600` — короткий bench із 60-секундною зупинкою. `ARM SU600 TEST`
   у явно дозволеному EXTENDED не має цього таймера; штатний STOP зберігає ARM.
   Fault, network loss, DISARM/reboot знімають дозвіл. [Точна процедура](v3-su600-extended-test.md).
@@ -56,11 +62,12 @@
 | V3-03 | Після ESP power-loss останній запис містить STOP, ARM=0, fault 16/E485 | Окремо зафіксоване усунення причини/відновлення; автоматичного fault reset немає |
 | V3-04 | Налаштування захисту двигуна/установки, повний BOM і електрична схема | Перевірені інженером параметри й незалежна зупинка; повний hardware acceptance |
 | UI-01 | Решта manual сценаріїв 11.3–14.4, F5 history filters, F5 під RUN, multi-role/mobile/a11y | Checklist із конкретними revision, очікуванням та доказами; CI не закриває його автоматично |
+| PROGRAM-01 | Фізичне приймання 0.3.0: NVS upgrade, таймер, два етапи, F5, STOP, переривання/відсутність самозапуску | Процедура й докази за control-programs-v1; до цього прийняті лише автоматичні сценарії |
 | PROD-01 | TLS/identity вже є на V3 gateway, але fleet provisioning/rotation/revocation та transfer/config lifecycle неповні | Реалізація й приймання P1/P2 |
 | PROD-02 | Deployment, процеси/worker ownership, production settings, logs/metrics, DB retention/PITR | P5, restore/release rehearsal, виміряні RPO/RTO |
 | PROD-03 | OTA, незалежний security review, load/reconnect/soak, pilot/support/conformity | P6–P9 з окремими доказами |
 | CODE-01 | Python dependency lock/audit та lint/type gate; великі MQTT/auth adapters, щільний C++ adapter | Окремі поведінково нейтральні зміни з regression gate; не масове форматування під час bench |
-| NEXT-01 | Таймери/програми частоти, service editor F-параметрів, синхронізація LOCAL/REMOTE switch ↔ сайт | Узгоджений protocol/config/RBAC/safety design і наступна реалізація |
+| NEXT-01 | Плавні часові ramp-профілі/шаблони, service editor F-параметрів, синхронізація LOCAL/REMOTE switch ↔ сайт | Узгоджений protocol/config/RBAC/safety design; таймер і ступінчасті програми вже реалізовано |
 | V4-01 | Модуль 4G ще не отримано | Модель/revision/BOM, transport design та LTE recovery acceptance після доставки |
 
 V3-01 не закрито успішним gateway-тестом: це різні сценарії.

@@ -1,10 +1,11 @@
 import { invalidResponse, isRecord, requiredDateTime, requiredString, requiredUuid } from "./access";
 import type { components } from "./schema";
+import { parseProgramPlan, sameProgram, type ProgramPlan } from "./programs";
 export type Command = components["schemas"]["DeviceCommandRead"];
 export type CommandType = components["schemas"]["DeviceCommandCreate"]["command_type"];
 export type CommandInput = components["schemas"]["DeviceCommandCreate"];
 export type CommandCursor = Readonly<{ before_created_at: string; before_id: string }>;
-export const commandLabels: Record<CommandType, string> = { "vfd.start": "Запустити", "vfd.stop": "Зупинити", "vfd.frequency.set": "Задати частоту" };
+export const commandLabels: Record<CommandType, string> = { "vfd.start": "Запустити", "vfd.stop": "Зупинити", "vfd.frequency.set": "Задати частоту", "vfd.program.start": "Запустити програму" };
 export const statusLabels: Record<string, string> = { queued: "У черзі", published: "Розпочато доставку", acknowledged: "Контролер підтвердив прийом", succeeded: "Контролер повідомив про виконання", failed: "Помилка виконання", cancelled: "Доставку скасовано", expired: "Строк доставки минув", result_unknown: "Результат невідомий" };
 export function commandLabel(type: string) { return Object.hasOwn(commandLabels, type) ? commandLabels[type as CommandType] : type; }
 export function commandPending(command: Command) { return ["queued", "published", "acknowledged"].includes(command.status); }
@@ -13,8 +14,13 @@ export function validFrequency(text: string): number | null {
   const value = Number(text);
   return Number.isFinite(value) && value >= 0 && value <= 100 ? value : null;
 }
-export function makeCommandInput(type: CommandType, frequency: string, ttl: number, requestId: string): CommandInput {
+export function makeCommandInput(type: CommandType, frequency: string, ttl: number, requestId: string, program?: ProgramPlan | null): CommandInput {
   if (!Number.isInteger(ttl) || ttl < 5 || ttl > 300) throw new Error("TTL має бути від 5 до 300 секунд.");
+  if (type === "vfd.program.start") {
+    const plan = parseProgramPlan(program);
+    if (!plan) throw new Error("Перевірте частоти та тривалість етапів програми.");
+    return { request_id: requestId, command_type: type, payload: { version: plan.version, steps: plan.steps }, ttl_seconds: ttl };
+  }
   const value = validFrequency(frequency);
   if (type === "vfd.frequency.set" && value === null) throw new Error("Вкажіть частоту від 0 до 100 Гц.");
   return { request_id: requestId, command_type: type, payload: type === "vfd.frequency.set" ? { frequency_hz: value! } : {}, ttl_seconds: ttl };
@@ -51,7 +57,7 @@ export function parseCommand(raw: unknown, deviceId: string, organizationId: str
 }
 export function parseCommandReceipt(raw: unknown, deviceId: string, organizationId: string, userId: string, input: CommandInput): Command {
   const command = parseCommand(raw, deviceId, organizationId);
-  if (command.request_id !== input.request_id || command.command_type !== input.command_type || command.ttl_seconds !== input.ttl_seconds || (command.supersedes_request_id ?? null) !== (input.supersedes_request_id ?? null) || command.actor_user_id !== userId || command.actor_organization_id !== organizationId || Object.keys(command.payload).length !== Object.keys(input.payload ?? {}).length || Object.entries(input.payload ?? {}).some(([key, value]) => command.payload[key] !== value)) invalidResponse(path, "matching command receipt");
+  if (command.request_id !== input.request_id || command.command_type !== input.command_type || command.ttl_seconds !== input.ttl_seconds || (command.supersedes_request_id ?? null) !== (input.supersedes_request_id ?? null) || command.actor_user_id !== userId || command.actor_organization_id !== organizationId || (input.command_type === "vfd.program.start" ? !sameProgram(command.payload, input.payload) : Object.keys(command.payload).length !== Object.keys(input.payload ?? {}).length || Object.entries(input.payload ?? {}).some(([key, value]) => command.payload[key] !== value))) invalidResponse(path, "matching command receipt");
   return command;
 }
 export function parseCommandPage(raw: unknown, deviceId: string, organizationId: string, cursor: CommandCursor | null): Command[] {

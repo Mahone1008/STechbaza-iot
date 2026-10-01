@@ -78,7 +78,9 @@ def _run_locked(path):
         next_tick = 0
         while not stopped.is_set():
             if not ready.wait(0.2):
+                state.interrupt_program("network_lost")
                 continue
+            state.tick_program()
             try:
                 topic, raw = incoming.get(timeout=0.1)
                 try:
@@ -100,7 +102,9 @@ def _run_locked(path):
                         continue
                     root = f"techbaza/devices/{uid(row['device'])}/commands"
                     publish(root + "/ack", json.loads(row["ack"]))
-                    publish(root + "/result", json.loads(row["result"]))
+                    result = json.loads(row["result"])
+                    if result is not None:
+                        publish(root + "/result", result)
                     state.delivered(row["id"])
                 if time.monotonic() >= next_tick:
                     for key in LIVE_DEVICES:
@@ -113,9 +117,11 @@ def _run_locked(path):
                             publish(root + "/telemetry", payload)
                     next_tick = time.monotonic() + 3
             except RuntimeError:
+                state.interrupt_program("network_lost")
                 LOGGER.warning("MQTT delivery interrupted; durable replies remain pending")
                 stopped.wait(1)
     finally:
+        state.interrupt_program("restart_recovery")
         client.disconnect()
         client.loop_stop()
         state.close()

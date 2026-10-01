@@ -1,4 +1,6 @@
 "use client";
+import { ProgramPlanSummary } from "./program-settings";
+import { parseProgramPlan } from "@/lib/api/programs";
 import { useState } from "react";
 import { Button, Card, DataTable, StatusBadge } from "@/components/ui";
 import { StableRegion } from "@/components/stable-region";
@@ -10,7 +12,7 @@ import { formatSeen } from "@/lib/api/inventory";
 import { commandCursor, commandLabel, commandPending, parseCommand, parseCommandPage, statusLabels, type Command, type CommandCursor } from "@/lib/api/commands";
 
 export function CommandStatus({ command }: { command: Command }) {
-  return <StatusBadge tone={command.status === "succeeded" ? "success" : command.status === "failed" ? "danger" : commandPending(command) ? "info" : "warning"}>{statusLabels[command.status]}</StatusBadge>;
+  return <StatusBadge tone={command.status === "succeeded" ? "success" : command.status === "failed" ? "danger" : commandPending(command) ? "info" : "warning"}>{command.error_code === "program_cancelled" ? "Програму скасовано оператором" : command.command_type === "vfd.program.start" && command.status === "succeeded" ? "Програму завершено, STOP підтверджено" : statusLabels[command.status]}</StatusBadge>;
 }
 export function CommandDetail({ context, id, auto }: { context: ReadyAccessSnapshot; id: string; auto: boolean }) {
   const { authorizedRequest } = useAuthSession();
@@ -22,11 +24,13 @@ export function CommandDetail({ context, id, auto }: { context: ReadyAccessSnaps
     queryFn: async (signal) => parseCommand(await authorizedRequest({ path: `/api/v1/commands/${id}`, signal, timeoutMs: 10_000 }), device.id, context.activeOrganization.id, id),
   });
   const command = query.data;
+  const program = command?.command_type === "vfd.program.start" ? parseProgramPlan(command.payload) : null;
   const time = (value: string | null) => value ? formatSeen(value, context.activeSite?.timezone ?? "UTC") : "Ще немає";
   return <Card title="Стан вибраної команди" actions={<Button disabled={!query.active || query.isFetching} onClick={query.refresh}>Оновити стан команди</Button>}>
     <StableRegion>
       {query.isError ? <p role="alert">{apiErrorDisplayMessage(query.error)}</p> : !command ? <p role="status">Завантажуємо команду…</p> : <>
         <p><strong>{commandLabel(command.command_type)}</strong>{typeof command.payload.frequency_hz === "number" ? ` · ${command.payload.frequency_hz} Гц` : ""}</p>
+        {program && <ProgramPlanSummary plan={program} />}
         <div role="status"><CommandStatus command={command} /></div>
         <p className="help-copy">Прийом сервером і підтвердження прийому контролером не означають фізичного виконання. Зіставляйте результат із показаннями пристрою.</p>
         {command.status === "result_unknown" && <p className="notice notice-warning">Контролер не надіслав результат вчасно. Автоматичного повтору немає. Пізній результат можна перевірити кнопкою оновлення.</p>}
@@ -39,7 +43,8 @@ export function CommandDetail({ context, id, auto }: { context: ReadyAccessSnaps
         <p>Час на прийняття команди: {command.ttl_seconds} с · до {time(command.expires_at)}. Це не тривалість роботи насоса. Запізнілі відповіді зберігаються в журналі.</p>
         {command.result_deadline_at && commandPending(command) && <p>Очікування результату: до {time(command.result_deadline_at)}.</p>}
         {command.result_timed_out_at && <p>Результат став невідомим: {time(command.result_timed_out_at)}.</p>}
-        {command.error_message && <p role="alert">{command.error_code === "not_armed" ? "Локальний дозвіл керування вимкнено. Перевірте причину зупинки та відновіть дозвіл на контролері." : command.error_message}</p>}
+        {program && typeof command.result.steps_completed === "number" && <p>Завершених етапів: {command.result.steps_completed} з {program.steps.length}. Зупинка: {command.result.stop_confirmed === true ? "підтверджена контролером" : "не підтверджена"}.</p>}
+        {command.error_message && <p role="alert">{command.error_code === "program_cancelled" ? "Програму перервано запитом оператора; наступні етапи скасовано." : command.error_code === "program_transition_timeout" ? "Частотник не досяг заданої частоти за 60 с. Перевірте налаштування розгону та результат зупинки." : command.error_code === "program_invalid" ? "Програма не відповідає можливостям або локальному режиму контролера." : command.error_code === "not_armed" ? "Локальний дозвіл керування вимкнено. Перевірте причину зупинки та відновіть дозвіл на контролері." : command.error_message}</p>}
         <details><summary>Автор і технічні деталі команди</summary><dl className="overview-details">
           <div><dt>Автор</dt><dd>{command.actor_display_name ?? "Невідомий"} · {command.actor_email ?? "Email не збережено"}</dd></div>
           <div><dt>Роль під час запиту</dt><dd>{command.actor_organization_role ?? command.actor_platform_role ?? "Невідома"}</dd></div>

@@ -2,7 +2,6 @@
 from datetime import datetime
 
 from fastapi import HTTPException
-from app.schemas.command_profile import FrequencyLimits
 from sqlalchemy.orm import Session
 
 from app.models.auth_session import AuthSession
@@ -11,30 +10,13 @@ from app.models.user import User
 from app.models.device import Device
 from app.models.site import Site
 from app.models.organization import Organization
-from app.numeric import finite_number
 from app.repositories.capabilities import CapabilityRepository
 from app.security.authorization import AccessControl
 from app.security.current_user import CurrentUserContext
 from app.security.roles import Permission
-
-
-def configured_limits(session: Session, device_id) -> FrequencyLimits | None:
-    for item in CapabilityRepository(session).get_enabled_assignments_for_device(device_id):
-        if item.capability.code == "vfd.control":
-            raw = item.config.get("frequency_limits")
-            if raw is None:
-                return None
-            try:
-                return FrequencyLimits.model_validate(raw)
-            except ValueError:
-                return None  # Відсутня або некоректна конфігурація забороняє дію.
-    return None
-
-
-def frequency_allowed(session: Session, device_id, payload: dict) -> bool:
-    limits = configured_limits(session, device_id)
-    value = finite_number(payload.get("frequency_hz"))
-    return limits is not None and value is not None and limits.min_hz <= value <= limits.max_hz
+from app.device_contract import COMMAND_REQUIRED_CAPABILITY
+from app.services.program_policy import program_rejection
+from app.services.command_profile import frequency_allowed
 
 
 def dispatch_rejection(session: Session, command: DeviceCommand, now: datetime) -> str | None:
@@ -57,8 +39,9 @@ def dispatch_rejection(session: Session, command: DeviceCommand, now: datetime) 
         return "command_access_revoked"
     if access.organization_id != command.actor_organization_id:
         return "command_binding_changed"
-    if "vfd.control" not in CapabilityRepository(session).get_enabled_codes_for_device(command.device_id):
+    enabled = CapabilityRepository(session).get_enabled_codes_for_device(command.device_id)
+    if "vfd.control" not in enabled or COMMAND_REQUIRED_CAPABILITY[command.command_type] not in enabled:
         return "command_capability_disabled"
     if command.command_type == "vfd.frequency.set" and not frequency_allowed(session, command.device_id, command.payload):
         return "command_frequency_profile_changed"
-    return None
+    return program_rejection(session, device, command.command_type, command.payload, now, command.id)

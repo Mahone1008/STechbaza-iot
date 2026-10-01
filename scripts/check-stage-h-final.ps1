@@ -6,5 +6,5 @@ $ErrorActionPreference = 'Stop'
 # existing-data preflight, exact PostgreSQL/SQLite restore and restored access guards.
 Write-Host 'PASS: H-04 module/channel contract, typed state readings and role-aware commands' -ForegroundColor Green
 Write-Host 'PASS: H-05 full regression, clean install, exact backup/restore and safe recovery' -ForegroundColor Green
-Write-Host 'PASS: H-04/H-05 acceptance; demo 0.40.0 is running. Send this result for Stage H closure.' -ForegroundColor Green
+Write-Host 'PASS: H-04/H-05 acceptance; demo 0.41.0 is running. Send this result for Stage H closure.' -ForegroundColor Green
 

@@ -34,7 +34,9 @@ Frontend отримує access у memory через browser login/refresh, по�
 
 `POST /api/v1/devices/{device_id}/commands` приймає `request_id`,
 `command_type`, `payload`, `ttl_seconds` і опціональний `supersedes_request_id`
-для Stop. Типи: `vfd.start`, `vfd.stop`, `vfd.frequency.set`.
+для Stop. Типи: `vfd.start`, `vfd.stop`, `vfd.frequency.set`, `vfd.program.start`.
+Програма використовує versioned payload із масивом етапів; для неї потрібні
+`vfd.program` і `vfd.control`. [Межі, допуск і результати](control-programs-v1.md).
 При тотожному повторі того самого автора повертається та сама команда:
 201 для нової, 200 для повтору; конфлікт намірів — 409.
 

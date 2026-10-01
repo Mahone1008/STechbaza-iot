@@ -6,7 +6,9 @@ import type { ReadyAccessSnapshot } from "./access-context";
 import { useAuthSession } from "./auth-session";
 import { apiErrorDisplayMessage, isApiError } from "@/lib/api";
 import { commandLabel, makeCommandInput, parseCommandReceipt, validFrequency, type CommandInput, type CommandType } from "@/lib/api/commands";
-import { controlBlockReason, parseOverview, type Overview } from "@/lib/api/overview";
+import { ProgramSettings, ProgramPlanSummary, draftPlan, emptyProgramStep, type WorkMode, type ProgramDraft } from "./program-settings";
+import { durationText, parseProgramPlan, programActive, programWithinLimits } from "@/lib/api/programs";
+import { controlBlockReason, effectiveQuality, parseOverview, type Overview } from "@/lib/api/overview";
 
 type Intent = Readonly<{ input: CommandInput; deadline: number }>;
 type Uncertain = Readonly<{ intent: Intent; retryAt: number; message: string }>;
@@ -22,6 +24,13 @@ export function CommandControls({ context, overview, receivedAt, active, refresh
   const device = context.activeDevice!;
   const [frequency, setFrequency] = useState("");
   const [ttl, setTtl] = useState("30");
+  const [mode, setMode] = useState<WorkMode>("manual");
+  const [steps, setSteps] = useState<ProgramDraft[]>([emptyProgramStep(0)]);
+  const nextStep = useRef(1);
+  const plan = draftPlan(mode, steps);
+  const programSupported = !!overview?.allowedCommands.includes("vfd.program.start") && !!overview.diagnostics?.program;
+  const programRunning = programActive(overview?.diagnostics?.program);
+  const programValid = !!plan && programWithinLimits(plan, overview?.frequencyLimits ?? null);
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const [busyType, setBusyType] = useState<CommandType | null>(null);
   const busy = busyType !== null;
@@ -43,11 +52,14 @@ export function CommandControls({ context, overview, receivedAt, active, refresh
   const online = overview?.availability.online && overview.availability.seconds_since_seen !== null && overview.availability.seconds_since_seen + elapsed <= overview.availability.timeout_seconds;
   const blockedReason = overview ? controlBlockReason(overview, elapsed) : null;
   const validTtl = ttl.trim() !== "" && Number.isInteger(Number(ttl)) && Number(ttl) >= 5 && Number(ttl) <= 300;
-  const permitted = (type: CommandType) => canExecute && !!overview?.allowedCommands.includes(type) && (type === "vfd.stop" || (online && !blockedReason));
+  const permitted = (type: CommandType) => canExecute && !!overview?.allowedCommands.includes(type) && (type === "vfd.stop" || (online && !blockedReason && !programRunning));
   const limits = overview?.frequencyLimits;
   const hz = validFrequency(frequency);
   const frequencyValid = !!limits && hz !== null && hz >= limits.min_hz && hz <= limits.max_hz;
-  const enabled = (type: CommandType) => permitted(type) && active && (type === "vfd.stop" ? busyType !== "vfd.stop" : !refreshing && !busy && !uncertain && validTtl && (type !== "vfd.frequency.set" || frequencyValid));
+  const programReady = programSupported && overview?.diagnostics?.program?.ready && !!overview && effectiveQuality(overview.freshness.status, overview.freshness, elapsed) === "fresh";
+  const runState = overview?.modules.flatMap((module) => module.channels).find((channel) => channel.key === "pump_running" && channel.source === "state");
+  const programStopped = !!overview && runState?.value === false && effectiveQuality(runState.status, overview.freshness, elapsed) === "fresh";
+  const enabled = (type: CommandType) => permitted(type) && active && (type === "vfd.stop" ? busyType !== "vfd.stop" : !refreshing && !busy && !uncertain && validTtl && (type !== "vfd.frequency.set" || frequencyValid) && (type !== "vfd.program.start" || (programReady && programStopped && programValid)));
   const retryEnabled = !!uncertain && permitted(uncertain.intent.input.command_type) && active && !refreshing && !busy && now < uncertain.intent.deadline && now >= uncertain.retryAt;
 
   async function handleSend(intent: Intent, previous: Uncertain | null) {
@@ -70,6 +82,12 @@ export function CommandControls({ context, overview, receivedAt, active, refresh
       if (intent.input.command_type !== "vfd.stop" && !fresh.availability.online) throw new Error("Пристрій offline. Запуск і зміна частоти не надсилаються.");
       const freshBlock = controlBlockReason(fresh);
       if (intent.input.command_type !== "vfd.stop" && freshBlock) throw new Error(freshBlock);
+      if (intent.input.command_type !== "vfd.stop" && programActive(fresh.diagnostics?.program) && !previous) throw new Error("Програма вже виконується. Спочатку зупиніть її кнопкою STOP.");
+      if (intent.input.command_type === "vfd.program.start") {
+        const submitted = parseProgramPlan(intent.input.payload);
+        if (!fresh.diagnostics?.program?.ready || fresh.freshness.status !== "fresh") throw new Error("Очікуємо свіжу телеметрію та локальний дозвіл програм на контролері.");
+        if (!submitted || !programWithinLimits(submitted, fresh.frequencyLimits)) throw new Error("Частоти етапів поза налаштованими межами обладнання.");
+      }
       if (intent.input.command_type === "vfd.frequency.set") {
         const value = Number(intent.input.payload?.frequency_hz), profile = fresh.frequencyLimits;
         if (!profile || value < profile.min_hz || value > profile.max_hz) throw new Error("Частота поза налаштованими межами обладнання. Оновіть панель.");
@@ -102,7 +120,7 @@ export function CommandControls({ context, overview, receivedAt, active, refresh
     if (dialog.kind === "retry") { if (retryEnabled && uncertain) void handleSend(uncertain.intent, uncertain); return; }
     if (!enabled(dialog.type)) return;
     const seconds = validTtl ? Number(ttl) : 30;
-    const input = makeCommandInput(dialog.type, frequency, seconds, crypto.randomUUID());
+    const input = makeCommandInput(dialog.type, frequency, seconds, crypto.randomUUID(), plan);
     if (dialog.type === "vfd.stop") {
       const prior = pendingIntent.current ?? uncertain?.intent;
       if (prior) input.supersedes_request_id = prior.input.supersedes_request_id ?? prior.input.request_id;
@@ -112,12 +130,20 @@ export function CommandControls({ context, overview, receivedAt, active, refresh
   if (!canExecute && !uncertain) return null;
   const selectedType = dialog?.kind === "new" ? dialog.type : uncertain?.intent.input.command_type;
   const selectedFrequency = dialog?.kind === "new" ? validFrequency(frequency) : uncertain?.intent.input.payload?.frequency_hz;
+  const selectedPlan = selectedType === "vfd.program.start" ? dialog?.kind === "retry" ? parseProgramPlan(uncertain?.intent.input.payload) : plan : null;
+  const duration = plan?.steps.reduce((sum, step) => sum + step.duration_seconds, 0) ?? 0;
   return <Card title="Керування пристроєм" description="Кожну команду потрібно підтвердити. Після втрати мережі запуск і частота автоматично не надсилаються.">
     {!overview ? <p>Для керування потрібна актуальна панель.</p> : overview.allowedCommands.length === 0 ? <p>Для цього пристрою немає дозволених команд.</p> : <>
-      <details><summary>Додаткові налаштування команди</summary><div className="history-controls"><TextField label="Час на прийняття команди, с" type="number" min={5} max={300} step={1} value={ttl} disabled={busy || !!uncertain} onChange={(event) => setTtl(event.target.value)} hint="Типово 30 с, дозволено 5–300 с. Після цього контролер не починає нове виконання. Це не тривалість роботи насоса." /></div></details>
+      <details><summary>Додаткові налаштування команди</summary><div className="history-controls"><TextField label="Час на прийняття команди, с" type="number" min={5} max={300} step={1} value={ttl} disabled={busy || !!uncertain} onChange={(event) => setTtl(event.target.value)} hint="Типово 30 с, дозволено 5–300 с. Після цього контролер не починає нове виконання. Це не тривалість роботи насоса." /></div>
+        <ProgramSettings mode={mode} onMode={setMode} rows={steps} onRows={setSteps} onAdd={() => { const row = emptyProgramStep(nextStep.current++); setSteps((rows) => [...rows, row]); }} disabled={busy || !!uncertain || programRunning} supported={programSupported} limits={limits ?? null} />
+      </details>
+      {mode !== "manual" && <p className="program-mode-notice"><strong>{mode === "timer" ? "За таймером" : `Програма · ${steps.length} етапів`}</strong>{programValid ? ` · ${durationText(duration)} на заданих частотах; потім STOP.` : " · перевірте частоти та тривалість у додаткових налаштуваннях."}</p>}
+      {mode !== "manual" && programSupported && !programReady && <p className="help-copy">Очікуємо свіжі дані та локальний дозвіл програм на контролері.</p>}
+      {programRunning && <p role="status">Програма виконується або зупиняється. Зміна частоти й новий запуск доступні після її зупинки.</p>}
+      {mode !== "manual" && !programRunning && !programStopped && <p className="help-copy">Перед запуском програми потрібна підтверджена зупинка частотника.</p>}
       <div className="history-controls">
-        {overview.allowedCommands.includes("vfd.frequency.set") && <TextField label="Задана частота, Гц" type="number" min={limits?.min_hz} max={limits?.max_hz} step="any" value={frequency} disabled={busy || !!uncertain || !limits} onChange={(event) => setFrequency(event.target.value)} hint={limits ? `Робочі межі пристрою: ${limits.min_hz}–${limits.max_hz} Гц.` : "Спочатку налаштуйте допустимі межі частоти обладнання."} />}</div>
-      <div className="ui-row">{(["vfd.start", "vfd.stop", "vfd.frequency.set"] as const).filter((type) => overview.allowedCommands.includes(type)).map((type) => <Button key={type} variant={type === "vfd.stop" ? "danger" : "primary"} disabled={!enabled(type)} onClick={() => setDialog({ kind: "new", type })}>{commandLabel(type)}</Button>)}</div>
+        {mode === "manual" && overview.allowedCommands.includes("vfd.frequency.set") && <TextField label="Задана частота, Гц" type="number" min={limits?.min_hz} max={limits?.max_hz} step="any" value={frequency} disabled={busy || !!uncertain || !limits} onChange={(event) => setFrequency(event.target.value)} hint={limits ? `Робочі межі пристрою: ${limits.min_hz}–${limits.max_hz} Гц.` : "Спочатку налаштуйте допустимі межі частоти обладнання."} />}</div>
+      <div className="ui-row">{mode !== "manual" && <Button disabled={!enabled("vfd.program.start")} onClick={() => setDialog({ kind: "new", type: "vfd.program.start" })}>{mode === "timer" && programValid ? `Запустити на ${durationText(duration)}` : "Запустити програму"}</Button>}{(["vfd.start", "vfd.stop", "vfd.frequency.set"] as const).filter((type) => overview.allowedCommands.includes(type) && (mode === "manual" || type === "vfd.stop")).map((type) => <Button key={type} variant={type === "vfd.stop" ? "danger" : "primary"} disabled={!enabled(type)} onClick={() => setDialog({ kind: "new", type })}>{commandLabel(type)}</Button>)}</div>
       {!online && <p>Запуск і зміна частоти недоступні без актуального зв’язку. Зупинка може очікувати доставки на сервері до завершення TTL; фізична зупинка не гарантована.</p>}
       {online && blockedReason && <p role="status">{blockedReason} Команда зупинки залишається доступною.</p>}
     </>}
@@ -130,6 +156,7 @@ export function CommandControls({ context, overview, receivedAt, active, refresh
       <details><summary>Ідентифікатор запиту</summary><code>{uncertain.intent.input.request_id}</code></details>
     </section>}
     <ConfirmDialog open={!!dialog} title={dialog?.kind === "discard" ? "Завершити перевірку?" : "Підтвердити команду"} description={dialog?.kind === "discard" ? "Це не скасовує команду на сервері. Нова дія матиме інший ідентифікатор. Перед нею перевірте журнал і стан обладнання." : `${device.name} · ${device.uid}`} confirmLabel={dialog?.kind === "discard" ? "Перевірку завершено" : dialog?.kind === "retry" ? "Підтвердити повтор" : "Надіслати команду"} confirmVariant={selectedType === "vfd.stop" ? "danger" : "primary"} confirmDisabled={dialog?.kind === "new" ? !enabled(dialog.type) : dialog?.kind === "retry" ? !retryEnabled : busy} onConfirm={() => handleConfirm()} onClose={() => setDialog(null)}>
+      {selectedPlan && <ProgramPlanSummary plan={selectedPlan} />}
       {dialog?.kind !== "discard" && <><p><strong>{selectedType ? commandLabel(selectedType) : ""}</strong>{selectedType === "vfd.frequency.set" ? ` · ${selectedFrequency} Гц` : ""}</p><p>Час на прийняття команди: {dialog?.kind === "retry" ? uncertain?.intent.input.ttl_seconds : validTtl ? ttl : 30} с.</p><p>Відповідь сервера підтверджує реєстрацію запиту; виконання перевіряється окремо.</p>{selectedType === "vfd.stop" && !online && <p>Пристрій offline: команда чекатиме доставки до завершення TTL. Фізичну зупинку ще не підтверджено.</p>}{selectedType === "vfd.stop" && (busy || uncertain) && <p>Stop припинить доставку попереднього запиту. Уже розпочату дію потрібно перевірити за відповіддю контролера та телеметрією.</p>}</>}
     </ConfirmDialog>
   </Card>;

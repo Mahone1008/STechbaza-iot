@@ -11,7 +11,7 @@ from app.schemas.telemetry import TelemetryEnvelope
 
 def diagnostic_payload():
     return {
-        "version": 1, "firmware_version": "0.2.2", "uptime_ms": 2**32 + 9000,
+        "program": None, "version": 1, "firmware_version": "0.2.2", "uptime_ms": 2**32 + 9000,
         "reset_reason": "brownout", "connection": {"transport": "wifi", "signal": {"metric": "rssi", "dbm": -67}},
         "last_stop": {"reason": "network_lost", "uptime_ms": 2**32 + 3000,
                       "requested_at": None, "confirmed": False},
@@ -30,7 +30,7 @@ class ControllerDiagnosticsTests(unittest.TestCase):
         self.assertIsNone(payload.diagnostics)
 
     def test_preserves_unknown_time_false_and_64_bit_uptime(self):
-        expected = diagnostic_payload()
+        expected = {**diagnostic_payload(), "program": None}
         self.assertEqual(self.envelope(expected).diagnostics.model_dump(mode="json"), expected)
         with self.assertRaises(ValidationError):
             self.envelope(expected, session_id=None)

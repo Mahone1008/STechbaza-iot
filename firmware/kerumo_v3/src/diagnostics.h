@@ -17,6 +17,19 @@ inline void writeDiagnostics(JsonObject target, const Sample& sample,
   target["firmware_version"]=firmwareVersion;
   target["uptime_ms"]=sample.uptimeMs;
   target["reset_reason"]=resetReason;
+  const auto& progress=sample.program;
+  auto program=target["program"].to<JsonObject>();
+  program["version"]=1; program["ready"]=progress.ready;
+  if (progress.phase==ProgramPhase::Idle) program["command_id"]=nullptr;
+  else program["command_id"]=progress.commandId;
+  program["state"]=programPhaseCode(progress.phase);
+  program["step_index"]=progress.step; program["step_count"]=progress.count;
+  if (progress.phase==ProgramPhase::Idle) program["target_frequency_hz"]=nullptr;
+  else program["target_frequency_hz"]=progress.targetHz;
+  if (progress.phase==ProgramPhase::Holding) program["remaining_seconds"]=progress.remainingSeconds;
+  else program["remaining_seconds"]=nullptr;
+  if (sample.programReason==StopReason::None) program["reason"]=nullptr;
+  else program["reason"]=stopReasonCode(sample.programReason);
   auto link=target["connection"].to<JsonObject>();
   link["transport"]=connection.transport;
   if (connection.metric) {

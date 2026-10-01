@@ -1,4 +1,5 @@
 "use client";
+import { ProgramStatus } from "@/features/program-status";
 import { CommandControls } from "@/features/command-controls";
 import { ControllerDiagnostics } from "@/features/controller-diagnostics";
 import { alarmsHref } from "@/features/alarm-shared";
@@ -34,6 +35,7 @@ function OverviewContent({ overview, receivedAt, timezone }: { overview: Overvie
       <dl className="overview-details"><div><dt>UID</dt><dd>{overview.device.uid}</dd></div><div><dt>Життєвий цикл</dt><dd>{overview.device.lifecycle_status}</dd></div><div><dt>Останній зв’язок</dt><dd>{formatSeen(presence.last_seen_at, timezone)}</dd></div><div><dt>Телеметрію отримано</dt><dd>{overview.freshness.received_at ? formatSeen(overview.freshness.received_at, timezone) : "Немає даних"}</dd></div><div><dt>Панель перевірено</dt><dd>{formatSeen(overview.generatedAt, timezone)}</dd></div></dl>
       <p className="help-copy">Online означає наявність зв’язку. Стан обладнання визначається окремими показаннями. Частота автоматичного оновлення задається вище; доступна кнопка «Оновити панель».</p>
     </Card>
+    <ProgramStatus progress={overview.diagnostics?.program} fresh={quality === "fresh" && presence.online && !presenceExpired} />
     <ControllerDiagnostics data={overview.diagnostics} quality={quality} previousSession={overview.freshness.reason === "session_changed"} timezone={timezone} />
     <section aria-labelledby="modules-heading"><h2 id="modules-heading">Модулі та канали</h2><p className="help-copy">Показані лише увімкнені можливості цього пристрою. Призначення модуля не визначає кількість фізичних датчиків.</p>
       {overview.modules.length === 0 ? <Card><p>Для пристрою немає увімкнених модулів.</p></Card> : <div className="overview-modules">{overview.modules.map((module) => <Card key={module.assignmentId} title={module.name} description={module.code}>

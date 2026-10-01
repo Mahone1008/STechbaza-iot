@@ -18,7 +18,7 @@ from app.schemas.telemetry import DeviceStateRead
 from app.security.authorization import AccessControl
 from app.security.current_user import CurrentUserContext
 from app.security.roles import Permission, role_has_permission
-from app.services.command_policy import configured_limits
+from app.services.command_profile import configured_limits
 from app.services.device_presence import DevicePresenceService
 from app.services.telemetry_quality import freshness, readings, state_readings, json_safe
 

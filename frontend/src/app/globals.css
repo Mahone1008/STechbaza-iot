@@ -550,10 +550,10 @@ h1, h2, h3 { letter-spacing: -0.02em; }
 }
 /* Native select semantics and keyboard handling; older browsers keep their system picker. */
 @supports (appearance: base-select) {
-  .telemetry-history-controls select,
-  .telemetry-history-controls select::picker(select) { appearance: base-select; }
-  .telemetry-history-controls select { align-items: center; gap: .5rem; }
-  .telemetry-history-controls select::picker(select) {
+  :is(.telemetry-history-controls, .program-settings) select,
+  :is(.telemetry-history-controls, .program-settings) select::picker(select) { appearance: base-select; }
+  :is(.telemetry-history-controls, .program-settings) select { align-items: center; gap: .5rem; }
+  :is(.telemetry-history-controls, .program-settings) select::picker(select) {
     box-sizing: border-box;
     inline-size: anchor-size(self-inline);
     max-inline-size: calc(100vw - 2rem);
@@ -568,10 +568,10 @@ h1, h2, h3 { letter-spacing: -0.02em; }
     padding: .25rem;
     font: inherit;
   }
-  .telemetry-history-controls option { min-height: 44px; padding: .5rem .65rem; gap: .5rem; white-space: normal; overflow-wrap: anywhere; }
-  .telemetry-history-controls option:checked { background: var(--brand-soft); color: var(--brand); }
-  .telemetry-history-controls option:not(:disabled):is(:hover, :focus-visible) { background: var(--surface-muted); }
-  .telemetry-history-controls option:disabled { color: var(--text-soft); opacity: .55; }
+  :is(.telemetry-history-controls, .program-settings) option { min-height: 44px; padding: .5rem .65rem; gap: .5rem; white-space: normal; overflow-wrap: anywhere; }
+  :is(.telemetry-history-controls, .program-settings) option:checked { background: var(--brand-soft); color: var(--brand); }
+  :is(.telemetry-history-controls, .program-settings) option:not(:disabled):is(:hover, :focus-visible) { background: var(--surface-muted); }
+  :is(.telemetry-history-controls, .program-settings) option:disabled { color: var(--text-soft); opacity: .55; }
 }
 .telemetry-chart { display: block; width: 100%; height: auto; color: var(--brand); margin-top: 1rem; }
 .telemetry-chart text { fill: currentColor; font-size: 11px; }
@@ -585,3 +585,18 @@ h1, h2, h3 { letter-spacing: -0.02em; }
 .command-lifecycle { padding-left: 1.5rem; line-height: 1.8; }
 .command-json { white-space: pre-wrap; overflow-wrap: anywhere; }
 .alarm-title { overflow-wrap: anywhere; }
+
+.program-settings { max-width: 42rem; margin-block: 1rem; }
+.program-steps { display: grid; gap: 1rem; margin-block: 1rem; }
+.program-step { min-width: 0; margin: 0; border: 1px solid var(--border); border-radius: .75rem; padding: 1rem; display: grid; gap: .75rem; }
+.program-step legend { padding-inline: .4rem; font-weight: 600; }
+.program-duration { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .75rem; }
+.program-duration .field, .program-step .field { min-width: 0; }
+.program-duration input { min-width: 0; width: 100%; }
+.program-mode-notice { padding: .75rem; border-left: 3px solid var(--brand); background: var(--brand-soft); }
+.program-summary { padding-left: 1.5rem; line-height: 1.8; }
+@media (max-width: 520px) {
+  .program-step { padding: .75rem; }
+  .program-duration { gap: .4rem; }
+  .program-settings input, .program-settings select { font-size: 16px; }
+}

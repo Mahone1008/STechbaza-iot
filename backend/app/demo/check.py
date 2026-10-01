@@ -137,7 +137,7 @@ def run(quick=False):
             for key in ("pump", "pressure", "stale", "other"):
                 scenario(key, "normal")
         health = owner.call("GET", "/health")
-        ensure(health["version"] == "0.40.0" and health["status"] == "ok", "Expected demo backend 0.40.0")
+        ensure(health["version"] == "0.41.0" and health["status"] == "ok", "Expected demo backend 0.41.0")
         for key, client in clients.items():
             orgs = client.call("GET", "/api/v1/organizations")
             ensure([item["id"] for item in orgs] == [str(identity("org:" + ACCOUNTS[key][0]))], "Tenant list leak")
@@ -172,6 +172,25 @@ def run(quick=False):
         command(operator, "vfd.stop")
         wait_for("pump stopped", lambda: owner.overview("pump")["snapshot"]["state"].get("pump_running") is False)
         print("PASS: HTTP commands, MQTT ACK/Result, request_id deduplication, telemetry and actor audit", flush=True)
+
+        plan = {"version": 1, "steps": [{"frequency_hz": 30, "duration_seconds": 10}, {"frequency_hz": 40, "duration_seconds": 10}]}
+        wait_for("program support", lambda: (owner.overview("pump")["diagnostics"] or {}).get("program", {}).get("ready"))
+        result = command(operator, "vfd.program.start", plan)
+        ensure(result["result"].get("steps_completed") == 2 and result["result"].get("stop_confirmed") is True,
+               "Program did not complete all stages and confirm STOP")
+        wait_for("program stopped telemetry", lambda: owner.overview("pump")["snapshot"]["state"].get("pump_running") is False)
+        body = {"request_id": str(uuid.uuid4()), "command_type": "vfd.program.start", "ttl_seconds": 30,
+                "payload": {"version": 1, "steps": [{"frequency_hz": 30, "duration_seconds": 7200}]}}
+        path = f"/api/v1/devices/{identity('device:pump')}/commands"
+        started = operator.call("POST", path, body, expected=201)
+        wait_for("program holding", lambda: owner.overview("pump")["diagnostics"]["program"]["state"] == "holding")
+        operator.call("POST", path, {"request_id": str(uuid.uuid4()), "command_type": "vfd.frequency.set", "payload": {"frequency_hz": 35}}, expected=409)
+        command(operator, "vfd.stop")
+        stopped = wait_for("program cancelled result", lambda: (lambda record: record if record["status"] == "failed" else None)(operator.call("GET", "/api/v1/commands/" + started["id"])))
+        ensure(stopped["error_code"] == "program_cancelled" and stopped["result"]["stop_confirmed"], "STOP did not cancel the program")
+        ensure(operator.call("POST", path, body)["id"] == started["id"], "Cancelled program retry created another run")
+        wait_for("cancelled program telemetry", lambda: owner.overview("pump")["diagnostics"]["program"]["state"] == "interrupted")
+        print("PASS: program stages, independent TTL, final STOP, active setpoint lock and duplicate cancellation over HTTP/MQTT", flush=True)
 
         end = datetime.now(timezone.utc)
         query = urlencode({"metric": "pressure.bar", "start": (end - timedelta(minutes=5)).isoformat(),

@@ -1,12 +1,13 @@
 import { invalidResponse, isRecord, requiredDateTime, requiredString } from "./access";
 import type { components } from "./schema";
+import { parseProgramProgress } from "./programs";
 
 export type ControllerDiagnostics = components["schemas"]["ControllerDiagnostics"];
 type StopDiagnostics = components["schemas"]["StopDiagnostics"];
 const path = "/api/v1/devices/overview";
 
 export const stopReasonLabels: Record<StopDiagnostics["reason"], string> = {
-  command: "Команда STOP", local_disarm: "Локальний DISARM", bench_timer: "Завершився стендовий таймер",
+  program_completed: "Програма завершена", command: "Команда STOP", local_disarm: "Локальний DISARM", bench_timer: "Завершився стендовий таймер",
   network_lost: "Втрачено готовність мережевого каналу", vfd_link_lost: "Втрачено зв’язок із частотником",
   vfd_fault: "Помилка частотника", configuration_mismatch: "Налаштування не відповідають профілю",
   storage_failed: "Помилка збереження стану", physical_result_unconfirmed: "Результат керування не підтверджено",
@@ -63,7 +64,7 @@ export function parseDiagnostics(raw: unknown): ControllerDiagnostics | null {
       requested_at: stop.requested_at === null || stop.requested_at === undefined ? null : requiredDateTime(stop, "requested_at", path),
     };
   }
-  return { version: 1, firmware_version: firmware, uptime_ms: uptimeMs, reset_reason: knownKey(data.reset_reason, resetReasonLabels), connection: { transport, signal }, last_stop: lastStop };
+  return { version: 1, firmware_version: firmware, uptime_ms: uptimeMs, reset_reason: knownKey(data.reset_reason, resetReasonLabels), connection: { transport, signal }, last_stop: lastStop, program: parseProgramProgress(data.program) };
 }
 
 export function uptimeText(ms: number): string {

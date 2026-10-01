@@ -5,11 +5,13 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.numeric import finite_number
+from app.schemas.program import ProgramPlan
 
 CommandType = Literal[
     "vfd.start",
     "vfd.stop",
     "vfd.frequency.set",
+    "vfd.program.start",
 ]
 
 
@@ -31,6 +33,9 @@ class DeviceCommandCreate(BaseModel):
     def validate_payload(self) -> "DeviceCommandCreate":
         if self.supersedes_request_id is not None and (self.command_type != "vfd.stop" or self.supersedes_request_id == self.request_id):
             raise ValueError("Only Stop may supersede a different request")
+        if self.command_type == "vfd.program.start":
+            ProgramPlan.model_validate(self.payload)
+            return self
         if self.command_type in {"vfd.start", "vfd.stop"}:
             if self.payload:
                 raise ValueError(

@@ -34,14 +34,14 @@ test("API panel distinguishes success from a network failure inside an authorize
     await route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify({ status: "ok", service: "techbaza-backend", version: "0.40.0" }),
+      body: JSON.stringify({ status: "ok", service: "techbaza-backend", version: "0.41.0" }),
     });
   });
 
   await page.goto("/ui-kit");
   await page.getByRole("button", { name: "Перевірити API" }).click();
   await expect(page.getByText("API доступний")).toBeVisible();
-  await expect(page.getByText(/service techbaza-backend · version 0.40.0/)).toBeVisible();
+  await expect(page.getByText(/service techbaza-backend · version 0.41.0/)).toBeVisible();
 
   await page.getByRole("button", { name: "Очистити стан" }).click();
   await page.unroute("http://127.0.0.1:8001/health");

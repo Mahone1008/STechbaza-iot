@@ -12,6 +12,7 @@
 #include "src/core.h"
 #include "src/protocol.h"
 #include "src/diagnostics.h"
+#include "src/journal_upgrade.h"
 #if __has_include("config.local.h")
 #include "config.local.h"
 #else
@@ -23,7 +24,7 @@
 
 using namespace kerumo;
 namespace {
-constexpr char FirmwareVersion[]="0.2.2";
+constexpr char FirmwareVersion[]="0.3.0";
 std::atomic<int64_t> syncEpochMs{0}, syncMonoMs{0};
 std::atomic<bool> networkReady{false};
 std::atomic<uint32_t> networkCheckedMs{0};
@@ -81,6 +82,11 @@ class NvsStorage : public Storage {
     opened=prefs.begin("kerumo-v3",false);
     if (!opened) return -1;
     if (!prefs.isKey("journal")) return 0;
+    if (prefs.getBytesLength("journal")==sizeof(LegacyJournal)) {
+      LegacyJournal legacy{};
+      if (prefs.getBytes("journal",&legacy,sizeof(legacy))!=sizeof(legacy) || !upgradeJournal(legacy,value)) return -1;
+      return 1; // begin() перевіряє UID і атомарно зберігає новий blob до керування VFD.
+    }
     if (prefs.getBytesLength("journal")!=sizeof(value)) return -1;
     return prefs.getBytes("journal",&value,sizeof(value))==sizeof(value)?1:-1;
   }
@@ -206,6 +212,11 @@ bool sendRecord(const Record& r) {
   result["session_id"]=r.session; timestamp(result["sent_at"],r.completedMs);
   result["status"]=r.outcome==Outcome::Succeeded?"succeeded":"failed";
   auto data=result["result"].to<JsonObject>();
+  if (r.command.type==Type::Program) {
+    data["steps_completed"]=r.stepsCompleted;
+    data["step_count"]=r.command.program.count;
+    data["stop_confirmed"]=r.programStopConfirmed;
+  }
   if (r.outcome==Outcome::Succeeded) { data["frequency_hz"]=r.actualHz; result["error_code"]=nullptr; result["error_message"]=nullptr; }
   else { result["error_code"]=errorCode(r.error); result["error_message"]=errorCode(r.error); }
   return publish("/commands/result",result);

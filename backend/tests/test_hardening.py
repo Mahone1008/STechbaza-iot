@@ -143,7 +143,7 @@ class CommandTests(unittest.TestCase):
 
     def test_ack_sets_deadline_and_duplicate_does_not_extend_it(self):
         now = datetime.now(timezone.utc)
-        command = NS(status="published", acknowledged_at=None, publish_attempts=1, device_id=uuid.uuid4(), expires_at=now+timedelta(seconds=30))
+        command = NS(command_type="vfd.start", status="published", acknowledged_at=None, publish_attempts=1, device_id=uuid.uuid4(), expires_at=now+timedelta(seconds=30))
         service = CommandAckService(Mock())
         service._commands = Mock()
         service._devices = Mock()
@@ -239,4 +239,3 @@ class DiagnosticsTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

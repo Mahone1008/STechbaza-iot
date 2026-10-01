@@ -8,7 +8,7 @@ from app.repositories.commands import CommandRepository
 from app.repositories.devices import DeviceRepository
 from app.schemas.command_ack import CommandAckEnvelope
 from app.services.command_outcomes import stop_delivery
-from app.services.command_config import COMMAND_RESULT_TIMEOUT_SECONDS
+from app.services.command_config import result_timeout_seconds
 
 
 @dataclass(frozen=True)
@@ -84,7 +84,7 @@ class CommandAckService:
                     message="Прийом підтверджено із затримкою; результат потребує перевірки")
         else:
             command.status = "acknowledged"
-            command.result_deadline_at = current_time + timedelta(seconds=COMMAND_RESULT_TIMEOUT_SECONDS)
+            command.result_deadline_at = current_time + timedelta(seconds=result_timeout_seconds(command))
 
         self._session.commit()
         self._session.refresh(command)

@@ -7,13 +7,13 @@
 namespace kerumo {
 const char* stopReasonCode(StopReason reason) {
   static const char* codes[] = {"none", "command", "local_disarm", "bench_timer", "network_lost", "vfd_link_lost",
-    "vfd_fault", "configuration_mismatch", "storage_failed", "physical_result_unconfirmed", "restart_recovery"};
+    "vfd_fault", "configuration_mismatch", "storage_failed", "physical_result_unconfirmed", "restart_recovery", "program_completed"};
   return codes[static_cast<unsigned>(reason)];
 }
 const char* errorCode(Error error) {
   static const char* codes[] = {"none", "read_only", "not_armed", "clock_unsynchronized", "expired",
     "stale_sequence", "configuration_mismatch", "vfd_fault", "frequency_out_of_range", "busy",
-    "storage_failed", "physical_result_unconfirmed", "restart_during_execution"};
+    "storage_failed", "physical_result_unconfirmed", "restart_during_execution", "program_cancelled", "program_transition_timeout", "program_invalid"};
   return codes[static_cast<unsigned>(error)];
 }
 uint32_t checksum(const Journal& value) {
@@ -35,6 +35,9 @@ bool validUuid(const char* s) {
   return true;
 }
 bool sameCommand(const Command& a, const Command& b) {
+  if (a.program.count!=b.program.count) return false;
+  for (size_t i=0;i<a.program.count && i<MaxProgramSteps;++i)
+    if(a.program.steps[i].hz!=b.program.steps[i].hz || a.program.steps[i].seconds!=b.program.steps[i].seconds) return false;
   return std::strcmp(a.id, b.id) == 0 && std::strcmp(a.requestId, b.requestId) == 0 && a.sequence == b.sequence && a.issuedMs == b.issuedMs &&
     a.expiresMs == b.expiresMs && a.ttl == b.ttl && a.type == b.type && a.hz == b.hz;
 }
@@ -125,11 +128,19 @@ bool Controller::begin(const char* uid) {
   const int loaded=storage_.load(journal_);
   if (loaded<0) return false;
   if (loaded==0) { journal_=Journal{}; std::strncpy(journal_.uid,uid,96); if (!save()) return false; }
-  else if (journal_.magic!=0x4B563301 || journal_.checksum!=checksum(journal_) || journal_.next>=LedgerSize ||
+  else if (journal_.magic!=0x4B563302 || journal_.checksum!=checksum(journal_) || journal_.next>=LedgerSize ||
       std::strncmp(journal_.uid,uid,sizeof(journal_.uid))!=0 || journal_.highest>MaxSequence) return false;
   storageOk_=true;
   for (auto& record:journal_.records) if (record.outcome==Outcome::Pending) {
-    record.outcome=Outcome::Unknown; record.error=Error::Restarted;
+    if (record.command.type==Type::Program) {
+      if (programSlot_>=0 || !validProgram(record.command.program)) return false;
+      programSlot_=static_cast<int>(&record-journal_.records);
+      journal_.motionPossible=true; // Відновлення незавершеної програми вимагає підтвердження STOP.
+      std::strncpy(program_.commandId,record.command.id,36);
+      program_.phase=ProgramPhase::Stopping; program_.count=record.command.program.count;
+      program_.step=record.stepsCompleted; programReason_=StopReason::Restart; programError_=Error::Restarted;
+      programPhaseSince_=clock_.uptimeMs();
+    } else { record.outcome=Outcome::Unknown; record.error=Error::Restarted; }
   }
   if (!save()) return false;
   config_=readConfig(bus_); lastConfigRead_=clock_.monotonicMs();
@@ -143,7 +154,7 @@ bool Controller::sessionConfigOk() const {
 }
 bool Controller::arm(SessionMode mode) {
   // A repeated ARM during motion must not change the session or the timer.
-  if (journal_.motionPossible || pending_>=0 || stopping_) return false;
+  if (journal_.motionPossible || pending_>=0 || programSlot_>=0 || stopping_) return false;
   armed_=false;
   mode_=SessionMode::Bench;
   if (!controls_ || !storageOk_ || !clock_.utcMs()) return false;
@@ -160,8 +171,17 @@ void Controller::recordStop(StopReason reason) {
 void Controller::requestStop(StopReason reason) {
   // Повтори STOP і пізніші блокування не переписують початкову причину й час.
   if (!stopping_) recordStop(reason);
-  // Only a normal, verified STOP may retain the current extended session.
-  if (reason!=StopReason::Command || mode_!=SessionMode::ExtendedTest) {
+  if (programSlot_>=0) {
+    if (program_.phase!=ProgramPhase::Stopping) programPhaseSince_=clock_.uptimeMs();
+    program_.phase=ProgramPhase::Stopping; program_.remainingSeconds=0;
+    if (programReason_==StopReason::None || programReason_==StopReason::ProgramCompleted) programReason_=reason;
+    if (programError_==Error::None && reason!=StopReason::ProgramCompleted)
+      programError_=reason==StopReason::Command || reason==StopReason::LocalDisarm?Error::ProgramCancelled:
+        reason==StopReason::Fault?Error::Fault:reason==StopReason::Config?Error::Config:
+        reason==StopReason::Storage?Error::Storage:Error::Unconfirmed;
+  }
+  // Штатний STOP і завершення програми зберігають місцевий допуск extended.
+  if ((reason!=StopReason::Command && reason!=StopReason::ProgramCompleted) || mode_!=SessionMode::ExtendedTest) {
     armed_=false; mode_=SessionMode::Bench;
   }
   if (!stopping_ || reason==StopReason::LocalDisarm || (stopReason_==StopReason::Command && reason!=StopReason::Command)) stopReason_=reason;
@@ -175,7 +195,7 @@ void Controller::disarm(StopReason reason) {
 void Controller::finish(Record& record, Outcome outcome, Error error, double actual) {
   record.outcome=outcome; record.error=error; record.actualHz=actual; record.completedMs=clock_.utcMs();
   if (save()) events_.emit(record);
-  pending_=-1;
+  if (pending_>=0 && &record==&journal_.records[pending_]) pending_=-1;
 }
 void Controller::receive(const Command& c,const char* session,const char* ackId,const char* resultId) {
   if (!storageOk_) return;
@@ -199,7 +219,7 @@ void Controller::receive(const Command& c,const char* session,const char* ackId,
     finish(previous,Outcome::Unknown,Error::Unconfirmed);
     if (!storageOk_) return;
   }
-  if (pending_>=0) {
+  if (pending_>=0 || (programSlot_>=0 && c.type!=Type::Stop)) {
     incoming.outcome=Outcome::Failed; incoming.error=Error::Busy; incoming.completedMs=now;
   } else if (!controls_) {
     incoming.outcome=Outcome::Failed; incoming.error=Error::ReadOnly; incoming.completedMs=now;
@@ -208,7 +228,7 @@ void Controller::receive(const Command& c,const char* session,const char* ackId,
   } else incoming.outcome=Outcome::Pending;
   // Never overwrite the one active record if the bounded history wraps.
   size_t slot=journal_.next;
-  if (static_cast<int>(slot)==pending_) slot=(slot+1)%LedgerSize;
+  while (static_cast<int>(slot)==pending_ || static_cast<int>(slot)==programSlot_) slot=(slot+1)%LedgerSize;
   journal_.next=(slot+1)%LedgerSize; journal_.highest=c.sequence; journal_.records[slot]=incoming;
   if (!save()) return;
   auto& record=journal_.records[slot]; events_.emit(record);
@@ -220,6 +240,21 @@ void Controller::receive(const Command& c,const char* session,const char* ackId,
   uint16_t fault{},value{};
   if (c.type!=Type::Stop && (!bus_.read(0x2100,fault) || fault!=0)) { finish(record,Outcome::Failed,Error::Fault); disarm(StopReason::Fault); return; }
   if (c.type==Type::Frequency && !frequencyWord(c.hz,config_,value)) { finish(record,Outcome::Failed,Error::Frequency); return; }
+  if (c.type==Type::Program) {
+    if (mode_!=SessionMode::ExtendedTest || !validProgram(c.program)) { finish(record,Outcome::Failed,Error::ProgramInvalid); return; }
+    for (size_t i=0;i<c.program.count;++i) if (!frequencyWord(c.program.steps[i].hz,config_,value)) { finish(record,Outcome::Failed,Error::Frequency); return; }
+    uint16_t state{},output{};
+    if (journal_.motionPossible || stopping_ || !bus_.read(0x2101,state) || !bus_.read(0x2103,output) || !stopped(state,output)) {
+      finish(record,Outcome::Failed,Error::Busy); return;
+    }
+    if (!clock_.utcMs() || clock_.utcMs()>=c.expiresMs) { finish(record,Outcome::Failed,Error::Expired); return; }
+    programSlot_=static_cast<int>(slot); program_={}; program_.count=c.program.count;
+    std::strncpy(program_.commandId,c.id,36); programReason_=StopReason::None; programError_=Error::None;
+    journal_.motionPossible=true; stopReason_=StopReason::None;
+    if (!save()) return; // Зберігаємо до першого запису частоти у VFD.
+    beginProgramStep();
+    return;
+  }
   if (c.type==Type::Start) {
     uint16_t state{},setpoint{};
     if (journal_.motionPossible || !bus_.read(0x2101,state) || !bus_.read(0x2102,setpoint) || (state&3)!=2 || setpoint==0 || setpoint>5000) {
@@ -240,6 +275,76 @@ void Controller::receive(const Command& c,const char* session,const char* ackId,
   bus_.write(c.type==Type::Frequency?0x2001:0x2000,c.type==Type::Frequency?value:c.type==Type::Start?0x0012:0x0001);
   // FC06 echo is not a physical success. tick() verifies the actual register state.
 }
+void Controller::beginProgramStep() {
+  auto& record=journal_.records[programSlot_];
+  const auto& step=record.command.program.steps[record.stepsCompleted];
+  config_=readConfig(bus_); lastConfigRead_=clock_.monotonicMs();
+  if (!sessionConfigOk()) { requestStop(StopReason::Config); return; }
+  uint16_t value{};
+  if (!frequencyWord(step.hz,config_,value)) { requestStop(StopReason::Config); return; }
+  program_.step=record.stepsCompleted+1; program_.targetHz=step.hz;
+  program_.remainingSeconds=step.seconds; program_.phase=ProgramPhase::Setting;
+  programPhaseSince_=clock_.uptimeMs(); lastProgramPoll_=0;
+  bus_.write(0x2001,value);
+}
+void Controller::completeProgram(bool stopConfirmed) {
+  if (programSlot_<0) return;
+  auto& record=journal_.records[programSlot_];
+  const bool success=stopConfirmed && programReason_==StopReason::ProgramCompleted && programError_==Error::None;
+  program_.phase=success?ProgramPhase::Completed:
+    programError_==Error::ProgramCancelled || programError_==Error::Restarted?ProgramPhase::Interrupted:ProgramPhase::Failed;
+  program_.remainingSeconds=0;
+  if (!stopConfirmed) programError_=Error::Unconfirmed;
+  record.programStopConfirmed=stopConfirmed;
+  programSlot_=-1; // Збій збереження фіналу не повинен повторно скасувати цю програму.
+  finish(record,stopConfirmed?(success?Outcome::Succeeded:Outcome::Failed):Outcome::Unknown,programError_,0);
+}
+void Controller::tickProgram() {
+  if (programSlot_<0) return;
+  const uint64_t now=clock_.uptimeMs();
+  if (program_.phase==ProgramPhase::Stopping) {
+    if (now-programPhaseSince_>=ProgramTransitionMs) completeProgram(false);
+    return;
+  }
+  if (now-lastProgramPoll_<250) return;
+  lastProgramPoll_=now;
+  auto& record=journal_.records[programSlot_];
+  const auto& step=record.command.program.steps[record.stepsCompleted];
+  uint16_t state{},output{},setpoint{},fault{};
+  if (!bus_.read(0x2100,fault) || !bus_.read(0x2101,state) || !bus_.read(0x2102,setpoint) || !bus_.read(0x2103,output)) {
+    requestStop(StopReason::Link); return;
+  }
+  if (fault) { requestStop(StopReason::Fault); return; }
+  const bool target=std::fabs(output/100.0-step.hz)<=0.11;
+  if (program_.phase==ProgramPhase::Holding) {
+    if (!runningForward(state) || !target || std::fabs(setpoint/100.0-step.hz)>0.11) { requestStop(StopReason::Unconfirmed); return; }
+    const uint64_t elapsed=clock_.uptimeMs()-programHoldSince_;
+    program_.remainingSeconds=elapsed>=step.seconds*1000ULL?0:static_cast<uint32_t>((step.seconds*1000ULL-elapsed+999)/1000);
+    if (program_.remainingSeconds==0) {
+      ++record.stepsCompleted;
+      if (!save()) return; // Flash записується на межі етапів, а не щосекунди.
+      if (record.stepsCompleted==record.command.program.count) requestStop(StopReason::ProgramCompleted);
+      else beginProgramStep();
+    }
+    return;
+  }
+  if (clock_.uptimeMs()-programPhaseSince_>=ProgramTransitionMs) {
+    programError_=Error::ProgramTimeout; requestStop(StopReason::Unconfirmed); return;
+  }
+  if (std::fabs(setpoint/100.0-step.hz)>0.11) return;
+  if (program_.phase==ProgramPhase::Setting && record.stepsCompleted==0) {
+    if (!stopped(state,output)) { requestStop(StopReason::Unconfirmed); return; }
+    if (!clock_.utcMs() || clock_.utcMs()>=record.command.expiresMs) {
+      programError_=Error::Expired; requestStop(StopReason::Unconfirmed); return;
+    }
+    program_.phase=ProgramPhase::Starting;
+    bus_.write(0x2000,0x0012); // Один RUN; втрату echo перевіряємо читанням, без повторного запуску.
+    return;
+  }
+  if (runningForward(state) && target) {
+    program_.phase=ProgramPhase::Holding; programHoldSince_=clock_.uptimeMs();
+  }
+}
 void Controller::tick(bool networkConnected) {
   const uint32_t now=clock_.monotonicMs();
   if (!networkConnected && (armed_ || journal_.motionPossible)) disarm(StopReason::Network);
@@ -255,6 +360,7 @@ void Controller::tick(bool networkConnected) {
       uint16_t state{},output{};
       if (bus_.read(0x2101,state) && bus_.read(0x2103,output) && stopped(state,output)) {
         journal_.motionPossible=false; stopping_=false; lastStop_.confirmed=true; save();
+        if (programSlot_>=0) completeProgram(true);
       }
     }
   }
@@ -269,10 +375,12 @@ void Controller::tick(bool networkConnected) {
     if (verified) {
       if (type==Type::Stop) { journal_.motionPossible=false; stopping_=false; lastStop_.confirmed=true; }
       finish(record,Outcome::Succeeded,Error::None,actual);
+      if (type==Type::Stop && programSlot_>=0) completeProgram(true);
     } else if (static_cast<uint32_t>(now-pendingSince_)>=10000) {
       finish(record,Outcome::Unknown,Error::Unconfirmed); requestStop(StopReason::Unconfirmed);
     }
   }
+  tickProgram();
   if ((!journal_.motionPossible || mode_==SessionMode::ExtendedTest) && pending_<0 && static_cast<uint32_t>(now-lastConfigRead_)>=10000) {
     config_=readConfig(bus_); lastConfigRead_=clock_.monotonicMs();
     if (!sessionConfigOk()) disarm(StopReason::Config);
@@ -288,6 +396,8 @@ Sample Controller::sample() {
   sample.sampledMs=clock_.monotonicMs(); sample.sampledUtcMs=clock_.utcMs();
   sample.configOk=sessionConfigOk(); sample.armed=armed_; sample.storageOk=storageOk_;
   sample.uptimeMs=clock_.uptimeMs(); sample.lastStop=lastStop_;
+  sample.program=program_; sample.program.ready=controls_ && storageOk_ && armed_ && mode_==SessionMode::ExtendedTest;
+  sample.programReason=programReason_;
   return sample;
 }
 void Controller::replay() const {

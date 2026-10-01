@@ -1,6 +1,8 @@
 #include "../kerumo_v3/src/core.h"
 #include "../kerumo_v3/src/protocol.h"
 #include "../kerumo_v3/src/diagnostics.h"
+#include "../kerumo_v3/src/journal_upgrade.h"
+#include "legacy_journal_fixture.h"
 #include <cassert>
 #include <cstring>
 #include <cstdio>
@@ -15,7 +17,7 @@ struct TestClock : Clock {
   int64_t utcMs() const override { return valid?epoch+ms:0; }
 };
 struct TestBus : Bus {
-  TestClock& clock; unsigned readDelay=0; bool readable=true,apply=true,echo=true,stopWorks=true;
+  TestClock& clock; unsigned readDelay=0; bool readable=true,apply=true,echo=true,stopWorks=true,followTarget=true;
   std::map<uint16_t,uint16_t> registers{{2,2},{3,6},{4,500},{5,500},{6,0},{0x600,1},{0x601,0},
     {0x602,0},{0x603,5},{0x604,100},{0x605,0},{0x2100,0},{0x2101,2},{0x2102,1000},{0x2103,0},{0x2104,0},{0x2106,0}};
   std::vector<std::pair<uint16_t,uint16_t>> writes;
@@ -30,7 +32,7 @@ struct TestBus : Bus {
     if (apply) {
       if (address==0x2000 && value==0x12) { registers[0x2101]=9; registers[0x2103]=registers[0x2102]; }
       if (address==0x2000 && value==1 && stopWorks) { registers[0x2101]=2; registers[0x2103]=0; }
-      if (address==0x2001) registers[0x2102]=value/2;
+      if (address==0x2001) { registers[0x2102]=value/2; if(followTarget && runningForward(registers[0x2101])) registers[0x2103]=value/2; }
     }
     return echo;
   }
@@ -266,10 +268,125 @@ void diagnosticStopLifecycle() {
   doc.clear(); writeDiagnostics(doc.to<JsonObject>(),cleanBoot.sample(),"0.2.2","power_on",{"ethernet",nullptr,0});
   assert(doc["last_stop"].isNull() && doc["connection"]["signal"].isNull());
 }
+
+Command programCommand(Fixture& f,uint64_t sequence=1) {
+  auto c=f.command(sequence,Type::Program);
+  c.program.count=2; c.program.steps[0]={20,10}; c.program.steps[1]={30,20}; return c;
+}
+void reachHold(Fixture& f) {
+  f.clock.ms+=300; f.controller.tick(true); // Підтвердження частоти перед єдиним RUN.
+  f.clock.ms+=300; f.controller.tick(true); // Досягнута вихідна частота починає витримку.
+  assert(f.controller.sample().program.phase==ProgramPhase::Holding);
+}
+void programExecution() {
+  Fixture f; assert(f.armExtended()); auto c=programCommand(f); f.receive(c); reachHold(f);
+  const auto writes=f.bus.writes.size(); f.receive(c); assert(f.bus.writes.size()==writes);
+  f.clock.epoch-=7200000; // Корекція UTC не прискорює монотонний відлік.
+  f.clock.ms+=9999; f.controller.tick(true); assert(f.controller.sample().program.step==1);
+  f.clock.ms+=300; f.controller.tick(true); assert(f.controller.sample().program.phase==ProgramPhase::Setting);
+  f.clock.ms+=300; f.controller.tick(true); assert(f.controller.sample().program.step==2);
+  assert(f.controller.sample().program.phase==ProgramPhase::Holding);
+  f.clock.ms+=20000; f.controller.tick(true); assert(f.controller.sample().program.phase==ProgramPhase::Stopping);
+  f.clock.ms+=1000; f.controller.tick(true);
+  assert(!f.controller.journal().motionPossible && f.controller.isArmed());
+  const auto& record=f.controller.journal().records[0];
+  assert(record.outcome==Outcome::Succeeded && record.stepsCompleted==2 && record.programStopConfirmed);
+  assert(f.controller.sample().program.phase==ProgramPhase::Completed);
+  assert(f.controller.sample().lastStop.reason==StopReason::ProgramCompleted);
+  size_t starts=0; for (auto write:f.bus.writes) if(write.first==0x2000 && write.second==0x12) ++starts;
+  assert(starts==1);
+}
+void programCancellationAndRecovery() {
+  Fixture immediate; immediate.clock.ms=0; assert(immediate.armExtended());
+  immediate.receive(programCommand(immediate)); reachHold(immediate);
+  immediate.receive(immediate.command(2,Type::Stop)); immediate.controller.tick(true);
+  assert(immediate.clock.ms<1000); // Прямий readback випереджає періодичний повтор STOP.
+  assert(immediate.controller.journal().records[0].outcome==Outcome::Failed);
+  assert(immediate.controller.journal().records[0].programStopConfirmed);
+  assert(immediate.controller.sample().program.phase==ProgramPhase::Interrupted);
+  const auto immediateWrites=immediate.bus.writes.size();
+  immediate.clock.ms+=120000; immediate.controller.tick(true);
+  assert(immediate.bus.writes.size()==immediateWrites);
+  for(unsigned failure=0;failure<6;++failure) {
+    Fixture f; assert(f.armExtended()); auto c=programCommand(f); f.receive(c); reachHold(f);
+    if(failure==0) f.receive(f.command(2,Type::Stop));
+    if(failure==1) f.controller.tick(false);
+    if(failure==2) f.controller.disarm();
+    if(failure==3) { f.bus.readable=false; f.clock.ms+=300; f.controller.tick(true); f.bus.readable=true; }
+    if(failure==4) { f.bus.registers[0x2100]=16; f.clock.ms+=300; f.controller.tick(true); }
+    if(failure==5) { f.bus.registers[0x602]=0; f.clock.ms+=10001; f.controller.tick(true); }
+    f.clock.ms+=1000; f.controller.tick(true);
+    assert(!f.controller.journal().motionPossible);
+    assert(f.controller.journal().records[0].outcome==Outcome::Failed);
+    const auto writes=f.bus.writes.size(); f.clock.ms+=120000; f.receive(c); f.controller.tick(true);
+    assert(f.bus.writes.size()==writes); // Жодний наступний етап чи повтор не відновлює RUN.
+  }
+  Fixture restart; assert(restart.armExtended()); restart.receive(programCommand(restart)); reachHold(restart);
+  Controller reboot(restart.bus,restart.storage,restart.clock,restart.events,true);
+  assert(reboot.begin("test-device")); reboot.tick(true);
+  assert(!reboot.isArmed() && !reboot.journal().motionPossible);
+  assert(reboot.journal().records[0].error==Error::Restarted && reboot.journal().records[0].outcome==Outcome::Failed);
+  assert(reboot.sample().program.phase==ProgramPhase::Interrupted);
+}
+void programBoundaries() {
+  Fixture bench; assert(bench.controller.arm()); bench.receive(programCommand(bench)); assert(bench.bus.writes.empty());
+  Fixture f; assert(f.armExtended()); f.receive(programCommand(f)); reachHold(f);
+  f.receive(f.command(2,Type::Frequency,40)); assert(f.events.records.back().error==Error::Busy);
+  f.receive(programCommand(f,3)); assert(f.events.records.back().error==Error::Busy);
+  f.bus.stopWorks=false; f.receive(f.command(4,Type::Stop));
+  f.clock.ms+=60001; f.controller.tick(true);
+  assert(f.controller.journal().motionPossible && f.controller.journal().records[0].outcome==Outcome::Unknown);
+  f.bus.stopWorks=true; f.clock.ms+=1000; f.controller.tick(true); assert(!f.controller.journal().motionPossible);
+  Fixture target; assert(target.armExtended()); auto c=programCommand(target); target.receive(c);
+  target.clock.ms+=300; target.controller.tick(true); target.bus.registers[0x2103]=500;
+  target.clock.ms+=300; target.controller.tick(true);
+  assert(target.controller.sample().program.phase==ProgramPhase::Starting);
+  target.clock.ms+=60001; target.controller.tick(true); target.clock.ms+=1000; target.controller.tick(true);
+  assert(target.controller.journal().records[0].error==Error::ProgramTimeout);
+  Fixture storage; assert(storage.armExtended()); storage.storage.fail=true; storage.receive(programCommand(storage)); assert(storage.bus.writes.empty());
+  Fixture rollover; rollover.clock.ms=(1ULL<<32)-1000; assert(rollover.armExtended()); auto longRun=programCommand(rollover);
+  longRun.program.count=1; longRun.program.steps[0].seconds=86400; rollover.receive(longRun); reachHold(rollover);
+  rollover.clock.ms+=86400000; rollover.controller.tick(true); rollover.clock.ms+=1000; rollover.controller.tick(true);
+  assert(rollover.controller.journal().records[0].outcome==Outcome::Succeeded);
+}
+void programParsingAndMigration() {
+  const char* input=R"({"schema_version":2,"control_sequence":42,"command_id":"00000000-0000-4000-8000-000000000042","request_id":"00000000-0000-4000-8000-000000000001","issued_at":"2026-09-29T13:00:00Z","expires_at":"2026-09-29T13:00:30Z","ttl_seconds":30,"command_type":"vfd.program.start","payload":{"version":1,"steps":[{"frequency_hz":40,"duration_seconds":7200},{"frequency_hz":50,"duration_seconds":3600}]}})";
+  Command c; assert(parseCommand(input,strlen(input),c)); assert(c.program.count==2 && c.program.steps[1].seconds==3600);
+  for(unsigned n=0;n<8;++n) {
+    JsonDocument doc; deserializeJson(doc,input);
+    if(n==0) doc["payload"]["version"]=true;
+    if(n==1) doc["payload"]["steps"][0]["duration_seconds"]=true;
+    if(n==2) doc["payload"]["steps"][0]["frequency_hz"]=0;
+    if(n==3) doc["payload"]["steps"][0]["frequency_hz"]=20.001;
+    if(n==4) doc["payload"]["steps"][0]["duration_seconds"]=86400;
+    if(n==5) doc["payload"]["steps"][0]["extra"]=1;
+    if(n==6) doc["payload"]["steps"].clear();
+    if(n==7) doc["payload"]["steps"][0]["duration_seconds"]="10";
+    std::string json;serializeJson(doc,json);assert(!parseCommand(json.c_str(),json.size(),c));
+  }
+  auto bytes=legacyFixtureBytes();
+  static_assert(sizeof(LegacyJournal)==sizeof(bytes), "Legacy NVS ABI changed");
+  LegacyJournal actualOld{}; std::memcpy(&actualOld,bytes.data(),bytes.size());
+  Journal migrated{}; assert(upgradeJournal(actualOld,migrated));
+  assert(migrated.highest==42 && migrated.motionPossible && migrated.next==1);
+  assert(std::strcmp(migrated.records[0].command.id,"00000000-0000-4000-8000-000000000042")==0);
+  assert(migrated.records[0].command.sequence==42 && migrated.records[0].outcome==Outcome::Pending);
+  LegacyJournal old{}; strcpy(old.uid,"test-device"); old.highest=42; old.motionPossible=true;
+  old.records[0].command.sequence=42; old.records[0].command.type=Type::Start;
+  old.records[0].outcome=Outcome::Pending; old.next=1; old.checksum=legacyChecksum(old);
+  Journal next{}; assert(upgradeJournal(old,next)); assert(next.highest==42 && next.motionPossible);
+  assert(next.records[0].command.sequence==42 && next.records[0].outcome==Outcome::Pending);
+  TestClock clock; TestBus bus(clock); TestStorage storage; TestEvents events;
+  storage.exists=true; storage.saved=next; Controller controller(bus,storage,clock,events,true);
+  assert(controller.begin("test-device")); controller.tick(true); assert(!controller.journal().motionPossible && controller.journal().highest==42);
+  old.highest++; assert(!upgradeJournal(old,next));
+}
+
 int main() {
+  programExecution(); programCancellationAndRecovery(); programBoundaries(); programParsingAndMigration();
   readOnlyAndConfiguration(); timingAndOrdering(); echoIsNotPhysicalResult(); duplicateAndRestart();
   crashWindowAndStopRetry(); storageAndBoundedHistory(); profilesAndFrames(); protocol();
   protectionRegisterEncoding(); extendedTestSession(); extendedGuardsAndRecovery();
   diagnosticStopLifecycle();
-  puts("PASS: read-only, profile/scaling, TTL, sequence, duplicate/reboot, crash window, stop retry, network loss, storage, CRC, strict v2 parsing, all 65536 F5.00 words, extended session and loss-of-permission recovery");
+  puts("PASS: programs (hold timing, STOP, reboot, errors, strict plans, NVS upgrade), read-only, profile/scaling, TTL, sequence, duplicate/reboot, crash window, stop retry, network loss, storage, CRC, strict v2 parsing, all 65536 F5.00 words, extended session and loss-of-permission recovery");
 }

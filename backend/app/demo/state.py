@@ -4,12 +4,14 @@ import hashlib
 import json
 import math
 import sqlite3
+import time
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
 from app.demo.catalog import LIVE_DEVICES
 from app.schemas.command import CommandEnvelope, DeviceCommandCreate
+from app.schemas.program import PROGRAM_ACTIVE_STATES, ProgramPlan
 
 MODES = {
     "pump": ("normal", "fault", "offline"),
@@ -20,7 +22,9 @@ MODES = {
 
 
 class DemoState:
-    def __init__(self, path):
+    def __init__(self, path, *, monotonic=time.monotonic):
+        self._monotonic = monotonic
+        self._boot_time = monotonic()
         Path(path).parent.mkdir(parents=True, exist_ok=True)
         self.db = sqlite3.connect(path, timeout=10)
         self.db.row_factory = sqlite3.Row
@@ -30,6 +34,11 @@ class DemoState:
                 key TEXT PRIMARY KEY, session TEXT NOT NULL, sequence INTEGER NOT NULL DEFAULT 0,
                 running INTEGER NOT NULL DEFAULT 0, frequency REAL NOT NULL DEFAULT 40,
                 mode TEXT NOT NULL DEFAULT 'normal', executions INTEGER NOT NULL DEFAULT 0
+            );
+            CREATE TABLE IF NOT EXISTS programs (
+                device TEXT PRIMARY KEY, command_id TEXT NOT NULL, plan TEXT NOT NULL,
+                state TEXT NOT NULL, step INTEGER NOT NULL, remaining INTEGER NOT NULL,
+                hold_started REAL NOT NULL, reason TEXT
             );
             CREATE TABLE IF NOT EXISTS commands (
                 id TEXT PRIMARY KEY, device TEXT NOT NULL, fingerprint TEXT NOT NULL,
@@ -46,6 +55,8 @@ class DemoState:
         self.db.close()
 
     def boot(self):
+        self.interrupt_program("restart_recovery")
+        self._boot_time = self._monotonic()
         with self.db:
             for key in LIVE_DEVICES:
                 self.db.execute("UPDATE devices SET session=?, sequence=0 WHERE key=?", (str(uuid.uuid4()), key))
@@ -59,6 +70,8 @@ class DemoState:
     def mode(self, key, mode):
         if mode not in MODES.get(key, ()):
             raise ValueError("Непідтримуваний demo scenario")
+        if key == "pump" and mode in {"fault", "offline"}:
+            self.interrupt_program("vfd_fault" if mode == "fault" else "network_lost")
         with self.db:
             self.db.execute("UPDATE devices SET mode=?, running=CASE WHEN ?='fault' THEN 0 ELSE running END WHERE key=?",
                             (mode, mode, key))
@@ -86,6 +99,13 @@ class DemoState:
                      "local_mode": False, "emergency_stop": False}
         elif item["mode"] != "gap":
             values = {"pressure.bar": 0.4 if item["mode"] == "alarm" else round(2.5 + wave, 3)}
+        if key == "pump":
+            packet["diagnostics"] = {
+                "version": 1, "firmware_version": "simulator-0.3.0",
+                "uptime_ms": max(0, int((self._monotonic() - self._boot_time) * 1000)),
+                "reset_reason": "software", "connection": {"transport": "unknown", "signal": None},
+                "last_stop": None, "program": self.program_progress(),
+            }
         return {**packet, "values": values, "state": state}
 
     def command(self, key, raw, *, now=None):
@@ -131,14 +151,28 @@ class DemoState:
                     error_code, error_message = "demo_vfd_fault", "Demo VFD fault scenario"
                 if envelope.command_type == "vfd.frequency.set" and not 0 <= float(envelope.payload["frequency_hz"]) <= 50:
                     error_code, error_message = "frequency_out_of_range", "Діапазон demo VFD: 0–50 Гц"
+            progress = self.program_progress()
+            if not error_code and progress["state"] in PROGRAM_ACTIVE_STATES and envelope.command_type != "vfd.stop":
+                error_code, error_message = "busy", "Програма вже виконується"
+            if not error_code and envelope.command_type == "vfd.program.start":
+                plan = ProgramPlan.model_validate(envelope.payload)
+                if item["running"] or any(step.frequency_hz > 50 for step in plan.steps):
+                    error_code, error_message = "program_invalid", "Потрібна зупинка та частоти в межах demo-профілю"
             failed = error_code is not None
             result = {}
             if not failed:
-                if envelope.command_type == "vfd.frequency.set":
+                if envelope.command_type == "vfd.program.start":
+                    first = plan.steps[0]
+                    self.db.execute("INSERT OR REPLACE INTO programs VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                        (key, command_id, json.dumps(envelope.payload), "holding", 0, first.duration_seconds, self._monotonic(), None))
+                    self.db.execute("UPDATE devices SET running=1, frequency=? WHERE key=?", (first.frequency_hz, key))
+                elif envelope.command_type == "vfd.frequency.set":
                     value = float(envelope.payload["frequency_hz"])
                     self.db.execute("UPDATE devices SET frequency=? WHERE key=?", (value, key))
                     result = {"frequency_hz": value}
                 else:
+                    if envelope.command_type == "vfd.stop":
+                        self._finish_program("command")
                     running = envelope.command_type == "vfd.start"
                     self.db.execute("UPDATE devices SET running=? WHERE key=?", (int(running), key))
                     result = {"pump_running": running}
@@ -149,6 +183,8 @@ class DemoState:
             terminal = {**common, "message_id": str(uuid.uuid4()), "status": "failed" if failed else "succeeded",
                         "result": result, "error_code": error_code,
                         "error_message": error_message}
+            if not failed and envelope.command_type == "vfd.program.start":
+                terminal = None  # ACK одразу, фінальний Result лише після завершення програми/STOP.
             self.db.execute("INSERT INTO commands (id, device, fingerprint, ack, result) VALUES (?, ?, ?, ?, ?)",
                             (command_id, key, fingerprint, json.dumps(ack), json.dumps(terminal)))
             # Стан віртуального пристрою і відповіді фіксуються до першого publish.
@@ -157,6 +193,59 @@ class DemoState:
         except Exception:
             self.db.rollback()
             raise
+
+    def program_progress(self):
+        row = self.db.execute("SELECT * FROM programs WHERE device='pump'").fetchone()
+        ready = self.device("pump")["mode"] == "normal"
+        if row is None:
+            return {"version": 1, "ready": ready, "command_id": None, "state": "idle", "step_index": 0,
+                    "step_count": 0, "target_frequency_hz": None, "remaining_seconds": None, "reason": None}
+        steps = json.loads(row["plan"])["steps"]
+        return {"version": 1, "ready": ready, "command_id": row["command_id"], "state": row["state"],
+                "step_index": row["step"] + 1, "step_count": len(steps),
+                "target_frequency_hz": steps[row["step"]]["frequency_hz"],
+                "remaining_seconds": row["remaining"] if row["state"] == "holding" else None, "reason": row["reason"]}
+
+    def _finish_program(self, reason):
+        row = self.db.execute("SELECT * FROM programs WHERE device='pump'").fetchone()
+        if row is None or row["state"] not in PROGRAM_ACTIVE_STATES:
+            return
+        completed = reason == "program_completed"
+        cancelled = reason in {"command", "local_disarm"}
+        state = "completed" if completed else "interrupted" if cancelled or reason == "restart_recovery" else "failed"
+        error = None if completed else "program_cancelled" if cancelled else "restart_during_execution" if reason == "restart_recovery" else reason
+        stored = self.db.execute("SELECT ack FROM commands WHERE id=?", (row["command_id"],)).fetchone()
+        ack = json.loads(stored["ack"])
+        count = len(json.loads(row["plan"])["steps"])
+        result = {**ack, "message_id": str(uuid.uuid4()), "sent_at": datetime.now(timezone.utc).isoformat(),
+                  "status": "succeeded" if completed else "failed", "error_code": error, "error_message": error,
+                  "result": {"steps_completed": count if completed else row["step"], "step_count": count,
+                             "stop_confirmed": True, "frequency_hz": 0}}
+        self.db.execute("UPDATE programs SET state=?, remaining=0, reason=? WHERE device='pump'", (state, reason))
+        self.db.execute("UPDATE devices SET running=0 WHERE key='pump'")
+        self.db.execute("UPDATE commands SET result=?, pending=1 WHERE id=?", (json.dumps(result), row["command_id"]))
+
+    def interrupt_program(self, reason):
+        with self.db:
+            self._finish_program(reason)
+
+    def tick_program(self):
+        with self.db:
+            row = self.db.execute("SELECT * FROM programs WHERE device='pump'").fetchone()
+            if row is None or row["state"] != "holding":
+                return
+            steps = json.loads(row["plan"])["steps"]
+            remaining = max(0, math.ceil(steps[row["step"]]["duration_seconds"] - (self._monotonic() - row["hold_started"])))
+            if remaining:
+                if remaining != row["remaining"]:
+                    self.db.execute("UPDATE programs SET remaining=? WHERE device='pump'", (remaining,))
+            elif row["step"] + 1 == len(steps):
+                self._finish_program("program_completed")
+            else:
+                step = row["step"] + 1
+                self.db.execute("UPDATE programs SET step=?, remaining=?, hold_started=? WHERE device='pump'",
+                                (step, steps[step]["duration_seconds"], self._monotonic()))
+                self.db.execute("UPDATE devices SET frequency=? WHERE key='pump'", (steps[step]["frequency_hz"],))
 
     def pending(self):
         return [dict(row) for row in self.db.execute("SELECT * FROM commands WHERE pending=1 ORDER BY rowid LIMIT 100")]

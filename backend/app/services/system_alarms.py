@@ -289,6 +289,8 @@ class SystemAlarmService:
     ) -> bool:
         """Помилка відкриває Alarm для типу команди, пізніший успіх її закриває."""
 
+        if command.command_type == "vfd.program.start" and command.error_code == "program_cancelled":
+            return False  # Свідомий STOP оператора залишається у журналі команд.
         if command.status not in {"failed", "expired", "succeeded"}:
             return False
         device = self._alarms.lock_device(command.device_id)

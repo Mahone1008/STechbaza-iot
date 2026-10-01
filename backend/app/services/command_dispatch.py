@@ -11,7 +11,7 @@ from app.repositories.commands import CommandRepository
 from app.repositories.devices import DeviceRepository
 from app.schemas.command import CommandEnvelope
 from app.services.device_presence import DevicePresenceService
-from app.services.command_config import COMMAND_RESULT_TIMEOUT_SECONDS, COMMAND_RETRY_INTERVAL_SECONDS
+from app.services.command_config import result_timeout_seconds, COMMAND_RETRY_INTERVAL_SECONDS
 from app.services.command_policy import dispatch_rejection
 from app.services.command_outcomes import stop_delivery
 
@@ -53,7 +53,7 @@ class CommandDispatchService:
 
         if command.status == "acknowledged":
             if command.result_deadline_at is None:
-                command.result_deadline_at = (command.acknowledged_at or command.published_at or command.created_at) + timedelta(seconds=COMMAND_RESULT_TIMEOUT_SECONDS)
+                command.result_deadline_at = (command.acknowledged_at or command.published_at or command.created_at) + timedelta(seconds=result_timeout_seconds(command))
             if command.result_deadline_at <= current_time:
                 stop_delivery(self._session, command, current_time, code="command_result_timeout",
                     message="Результат не надійшов; фактичний стан потребує перевірки")

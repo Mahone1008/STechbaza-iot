@@ -64,6 +64,13 @@ def seed():
             assignment = session.get(DeviceCapability, identity("assignment:pump:vfd.control"))
             if assignment is not None and "frequency_limits" not in assignment.config:
                 assignment.config = {**assignment.config, **FREQUENCY_CONFIG}
+            program_cap = session.get(Capability, identity("cap:vfd.program"))
+            if program_cap is None:
+                session.add(Capability(id=identity("cap:vfd.program"), code="vfd.program", name="Програми роботи"))
+                session.flush()
+            if session.get(DeviceCapability, identity("assignment:pump:vfd.program")) is None:
+                session.add(DeviceCapability(id=identity("assignment:pump:vfd.program"), device_id=identity("device:pump"),
+                    capability_id=identity("cap:vfd.program"), is_enabled=True, config={}))
             return False
         for model in (Organization, Site, Device, User, Capability):
             if session.scalar(select(func.count()).select_from(model)):

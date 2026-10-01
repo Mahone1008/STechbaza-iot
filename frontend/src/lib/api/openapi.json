@@ -460,6 +460,16 @@
               }
             ]
           },
+          "program": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProgramProgress"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "reset_reason": {
             "enum": [
               "unknown",
@@ -913,7 +923,8 @@
             "enum": [
               "vfd.start",
               "vfd.stop",
-              "vfd.frequency.set"
+              "vfd.frequency.set",
+              "vfd.program.start"
             ],
             "title": "Command Type",
             "type": "string"
@@ -2150,6 +2161,109 @@
         "title": "PlatformRole",
         "type": "string"
       },
+      "ProgramProgress": {
+        "additionalProperties": false,
+        "properties": {
+          "command_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Command Id"
+          },
+          "ready": {
+            "title": "Ready",
+            "type": "boolean"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "maxLength": 96,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "remaining_seconds": {
+            "anyOf": [
+              {
+                "maximum": 86400.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remaining Seconds"
+          },
+          "state": {
+            "enum": [
+              "idle",
+              "setting",
+              "starting",
+              "holding",
+              "stopping",
+              "completed",
+              "interrupted",
+              "failed"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "step_count": {
+            "maximum": 8.0,
+            "minimum": 0.0,
+            "title": "Step Count",
+            "type": "integer"
+          },
+          "step_index": {
+            "maximum": 8.0,
+            "minimum": 0.0,
+            "title": "Step Index",
+            "type": "integer"
+          },
+          "target_frequency_hz": {
+            "anyOf": [
+              {
+                "maximum": 100.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Frequency Hz"
+          },
+          "version": {
+            "const": 1,
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version",
+          "ready",
+          "command_id",
+          "state",
+          "step_index",
+          "step_count",
+          "target_frequency_hz",
+          "remaining_seconds",
+          "reason"
+        ],
+        "title": "ProgramProgress",
+        "type": "object"
+      },
       "RefreshTokenRequest": {
         "description": "Opaque refresh token для ротації access token.",
         "properties": {
@@ -2329,7 +2443,8 @@
               "configuration_mismatch",
               "storage_failed",
               "physical_result_unconfirmed",
-              "restart_recovery"
+              "restart_recovery",
+              "program_completed"
             ],
             "title": "Reason",
             "type": "string"
@@ -2820,7 +2935,7 @@
   "info": {
     "description": "Backend API платформи TechBaza IoT Pump Control",
     "title": "TechBaza Backend",
-    "version": "0.40.0"
+    "version": "0.41.0"
   },
   "openapi": "3.1.0",
   "paths": {

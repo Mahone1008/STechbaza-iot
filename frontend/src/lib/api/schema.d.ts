@@ -1031,6 +1031,7 @@ export interface components {
             /** Firmware Version */
             firmware_version: string;
             last_stop?: components["schemas"]["StopDiagnostics"] | null;
+            program?: components["schemas"]["ProgramProgress"] | null;
             /**
              * Reset Reason
              * @enum {string}
@@ -1252,7 +1253,7 @@ export interface components {
              * Command Type
              * @enum {string}
              */
-            command_type: "vfd.start" | "vfd.stop" | "vfd.frequency.set";
+            command_type: "vfd.start" | "vfd.stop" | "vfd.frequency.set" | "vfd.program.start";
             /** Payload */
             payload?: {
                 [key: string]: unknown;
@@ -1779,6 +1780,33 @@ export interface components {
          * @enum {string}
          */
         PlatformRole: "user" | "service_admin" | "superadmin";
+        /** ProgramProgress */
+        ProgramProgress: {
+            /** Command Id */
+            command_id: string | null;
+            /** Ready */
+            ready: boolean;
+            /** Reason */
+            reason: string | null;
+            /** Remaining Seconds */
+            remaining_seconds: number | null;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "idle" | "setting" | "starting" | "holding" | "stopping" | "completed" | "interrupted" | "failed";
+            /** Step Count */
+            step_count: number;
+            /** Step Index */
+            step_index: number;
+            /** Target Frequency Hz */
+            target_frequency_hz: number | null;
+            /**
+             * Version
+             * @constant
+             */
+            version: 1;
+        };
         /**
          * RefreshTokenRequest
          * @description Opaque refresh token для ротації access token.
@@ -1870,7 +1898,7 @@ export interface components {
              * Reason
              * @enum {string}
              */
-            reason: "command" | "local_disarm" | "bench_timer" | "network_lost" | "vfd_link_lost" | "vfd_fault" | "configuration_mismatch" | "storage_failed" | "physical_result_unconfirmed" | "restart_recovery";
+            reason: "command" | "local_disarm" | "bench_timer" | "network_lost" | "vfd_link_lost" | "vfd_fault" | "configuration_mismatch" | "storage_failed" | "physical_result_unconfirmed" | "restart_recovery" | "program_completed";
             /** Requested At */
             requested_at?: string | null;
             /** Uptime Ms */

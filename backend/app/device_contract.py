@@ -42,6 +42,7 @@ COMMAND_REQUIRED_CAPABILITY: dict[str, str] = {
     "vfd.start": "vfd.control",
     "vfd.stop": "vfd.control",
     "vfd.frequency.set": "vfd.control",
+    "vfd.program.start": "vfd.program",
 }
 
 # Сумісні проєкції одного registry для ingestion, overview та series.
