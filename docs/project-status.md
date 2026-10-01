@@ -15,7 +15,7 @@ firmware 0.4.0, міграція 0020) та назву режиму «За ет�
 |---|---|---|
 | Backend | Real auth/RBAC, tenant isolation, telemetry/history, commands, alarms, notifications; integration/restore CI | Локальний single-process runtime, не production scale |
 | Команди | Outbound v2, monotonic sequence, Stop ordering, HTTP idempotency, TTL, late replies, перевірка прав і frequency profile при dispatch | ACK/Result — повідомлення edge; не незалежний фізичний вимір |
-| Таймер / програми | До 8 етапів/24 год; локальний відлік, прогрес і Result; стендові таймер, 5 етапів, F5 під RUN та STOP; повний план після F5 відновлюється із серверної команди | Потрібні capability і firmware 0.3.0; повтор UI після виправлення та переривання активної програми залишаються у PROGRAM-01 |
+| Таймер / етапи | До 8 етапів/24 год; локальний відлік, прогрес і Result; стендові таймер, 5 етапів, F5 під RUN та STOP; повний план після F5 відновлюється із серверної команди | Потрібні capability і firmware від 0.3.0; повтор UI після виправлення та переривання активної програми залишаються у PROGRAM-01 |
 | Календар | Разово/дні/інтервали/місяці/роки, сезонні місяці, винятки, часові зміни частоти, revision/audit і журнал запусків | Сервер потрібен для старту; наявний V3 зупиняється при втраті мережі; SCHEDULE-01 ще відкрите |
 | Frontend | Етапи 9–14 реалізовано; реальні API, polling, command journal | Повністю прийнято 10/24 операцій; залишок manual acceptance у roadmap |
 | V3 читання | ESP32-S3 N16R8 → SU600 → Wi-Fi/TLS → API/UI підтверджено | Це конкретний SU600 profile, не всі SUSWE/RS485 моделі |

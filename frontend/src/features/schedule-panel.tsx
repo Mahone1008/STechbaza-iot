@@ -3,10 +3,9 @@ import { useEffect, useRef, useState } from "react";
 import { Button, Card, StatusBadge } from "@/components/ui";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { apiErrorDisplayMessage, apiQueryKeys, isApiError } from "@/lib/api";
-import { formatSeen } from "@/lib/api/inventory";
 import { statusLabels } from "@/lib/api/commands";
 import { ScheduleRunSummary } from "./schedule-summary";
-import { calendarDate, newScheduleSpec, parseSchedule, parseScheduleHistory, parseSchedulePreview, parseSchedules, parseScheduleSpec, repeatLabels, type Schedule, type SchedulePreview, type ScheduleSpec, type ScheduleWrite } from "@/lib/api/schedules";
+import { calendarDate, formatScheduleTime, newScheduleSpec, parseSchedule, parseScheduleHistory, parseSchedulePreview, parseSchedules, parseScheduleSpec, repeatLabels, type Schedule, type SchedulePreview, type ScheduleSpec, type ScheduleWrite } from "@/lib/api/schedules";
 import type { ReadyAccessSnapshot } from "./access-context";
 import { useAuthSession } from "./auth-session";
 import { usePanelQuery } from "./use-panel-query";
@@ -29,7 +28,7 @@ function ScheduleHistory({ context, item, onCommand }: { context: ReadyAccessSna
     queryFn: async (signal) => parseScheduleHistory(await authorizedRequest<unknown>({ path: `/api/v1/devices/${item.device_id}/schedules/${item.id}/runs`, signal }), item.id) });
   return <section aria-label={`Запуски ${item.spec.name}`}><h3>Останні запуски: {item.spec.name}</h3>
     {query.isError ? <p role="alert">{errorText(query.error)}</p> : !query.data ? <p role="status">Завантажуємо історію…</p> : query.data.length === 0 ? <p>Запусків ще не було.</p> : <ul className="schedule-history">{query.data.map((run) => <li key={run.id}>
-      <strong>{formatSeen(run.starts_at, item.spec.timezone)}</strong><p>{run.status === "skipped" ? "Пропущено" : statusLabels[run.status] ?? "Потрібна перевірка"}{run.reason ? ` · ${reasonLabels[run.reason] ?? "Перевірте результат команди"}` : ""}</p>
+      <strong>{formatScheduleTime(run.starts_at, item.spec.timezone)}</strong><p>{run.status === "skipped" ? "Пропущено" : statusLabels[run.status] ?? "Потрібна перевірка"}{run.reason ? ` · ${reasonLabels[run.reason] ?? "Перевірте результат команди"}` : ""}</p>
       {run.command_id && <Button variant="ghost" onClick={() => onCommand(run.command_id!)}>Переглянути команду</Button>}
     </li>)}</ul>}
   </section>;
@@ -84,13 +83,13 @@ export function SchedulePanel({ context, limits, supported, onCommand }: { conte
     {query.isError ? <p role="alert">{errorText(query.error)}</p> : canRead && !query.data ? <p role="status">Завантажуємо розклади…</p> : query.data?.length === 0 ? <p>Розкладів ще немає.</p> : <ul className="schedule-list">{query.data?.map((item) => <li key={item.id}>
       <div className="ui-row"><strong>{item.spec.name}</strong><StatusBadge tone={item.enabled && item.next_start_at ? "info" : "neutral"}>{!item.enabled ? "Призупинено" : item.next_start_at ? "Увімкнено" : "Період завершено"}</StatusBadge></div>
       <p>{repeatLabels[item.spec.repeat ?? "once"]} · {item.spec.start_time.slice(0, 5)} → {item.spec.stop_time.slice(0, 5)}{item.spec.stop_day_offset ? " наступного дня" : ""} · {item.spec.frequency_hz} Гц{item.spec.changes?.length ? ` · змін частоти: ${item.spec.changes.length}` : ""}</p>
-      {item.next_start_at && <p>Найближчий запуск: <strong>{formatSeen(item.next_start_at, item.spec.timezone)}</strong></p>}
+      {item.next_start_at && <p>Найближчий запуск: <strong>{formatScheduleTime(item.next_start_at, item.spec.timezone)}</strong></p>}
       <div className="ui-row">{canWrite && <><Button disabled={busy} onClick={() => edit(item)}>Змінити</Button><Button disabled={busy} onClick={() => setConfirmation({ id: item.id, expected_revision: item.revision, spec: item.spec, enabled: !item.enabled })}>{item.enabled ? "Призупинити" : "Увімкнути"}</Button></>}<Button onClick={() => setHistory(item)}>Історія запусків</Button></div>
     </li>)}</ul>}
     {draft && <section className="schedule-editor" aria-label="Редактор розкладу"><ScheduleForm value={draft.spec as ScheduleSpec} onChange={change} disabled={busy} limits={limits} />
       <div className="ui-row"><Button disabled={busy || !query.active} onClick={() => void action("preview", draft)}>Перевірити найближчі запуски</Button><Button disabled={busy} variant="ghost" onClick={() => { setDraft(null); setPreview(null); }}>Закрити редактор</Button></div>
       {preview && <section className="schedule-preview" aria-label="Попередній перегляд розкладу"><h3>Найближчі запуски</h3>
-        {preview.runs.length === 0 ? <p>У цьому періоді немає майбутніх коректних запусків.</p> : <ol>{preview.runs.map((run) => <li key={run.starts_at}>{formatSeen(run.starts_at, draft.spec.timezone)} → {formatSeen(run.stops_at, draft.spec.timezone)}</li>)}</ol>}
+        {preview.runs.length === 0 ? <p>У цьому періоді немає майбутніх коректних запусків.</p> : <ol>{preview.runs.map((run) => <li key={run.starts_at}>{formatScheduleTime(run.starts_at, draft.spec.timezone)} → {formatScheduleTime(run.stops_at, draft.spec.timezone)}</li>)}</ol>}
         {preview.runs[0] && <details><summary>Частоти першого запуску</summary><ScheduleRunSummary run={preview.runs[0]} timezone={draft.spec.timezone} /></details>}
         {preview.conflicts.length > 0 && <p role="alert">Є перетин з іншим увімкненим розкладом. Змініть час або призупиніть інший розклад.</p>}
         <p className="help-copy">Пропущена година не запускається; повторна — лише один раз. Перетини перевірено на 366 днів. Прострочені запуски не наздоганяються.</p>

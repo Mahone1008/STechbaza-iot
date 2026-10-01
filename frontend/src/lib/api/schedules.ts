@@ -10,9 +10,27 @@ export type ScheduleRun = components["schemas"]["ScheduleRun"];
 export type ScheduleOccurrence = components["schemas"]["ScheduleOccurrenceRead"];
 const path = "/api/v1/devices/schedules";
 export const repeatLabels = { once: "Один раз", daily: "Щодня", weekly: "За днями тижня", interval: "Кожні N днів", monthly: "Щомісяця", yearly: "Щороку" } as const;
-const isoDay = (value: unknown): value is string => typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(value));
+const isoDay = (value: unknown): value is string => typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value;
 const localTime = (value: unknown): value is string => typeof value === "string" && /^(?:[01]\d|2[0-3]):[0-5]\d(?::00)?$/.test(value);
+const zonedSecond = /^\d{4}-\d{2}-\d{2}T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.0+)?(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/;
 const hz = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value) && value > 0 && value <= 100;
+const scheduleFormatters = new Map<string, Intl.DateTimeFormat>();
+
+export function formatScheduleTime(value: string, timezone: string): string {
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return "Некоректна дата";
+  try {
+    let formatter = scheduleFormatters.get(timezone);
+    if (!formatter) {
+      formatter = new Intl.DateTimeFormat("uk-UA", { timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+      if (scheduleFormatters.size >= 8) scheduleFormatters.delete(scheduleFormatters.keys().next().value!);
+      scheduleFormatters.set(timezone, formatter);
+    }
+    return formatter.format(date);
+  } catch {
+    return `${date.toISOString()} (UTC)`;
+  }
+}
 
 export function calendarDate(date: Date, timezone: string) {
   const parts = new Intl.DateTimeFormat("en-CA", { timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(date);
@@ -54,6 +72,8 @@ export function parseSchedules(raw: unknown, deviceId: string, organizationId: s
 }
 export function parseScheduleRun(raw: unknown): ScheduleRun | null {
   if (!isRecord(raw) || Object.keys(raw).length !== 4 || typeof raw.starts_at !== "string" || typeof raw.stops_at !== "string") return null;
+  if (![raw.starts_at, raw.stops_at].every((value) => zonedSecond.test(value) && isoDay(value.slice(0, 10)))) return null;
+  try { requiredDateTime(raw, "starts_at", path); requiredDateTime(raw, "stops_at", path); } catch { return null; }
   const plan = parseProgramPlan({ version: raw.version, steps: raw.steps });
   if (!plan || !Number.isFinite(Date.parse(raw.starts_at)) || !Number.isFinite(Date.parse(raw.stops_at)) || Date.parse(raw.stops_at) - Date.parse(raw.starts_at) !== plan.steps.reduce((sum, step) => sum + step.duration_seconds, 0) * 1000) return null;
   return { ...plan, starts_at: raw.starts_at, stops_at: raw.stops_at };

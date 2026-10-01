@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calendarDate, newScheduleSpec, parseScheduleRun, parseSchedules, parseScheduleSpec } from "./schedules";
+import { calendarDate, formatScheduleTime, newScheduleSpec, parseScheduleRun, parseSchedules, parseScheduleSpec } from "./schedules";
 
 const rule = { ...newScheduleSpec("Europe/Kyiv", "2076-02-29"), name: "Полив", frequency_hz: 40 };
 const id = "f7d6f82e-ea2f-4b91-8ee9-003b19c183d2";
@@ -14,12 +14,14 @@ describe("calendar API boundaries", () => {
   it("accepts future calendar rules without 32-bit timestamps", () => {
     expect(parseScheduleSpec(rule)).toEqual(rule);
     expect(parseSchedules([row], device, org)).toEqual([row]);
+    expect(formatScheduleTime(row.next_start_at, "Europe/Kyiv")).toContain("29.02.2076");
   });
   it("rejects cross-tenant, duplicate and malformed records", () => {
     expect(() => parseSchedules([row], device, device)).toThrow();
     expect(() => parseSchedules([row, row], device, org)).toThrow();
     expect(() => parseSchedules([{ ...row, revision: 1.5 }], device, org)).toThrow();
     expect(() => parseScheduleSpec({ ...rule, timezone: "Moon/Base" })).toThrow();
+    expect(() => parseScheduleSpec({ ...rule, start_date: "2077-02-29" })).toThrow();
     expect(() => parseScheduleSpec({ ...rule, changes: [{ at: "28:00", day_offset: 0, frequency_hz: 40 }] })).toThrow();
   });
   it("accepts only steps that exactly cover the fixed calendar window", () => {
@@ -27,5 +29,6 @@ describe("calendar API boundaries", () => {
     expect(parseScheduleRun(run)).toEqual(run);
     expect(parseScheduleRun({ ...run, stops_at: "2076-02-29T17:03:00Z" })).toBeNull();
     expect(parseScheduleRun({ ...run, injected: true })).toBeNull();
+    expect(parseScheduleRun({ ...run, starts_at: "2076-02-29T17:00:00", stops_at: "2076-02-29T17:02:00" })).toBeNull();
   });
 });
