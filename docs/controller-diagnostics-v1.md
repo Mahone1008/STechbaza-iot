@@ -126,6 +126,18 @@ ARM після перезапуску не відновлюється автом
 
 ## Перевірка
 
+На runtime commit `ad5702c41327e0e63844a1d594d1247fe8c19c26` усі чотири CI workflow завершилися успішно:
+
+| Перевірка | Результат і доказ |
+|---|---|
+| Backend | [184 тести без пропусків, auth browser, demo/reconnect/restore](https://github.com/Mahone1008/STechbaza-iot/actions/runs/36823834101) |
+| Frontend | [97 unit, 162 browser, 44 повторні регресії, live backend/MQTT](https://github.com/Mahone1008/STechbaza-iot/actions/runs/36823834096) |
+| V3 | [Native ASan/UBSan, 4 Arduino збірки, симульований edge через реальний MQTT/TLS gateway](https://github.com/Mahone1008/STechbaza-iot/actions/runs/36823834108) |
+| Документація | [Довідник із коду та локальні посилання](https://github.com/Mahone1008/STechbaza-iot/actions/runs/36823834097) |
+
+CI не підключається до фізичного двигуна користувача. Наступне ручне приймання
+0.2.2 лишається відкритим до перевірки на V3.
+
 Автотести охоплюють типи, старі пакети, MQTT/TLS → PostgreSQL → overview,
 tenant isolation, sequence/session, nullable дані, STOP retry/confirmation,
 новий RUN, reboot, відсутній UTC, 64-бітний uptime і різні транспорти у UI.
