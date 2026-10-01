@@ -20,11 +20,13 @@ import {
   draftPlan,
   emptyProgramStep,
   workModeLabels,
+  workModeDescriptions,
   type WorkMode,
   type ProgramDraft,
 } from "./program-settings";
 import { durationText, parseProgramPlan, programActive, programWithinLimits } from "@/lib/api/programs";
 import { controlBlockReason, effectiveQuality, parseOverview, type Overview } from "@/lib/api/overview";
+import type { PollSeconds } from "@/lib/api/polling-policy";
 
 const SchedulePanel = dynamic(() => import("./schedule-panel").then((module) => module.SchedulePanel), {
   loading: () => <p role="status">Завантажуємо розклади…</p>,
@@ -47,6 +49,7 @@ export function CommandControls({
   receivedAt,
   active,
   refreshing,
+  poll,
   onCreated,
 }: {
   context: ReadyAccessSnapshot;
@@ -54,6 +57,7 @@ export function CommandControls({
   receivedAt: number;
   active: boolean;
   refreshing: boolean;
+  poll: PollSeconds;
   onCreated: (id: string) => void;
 }) {
   const { authorizedRequest } = useAuthSession();
@@ -305,13 +309,36 @@ export function CommandControls({
               <span>Додаткові налаштування команди</span>
               {mode !== "manual" && <span className="work-mode-label"> · {workModeLabels[mode]}</span>}
             </summary>
+            {canExecute && (
+              <div className="command-delivery-settings">
+                <TextField
+                  label="Час на прийняття команди, с"
+                  type="number"
+                  min={5}
+                  max={300}
+                  step={1}
+                  value={ttl}
+                  disabled={busy || !!uncertain}
+                  onChange={(event) => setTtl(event.target.value)}
+                  hint={
+                    mode === "schedule"
+                      ? "Для команд, надісланих кнопками, зокрема STOP: 5–300 с. Запуск за розкладом має окреме вікно прийняття — 30 с від запланованого часу."
+                      : "Типово 30 с, дозволено 5–300 с. Після цього контролер не починає нове виконання. Це не тривалість роботи насоса."
+                  }
+                />
+              </div>
+            )}
             {(!programRunning || canReadSchedules) && (
               <div className="work-mode-settings">
                 <SelectField
                   label="Режим роботи"
                   value={mode}
+                  hint={workModeDescriptions[mode]}
                   disabled={busy || !!uncertain}
-                  onChange={(event) => setMode(event.target.value as WorkMode)}
+                  onChange={(event) => {
+                    setMode(event.target.value as WorkMode);
+                    setNotice(null);
+                  }}
                 >
                   <option value="manual" disabled={!canExecute}>
                     {workModeLabels.manual}
@@ -331,21 +358,6 @@ export function CommandControls({
                     Таймер і етапи потребують увімкненої можливості програм та сумісної прошивки контролера.
                   </p>
                 )}
-              </div>
-            )}
-            {canExecute && mode !== "schedule" && (
-              <div className="history-controls">
-                <TextField
-                  label="Час на прийняття команди, с"
-                  type="number"
-                  min={5}
-                  max={300}
-                  step={1}
-                  value={ttl}
-                  disabled={busy || !!uncertain}
-                  onChange={(event) => setTtl(event.target.value)}
-                  hint="Типово 30 с, дозволено 5–300 с. Після цього контролер не починає нове виконання. Це не тривалість роботи насоса."
-                />
               </div>
             )}
             {canExecute && !programRunning && (mode === "timer" || mode === "program") && (
@@ -371,6 +383,7 @@ export function CommandControls({
               <SchedulePanel
                 context={context}
                 visible={settingsOpen}
+                poll={poll}
                 limits={limits ?? null}
                 supported={overview.diagnostics?.program?.supports_schedule === true}
                 maxScheduleSeconds={overview.diagnostics?.program?.max_schedule_seconds}

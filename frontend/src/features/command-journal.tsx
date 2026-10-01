@@ -4,6 +4,7 @@ import { parseScheduleRun } from "@/lib/api/schedules";
 import { ScheduleRunSummary } from "./schedule-summary";
 import { parseProgramPlan } from "@/lib/api/programs";
 import { useState } from "react";
+import type { PollSeconds } from "@/lib/api/polling-policy";
 import { Button, Card, DataTable, StatusBadge } from "@/components/ui";
 import { StableRegion } from "@/components/stable-region";
 import { useAuthSession } from "./auth-session";
@@ -16,12 +17,12 @@ import { commandCursor, commandLabel, commandPending, parseCommand, parseCommand
 export function CommandStatus({ command }: { command: Command }) {
   return <StatusBadge tone={command.status === "succeeded" ? "success" : command.status === "failed" ? "danger" : commandPending(command) ? "info" : "warning"}>{command.error_code === "program_cancelled" ? "Програму скасовано оператором" : command.command_type === "vfd.program.start" && command.status === "succeeded" ? "Програму завершено, STOP підтверджено" : statusLabels[command.status]}</StatusBadge>;
 }
-export function CommandDetail({ context, id, auto }: { context: ReadyAccessSnapshot; id: string; auto: boolean }) {
+export function CommandDetail({ context, id, poll }: { context: ReadyAccessSnapshot; id: string; poll: PollSeconds }) {
   const { authorizedRequest } = useAuthSession();
   const [openedAt] = useState(() => performance.now());
   const device = context.activeDevice!;
   const query = usePanelQuery({
-    queryKey: [...apiQueryKeys.command(context.scope, id), context.activeOrganization.id, device.id], intervalMs: auto ? 5000 : 0,
+    queryKey: [...apiQueryKeys.command(context.scope, id), context.activeOrganization.id, device.id], intervalMs: poll * 1000,
     pollWhile: (data: Command) => commandPending(data) && performance.now() - openedAt < 600_000,
     queryFn: async (signal) => parseCommand(await authorizedRequest({ path: `/api/v1/commands/${id}`, signal, timeoutMs: 10_000 }), device.id, context.activeOrganization.id, id),
   });
@@ -29,7 +30,7 @@ export function CommandDetail({ context, id, auto }: { context: ReadyAccessSnaps
   const scheduled = command?.command_type === "vfd.schedule.start" ? parseScheduleRun(command.payload) : null;
   const program = scheduled ?? (command?.command_type === "vfd.program.start" ? parseProgramPlan(command.payload) : null);
   const time = (value: string | null) => value ? formatSeen(value, context.activeSite?.timezone ?? "UTC") : "Ще немає";
-  return <Card title="Стан вибраної команди" actions={<Button disabled={!query.active || query.isFetching} onClick={query.refresh}>Оновити стан команди</Button>}>
+  return <Card title="Стан вибраної команди" description="Це окрема команда з журналу. Перемикання режиму вище не змінює її стан." actions={<Button disabled={!query.active || query.isFetching} onClick={query.refresh}>Оновити стан команди</Button>}>
     <StableRegion>
       {query.isError ? <p role="alert">{apiErrorDisplayMessage(query.error)}</p> : !command ? <p role="status">Завантажуємо команду…</p> : <>
         <p><strong>{commandLabel(command.command_type)}</strong>{typeof command.payload.frequency_hz === "number" ? ` · ${command.payload.frequency_hz} Гц` : ""}</p>
@@ -56,12 +57,12 @@ export function CommandDetail({ context, id, auto }: { context: ReadyAccessSnaps
           <div><dt>Помилка публікації</dt><dd>{command.last_publish_error ?? "Немає"}</dd></div><div><dt>Код помилки</dt><dd>{command.error_code ?? "Немає"}</dd></div>
           <div><dt>Оновлено сервером</dt><dd>{time(command.updated_at)}</dd></div>
         </dl><pre className="command-json">{JSON.stringify({ payload: command.payload, result: command.result }, null, 2)}</pre></details>
-        <p className="help-copy">{auto && commandPending(command) ? "Один вибраний запис перевіряється кожні 5 с, до 10 хвилин; після помилок інтервал збільшується." : "Стан можна перевірити вручну."}</p>
+        <p className="help-copy">{poll > 0 && commandPending(command) ? `Один вибраний запис перевіряється кожні ${poll} с, до 10 хвилин; після помилок інтервал збільшується.` : "Стан можна перевірити вручну."}</p>
       </>}
     </StableRegion>
   </Card>;
 }
-export function CommandJournal({ context, onSelect, auto = false }: { context: ReadyAccessSnapshot; onSelect: (id: string) => void; auto?: boolean }) {
+export function CommandJournal({ context, onSelect, poll }: { context: ReadyAccessSnapshot; onSelect: (id: string) => void; poll: PollSeconds }) {
   const { authorizedRequest } = useAuthSession();
   const [pages, setPages] = useState<(CommandCursor | null)[]>([null]);
   const [revision, setRevision] = useState(0);
@@ -69,11 +70,11 @@ export function CommandJournal({ context, onSelect, auto = false }: { context: R
   const device = context.activeDevice!;
   const query = usePanelQuery({
     queryKey: [...apiQueryKeys.deviceCommands(context.scope, device.id, pages.length), context.activeOrganization.id, cursor, revision],
-    intervalMs: auto && pages.length === 1 ? 5000 : 0,
+    intervalMs: pages.length === 1 ? poll * 1000 : 0,
     queryFn: async (signal) => parseCommandPage(await authorizedRequest({ path: `/api/v1/devices/${device.id}/commands`, query: { limit: 21, ...(cursor ?? {}) }, signal, timeoutMs: 10_000 }), device.id, context.activeOrganization.id, cursor),
   });
   const rows = query.isError ? [] : query.data?.slice(0, 20) ?? [];
-  return <Card title="Журнал команд" description={auto ? "Перша сторінка оновлюється кожні 5 с. Старі сторінки залишаються на місці; кнопка оновлення повертає до нових команд." : "Ручне оновлення відкриває першу сторінку."} actions={<Button disabled={!query.active || query.isFetching} onClick={() => { if (pages.length === 1) query.refresh(); else { setPages([null]); setRevision((value) => value + 1); } }}>Оновити журнал</Button>}>
+  return <Card title="Журнал команд" description={poll > 0 ? `Перша сторінка оновлюється кожні ${poll} с. Старі сторінки залишаються на місці; кнопка оновлення повертає до нових команд.` : "Ручне оновлення відкриває першу сторінку."} actions={<Button disabled={!query.active || query.isFetching} onClick={() => { if (pages.length === 1) query.refresh(); else { setPages([null]); setRevision((value) => value + 1); } }}>Оновити журнал</Button>}>
     <StableRegion>
       {query.isFetching && !query.data ? <p role="status">Завантажуємо журнал…</p> : query.isError ? <p role="alert">{apiErrorDisplayMessage(query.error)}</p> : rows.length === 0 ? <p>Команд ще немає.</p> : <DataTable caption="Журнал команд пристрою" rows={rows} columns={[
         { key: "created", header: "Створено", render: (row) => formatSeen(row.created_at, context.activeSite?.timezone ?? "UTC") },

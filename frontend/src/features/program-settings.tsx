@@ -9,6 +9,15 @@ export const workModeLabels: Record<WorkMode, string> = {
   program: "За етапами",
   schedule: "За розкладом",
 };
+export const workModeDescriptions: Record<WorkMode, string> = {
+  manual: "Ви самі запускаєте й зупиняєте насос та змінюєте частоту кнопками нижче.",
+  timer:
+    "Робота на одній частоті від 10 с до 24 год, потім автоматична зупинка. Відлік починається після досягнення частоти.",
+  program:
+    "До 8 послідовних етапів, від 10 с кожен, до 24 год сумарно. Відлік кожного етапу починається після досягнення його частоти.",
+  schedule:
+    "Автоматичний запуск і зупинка у вибраний час, до 7 діб роботи. Створіть розклад, перевірте найближчі запуски та збережіть його.",
+};
 export type ProgramDraft = { id: number; frequency: string; hours: string; minutes: string; seconds: string };
 export function emptyProgramStep(id: number): ProgramDraft {
   return { id, frequency: "", hours: "0", minutes: "1", seconds: "0" };
@@ -70,11 +79,6 @@ export function ProgramSettings({
     onRows(rows.map((row) => (row.id === id ? { ...row, [field]: value } : row)));
   return (
     <div className="program-settings">
-      <p className="help-copy">
-        {mode === "timer"
-          ? "Робота на одній частоті від 10 с до 24 год, потім автоматична зупинка. Відлік починається після досягнення частоти."
-          : "До 8 послідовних етапів, від 10 с кожен, до 24 год сумарно. Відлік кожного етапу починається після досягнення його частоти."}
-      </p>
       <div className="program-steps">
         {selected.map((row, index) => (
           <fieldset className="program-step" key={row.id} disabled={disabled}>

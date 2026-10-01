@@ -26,6 +26,7 @@ import type { ReadyAccessSnapshot } from "./access-context";
 import { useAuthSession } from "./auth-session";
 import { usePanelQuery } from "./use-panel-query";
 import { ScheduleForm } from "./schedule-form";
+import type { PollSeconds } from "@/lib/api/polling-policy";
 
 const errorText = (error: unknown) =>
   isApiError(error)
@@ -53,16 +54,18 @@ const reasonLabels: Record<string, string> = {
 function ScheduleHistory({
   context,
   item,
+  poll,
   onCommand,
 }: {
   context: ReadyAccessSnapshot;
   item: Schedule;
+  poll: PollSeconds;
   onCommand: (id: string) => void;
 }) {
   const { authorizedRequest } = useAuthSession();
   const query = usePanelQuery({
     queryKey: [...apiQueryKeys.sessionRoot(context.scope), "schedule-runs", item.device_id, item.id],
-    intervalMs: 15000,
+    intervalMs: poll ? Math.max(15, poll) * 1000 : 0,
     queryFn: async (signal) =>
       parseScheduleHistory(
         await authorizedRequest<unknown>({
@@ -75,6 +78,9 @@ function ScheduleHistory({
   return (
     <section aria-label={`Запуски ${item.spec.name}`}>
       <h3>Останні запуски: {item.spec.name}</h3>
+      <Button disabled={query.isFetching || !query.active} onClick={query.refresh}>
+        Оновити історію запусків
+      </Button>
       {query.isError ? (
         <p role="alert">{errorText(query.error)}</p>
       ) : !query.data ? (
@@ -106,6 +112,7 @@ function ScheduleHistory({
 export function SchedulePanel({
   context,
   visible,
+  poll,
   limits,
   supported,
   maxScheduleSeconds = MAX_PROGRAM_SECONDS,
@@ -113,6 +120,7 @@ export function SchedulePanel({
 }: {
   context: ReadyAccessSnapshot;
   visible: boolean;
+  poll: PollSeconds;
   limits: { min_hz: number; max_hz: number } | null;
   supported: boolean;
   maxScheduleSeconds?: number | undefined;
@@ -129,7 +137,7 @@ export function SchedulePanel({
   const query = usePanelQuery({
     queryKey: [...apiQueryKeys.sessionRoot(context.scope), "schedules", device.id, context.activeOrganization.id],
     enabled: canRead && visible,
-    intervalMs: 30000,
+    intervalMs: poll ? Math.max(30, poll) * 1000 : 0,
     queryFn: async (signal) =>
       parseSchedules(
         await authorizedRequest<unknown>({ path: base, signal }),
@@ -221,7 +229,7 @@ export function SchedulePanel({
       <h3 id={titleId}>
         {draft ? (draft.expected_revision === 0 ? "Новий розклад" : "Редагування розкладу") : "Збережені розклади"}
       </h3>
-      <p className="help-copy">Запуск і зупинка у вибраний час. Час об’єкта: {timezone}.</p>
+      <p className="help-copy">Час об’єкта: {timezone}. Усі дати й години розкладу — за цим часовим поясом.</p>
       {!supported && (
         <p role="status">
           Збережений розклад потребує сумісної прошивки з підтримкою календарних запусків. До оновлення контролер не
@@ -311,7 +319,7 @@ export function SchedulePanel({
             </ul>
           )}
           {history && visible && canRead && (
-            <ScheduleHistory key={history.id} context={context} item={history} onCommand={onCommand} />
+            <ScheduleHistory key={history.id} context={context} item={history} poll={poll} onCommand={onCommand} />
           )}
         </>
       )}

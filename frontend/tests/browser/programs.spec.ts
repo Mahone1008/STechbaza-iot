@@ -83,6 +83,11 @@ test("timer confirmation sends one complete plan with separate TTL and validates
   await expect(
     page.getByText("Сервер прийняв команду. Перевіряємо повідомлення контролера нижче.", { exact: true }),
   ).toBeVisible();
+  await page.getByRole("combobox", { name: "Режим роботи", exact: true }).selectOption("program");
+  await expect(
+    page.getByText("Сервер прийняв команду. Перевіряємо повідомлення контролера нижче.", { exact: true }),
+  ).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Стан вибраної команди", exact: true })).toBeVisible();
   expect(posts).toHaveLength(1);
   expect(posts[0]).toMatchObject({
     command_type: "vfd.program.start",
@@ -101,8 +106,8 @@ test("timer and stages have separate drafts, help and action labels", async ({ p
   await page.getByLabel("Частота етапу 2, Гц", { exact: true }).fill("50");
   await mode.selectOption("timer");
   await expect(page.getByLabel("Частота, Гц", { exact: true })).toHaveValue("");
-  await expect(page.locator(".program-settings")).toContainText("Робота на одній частоті від 10 с до 24 год");
-  await expect(page.locator(".program-settings")).not.toContainText("8 послідовних етапів");
+  await expect(page.locator(".work-mode-settings")).toContainText("Робота на одній частоті від 10 с до 24 год");
+  await expect(page.locator(".work-mode-settings")).not.toContainText("8 послідовних етапів");
   await expect(page.getByRole("button", { name: "Запустити за таймером", exact: true })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Запустити за етапами", exact: true })).toHaveCount(0);
   await page.getByLabel("Частота, Гц", { exact: true }).fill("40");
@@ -110,7 +115,7 @@ test("timer and stages have separate drafts, help and action labels", async ({ p
   await mode.selectOption("program");
   await expect(page.getByLabel("Частота етапу 1, Гц", { exact: true })).toHaveValue("30");
   await expect(page.getByLabel("Частота етапу 2, Гц", { exact: true })).toHaveValue("50");
-  await expect(page.locator(".program-settings")).toContainText("До 8 послідовних етапів");
+  await expect(page.locator(".work-mode-settings")).toContainText("До 8 послідовних етапів");
   await mode.selectOption("timer");
   await expect(page.getByLabel("Частота, Гц", { exact: true })).toHaveValue("40");
   await expect(page.getByLabel("Хвилини", { exact: true })).toHaveValue("2");
@@ -174,12 +179,10 @@ test("F5 restores every saved stage without issuing commands and leaves STOP ava
   await expect(page.getByRole("button", { name: "Запустити", exact: true })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Зупинити", exact: true })).toBeEnabled();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await test
-    .info()
-    .attach("program-restored-after-f5-393", {
-      body: await page.screenshot({ fullPage: true }),
-      contentType: "image/png",
-    });
+  await test.info().attach("program-restored-after-f5-393", {
+    body: await page.screenshot({ fullPage: true }),
+    contentType: "image/png",
+  });
   expect(posts).toBe(0);
 
   const stopId = "c8f2f2d6-e380-492a-a9dc-d0b9ba792136";

@@ -1,6 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
-import { programOverview } from "../fixtures/commands";
+import { commandFixture, commandId, programOverview } from "../fixtures/commands";
 import {
   API_ORIGIN,
   DEVICE_ID,
@@ -47,6 +47,114 @@ function overview() {
   data.diagnostics!.program!.max_schedule_seconds = 604800;
   return data;
 }
+
+for (const width of [320, 393, 1280])
+  test(`mode descriptions, acceptance time and open mobile controls fit ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 852 });
+    await mockAuthenticatedWorkspace(page);
+    await page.route(`${base}/overview`, async (route) => {
+      if (!(await fulfillPreflight(route))) await fulfillJson(route, 200, overview());
+    });
+    await page.route(`${base}/schedules`, async (route) => {
+      if (!(await fulfillPreflight(route))) await fulfillJson(route, 200, []);
+    });
+    await page.goto(`/devices/${DEVICE_ID}`);
+    const refresh = page.getByRole("combobox", { name: "Автооновлення", exact: true });
+    await refresh.click();
+    for (const option of await refresh.getByRole("option").all()) {
+      const box = await option.boundingBox();
+      expect(box).not.toBeNull();
+      expect(box!.x).toBeGreaterThanOrEqual(0);
+      expect(box!.x + box!.width).toBeLessThanOrEqual(width);
+    }
+    await test.info().attach(`refresh-open-${width}`, { body: await page.screenshot(), contentType: "image/png" });
+    await page.keyboard.press("Escape");
+    await refresh.selectOption("0");
+    await page.getByText("Додаткові налаштування команди", { exact: true }).click();
+    const ttl = page.getByLabel("Час на прийняття команди, с", { exact: true });
+    const mode = page.getByRole("combobox", { name: "Режим роботи", exact: true });
+    await ttl.fill("57");
+    for (const [value, description] of [
+      ["manual", "Ви самі запускаєте й зупиняєте насос"],
+      ["timer", "Робота на одній частоті від 10 с до 24 год"],
+      ["program", "До 8 послідовних етапів"],
+      ["schedule", "Автоматичний запуск і зупинка у вибраний час"],
+    ]) {
+      await mode.selectOption(value!);
+      await expect(mode).toHaveAccessibleDescription(new RegExp(description!));
+      await expect(ttl).toBeVisible();
+      await expect(ttl).toHaveValue("57");
+      const ttlBox = await ttl.boundingBox(),
+        modeBox = await mode.boundingBox();
+      expect(ttlBox!.y + ttlBox!.height).toBeLessThan(modeBox!.y);
+      await expect(page.locator(".schedule-panel")).toHaveCount(value === "schedule" ? 1 : 0);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    }
+    await expect(ttl).toHaveAccessibleDescription(/STOP.*30 с від запланованого часу/);
+    await mode.scrollIntoViewIfNeeded();
+    await test.info().attach(`schedule-mode-${width}`, { body: await page.screenshot(), contentType: "image/png" });
+    await page.getByRole("button", { name: "Новий розклад", exact: true }).click();
+    await page.getByText("Зміна частоти протягом роботи", { exact: true }).click();
+    await page.getByRole("button", { name: "Додати зміну частоти", exact: true }).click();
+    for (const label of ["Час запуску", "Час зупинки", "Час зміни 1"]) {
+      const input = page.getByLabel(label, { exact: true });
+      await input.clear();
+      await input.pressSequentially("1930");
+      await expect(input).toHaveValue("19:30");
+      await expect(input).toHaveAttribute("inputmode", "numeric");
+      const box = await input.boundingBox();
+      expect(box!.x).toBeGreaterThanOrEqual(0);
+      expect(box!.x + box!.width).toBeLessThanOrEqual(width);
+    }
+    await test
+      .info()
+      .attach(`change-time-focused-${width}`, { body: await page.screenshot(), contentType: "image/png" });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  });
+
+test("schedule time fields reject invalid and missing times before preview", async ({ page }) => {
+  await mockAuthenticatedWorkspace(page);
+  await page.route(`${base}/overview`, async (route) => {
+    if (!(await fulfillPreflight(route))) await fulfillJson(route, 200, overview());
+  });
+  await page.route(`${base}/schedules`, async (route) => {
+    if (!(await fulfillPreflight(route))) await fulfillJson(route, 200, []);
+  });
+  const previews: ScheduleWrite[] = [];
+  await page.route(`${base}/schedules/preview`, async (route) => {
+    if (await fulfillPreflight(route)) return;
+    previews.push(route.request().postDataJSON() as ScheduleWrite);
+    await fulfillJson(route, 200, { runs: [], conflicts: [], conflict_horizon_days: 366, notes: [] });
+  });
+  await page.goto(`/devices/${DEVICE_ID}`);
+  await openSchedules(page);
+  await page.getByRole("button", { name: "Новий розклад", exact: true }).click();
+  await page.getByLabel("Назва розкладу", { exact: true }).fill("Перевірка часу");
+  await page.getByLabel("Частота за розкладом, Гц", { exact: true }).fill("40");
+  const startTime = page.getByLabel("Час запуску", { exact: true });
+  const submit = page.getByRole("button", { name: "Перевірити розклад", exact: true });
+  await startTime.fill("25:60");
+  await submit.click();
+  await expect(startTime).toBeFocused();
+  expect(previews).toHaveLength(0);
+  await startTime.fill("19:00");
+  await page.getByLabel("Час зупинки", { exact: true }).fill("23:59");
+  await page.getByText("Зміна частоти протягом роботи", { exact: true }).click();
+  await page.getByRole("button", { name: "Додати зміну частоти", exact: true }).click();
+  const changeTime = page.getByLabel("Час зміни 1", { exact: true });
+  await changeTime.clear();
+  await page.getByLabel("Нова частота 1, Гц", { exact: true }).fill("30");
+  await submit.click();
+  await expect(changeTime).toBeFocused();
+  expect(previews).toHaveLength(0);
+  await changeTime.fill("23:00");
+  await submit.click();
+  await expect(page.locator(".schedule-preview")).toBeVisible();
+  expect(previews).toHaveLength(1);
+  expect(previews[0]?.spec).toMatchObject({ start_time: "19:00", stop_time: "23:59", changes: [{ at: "23:00" }] });
+  await changeTime.fill("22:00");
+  await expect(page.locator(".schedule-preview")).toHaveCount(0);
+});
 
 for (const width of [320, 393, 1280])
   test(`calendar editor, preview, confirmation and F5 at ${width}px`, async ({ page }) => {
@@ -197,7 +305,7 @@ test("schedules belong only to the selected mode; collapse preserves the draft a
   await expect(page.getByText("Розкладів ще немає.", { exact: true })).toBeVisible();
   await expect(page.getByText(/Календар і збережені правила/)).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Відкрити розклади", exact: true })).toHaveCount(0);
-  await expect(page.getByLabel("Час на прийняття команди, с", { exact: true })).toHaveCount(0);
+  await expect(page.getByLabel("Час на прийняття команди, с", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Новий розклад", exact: true }).click();
   await page.getByLabel("Назва розкладу", { exact: true }).fill("Незбережений полив");
   await expect(page.getByRole("button", { name: "Новий розклад", exact: true })).toHaveCount(0);
@@ -367,6 +475,69 @@ test("closing the calendar stops both list and selected history polling", async 
   expect(histories).toBeGreaterThan(counts[1]!);
 });
 
+test("manual and minute refresh apply to schedules, run history and command records", async ({ page }) => {
+  await page.clock.install();
+  await mockAuthenticatedWorkspace(page);
+  const data = overview();
+  const item = {
+    id: conflictId,
+    revision: 1,
+    device_id: DEVICE_ID,
+    organization_id: data.access.organization_id,
+    enabled: true,
+    spec: { ...newScheduleSpec("Europe/Kyiv", "2076-10-01"), name: "Полив", frequency_hz: 40 },
+    next_start_at: start,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+  const counts = { overview: 0, lists: 0, histories: 0, journal: 0, detail: 0 };
+  for (const [url, key, response] of [
+    [`${base}/overview`, "overview", data],
+    [`${base}/schedules`, "lists", [item]],
+    [`${base}/schedules/${conflictId}/runs`, "histories", []],
+    [`${base}/commands?*`, "journal", [commandFixture()]],
+    [`${API_ORIGIN}/api/v1/commands/${commandId}`, "detail", commandFixture()],
+  ] as const) {
+    await page.route(url, async (route) => {
+      if (await fulfillPreflight(route)) return;
+      counts[key]++;
+      await fulfillJson(route, 200, response);
+    });
+  }
+  await page.goto(`/devices/${DEVICE_ID}`);
+  await page.getByRole("link", { name: "Переглянути команду Запустити", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Стан вибраної команди", exact: true })).toBeVisible();
+  await openSchedules(page);
+  await page.getByRole("button", { name: "Історія запусків", exact: true }).click();
+  await expect(page.getByText("Запусків ще не було.", { exact: true })).toBeVisible();
+  const refresh = page.getByLabel("Автооновлення", { exact: true });
+  await refresh.selectOption("0");
+  const beforeManual = { ...counts };
+  await page.clock.fastForward(61_000);
+  expect(counts).toEqual(beforeManual);
+  for (const [label, key] of [
+    ["Оновити розклади", "lists"],
+    ["Оновити історію запусків", "histories"],
+    ["Оновити журнал", "journal"],
+    ["Оновити стан команди", "detail"],
+    ["Оновити панель", "overview"],
+  ] as const) {
+    await page.getByRole("button", { name: label, exact: true }).click();
+    await expect.poll(() => counts[key]).toBe(beforeManual[key] + 1);
+  }
+  await refresh.selectOption("60");
+  // Увімкнення може негайно перевірити застарілі дані; рахуємо наступний повний інтервал.
+  await expect(page.getByRole("button", { name: "Оновити історію запусків", exact: true })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Оновити стан команди", exact: true })).toBeEnabled();
+  const beforeMinute = { ...counts };
+  await page.clock.fastForward(31_000);
+  expect(counts).toEqual(beforeMinute);
+  await page.clock.fastForward(30_000);
+  await expect
+    .poll(() => counts)
+    .toEqual(Object.fromEntries(Object.entries(beforeMinute).map(([key, value]) => [key, value + 1])));
+});
+
 test("week-long rule previews, confirms and keeps all day offsets after reload", async ({ page }) => {
   await page.setViewportSize({ width: 393, height: 852 });
   await mockAuthenticatedWorkspace(page);
@@ -443,12 +614,10 @@ test("week-long rule previews, confirms and keeps all day offsets after reload",
   await page.getByText("Зміна частоти протягом роботи", { exact: true }).click();
   await expect(page.getByLabel("День зміни 1", { exact: true })).toHaveValue("3");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await test
-    .info()
-    .attach("week-calendar-393", {
-      body: await page.locator(".schedule-editor").screenshot(),
-      contentType: "image/png",
-    });
+  await test.info().attach("week-calendar-393", {
+    body: await page.locator(".schedule-editor").screenshot(),
+    contentType: "image/png",
+  });
 });
 
 test("legacy calendar firmware explains its one-day duration limit", async ({ page }) => {

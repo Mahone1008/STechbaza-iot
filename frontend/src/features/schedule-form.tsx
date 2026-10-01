@@ -1,5 +1,6 @@
 "use client";
 import { Button, SelectField, TextField } from "@/components/ui";
+import { TimeField } from "@/components/time-field";
 import { repeatLabels, scheduleDayLabels, type ScheduleSpec } from "@/lib/api/schedules";
 
 const weekdays = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Нд"];
@@ -60,13 +61,10 @@ export function ScheduleForm({
               })
             }
           />
-          <TextField
+          <TimeField
             label="Час запуску"
-            required
-            type="time"
-            step={60}
             value={value.start_time}
-            onChange={(event) => change("start_time", event.target.value)}
+            onValueChange={(time) => change("start_time", time)}
           />
         </fieldset>
         <fieldset className="schedule-window">
@@ -82,16 +80,10 @@ export function ScheduleForm({
               </option>
             ))}
           </SelectField>
-          <TextField
-            label="Час зупинки"
-            required
-            type="time"
-            step={60}
-            value={value.stop_time}
-            onChange={(event) => change("stop_time", event.target.value)}
-          />
+          <TimeField label="Час зупинки" value={value.stop_time} onValueChange={(time) => change("stop_time", time)} />
         </fieldset>
       </div>
+      <p className="help-copy">Час у форматі ГГ:ХХ, від 00:00 до 23:59. Можна ввести 4 цифри: 1930 → 19:30.</p>
       <TextField
         label="Частота за розкладом, Гц"
         required
@@ -210,15 +202,13 @@ export function ScheduleForm({
           <fieldset className="program-step" key={index}>
             <legend>Зміна {index + 1}</legend>
             <div className="schedule-grid">
-              <TextField
+              <TimeField
                 label={`Час зміни ${index + 1}`}
-                type="time"
-                step={60}
                 value={item.at}
-                onChange={(event) =>
+                onValueChange={(time) =>
                   change(
                     "changes",
-                    value.changes.map((row, i) => (i === index ? { ...row, at: event.target.value } : row)),
+                    value.changes.map((row, i) => (i === index ? { ...row, at: time } : row)),
                   )
                 }
               />
@@ -242,6 +232,7 @@ export function ScheduleForm({
               </SelectField>
               <TextField
                 label={`Нова частота ${index + 1}, Гц`}
+                required
                 type="number"
                 min={Math.max(0.01, limits?.min_hz ?? 0.01)}
                 max={limits?.max_hz ?? 100}
