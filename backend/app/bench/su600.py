@@ -24,7 +24,8 @@ CAPABILITIES = {
     "vfd.state.read": "Стан частотника",
     "vfd.diagnostics.read": "Діагностика контролера V3",
     "vfd.control": "Керування SU600",
-    "vfd.program": "Програми роботи частотника",
+    "vfd.program": "Етапи роботи частотника",
+    "vfd.schedule": "Календарні запуски частотника",
 }
 CONTROL_CONFIG = {"driver_profile": "suswe.su600.delta_m.v1", "bench_without_motor": True,
                   "frequency_limits": {"min_hz": 0, "max_hz": 50}}
@@ -58,7 +59,7 @@ def prepare(*, enable_control: bool | None = None, extended_test: bool = False) 
             session.flush()
         elif device.site_id != SITE_ID or device.uid != UID:
             raise RuntimeError("Bench device identity changed; no data was overwritten")
-        control = program = None
+        control = program = schedule = None
         for code, name in CAPABILITIES.items():
             cap = session.scalar(select(Capability).where(Capability.code == code))
             if cap is None:
@@ -73,12 +74,14 @@ def prepare(*, enable_control: bool | None = None, extended_test: bool = False) 
                 config = (CONTROL_CONFIG if code == "vfd.control" else
                           {"telemetry_keys": ["pump_running", "vfd_fault_code"]} if code == "vfd.state.read" else {})
                 assignment = DeviceCapability(device_id=device.id, capability_id=cap.id,
-                    is_enabled=code not in {"vfd.control", "vfd.program"}, config=config)
+                    is_enabled=code not in {"vfd.control", "vfd.program", "vfd.schedule"}, config=config)
                 session.add(assignment)
             if code == "vfd.control":
                 control = assignment
             elif code == "vfd.program":
                 program = assignment
+            elif code == "vfd.schedule":
+                schedule = assignment
         if enable_control is not None:
             if enable_control and control.config not in (CONTROL_CONFIG, EXTENDED_CONTROL_CONFIG):
                 raise RuntimeError("Bench control config changed; review it explicitly before enabling")
@@ -86,6 +89,7 @@ def prepare(*, enable_control: bool | None = None, extended_test: bool = False) 
                 control.config = EXTENDED_CONTROL_CONFIG if extended_test else CONTROL_CONFIG
             control.is_enabled = enable_control
             program.is_enabled = bool(enable_control and extended_test)
+            schedule.is_enabled = bool(enable_control and extended_test)
         return {"organization_id": str(org.id), "site_id": str(SITE_ID), "device_id": str(DEVICE_ID),
                 "uid": UID, "control_enabled": control.is_enabled, "firmware_profile": "suswe.su600.delta_m.v1",
                 "test_session": control.config.get("test_session", "bench_60_seconds")}

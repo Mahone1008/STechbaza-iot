@@ -1,5 +1,7 @@
 "use client";
 import { ProgramPlanSummary } from "./program-settings";
+import { parseScheduleRun } from "@/lib/api/schedules";
+import { ScheduleRunSummary } from "./schedule-summary";
 import { parseProgramPlan } from "@/lib/api/programs";
 import { useState } from "react";
 import { Button, Card, DataTable, StatusBadge } from "@/components/ui";
@@ -24,13 +26,14 @@ export function CommandDetail({ context, id, auto }: { context: ReadyAccessSnaps
     queryFn: async (signal) => parseCommand(await authorizedRequest({ path: `/api/v1/commands/${id}`, signal, timeoutMs: 10_000 }), device.id, context.activeOrganization.id, id),
   });
   const command = query.data;
-  const program = command?.command_type === "vfd.program.start" ? parseProgramPlan(command.payload) : null;
+  const scheduled = command?.command_type === "vfd.schedule.start" ? parseScheduleRun(command.payload) : null;
+  const program = scheduled ?? (command?.command_type === "vfd.program.start" ? parseProgramPlan(command.payload) : null);
   const time = (value: string | null) => value ? formatSeen(value, context.activeSite?.timezone ?? "UTC") : "Ще немає";
   return <Card title="Стан вибраної команди" actions={<Button disabled={!query.active || query.isFetching} onClick={query.refresh}>Оновити стан команди</Button>}>
     <StableRegion>
       {query.isError ? <p role="alert">{apiErrorDisplayMessage(query.error)}</p> : !command ? <p role="status">Завантажуємо команду…</p> : <>
         <p><strong>{commandLabel(command.command_type)}</strong>{typeof command.payload.frequency_hz === "number" ? ` · ${command.payload.frequency_hz} Гц` : ""}</p>
-        {program && <ProgramPlanSummary plan={program} />}
+        {scheduled ? <ScheduleRunSummary run={scheduled} timezone={context.activeSite?.timezone ?? "UTC"} /> : program && <ProgramPlanSummary plan={program} />}
         <div role="status"><CommandStatus command={command} /></div>
         <p className="help-copy">Прийом сервером і підтвердження прийому контролером не означають фізичного виконання. Зіставляйте результат із показаннями пристрою.</p>
         {command.status === "result_unknown" && <p className="notice notice-warning">Контролер не надіслав результат вчасно. Автоматичного повтору немає. Пізній результат можна перевірити кнопкою оновлення.</p>}

@@ -89,6 +89,11 @@ def run_command_reliability_cycle(*, now: datetime | None = None) -> dict[str, A
 def _worker_loop() -> None:
     while not _stop_event.is_set():
         try:
+            from app.services.schedule_worker import run_schedule_cycle
+            run_schedule_cycle()
+        except Exception:
+            logger.exception("Помилка календарного worker")
+        try:
             run_command_reliability_cycle()
         except Exception:
             logger.exception("Помилка command reliability worker")

@@ -3,6 +3,7 @@
 #include "../kerumo_v3/src/diagnostics.h"
 #include "../kerumo_v3/src/journal_upgrade.h"
 #include "legacy_journal_fixture.h"
+#include "program_v3_journal_fixture.h"
 #include <cassert>
 #include <cstring>
 #include <cstdio>
@@ -393,11 +394,88 @@ void programParsingAndMigration() {
   old.highest++; assert(!upgradeJournal(old,next));
 }
 
+Command scheduledCommand(Fixture& f) {
+  auto c=programCommand(f); c.type=Type::Schedule;
+  c.scheduledStartMs=f.clock.utcMs(); c.scheduledStopMs=c.scheduledStartMs+30000;
+  return c;
+}
+void calendarExecution() {
+  Fixture f; assert(f.armExtended()); auto c=scheduledCommand(f);
+  c.scheduledStartMs-=5000; c.scheduledStopMs-=5000;
+  const uint64_t accepted=f.clock.ms;
+  f.receive(c); reachHold(f);
+  const auto count=f.bus.writes.size(); f.receive(c); assert(f.bus.writes.size()==count);
+  f.clock.epoch+=3600000; // Після прийняття STOP прив'язаний до монотонної межі.
+  f.clock.ms=accepted+5000; f.controller.tick(true);
+  assert(f.controller.sample().program.step==2);
+  f.clock.ms+=300; f.controller.tick(true);
+  f.clock.ms=accepted+25000; f.controller.tick(true);
+  assert(f.controller.sample().program.phase==ProgramPhase::Stopping);
+  f.clock.ms+=1000; f.controller.tick(true);
+  assert(f.controller.journal().records[0].outcome==Outcome::Succeeded);
+  assert(f.controller.journal().records[0].programStopConfirmed);
+  assert(!f.controller.journal().motionPossible);
+
+  for(unsigned action=0;action<3;++action) {
+    Fixture stop; assert(stop.armExtended()); auto plan=scheduledCommand(stop); stop.receive(plan); reachHold(stop);
+    if(action==0) stop.receive(stop.command(2,Type::Stop));
+    if(action==1) stop.controller.tick(false);
+    if(action==2) {
+      Controller reboot(stop.bus,stop.storage,stop.clock,stop.events,true);
+      assert(reboot.begin("test-device")); reboot.tick(true);
+      assert(!reboot.isArmed() && reboot.journal().records[0].error==Error::Restarted);
+      continue;
+    }
+    stop.clock.ms+=1000; stop.controller.tick(true);
+    const auto writes=stop.bus.writes.size(); stop.clock.ms+=60000; stop.controller.tick(true); stop.receive(plan);
+    assert(stop.bus.writes.size()==writes && !stop.controller.journal().motionPossible);
+  }
+  for(int offset: {-1000,31000}) {
+    Fixture late; assert(late.armExtended()); auto plan=scheduledCommand(late);
+    plan.scheduledStartMs-=offset; plan.scheduledStopMs-=offset; late.receive(plan);
+    assert(late.bus.writes.empty() && late.events.records.back().error==Error::Expired);
+  }
+  Fixture ramp; assert(ramp.armExtended()); auto plan=scheduledCommand(ramp); ramp.receive(plan);
+  ramp.clock.ms+=300; ramp.controller.tick(true); ramp.bus.registers[0x2103]=0;
+  ramp.clock.ms+=10000; ramp.controller.tick(true); ramp.clock.ms+=1000; ramp.controller.tick(true);
+  assert(ramp.controller.journal().records[0].error==Error::ProgramTimeout);
+  assert(!ramp.controller.journal().motionPossible);
+}
+void calendarParsingAndMigration() {
+  const auto bytes=programV3FixtureBytes();
+  static_assert(sizeof(ProgramJournalV3)==sizeof(bytes),"v0.3 NVS ABI changed");
+  ProgramJournalV3 original{}; std::memcpy(&original,bytes.data(),bytes.size());
+  Journal upgraded{}; assert(upgradeJournal(original,upgraded));
+  assert(upgraded.highest==42 && upgraded.motionPossible && upgraded.records[0].command.program.count==2);
+  assert(upgraded.records[0].command.program.steps[1].seconds==120);
+  const char* json=R"({"schema_version":2,"control_sequence":42,"command_id":"00000000-0000-4000-8000-000000000042","request_id":"00000000-0000-4000-8000-000000000001","issued_at":"2076-02-29T13:00:00Z","expires_at":"2076-02-29T13:00:30Z","ttl_seconds":30,"command_type":"vfd.schedule.start","payload":{"version":1,"starts_at":"2076-02-29T13:00:00Z","stops_at":"2076-02-29T13:02:00Z","steps":[{"frequency_hz":40,"duration_seconds":60},{"frequency_hz":50,"duration_seconds":60}]}})";
+  Command c; assert(parseCommand(json,strlen(json),c) && c.type==Type::Schedule && c.scheduledStartMs>2147483647000LL);
+  for(unsigned n=0;n<4;++n) {
+    JsonDocument doc; deserializeJson(doc,json);
+    if(n==0) doc["payload"]["stops_at"]="2076-02-29T13:03:00Z";
+    if(n==1) doc["payload"]["starts_at"]="2100-02-29T13:00:00Z";
+    if(n==2) doc["payload"]["starts_at"]="2076-02-29T13:00:00.001Z";
+    if(n==3) doc["payload"]["starts_at"]="2076-02-29T13:00:00+03:00";
+    std::string raw; serializeJson(doc,raw); assert(!parseCommand(raw.c_str(),raw.size(),c));
+  }
+  ProgramJournalV3 old{}; strcpy(old.uid,"test-device"); old.highest=42; old.next=1; old.motionPossible=true;
+  auto& previous=old.records[0]; previous.command.type=Type::Program; previous.command.sequence=42;
+  previous.command.program.count=1; previous.command.program.steps[0]={40,60}; previous.outcome=Outcome::Pending;
+  strcpy(previous.command.id,"00000000-0000-4000-8000-000000000042"); old.checksum=legacyChecksum(old);
+  Journal next{}; assert(upgradeJournal(old,next)); assert(next.highest==42 && next.records[0].command.program.steps[0].seconds==60);
+  TestClock clock; TestBus bus(clock); TestStorage storage; TestEvents events;
+  storage.saved=next; storage.exists=true; Controller reboot(bus,storage,clock,events,true);
+  assert(reboot.begin("test-device")); reboot.tick(true); assert(!reboot.isArmed() && !reboot.journal().motionPossible);
+  assert(reboot.journal().records[0].error==Error::Restarted);
+  ++old.highest; assert(!upgradeJournal(old,next));
+}
+
 int main() {
+  calendarExecution(); calendarParsingAndMigration();
   programExecution(); programCancellationAndRecovery(); programBoundaries(); programParsingAndMigration();
   readOnlyAndConfiguration(); timingAndOrdering(); echoIsNotPhysicalResult(); duplicateAndRestart();
   crashWindowAndStopRetry(); storageAndBoundedHistory(); profilesAndFrames(); protocol();
   protectionRegisterEncoding(); extendedTestSession(); extendedGuardsAndRecovery();
   diagnosticStopLifecycle();
-  puts("PASS: programs (hold timing, STOP, reboot, errors, strict plans, NVS upgrade), read-only, profile/scaling, TTL, sequence, duplicate/reboot, crash window, stop retry, network loss, storage, CRC, strict v2 parsing, all 65536 F5.00 words, extended session and loss-of-permission recovery");
+  puts("PASS: calendar (fixed deadlines, UTC/2038, STOP/reboot, v0.3 ABI migration); programs (hold timing, STOP, reboot, errors, strict plans, NVS upgrade), read-only, profile/scaling, TTL, sequence, duplicate/reboot, crash window, stop retry, network loss, storage, CRC, strict v2 parsing, all 65536 F5.00 words, extended session and loss-of-permission recovery");
 }

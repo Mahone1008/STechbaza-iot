@@ -49,5 +49,6 @@ export function parseProgramProgress(raw: unknown): ProgramProgress | null {
   if (raw.state === "idle" ? (raw.command_id !== null || raw.step_index !== 0 || raw.step_count !== 0 || raw.target_frequency_hz !== null || raw.remaining_seconds !== null || raw.reason !== null) : (raw.command_id === null || raw.step_count === 0)) invalidResponse(path, "program identity");
   if (["setting", "starting", "holding"].includes(raw.state) && (raw.step_index === 0 || raw.target_frequency_hz === null)) invalidResponse(path, "program active target");
   if (raw.state === "holding" && raw.remaining_seconds === null) invalidResponse(path, "program hold time");
+  if (raw.supports_schedule !== undefined && typeof raw.supports_schedule !== "boolean") invalidResponse(path, "calendar support");
   return raw as ProgramProgress;
 }

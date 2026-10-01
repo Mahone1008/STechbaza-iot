@@ -1,9 +1,10 @@
 # Поточний стан KERUMO
 
-Оновлено **01.10.2026**: додано таймер і програми частоти (backend 0.41.0,
-firmware 0.3.0); на стенді перевірено таймер, п'ять етапів, продовження після
-F5 і STOP на другому етапі; повне PROGRAM-01 ще відкрите. Базову діагностику V3
-0.2.2 прийнято на стенді з доказами та підтвердженням оператора.
+Оновлено **01.10.2026**: додано календарні розклади (backend 0.42.0,
+firmware 0.4.0, міграція 0020) та назву режиму «За етапами».
+Календарне фізичне приймання SCHEDULE-01 відкрите. Стендові результати
+таймера й етапів стосуються 0.3.0; повне PROGRAM-01 ще відкрите.
+Базову діагностику V3 0.2.2 прийнято на стенді з доказами оператора.
 Це поточний реєстр стану; датовані досьє зберігають історичні докази.
 [Версії/схема/API/канали/права з коду](generated-code-reference.md),
 [звіт аудиту та точні CI revisions](audit-2026-09-30.md).
@@ -15,6 +16,7 @@ F5 і STOP на другому етапі; повне PROGRAM-01 ще відкр
 | Backend | Real auth/RBAC, tenant isolation, telemetry/history, commands, alarms, notifications; integration/restore CI | Локальний single-process runtime, не production scale |
 | Команди | Outbound v2, monotonic sequence, Stop ordering, HTTP idempotency, TTL, late replies, перевірка прав і frequency profile при dispatch | ACK/Result — повідомлення edge; не незалежний фізичний вимір |
 | Таймер / програми | До 8 етапів/24 год; локальний відлік, прогрес і Result; стендові таймер, 5 етапів, F5 під RUN та STOP; повний план після F5 відновлюється із серверної команди | Потрібні capability і firmware 0.3.0; повтор UI після виправлення та переривання активної програми залишаються у PROGRAM-01 |
+| Календар | Разово/дні/інтервали/місяці/роки, сезонні місяці, винятки, часові зміни частоти, revision/audit і журнал запусків | Сервер потрібен для старту; наявний V3 зупиняється при втраті мережі; SCHEDULE-01 ще відкрите |
 | Frontend | Етапи 9–14 реалізовано; реальні API, polling, command journal | Повністю прийнято 10/24 операцій; залишок manual acceptance у roadmap |
 | V3 читання | ESP32-S3 N16R8 → SU600 → Wi-Fi/TLS → API/UI підтверджено | Це конкретний SU600 profile, не всі SUSWE/RS485 моделі |
 | V3 керування | Частота 20→30 Гц, START/STOP, повторний пуск; оператор підтвердив обертання/зупинку | Не прийнято повний діапазон/навантаження/польові умови |
@@ -26,11 +28,12 @@ F5 і STOP на другому етапі; повне PROGRAM-01 ще відкр
 [керування та зупинки](dossier-v3-su600-control-bench.md),
 [діагностика V3 0.2.2 — приймання 01.10](controller-diagnostics-v1.md),
 [програми v1 — контракт, оновлення і приймання](control-programs-v1.md),
+[календарні розклади](control-schedules-v1.md),
 [frontend roadmap](frontend-roadmap-v1.md), [P0–P9](product-readiness-plan-v1.md).
 
 ## Поведінка, яку не слід плутати
 
-- Backend application 0.41.0, schema head 0019; firmware V3 0.3.0.
+- Backend application 0.42.0, schema head 0020; firmware V3 0.4.0.
   Номер API `/v1`, версія застосунку та MQTT `schema_version` — різні речі.
 - Outbound command — v2; telemetry, heartbeat, ACK і Result — v1.
 - TTL типово 30 с, 5–300 с: час першого прийняття, не таймер RUN.
@@ -64,6 +67,7 @@ F5 і STOP на другому етапі; повне PROGRAM-01 ще відкр
 | V3-04 | Налаштування захисту двигуна/установки, повний BOM і електрична схема | Перевірені інженером параметри й незалежна зупинка; повний hardware acceptance |
 | UI-01 | Решта manual сценаріїв 11.3–14.4, F5 history filters, F5 під RUN, multi-role/mobile/a11y | Checklist із конкретними revision, очікуванням та доказами; CI не закриває його автоматично |
 | PROGRAM-01 | Частково прийнято на стенді: таймер, 5 етапів, продовження після F5, STOP на другому етапі | Повтор UI F5 після виправлення; STOP до переходу й незапуск наступного етапу; gateway loss/reboot без самовідновлення; NVS sequence/history. Докази в control-programs-v1 |
+| SCHEDULE-01 | Календарна реалізація; стендові запуски 0.4.0 ще не прийнято | Разовий запуск, зміна частоти, STOP до переходу, F5, втрата мережі/RESET без відновлення, пропущений старт та NVS migration; процедура у control-schedules-v1 |
 | PROD-01 | TLS/identity вже є на V3 gateway, але fleet provisioning/rotation/revocation та transfer/config lifecycle неповні | Реалізація й приймання P1/P2 |
 | PROD-02 | Deployment, процеси/worker ownership, production settings, logs/metrics, DB retention/PITR | P5, restore/release rehearsal, виміряні RPO/RTO |
 | PROD-03 | OTA, незалежний security review, load/reconnect/soak, pilot/support/conformity | P6–P9 з окремими доказами |

@@ -8,14 +8,14 @@ CI звіряє його з tracked code. Це перелік реалізаці
 
 | Компонент | Значення з коду |
 |---|---|
-| Backend / OpenAPI / health | 0.41.0 |
-| Alembic head | `20261001_0019`; 19 міграцій |
+| Backend / OpenAPI / health | 0.42.0 |
+| Alembic head | `20261001_0020`; 20 міграцій |
 | Frontend package | 0.1.0 |
 | Node engine | `>=20.9.0` |
 | Package manager | `npm@10.9.2` |
 | Next.js / React | 16.3.6 / 19.2.8 |
-| Firmware V3 | 0.3.0 |
-| OpenAPI paths | 47 |
+| Firmware V3 | 0.4.0 |
+| OpenAPI paths | 51 |
 
 ## Канали телеметрії
 
@@ -44,6 +44,7 @@ CI звіряє його з tracked code. Це перелік реалізаці
 |---|---|
 | `vfd.frequency.set` | `vfd.control` |
 | `vfd.program.start` | `vfd.program` |
+| `vfd.schedule.start` | `vfd.schedule` |
 | `vfd.start` | `vfd.control` |
 | `vfd.stop` | `vfd.control` |
 
@@ -101,6 +102,10 @@ ACK/Result лишаються v1. Дозвіл API не замінює лока�
 | `/api/v1/devices/{device_id}/commands` | GET, POST |
 | `/api/v1/devices/{device_id}/events` | GET |
 | `/api/v1/devices/{device_id}/overview` | GET |
+| `/api/v1/devices/{device_id}/schedules` | GET |
+| `/api/v1/devices/{device_id}/schedules/preview` | POST |
+| `/api/v1/devices/{device_id}/schedules/{schedule_id}` | PUT |
+| `/api/v1/devices/{device_id}/schedules/{schedule_id}/runs` | GET |
 | `/api/v1/devices/{device_id}/state` | GET |
 | `/api/v1/devices/{device_id}/telemetry` | GET |
 | `/api/v1/devices/{device_id}/telemetry/series` | GET |

@@ -12,6 +12,7 @@ from app.models.organization_membership import OrganizationMembership
 from app.models.site import Site
 from app.models.telemetry import DeviceState, TelemetryMessage
 from app.models.user import User
+from app.models.schedule import DeviceSchedule, ScheduleOccurrence, ScheduleRevision
 
 __all__ = [
     "AlarmNotification",
@@ -33,4 +34,7 @@ __all__ = [
     "Site",
     "TelemetryMessage",
     "User",
+    "DeviceSchedule",
+    "ScheduleOccurrence",
+    "ScheduleRevision",
 ]

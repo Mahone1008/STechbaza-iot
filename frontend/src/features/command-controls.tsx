@@ -17,8 +17,8 @@ type Dialog = { kind: "new"; type: CommandType } | { kind: "retry" } | { kind: "
 function monotonicNow() { return performance.now(); }
 function availableBrowser() { return navigator.onLine && document.visibilityState !== "hidden"; }
 
-export function CommandControls({ context, overview, receivedAt, active, refreshing, onCreated }: {
-  context: ReadyAccessSnapshot; overview: Overview | null; receivedAt: number; active: boolean; refreshing: boolean; onCreated: (id: string) => void;
+export function CommandControls({ context, overview, receivedAt, active, refreshing, onCreated, onSchedules }: {
+  context: ReadyAccessSnapshot; overview: Overview | null; receivedAt: number; active: boolean; refreshing: boolean; onCreated: (id: string) => void; onSchedules: () => void;
 }) {
   const { authorizedRequest } = useAuthSession();
   const device = context.activeDevice!;
@@ -135,15 +135,16 @@ export function CommandControls({ context, overview, receivedAt, active, refresh
   return <Card title="Керування пристроєм" description="Кожну команду потрібно підтвердити. Після втрати мережі запуск і частота автоматично не надсилаються.">
     {!overview ? <p>Для керування потрібна актуальна панель.</p> : overview.allowedCommands.length === 0 ? <p>Для цього пристрою немає дозволених команд.</p> : <>
       <details><summary>Додаткові налаштування команди</summary><div className="history-controls"><TextField label="Час на прийняття команди, с" type="number" min={5} max={300} step={1} value={ttl} disabled={busy || !!uncertain} onChange={(event) => setTtl(event.target.value)} hint="Типово 30 с, дозволено 5–300 с. Після цього контролер не починає нове виконання. Це не тривалість роботи насоса." /></div>
-        {!programRunning && <ProgramSettings mode={mode} onMode={setMode} rows={steps} onRows={setSteps} onAdd={() => { const row = emptyProgramStep(nextStep.current++); setSteps((rows) => [...rows, row]); }} disabled={busy || !!uncertain} supported={programSupported} limits={limits ?? null} />}
+        {!programRunning && <ProgramSettings mode={mode} onMode={(next) => { setMode(next); if (next === "schedule") onSchedules(); }} rows={steps} onRows={setSteps} onAdd={() => { const row = emptyProgramStep(nextStep.current++); setSteps((rows) => [...rows, row]); }} disabled={busy || !!uncertain} supported={programSupported} scheduleSupported={!!overview?.allowedCommands.includes("vfd.schedule.start")} limits={limits ?? null} />}
       </details>
-      {mode !== "manual" && !programRunning && <p className="program-mode-notice"><strong>{mode === "timer" ? "За таймером" : `Програма · етапів: ${steps.length}`}</strong>{programValid ? ` · ${durationText(duration)} на заданих частотах; потім STOP.` : " · перевірте частоти та тривалість у додаткових налаштуваннях."}</p>}
-      {mode !== "manual" && programSupported && !programReady && !programRunning && <p className="help-copy">Очікуємо свіжі дані та локальний дозвіл програм на контролері.</p>}
-      {programRunning && <p role="status">За останніми даними програма виконується або зупиняється. {context.access.permissions.includes("command.read") && "План відкривається через «Переглянути етапи програми» нижче. "}Редагування, зміна частоти й новий запуск — після зупинки.</p>}
-      {mode !== "manual" && !programRunning && !programStopped && <p className="help-copy">Перед запуском програми потрібна підтверджена зупинка частотника.</p>}
+      {(mode === "timer" || mode === "program") && !programRunning && <p className="program-mode-notice"><strong>{mode === "timer" ? "За таймером" : `За етапами · етапів: ${steps.length}`}</strong>{programValid ? ` · ${durationText(duration)} на заданих частотах; потім STOP.` : " · перевірте частоти та тривалість у додаткових налаштуваннях."}</p>}
+      {(mode === "timer" || mode === "program") && programSupported && !programReady && !programRunning && <p className="help-copy">Очікуємо свіжі дані та локальний дозвіл програм на контролері.</p>}
+      {mode === "schedule" && <p>Календар і збережені правила — нижче. <Button variant="ghost" onClick={onSchedules}>Відкрити розклади</Button></p>}
+      {programRunning && <p role="status">За останніми даними програма виконується або зупиняється. {context.access.permissions.includes("command.read") && "План відкривається через «Переглянути етапи роботи» нижче. "}Редагування, зміна частоти й новий запуск — після зупинки.</p>}
+      {(mode === "timer" || mode === "program") && !programRunning && !programStopped && <p className="help-copy">Перед запуском програми потрібна підтверджена зупинка частотника.</p>}
       <div className="history-controls">
         {mode === "manual" && !programRunning && overview.allowedCommands.includes("vfd.frequency.set") && <TextField label="Задана частота, Гц" type="number" min={limits?.min_hz} max={limits?.max_hz} step="any" value={frequency} disabled={busy || !!uncertain || !limits} onChange={(event) => setFrequency(event.target.value)} hint={limits ? `Робочі межі пристрою: ${limits.min_hz}–${limits.max_hz} Гц.` : "Спочатку налаштуйте допустимі межі частоти обладнання."} />}</div>
-      <div className="ui-row">{mode !== "manual" && <Button disabled={!enabled("vfd.program.start")} onClick={() => setDialog({ kind: "new", type: "vfd.program.start" })}>{mode === "timer" && programValid ? `Запустити на ${durationText(duration)}` : "Запустити програму"}</Button>}{(["vfd.start", "vfd.stop", "vfd.frequency.set"] as const).filter((type) => overview.allowedCommands.includes(type) && (mode === "manual" || type === "vfd.stop")).map((type) => <Button key={type} variant={type === "vfd.stop" ? "danger" : "primary"} disabled={!enabled(type)} onClick={() => setDialog({ kind: "new", type })}>{commandLabel(type)}</Button>)}</div>
+      <div className="ui-row">{(mode === "timer" || mode === "program") && <Button disabled={!enabled("vfd.program.start")} onClick={() => setDialog({ kind: "new", type: "vfd.program.start" })}>{mode === "timer" && programValid ? `Запустити на ${durationText(duration)}` : "Запустити за етапами"}</Button>}{(["vfd.start", "vfd.stop", "vfd.frequency.set"] as const).filter((type) => overview.allowedCommands.includes(type) && (mode === "manual" || type === "vfd.stop")).map((type) => <Button key={type} variant={type === "vfd.stop" ? "danger" : "primary"} disabled={!enabled(type)} onClick={() => setDialog({ kind: "new", type })}>{commandLabel(type)}</Button>)}</div>
       {!online && <p>Запуск і зміна частоти недоступні без актуального зв’язку. Зупинка може очікувати доставки на сервері до завершення TTL; фізична зупинка не гарантована.</p>}
       {online && blockedReason && <p role="status">{blockedReason} Команда зупинки залишається доступною.</p>}
     </>}

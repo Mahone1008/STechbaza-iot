@@ -54,6 +54,7 @@ class ProgramProgress(BaseModel):
     model_config = ConfigDict(extra="forbid")
     version: Literal[1]
     ready: bool = Field(strict=True)
+    supports_schedule: bool = Field(default=False, strict=True)
     command_id: uuid.UUID | None
     state: Literal["idle", "setting", "starting", "holding", "stopping", "completed", "interrupted", "failed"]
     step_index: int = Field(strict=True, ge=0, le=MAX_PROGRAM_STEPS)

@@ -14,7 +14,8 @@ ESP32 → MQTT → FastAPI/PostgreSQL → Next.js. Можливості конк
 - [Окреме середовище розробки](docs/local-development.md): API на порту 8000.
 - [V3 ESP32-S3 / SU600](docs/v3-su600-bench.md): підготовка, читання й TLS gateway.
 - [Випробування з двигуном](docs/v3-su600-extended-test.md): EXTENDED, локальний дозвіл та зупинки.
-- [Таймер і програми частоти](docs/control-programs-v1.md): оновлення 0.41.0/0.3.0, контракт і нове приймання.
+- [Календарні розклади](docs/control-schedules-v1.md): сезони, часові межі, приймання.
+- [Таймер і етапи частоти](docs/control-programs-v1.md): оновлення 0.42.0/0.4.0, контракт і нове приймання.
 
 30.09.2026 на V3 через Wi-Fi підтверджені читання, START/STOP, зміна частоти,
 повторний пуск і три сценарії зупинки. [Докази й обмеження](docs/dossier-v3-su600-control-bench.md).

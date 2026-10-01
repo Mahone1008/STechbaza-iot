@@ -1,5 +1,6 @@
 import os
 from app.schemas.program import ProgramPlan
+from app.schemas.schedule import ScheduleRun
 
 
 COMMAND_RETRY_INTERVAL_SECONDS = int(os.getenv("COMMAND_RETRY_INTERVAL_SECONDS", "10"))
@@ -12,6 +13,9 @@ if COMMAND_RESULT_TIMEOUT_SECONDS < 1:
 
 
 def result_timeout_seconds(command) -> int:
+    if command.command_type == "vfd.schedule.start":
+        plan = ScheduleRun.model_validate(command.payload)
+        return max(0, int((plan.stops_at - command.created_at).total_seconds())) + 180
     if command.command_type == "vfd.program.start":
         return ProgramPlan.model_validate(command.payload).result_timeout_seconds
     return COMMAND_RESULT_TIMEOUT_SECONDS

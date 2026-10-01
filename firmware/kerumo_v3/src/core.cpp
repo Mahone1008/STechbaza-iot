@@ -39,7 +39,8 @@ bool sameCommand(const Command& a, const Command& b) {
   for (size_t i=0;i<a.program.count && i<MaxProgramSteps;++i)
     if(a.program.steps[i].hz!=b.program.steps[i].hz || a.program.steps[i].seconds!=b.program.steps[i].seconds) return false;
   return std::strcmp(a.id, b.id) == 0 && std::strcmp(a.requestId, b.requestId) == 0 && a.sequence == b.sequence && a.issuedMs == b.issuedMs &&
-    a.expiresMs == b.expiresMs && a.ttl == b.ttl && a.type == b.type && a.hz == b.hz;
+    a.expiresMs == b.expiresMs && a.ttl == b.ttl && a.type == b.type && a.hz == b.hz &&
+    a.scheduledStartMs==b.scheduledStartMs && a.scheduledStopMs==b.scheduledStopMs;
 }
 // Strict UTC RFC3339, accepting Z / +00:00 and up to six fractional digits.
 bool parseUtcMs(const char* s, int64_t& result) {
@@ -51,7 +52,7 @@ bool parseUtcMs(const char* s, int64_t& result) {
     return n;
   };
   int y=number(0,4), m=number(5,2), d=number(8,2), h=number(11,2), min=number(14,2), sec=number(17,2);
-  if (y<2020 || y>2100 || m<1 || m>12 || d<1 || h<0 || h>23 || min<0 || min>59 || sec<0 || sec>59) return false;
+  if (y<2020 || y>2199 || m<1 || m>12 || d<1 || h<0 || h>23 || min<0 || min>59 || sec<0 || sec>59) return false;
   const int days[] = {31,28,31,30,31,30,31,31,30,31,30,31};
   const bool leap = y%4==0 && (y%100!=0 || y%400==0);
   if (d>days[m-1]+(m==2 && leap ? 1 : 0)) return false;
@@ -128,11 +129,11 @@ bool Controller::begin(const char* uid) {
   const int loaded=storage_.load(journal_);
   if (loaded<0) return false;
   if (loaded==0) { journal_=Journal{}; std::strncpy(journal_.uid,uid,96); if (!save()) return false; }
-  else if (journal_.magic!=0x4B563302 || journal_.checksum!=checksum(journal_) || journal_.next>=LedgerSize ||
+  else if (journal_.magic!=0x4B563303 || journal_.checksum!=checksum(journal_) || journal_.next>=LedgerSize ||
       std::strncmp(journal_.uid,uid,sizeof(journal_.uid))!=0 || journal_.highest>MaxSequence) return false;
   storageOk_=true;
   for (auto& record:journal_.records) if (record.outcome==Outcome::Pending) {
-    if (record.command.type==Type::Program) {
+    if (programType(record.command.type)) {
       if (programSlot_>=0 || !validProgram(record.command.program)) return false;
       programSlot_=static_cast<int>(&record-journal_.records);
       journal_.motionPossible=true; // Відновлення незавершеної програми вимагає підтвердження STOP.
@@ -240,7 +241,7 @@ void Controller::receive(const Command& c,const char* session,const char* ackId,
   uint16_t fault{},value{};
   if (c.type!=Type::Stop && (!bus_.read(0x2100,fault) || fault!=0)) { finish(record,Outcome::Failed,Error::Fault); disarm(StopReason::Fault); return; }
   if (c.type==Type::Frequency && !frequencyWord(c.hz,config_,value)) { finish(record,Outcome::Failed,Error::Frequency); return; }
-  if (c.type==Type::Program) {
+  if (programType(c.type)) {
     if (mode_!=SessionMode::ExtendedTest || !validProgram(c.program)) { finish(record,Outcome::Failed,Error::ProgramInvalid); return; }
     for (size_t i=0;i<c.program.count;++i) if (!frequencyWord(c.program.steps[i].hz,config_,value)) { finish(record,Outcome::Failed,Error::Frequency); return; }
     uint16_t state{},output{};
@@ -248,6 +249,17 @@ void Controller::receive(const Command& c,const char* session,const char* ackId,
       finish(record,Outcome::Failed,Error::Busy); return;
     }
     if (!clock_.utcMs() || clock_.utcMs()>=c.expiresMs) { finish(record,Outcome::Failed,Error::Expired); return; }
+    if (c.type==Type::Schedule) {
+      const int64_t utc=clock_.utcMs();
+      int64_t duration=0;
+      for (size_t i=0;i<c.program.count;++i) duration+=c.program.steps[i].seconds*1000LL;
+      if (c.scheduledStopMs-c.scheduledStartMs!=duration || utc<c.scheduledStartMs ||
+          utc>=c.scheduledStartMs+30000 || utc>=c.scheduledStopMs ||
+          utc>=c.scheduledStartMs+c.program.steps[0].seconds*1000LL) {
+        finish(record,Outcome::Failed,Error::Expired); return;
+      }
+      calendarStopAt_=clock_.uptimeMs()+static_cast<uint64_t>(c.scheduledStopMs-utc);
+    }
     programSlot_=static_cast<int>(slot); program_={}; program_.count=c.program.count;
     std::strncpy(program_.commandId,c.id,36); programReason_=StopReason::None; programError_=Error::None;
     journal_.motionPossible=true; stopReason_=StopReason::None;
@@ -280,12 +292,22 @@ void Controller::beginProgramStep() {
   const auto& step=record.command.program.steps[record.stepsCompleted];
   config_=readConfig(bus_); lastConfigRead_=clock_.monotonicMs();
   if (!sessionConfigOk()) { requestStop(StopReason::Config); return; }
+  if (record.command.type==Type::Schedule && clock_.uptimeMs()>=calendarStepEnd()) {
+    programError_=Error::ProgramTimeout; requestStop(StopReason::Unconfirmed); return;
+  }
   uint16_t value{};
   if (!frequencyWord(step.hz,config_,value)) { requestStop(StopReason::Config); return; }
   program_.step=record.stepsCompleted+1; program_.targetHz=step.hz;
   program_.remainingSeconds=step.seconds; program_.phase=ProgramPhase::Setting;
   programPhaseSince_=clock_.uptimeMs(); lastProgramPoll_=0;
   bus_.write(0x2001,value);
+}
+uint64_t Controller::calendarStepEnd() const {
+  const auto& record=journal_.records[programSlot_];
+  uint64_t remaining=0;
+  for (size_t i=record.stepsCompleted+1;i<record.command.program.count;++i)
+    remaining+=record.command.program.steps[i].seconds*1000ULL;
+  return calendarStopAt_>=remaining?calendarStopAt_-remaining:0;
 }
 void Controller::completeProgram(bool stopConfirmed) {
   if (programSlot_<0) return;
@@ -310,6 +332,17 @@ void Controller::tickProgram() {
   if (now-lastProgramPoll_<250) return;
   lastProgramPoll_=now;
   auto& record=journal_.records[programSlot_];
+  const bool calendar=record.command.type==Type::Schedule;
+  if (calendar && now>=calendarStepEnd()) {
+    if (program_.phase!=ProgramPhase::Holding) {
+      programError_=Error::ProgramTimeout; requestStop(StopReason::Unconfirmed); return;
+    }
+    ++record.stepsCompleted;
+    if (!save()) return;
+    if (record.stepsCompleted==record.command.program.count) requestStop(StopReason::ProgramCompleted);
+    else beginProgramStep();
+    return;
+  }
   const auto& step=record.command.program.steps[record.stepsCompleted];
   uint16_t state{},output{},setpoint{},fault{};
   if (!bus_.read(0x2100,fault) || !bus_.read(0x2101,state) || !bus_.read(0x2102,setpoint) || !bus_.read(0x2103,output)) {
@@ -320,7 +353,8 @@ void Controller::tickProgram() {
   if (program_.phase==ProgramPhase::Holding) {
     if (!runningForward(state) || !target || std::fabs(setpoint/100.0-step.hz)>0.11) { requestStop(StopReason::Unconfirmed); return; }
     const uint64_t elapsed=clock_.uptimeMs()-programHoldSince_;
-    program_.remainingSeconds=elapsed>=step.seconds*1000ULL?0:static_cast<uint32_t>((step.seconds*1000ULL-elapsed+999)/1000);
+    program_.remainingSeconds=calendar?(calendarStepEnd()>clock_.uptimeMs()?static_cast<uint32_t>((calendarStepEnd()-clock_.uptimeMs()+999)/1000):0):
+      elapsed>=step.seconds*1000ULL?0:static_cast<uint32_t>((step.seconds*1000ULL-elapsed+999)/1000);
     if (program_.remainingSeconds==0) {
       ++record.stepsCompleted;
       if (!save()) return; // Flash записується на межі етапів, а не щосекунди.
@@ -335,7 +369,8 @@ void Controller::tickProgram() {
   if (std::fabs(setpoint/100.0-step.hz)>0.11) return;
   if (program_.phase==ProgramPhase::Setting && record.stepsCompleted==0) {
     if (!stopped(state,output)) { requestStop(StopReason::Unconfirmed); return; }
-    if (!clock_.utcMs() || clock_.utcMs()>=record.command.expiresMs) {
+    if (!clock_.utcMs() || clock_.utcMs()>=record.command.expiresMs ||
+        (calendar && (clock_.utcMs()<record.command.scheduledStartMs || clock_.utcMs()>=record.command.scheduledStartMs+30000 || clock_.uptimeMs()>=calendarStepEnd()))) {
       programError_=Error::Expired; requestStop(StopReason::Unconfirmed); return;
     }
     program_.phase=ProgramPhase::Starting;

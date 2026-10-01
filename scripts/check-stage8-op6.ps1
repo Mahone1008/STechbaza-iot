@@ -74,7 +74,7 @@ try {
         @'
 services:
   backend:
-    image: techbaza-acceptance-backend:0.41.0
+    image: techbaza-acceptance-backend:0.42.0
 '@ | Set-Content -LiteralPath $preflightCompose -Encoding Ascii
         & docker compose -p techbaza-demo --env-file $demoEnv -f (Join-Path $repoRoot 'compose.demo.yml') -f $preflightCompose run --rm -T --no-deps backend python -m app.tools.alarm_key_check
         Assert-Step 'Existing demo alarm key preflight'
@@ -82,7 +82,7 @@ services:
     finally {
         Remove-Item -LiteralPath $preflightCompose -Force
     }
-    docker image tag techbaza-acceptance-backend:0.41.0 techbaza-demo-backend:local
+    docker image tag techbaza-acceptance-backend:0.42.0 techbaza-demo-backend:local
     Assert-Step 'Promote verified backend image'
     Demo run --rm -T backend alembic upgrade head
     Demo up -d --no-build --wait --wait-timeout 90 backend simulator
@@ -129,7 +129,7 @@ services:
     Demo exec -T backend python -m app.demo.check --quick
 
     $health = Invoke-RestMethod 'http://127.0.0.1:8001/health' -TimeoutSec 10
-    if ($health.status -ne 'ok' -or $health.version -ne '0.41.0') { throw 'Expected demo backend 0.41.0 on 8001' }
+    if ($health.status -ne 'ok' -or $health.version -ne '0.42.0') { throw 'Expected demo backend 0.42.0 on 8001' }
     $health | Format-Table
     Backup-Tool report
     $completed = $true
@@ -150,7 +150,7 @@ finally {
     Isolated $restoreProject down --volumes
 }
 Demo ps
-Write-Host 'PASS: Stage 8 operation 6 - clean install, exact backup/restore, safe recovery, demo 0.41.0' -ForegroundColor Green
+Write-Host 'PASS: Stage 8 operation 6 - clean install, exact backup/restore, safe recovery, demo 0.42.0' -ForegroundColor Green
 Write-Host "Private backup and report: $backupPath"
 Write-Host 'Demo API: http://127.0.0.1:8001/docs'
 

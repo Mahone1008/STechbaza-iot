@@ -21,7 +21,7 @@ class CommandActorSnapshot:
     """Незмінний identity/RBAC snapshot автора command."""
 
     user_id: uuid.UUID
-    auth_session_id: uuid.UUID
+    auth_session_id: uuid.UUID | None
     organization_id: uuid.UUID
     platform_role: str
     organization_role: str | None
@@ -92,7 +92,11 @@ class CommandService:
         *,
         actor: CommandActorSnapshot,
         now: datetime | None = None,
+        schedule_id: uuid.UUID | None = None,
+        commit: bool = True,
     ) -> tuple[DeviceCommand, bool]:
+        if payload.command_type == "vfd.schedule.start" and schedule_id is None:
+            raise CommandProgramError("schedule_requires_calendar")
         device = self._devices.get(device_id)
         if device is None:
             raise CommandDeviceNotFoundError
@@ -130,10 +134,12 @@ class CommandService:
             raise RuntimeError("Command sequence exhausted; re-enrollment required")
         superseded = self._commands.superseding_stop(device_id, payload.request_id, actor.user_id) is not None
         if payload.command_type == "vfd.stop" and not superseded:
+            device.last_stop_requested_at = created_at
             for older in self._commands.pending_for_device(device_id):
                 stop_delivery(self._session, older, created_at, code="command_superseded_by_stop",
                     message="Доставку попередньої команди припинено новішою командою Stop; перевірте результат")
         command = DeviceCommand(
+            schedule_id=schedule_id,
             request_id=payload.request_id,
             device_id=device_id,
             command_type=payload.command_type,
@@ -161,9 +167,12 @@ class CommandService:
             if superseded:
                 stop_delivery(self._session, created, created_at, code="command_superseded_by_stop",
                     message="Запит надійшов після Stop, який уже скасував його доставку")
-            self._session.commit()
+            if commit:
+                self._session.commit()
             return created, True
         except IntegrityError as exc:
+            if not commit:
+                raise
             # Захищаємося від двох одночасних POST з однаковим request_id.
             self._session.rollback()
             existing = self._commands.get_by_request_id(payload.request_id)

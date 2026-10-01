@@ -32,7 +32,7 @@ export function programOverview() {
   data.command_types.push("vfd.program.start"); data.allowed_commands.push("vfd.program.start");
   data.frequency_limits = { min_hz: 20, max_hz: 50 };
   data.diagnostics = { ...diagnosticsFixture(), firmware_version: "0.3.0", last_stop: null, program: {
-    version: 1, ready: true, command_id: null, state: "idle", step_index: 0, step_count: 0,
+    version: 1, ready: true, supports_schedule: false, command_id: null, state: "idle", step_index: 0, step_count: 0,
     target_frequency_hz: null, remaining_seconds: null, reason: null,
   } };
   return data;

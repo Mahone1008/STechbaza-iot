@@ -26,6 +26,7 @@
 - [Command Actor Audit v1](command-actor-audit-v1.md)
 - [Безпечний порядок команд — MQTT v2](command-safety-v2.md)
 - [Таймер і програми частоти v1 — оновлення, контракт, приймання](control-programs-v1.md)
+- [Календарні розклади v1 — правила часу, оновлення та перевірка](control-schedules-v1.md)
 - [Current User / Session Context v1](current-user-context-v1.md)
 - [Демонстраційний стенд v1](demo-stand-v1.md)
 - [Стандарти розробки TechBaza](development-standards.md)

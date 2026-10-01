@@ -14,6 +14,7 @@ from sqlalchemy import delete, inspect, select, text
 from app.models.auth_rate_limit import AuthRateLimit
 from app.models.auth_session import AuthSession
 from app.models.command import DeviceCommand
+from app.models.schedule import DeviceSchedule
 from app.services.system_alarms import SystemAlarmService
 
 
@@ -76,8 +77,8 @@ def database_fingerprint(engine):
                 connection.execution_options(stream_results=False)
                 result[name] = {"rows": count, "sha256": digest.hexdigest()}
             migration = list(connection.execute(text("SELECT version_num FROM alembic_version ORDER BY version_num")).scalars())
-            if migration != ["20261001_0019"]:
-                raise ValueError("Очікується migration 0019 head")
+            if migration != ["20261001_0020"]:
+                raise ValueError("Очікується migration 0020 head")
             return {"migration": migration, "tables": result, "schema": structure,
                     "schema_sha256": hashlib.sha256(json.dumps(structure, sort_keys=True, default=str).encode()).hexdigest()}
 
@@ -91,6 +92,13 @@ def harden_restored_database(session, *, now=None):
     for item in sessions:
         item.revoked_at = now
     counts = {"revoked_sessions": len(sessions), "cancelled_delivery": 0, "unknown_results": 0}
+    schedules = list(session.scalars(select(DeviceSchedule).where(DeviceSchedule.enabled.is_(True)).with_for_update()))
+    for item in schedules:
+        item.enabled = False
+        item.next_start_at = None
+        item.next_check_at = None
+        item.updated_at = now
+    counts["paused_schedules"] = len(schedules)
     # Ліміти старого вікна/IP не переносяться в нове оточення; наступні
     # login/refresh знову проходять звичайний DB rate limiter.
     counts["cleared_rate_limits"] = session.execute(delete(AuthRateLimit)).rowcount
@@ -112,4 +120,3 @@ def harden_restored_database(session, *, now=None):
             counts["cancelled_delivery"] += 1
     session.flush()
     return counts
-

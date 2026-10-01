@@ -24,7 +24,8 @@
 
 using namespace kerumo;
 namespace {
-constexpr char FirmwareVersion[]="0.3.0";
+constexpr char FirmwareVersion[]="0.4.0";
+static_assert(sizeof(time_t)>=8,"Calendar execution requires 64-bit time_t");
 std::atomic<int64_t> syncEpochMs{0}, syncMonoMs{0};
 std::atomic<bool> networkReady{false};
 std::atomic<uint32_t> networkCheckedMs{0};
@@ -82,6 +83,11 @@ class NvsStorage : public Storage {
     opened=prefs.begin("kerumo-v3",false);
     if (!opened) return -1;
     if (!prefs.isKey("journal")) return 0;
+    if (prefs.getBytesLength("journal")==sizeof(ProgramJournalV3)) {
+      ProgramJournalV3 legacy{};
+      if (prefs.getBytes("journal",&legacy,sizeof(legacy))!=sizeof(legacy) || !upgradeJournal(legacy,value)) return -1;
+      return 1;
+    }
     if (prefs.getBytesLength("journal")==sizeof(LegacyJournal)) {
       LegacyJournal legacy{};
       if (prefs.getBytes("journal",&legacy,sizeof(legacy))!=sizeof(legacy) || !upgradeJournal(legacy,value)) return -1;
@@ -212,7 +218,7 @@ bool sendRecord(const Record& r) {
   result["session_id"]=r.session; timestamp(result["sent_at"],r.completedMs);
   result["status"]=r.outcome==Outcome::Succeeded?"succeeded":"failed";
   auto data=result["result"].to<JsonObject>();
-  if (r.command.type==Type::Program) {
+  if (programType(r.command.type)) {
     data["steps_completed"]=r.stepsCompleted;
     data["step_count"]=r.command.program.count;
     data["stop_confirmed"]=r.programStopConfirmed;

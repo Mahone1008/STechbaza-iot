@@ -12,6 +12,7 @@ from pathlib import Path
 from app.demo.catalog import LIVE_DEVICES
 from app.schemas.command import CommandEnvelope, DeviceCommandCreate
 from app.schemas.program import PROGRAM_ACTIVE_STATES, ProgramPlan
+from app.schemas.schedule import ScheduleRun
 
 MODES = {
     "pump": ("normal", "fault", "offline"),
@@ -101,7 +102,7 @@ class DemoState:
             values = {"pressure.bar": 0.4 if item["mode"] == "alarm" else round(2.5 + wave, 3)}
         if key == "pump":
             packet["diagnostics"] = {
-                "version": 1, "firmware_version": "simulator-0.3.0",
+                "version": 1, "firmware_version": "simulator-0.4.0",
                 "uptime_ms": max(0, int((self._monotonic() - self._boot_time) * 1000)),
                 "reset_reason": "software", "connection": {"transport": "unknown", "signal": None},
                 "last_stop": None, "program": self.program_progress(),
@@ -154,17 +155,19 @@ class DemoState:
             progress = self.program_progress()
             if not error_code and progress["state"] in PROGRAM_ACTIVE_STATES and envelope.command_type != "vfd.stop":
                 error_code, error_message = "busy", "Програма вже виконується"
-            if not error_code and envelope.command_type == "vfd.program.start":
-                plan = ProgramPlan.model_validate(envelope.payload)
+            if not error_code and envelope.command_type in {"vfd.program.start", "vfd.schedule.start"}:
+                plan = (ScheduleRun if envelope.command_type == "vfd.schedule.start" else ProgramPlan).model_validate(envelope.payload)
+                if isinstance(plan, ScheduleRun) and not 0 <= (current - plan.starts_at).total_seconds() < min(30, plan.steps[0].duration_seconds):
+                    error_code, error_message = "command_expired", "Календарне вікно запуску минуло"
                 if item["running"] or any(step.frequency_hz > 50 for step in plan.steps):
                     error_code, error_message = "program_invalid", "Потрібна зупинка та частоти в межах demo-профілю"
             failed = error_code is not None
             result = {}
             if not failed:
-                if envelope.command_type == "vfd.program.start":
+                if envelope.command_type in {"vfd.program.start", "vfd.schedule.start"}:
                     first = plan.steps[0]
                     self.db.execute("INSERT OR REPLACE INTO programs VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                        (key, command_id, json.dumps(envelope.payload), "holding", 0, first.duration_seconds, self._monotonic(), None))
+                        (key, command_id, json.dumps(envelope.payload), "holding", 0, first.duration_seconds, self._monotonic() - ((current - plan.starts_at).total_seconds() if isinstance(plan, ScheduleRun) else 0), None))
                     self.db.execute("UPDATE devices SET running=1, frequency=? WHERE key=?", (first.frequency_hz, key))
                 elif envelope.command_type == "vfd.frequency.set":
                     value = float(envelope.payload["frequency_hz"])
@@ -183,7 +186,7 @@ class DemoState:
             terminal = {**common, "message_id": str(uuid.uuid4()), "status": "failed" if failed else "succeeded",
                         "result": result, "error_code": error_code,
                         "error_message": error_message}
-            if not failed and envelope.command_type == "vfd.program.start":
+            if not failed and envelope.command_type in {"vfd.program.start", "vfd.schedule.start"}:
                 terminal = None  # ACK одразу, фінальний Result лише після завершення програми/STOP.
             self.db.execute("INSERT INTO commands (id, device, fingerprint, ack, result) VALUES (?, ?, ?, ?, ?)",
                             (command_id, key, fingerprint, json.dumps(ack), json.dumps(terminal)))
@@ -198,10 +201,10 @@ class DemoState:
         row = self.db.execute("SELECT * FROM programs WHERE device='pump'").fetchone()
         ready = self.device("pump")["mode"] == "normal"
         if row is None:
-            return {"version": 1, "ready": ready, "command_id": None, "state": "idle", "step_index": 0,
+            return {"version": 1, "ready": ready, "supports_schedule": True, "command_id": None, "state": "idle", "step_index": 0,
                     "step_count": 0, "target_frequency_hz": None, "remaining_seconds": None, "reason": None}
         steps = json.loads(row["plan"])["steps"]
-        return {"version": 1, "ready": ready, "command_id": row["command_id"], "state": row["state"],
+        return {"version": 1, "ready": ready, "supports_schedule": True, "command_id": row["command_id"], "state": row["state"],
                 "step_index": row["step"] + 1, "step_count": len(steps),
                 "target_frequency_hz": steps[row["step"]]["frequency_hz"],
                 "remaining_seconds": row["remaining"] if row["state"] == "holding" else None, "reason": row["reason"]}
@@ -234,7 +237,20 @@ class DemoState:
             row = self.db.execute("SELECT * FROM programs WHERE device='pump'").fetchone()
             if row is None or row["state"] != "holding":
                 return
-            steps = json.loads(row["plan"])["steps"]
+            plan = json.loads(row["plan"])
+            steps = plan["steps"]
+            if "starts_at" in plan:
+                elapsed = self._monotonic() - row["hold_started"]
+                total = 0
+                for index, step in enumerate(steps):
+                    total += step["duration_seconds"]
+                    if elapsed < total:
+                        self.db.execute("UPDATE programs SET step=?, remaining=? WHERE device='pump'", (index, math.ceil(total-elapsed)))
+                        self.db.execute("UPDATE devices SET frequency=? WHERE key='pump'", (step["frequency_hz"],))
+                        return
+                self.db.execute("UPDATE programs SET step=? WHERE device='pump'", (len(steps)-1,))
+                self._finish_program("program_completed")
+                return
             remaining = max(0, math.ceil(steps[row["step"]]["duration_seconds"] - (self._monotonic() - row["hold_started"])))
             if remaining:
                 if remaining != row["remaining"]:

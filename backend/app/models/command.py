@@ -49,6 +49,9 @@ class DeviceCommand(TimestampMixin, Base):
         unique=True,
         index=True,
     )
+    schedule_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("device_schedules.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
     device_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("devices.id", ondelete="CASCADE"),

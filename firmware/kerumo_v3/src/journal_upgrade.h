@@ -17,13 +17,46 @@ struct LegacyJournal {
   uint32_t magic{0x4B563301}, checksum{}; char uid[97]{}; uint64_t highest{};
   uint8_t next{}; bool motionPossible{}; LegacyRecord records[LedgerSize]{};
 };
-inline uint32_t legacyChecksum(const LegacyJournal& value) {
+// Точний layout v0.3 із етапами, до додавання календарних UTC-меж.
+struct ProgramCommandV3 {
+  char id[37]{}; char requestId[37]{}; uint64_t sequence{};
+  int64_t issuedMs{}, expiresMs{}; uint16_t ttl{}; Type type{}; double hz{}; ProgramPlan program{};
+};
+struct ProgramRecordV3 {
+  ProgramCommandV3 command{}; char ackId[37]{}, resultId[37]{}, session[37]{};
+  int64_t acceptedMs{}, completedMs{}; Outcome outcome{Outcome::Empty};
+  Error error{Error::None}; double actualHz{}; uint8_t stepsCompleted{}; bool programStopConfirmed{};
+};
+struct ProgramJournalV3 {
+  uint32_t magic{0x4B563302}, checksum{}; char uid[97]{}; uint64_t highest{};
+  uint8_t next{}; bool motionPossible{}; ProgramRecordV3 records[LedgerSize]{};
+};
+template<class T> inline uint32_t legacyChecksum(const T& value) {
   const auto* bytes=reinterpret_cast<const uint8_t*>(&value); uint32_t crc=0xFFFFFFFFU;
   for (size_t i=0;i<sizeof(value);++i) {
-    crc^=i>=offsetof(LegacyJournal,checksum) && i<offsetof(LegacyJournal,checksum)+4?0:bytes[i];
+    crc^=i>=offsetof(T,checksum) && i<offsetof(T,checksum)+4?0:bytes[i];
     for(unsigned bit=0;bit<8;++bit) crc=(crc>>1)^(0xEDB88320U&(0U-(crc&1U)));
   }
   return ~crc;
+}
+inline bool upgradeJournal(const ProgramJournalV3& old,Journal& next) {
+  if (old.magic!=0x4B563302 || old.checksum!=legacyChecksum(old) || old.next>=LedgerSize ||
+      old.highest>MaxSequence || !std::memchr(old.uid,0,sizeof(old.uid))) return false;
+  next=Journal{}; std::memcpy(next.uid,old.uid,sizeof(old.uid));
+  next.highest=old.highest; next.next=old.next; next.motionPossible=old.motionPossible;
+  for(size_t i=0;i<LedgerSize;++i) {
+    const auto& a=old.records[i]; auto& b=next.records[i];
+    if (static_cast<unsigned>(a.command.type)>static_cast<unsigned>(Type::Program) ||
+        !std::memchr(a.command.id,0,37) || !std::memchr(a.command.requestId,0,37)) return false;
+    std::memcpy(b.command.id,a.command.id,37); std::memcpy(b.command.requestId,a.command.requestId,37);
+    b.command.sequence=a.command.sequence; b.command.issuedMs=a.command.issuedMs;
+    b.command.expiresMs=a.command.expiresMs; b.command.ttl=a.command.ttl;
+    b.command.type=a.command.type; b.command.hz=a.command.hz; b.command.program=a.command.program;
+    std::memcpy(b.ackId,a.ackId,37); std::memcpy(b.resultId,a.resultId,37); std::memcpy(b.session,a.session,37);
+    b.acceptedMs=a.acceptedMs; b.completedMs=a.completedMs; b.outcome=a.outcome; b.error=a.error; b.actualHz=a.actualHz;
+    b.stepsCompleted=a.stepsCompleted; b.programStopConfirmed=a.programStopConfirmed;
+  }
+  next.checksum=checksum(next); return true;
 }
 inline bool upgradeJournal(const LegacyJournal& old,Journal& next) {
   if (old.magic!=0x4B563301 || old.checksum!=legacyChecksum(old) || old.next>=LedgerSize ||

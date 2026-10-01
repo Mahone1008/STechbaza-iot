@@ -16,6 +16,7 @@ from app.models.notification import AlarmNotification
 from app.models.organization import Organization
 from app.models.site import Site
 from app.models.user import User
+from app.models.schedule import DeviceSchedule
 from app.operations.recovery import harden_restored_database
 
 
@@ -42,6 +43,9 @@ class RestorePostgresTests(unittest.TestCase):
         s.add(AuthSession(id=self.auth, user_id=self.user, refresh_token_hash=self.auth.hex*2,
                           expires_at=self.now + timedelta(days=1)))
         s.flush()
+        self.schedule = uuid.uuid4()
+        s.add(DeviceSchedule(id=self.schedule, device_id=self.device, organization_id=self.org,
+            author_user_id=self.user, revision=1, enabled=True, spec={}, next_start_at=self.now + timedelta(hours=1), next_check_at=self.now))
         for status, command_id in self.ids.items():
             s.add(DeviceCommand(id=command_id, request_id=uuid.uuid4(), device_id=self.device,
                                 command_type="vfd.stop", status=status, expires_at=self.now + timedelta(minutes=5),
@@ -61,6 +65,9 @@ class RestorePostgresTests(unittest.TestCase):
         self.assertGreaterEqual(result["revoked_sessions"], 1)
         self.assertGreaterEqual(result["cancelled_delivery"], 1)
         self.assertGreaterEqual(result["unknown_results"], 2)
+        self.assertGreaterEqual(result["paused_schedules"], 1)
+        self.assertFalse(self.session.get(DeviceSchedule, self.schedule).enabled)
+        self.assertIsNone(self.session.get(DeviceSchedule, self.schedule).next_check_at)
         self.assertIsNotNone(self.session.get(AuthSession, self.auth).revoked_at)
         for old in ("queued",):
             item = self.session.get(DeviceCommand, self.ids[old])
@@ -74,7 +81,7 @@ class RestorePostgresTests(unittest.TestCase):
             self.assertEqual(self.session.get(DeviceCommand, self.ids[status]).status, status)
         count = len(list(self.session.scalars(select(AlarmNotification).where(AlarmNotification.device_id == self.device))))
         self.assertEqual(harden_restored_database(self.session, now=self.now),
-                         {"revoked_sessions": 0, "cancelled_delivery": 0, "unknown_results": 0, "cleared_rate_limits": 0})
+                         {"revoked_sessions": 0, "cancelled_delivery": 0, "unknown_results": 0, "cleared_rate_limits": 0, "paused_schedules": 0})
         self.session.commit()
         self.assertEqual(len(list(self.session.scalars(select(AlarmNotification).where(AlarmNotification.device_id == self.device)))), count)
 
@@ -84,6 +91,7 @@ class RestorePostgresTests(unittest.TestCase):
                 harden_restored_database(self.session, now=self.now)
         self.session.rollback()
         self.assertIsNone(self.session.get(AuthSession, self.auth).revoked_at)
+        self.assertTrue(self.session.get(DeviceSchedule, self.schedule).enabled)
         for status, command_id in self.ids.items():
             self.assertEqual(self.session.get(DeviceCommand, command_id).status, status)
         self.assertEqual(list(self.session.scalars(select(DeviceAlarm).where(DeviceAlarm.device_id == self.device))), [])
@@ -150,4 +158,3 @@ class RestorePostgresTests(unittest.TestCase):
         finally:
             with engine.begin() as connection:
                 connection.execute(text(f'DROP TABLE IF EXISTS "{table}"'))
-

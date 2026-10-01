@@ -85,6 +85,9 @@ def create_command(
         raise HTTPException(status_code=409, detail="Частота поза налаштованими межами або профіль обладнання ще не задано") from exc
     except CommandProgramError as exc:
         messages = {
+            "schedule_requires_calendar": "Календарний запуск створюється лише через збережений розклад.",
+            "schedule_firmware_unavailable": "Контролер ще не підтримує календарні запуски.",
+            "schedule_window_expired": "Календарне вікно запуску минуло.",
             "program_active": "Програма вже виконується. Спочатку зупиніть її кнопкою STOP.",
             "program_control_disabled": "Керування частотником вимкнено.",
             "program_firmware_unavailable": "Потрібна свіжа телеметрія контролера з підтримкою програм v1.",

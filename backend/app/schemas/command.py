@@ -6,12 +6,14 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.numeric import finite_number
 from app.schemas.program import ProgramPlan
+from app.schemas.schedule import ScheduleRun
 
 CommandType = Literal[
     "vfd.start",
     "vfd.stop",
     "vfd.frequency.set",
     "vfd.program.start",
+    "vfd.schedule.start",
 ]
 
 
@@ -35,6 +37,9 @@ class DeviceCommandCreate(BaseModel):
             raise ValueError("Only Stop may supersede a different request")
         if self.command_type == "vfd.program.start":
             ProgramPlan.model_validate(self.payload)
+            return self
+        if self.command_type == "vfd.schedule.start":
+            ScheduleRun.model_validate(self.payload)
             return self
         if self.command_type in {"vfd.start", "vfd.stop"}:
             if self.payload:
@@ -95,6 +100,7 @@ class DeviceCommandRead(BaseModel):
     device_id: uuid.UUID
     command_type: str
     control_sequence: int | None = None
+    schedule_id: uuid.UUID | None = None
     supersedes_request_id: uuid.UUID | None = None
     payload: dict[str, Any]
     status: str

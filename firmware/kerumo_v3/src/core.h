@@ -10,7 +10,8 @@ constexpr uint32_t AutoStopMs = 60000;
 enum class SessionMode : uint8_t { Bench, ExtendedTest };
 enum class StopReason : uint8_t { None, Command, LocalDisarm, BenchTimer, Network, Link, Fault, Config, Storage, Unconfirmed, Restart, ProgramCompleted };
 const char* stopReasonCode(StopReason reason);
-enum class Type : uint8_t { Start, Stop, Frequency, Program };
+enum class Type : uint8_t { Start, Stop, Frequency, Program, Schedule };
+inline bool programType(Type type) { return type==Type::Program || type==Type::Schedule; }
 enum class Outcome : uint8_t { Empty, Pending, Succeeded, Failed, Unknown };
 enum class Error : uint8_t {
   None, ReadOnly, NotArmed, Clock, Expired, Stale, Config, Fault,
@@ -26,6 +27,7 @@ struct Command {
   Type type{};
   double hz{};
   ProgramPlan program{};
+  int64_t scheduledStartMs{}, scheduledStopMs{};
 };
 struct Record {
   Command command{};
@@ -39,7 +41,7 @@ struct Record {
 };
 // One committed NVS blob contains the sequence, intent, responses and run latch.
 struct Journal {
-  uint32_t magic{0x4B563302};
+  uint32_t magic{0x4B563303};
   uint32_t checksum{};
   char uid[97]{};
   uint64_t highest{};
@@ -148,5 +150,7 @@ class Controller {
   StopReason programReason_{StopReason::None};
   Error programError_{Error::None};
   uint64_t programPhaseSince_{}, programHoldSince_{}, lastProgramPoll_{};
+  uint64_t calendarStopAt_{};
+  uint64_t calendarStepEnd() const;
 };
 } // namespace kerumo

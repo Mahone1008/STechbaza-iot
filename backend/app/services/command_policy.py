@@ -3,6 +3,7 @@ from datetime import datetime
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy import select
 
 from app.models.auth_session import AuthSession
 from app.models.command import DeviceCommand
@@ -25,20 +26,31 @@ def dispatch_rejection(session: Session, command: DeviceCommand, now: datetime) 
         return "legacy_command"
     user = session.get(User, command.actor_user_id, populate_existing=True) if command.actor_user_id else None
     auth = session.get(AuthSession, command.actor_auth_session_id, populate_existing=True) if command.actor_auth_session_id else None
-    if (user is None or not user.is_active or auth is None or auth.user_id != user.id
+    scheduled = command.command_type == "vfd.schedule.start"
+    if scheduled:
+        from app.repositories.schedules import ScheduleRepository
+        from app.services.schedules import schedule_actor
+        from app.models.schedule import ScheduleOccurrence
+        schedule = ScheduleRepository(session).get(command.schedule_id) if command.schedule_id else None
+        occurrence = session.scalar(select(ScheduleOccurrence).where(ScheduleOccurrence.command_id == command.id))
+        actor = schedule_actor(session, schedule) if schedule else None
+        if not schedule or not schedule.enabled or not occurrence or occurrence.revision != schedule.revision or not actor or actor.user_id != command.actor_user_id or actor.organization_id != command.actor_organization_id or schedule.device_id != command.device_id:
+            return "command_access_revoked"
+    elif (user is None or not user.is_active or auth is None or auth.user_id != user.id
             or auth.revoked_at is not None or auth.expires_at <= now):
         return "command_access_revoked"
     device = session.get(Device, command.device_id)
     site = session.get(Site, device.site_id, populate_existing=True) if device else None
     if site:
         session.get(Organization, site.organization_id, populate_existing=True)
-    try:
-        access = AccessControl(session, CurrentUserContext(user, auth)).require_device_context(
-            command.device_id, Permission.COMMAND_EXECUTE)
-    except HTTPException:
-        return "command_access_revoked"
-    if access.organization_id != command.actor_organization_id:
-        return "command_binding_changed"
+    if not scheduled:
+        try:
+            access = AccessControl(session, CurrentUserContext(user, auth)).require_device_context(
+                command.device_id, Permission.COMMAND_EXECUTE)
+        except HTTPException:
+            return "command_access_revoked"
+        if access.organization_id != command.actor_organization_id:
+            return "command_binding_changed"
     enabled = CapabilityRepository(session).get_enabled_codes_for_device(command.device_id)
     if "vfd.control" not in enabled or COMMAND_REQUIRED_CAPABILITY[command.command_type] not in enabled:
         return "command_capability_disabled"

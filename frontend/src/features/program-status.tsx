@@ -5,12 +5,12 @@ import { stopReasonLabels } from "@/lib/api/diagnostics";
 export function ProgramStatus({ progress, fresh, onViewProgram }: { progress: ProgramProgress | null | undefined; fresh: boolean; onViewProgram?: (() => void) | undefined }) {
   if (!progress || progress.state === "idle") return null;
   const reason = progress.reason && Object.hasOwn(stopReasonLabels, progress.reason) ? stopReasonLabels[progress.reason as keyof typeof stopReasonLabels] : progress.reason;
-  return <Card title="Виконання програми">
+  return <Card title="Виконання етапів">
     <StatusBadge tone={!fresh ? "warning" : progress.state === "completed" ? "success" : programActive(progress) ? "info" : "warning"}>{fresh ? programStateLabels[progress.state] : "Останній відомий стан програми"}</StatusBadge>
     <p>Етап {progress.step_index} з {progress.step_count}{progress.target_frequency_hz !== null ? ` · ${progress.target_frequency_hz} Гц` : ""}.</p>
     {progress.remaining_seconds !== null && <p>Залишок етапу за повідомленням контролера: {durationText(progress.remaining_seconds)}.</p>}
     {reason && <p>Причина завершення або зупинки: {reason}.</p>}
-    {progress.command_id && onViewProgram && <a className="button button-secondary" href="#selected-command" onClick={onViewProgram}>Переглянути етапи програми</a>}
+    {progress.command_id && onViewProgram && <a className="button button-secondary" href="#selected-command" onClick={onViewProgram}>Переглянути етапи роботи</a>}
     {!fresh && <p className="help-copy">Дані застаріли. Поточний стан і зупинку ще потрібно підтвердити свіжою телеметрією.</p>}
   </Card>;
 }

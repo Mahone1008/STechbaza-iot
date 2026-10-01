@@ -368,6 +368,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/devices/{device_id}/schedules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Schedules */
+        get: operations["list_schedules_api_v1_devices__device_id__schedules_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/devices/{device_id}/schedules/{schedule_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Write Schedule */
+        put: operations["write_schedule_api_v1_devices__device_id__schedules__schedule_id__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/devices/{device_id}/schedules/{schedule_id}/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Schedule History */
+        get: operations["schedule_history_api_v1_devices__device_id__schedules__schedule_id__runs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/devices/{device_id}/schedules/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Preview Schedule */
+        post: operations["preview_schedule_api_v1_devices__device_id__schedules_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/devices/{device_id}/state": {
         parameters: {
             query?: never;
@@ -1253,7 +1321,7 @@ export interface components {
              * Command Type
              * @enum {string}
              */
-            command_type: "vfd.start" | "vfd.stop" | "vfd.frequency.set" | "vfd.program.start";
+            command_type: "vfd.start" | "vfd.stop" | "vfd.frequency.set" | "vfd.program.start" | "vfd.schedule.start";
             /** Payload */
             payload?: {
                 [key: string]: unknown;
@@ -1348,6 +1416,8 @@ export interface components {
             result_deadline_at: string | null;
             /** Result Timed Out At */
             result_timed_out_at: string | null;
+            /** Schedule Id */
+            schedule_id?: string | null;
             /** Status */
             status: string;
             /** Supersedes Request Id */
@@ -1585,6 +1655,21 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        /** FrequencyChange */
+        FrequencyChange: {
+            /**
+             * At
+             * Format: time
+             */
+            at: string;
+            /**
+             * Day Offset
+             * @default 0
+             */
+            day_offset: number;
+            /** Frequency Hz */
+            frequency_hz: number;
+        };
         /** FrequencyLimits */
         FrequencyLimits: {
             /** Max Hz */
@@ -1799,6 +1884,11 @@ export interface components {
             step_count: number;
             /** Step Index */
             step_index: number;
+            /**
+             * Supports Schedule
+             * @default false
+             */
+            supports_schedule: boolean;
             /** Target Frequency Hz */
             target_frequency_hz: number | null;
             /**
@@ -1807,6 +1897,13 @@ export interface components {
              */
             version: 1;
         };
+        /** ProgramStep */
+        ProgramStep: {
+            /** Duration Seconds */
+            duration_seconds: number;
+            /** Frequency Hz */
+            frequency_hz: number;
+        };
         /**
          * RefreshTokenRequest
          * @description Opaque refresh token для ротації access token.
@@ -1814,6 +1911,185 @@ export interface components {
         RefreshTokenRequest: {
             /** Refresh Token */
             refresh_token: string;
+        };
+        /** ScheduleOccurrenceRead */
+        ScheduleOccurrenceRead: {
+            /** Command Id */
+            command_id: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Reason */
+            reason: string | null;
+            /** Revision */
+            revision: number;
+            /**
+             * Schedule Id
+             * Format: uuid
+             */
+            schedule_id: string;
+            /**
+             * Starts At
+             * Format: date-time
+             */
+            starts_at: string;
+            /** Status */
+            status: string;
+            /**
+             * Stops At
+             * Format: date-time
+             */
+            stops_at: string;
+        };
+        /** SchedulePreview */
+        SchedulePreview: {
+            /**
+             * Conflict Horizon Days
+             * @default 366
+             */
+            conflict_horizon_days: number;
+            /** Conflicts */
+            conflicts: string[];
+            /** Notes */
+            notes: string[];
+            /** Runs */
+            runs: components["schemas"]["ScheduleRun"][];
+        };
+        /** ScheduleRead */
+        ScheduleRead: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Device Id
+             * Format: uuid
+             */
+            device_id: string;
+            /** Enabled */
+            enabled: boolean;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Next Start At */
+            next_start_at: string | null;
+            /**
+             * Organization Id
+             * Format: uuid
+             */
+            organization_id: string;
+            /** Revision */
+            revision: number;
+            spec: components["schemas"]["ScheduleSpec"];
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /**
+         * ScheduleRun
+         * @description UTC-межі одного виконання; переходи не пересувають фінальний STOP.
+         */
+        ScheduleRun: {
+            /**
+             * Starts At
+             * Format: date-time
+             */
+            starts_at: string;
+            /** Steps */
+            steps: components["schemas"]["ProgramStep"][];
+            /**
+             * Stops At
+             * Format: date-time
+             */
+            stops_at: string;
+            /**
+             * Version
+             * @constant
+             */
+            version: 1;
+        };
+        /** ScheduleSpec */
+        ScheduleSpec: {
+            /** Changes */
+            changes?: components["schemas"]["FrequencyChange"][];
+            /** Excluded Dates */
+            excluded_dates?: string[];
+            /** Frequency Hz */
+            frequency_hz: number;
+            /**
+             * Interval Days
+             * @default 1
+             */
+            interval_days: number;
+            /**
+             * Month Day
+             * @default 1
+             */
+            month_day: number;
+            /** Months */
+            months?: number[];
+            /** Name */
+            name: string;
+            /**
+             * Repeat
+             * @default once
+             * @enum {string}
+             */
+            repeat: "once" | "daily" | "weekly" | "interval" | "monthly" | "yearly";
+            /**
+             * Start Date
+             * Format: date
+             */
+            start_date: string;
+            /**
+             * Start Time
+             * Format: time
+             */
+            start_time: string;
+            /**
+             * Stop Day Offset
+             * @default 0
+             */
+            stop_day_offset: number;
+            /**
+             * Stop Time
+             * Format: time
+             */
+            stop_time: string;
+            /** Timezone */
+            timezone: string;
+            /**
+             * Until Date
+             * Format: date
+             */
+            until_date: string;
+            /** Weekdays */
+            weekdays?: number[];
+        };
+        /** ScheduleWrite */
+        ScheduleWrite: {
+            /** Enabled */
+            enabled: boolean;
+            /** Expected Revision */
+            expected_revision: number;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            spec: components["schemas"]["ScheduleSpec"];
         };
         /** SignalDiagnostics */
         SignalDiagnostics: {
@@ -3031,6 +3307,140 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AccessErrorRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_schedules_api_v1_devices__device_id__schedules_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                device_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScheduleRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    write_schedule_api_v1_devices__device_id__schedules__schedule_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                device_id: string;
+                schedule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScheduleWrite"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScheduleRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    schedule_history_api_v1_devices__device_id__schedules__schedule_id__runs_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                device_id: string;
+                schedule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScheduleOccurrenceRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_schedule_api_v1_devices__device_id__schedules_preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                device_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScheduleWrite"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SchedulePreview"];
                 };
             };
             /** @description Validation Error */

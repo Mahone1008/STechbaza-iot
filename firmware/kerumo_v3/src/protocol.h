@@ -26,6 +26,7 @@ inline bool parseCommand(const char* bytes,size_t length,Command& out) {
   else if (std::strcmp(type,"vfd.stop")==0) out.type=Type::Stop;
   else if (std::strcmp(type,"vfd.frequency.set")==0) out.type=Type::Frequency;
   else if (std::strcmp(type,"vfd.program.start")==0) out.type=Type::Program;
+  else if (std::strcmp(type,"vfd.schedule.start")==0) out.type=Type::Schedule;
   else return false;
   if (!doc["payload"].is<JsonObject>()) return false;
   auto payload=doc["payload"].as<JsonObject>();
@@ -33,8 +34,8 @@ inline bool parseCommand(const char* bytes,size_t length,Command& out) {
     if (payload.size()!=1 || !payload["frequency_hz"].is<double>() || payload["frequency_hz"].is<bool>()) return false;
     out.hz=payload["frequency_hz"].as<double>();
     if (!std::isfinite(out.hz) || out.hz<0 || out.hz>100) return false;
-  } else if (out.type==Type::Program) {
-    if (payload.size()!=2 || !payload["version"].is<int>() || payload["version"].as<int>()!=1 || !payload["steps"].is<JsonArray>()) return false;
+  } else if (programType(out.type)) {
+    if (payload.size()!=(out.type==Type::Schedule?4U:2U) || !payload["version"].is<int>() || payload["version"].as<int>()!=1 || !payload["steps"].is<JsonArray>()) return false;
     const auto steps=payload["steps"].as<JsonArray>();
     if (steps.size()==0 || steps.size()>MaxProgramSteps) return false;
     out.program.count=steps.size();
@@ -46,6 +47,13 @@ inline bool parseCommand(const char* bytes,size_t length,Command& out) {
       out.program.steps[i++]={raw["frequency_hz"].as<double>(),raw["duration_seconds"].as<uint32_t>()};
     }
     if (!validProgram(out.program)) return false;
+    if (out.type==Type::Schedule) {
+      if (!parseUtcMs(payload["starts_at"] | "",out.scheduledStartMs) ||
+          !parseUtcMs(payload["stops_at"] | "",out.scheduledStopMs)) return false;
+      int64_t duration=0;
+      for (size_t n=0;n<out.program.count;++n) duration+=out.program.steps[n].seconds*1000LL;
+      if (out.scheduledStartMs%1000 || out.scheduledStopMs%1000 || out.scheduledStopMs-out.scheduledStartMs!=duration) return false;
+    }
   } else if (payload.size()!=0) return false;
   return true;
 }
