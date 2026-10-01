@@ -135,7 +135,7 @@ bool Controller::begin(const char* uid) {
   config_=readConfig(bus_); lastConfigRead_=clock_.monotonicMs();
   // No blanket boot write: a persisted run intent is stopped only in the verified profile.
   stopping_=controls_ && journal_.motionPossible;
-  if (stopping_) stopReason_=StopReason::Restart;
+  if (stopping_) { stopReason_=StopReason::Restart; recordStop(StopReason::Restart); }
   return true;
 }
 bool Controller::sessionConfigOk() const {
@@ -154,7 +154,12 @@ bool Controller::arm(SessionMode mode) {
   if (armed_) mode_=mode;
   return armed_;
 }
+void Controller::recordStop(StopReason reason) {
+  lastStop_={reason,clock_.uptimeMs(),clock_.utcMs(),false};
+}
 void Controller::requestStop(StopReason reason) {
+  // Повтори STOP і пізніші блокування не переписують початкову причину й час.
+  if (!stopping_) recordStop(reason);
   // Only a normal, verified STOP may retain the current extended session.
   if (reason!=StopReason::Command || mode_!=SessionMode::ExtendedTest) {
     armed_=false; mode_=SessionMode::Bench;
@@ -249,7 +254,7 @@ void Controller::tick(bool networkConnected) {
       bus_.write(0x2000,0x0001);
       uint16_t state{},output{};
       if (bus_.read(0x2101,state) && bus_.read(0x2103,output) && stopped(state,output)) {
-        journal_.motionPossible=false; stopping_=false; save();
+        journal_.motionPossible=false; stopping_=false; lastStop_.confirmed=true; save();
       }
     }
   }
@@ -262,7 +267,7 @@ void Controller::tick(bool networkConnected) {
       actual=output/100.0;
     }
     if (verified) {
-      if (type==Type::Stop) { journal_.motionPossible=false; stopping_=false; }
+      if (type==Type::Stop) { journal_.motionPossible=false; stopping_=false; lastStop_.confirmed=true; }
       finish(record,Outcome::Succeeded,Error::None,actual);
     } else if (static_cast<uint32_t>(now-pendingSince_)>=10000) {
       finish(record,Outcome::Unknown,Error::Unconfirmed); requestStop(StopReason::Unconfirmed);
@@ -282,6 +287,7 @@ Sample Controller::sample() {
   else if (journal_.motionPossible && sample.raw[0]!=0) requestStop(StopReason::Fault);
   sample.sampledMs=clock_.monotonicMs(); sample.sampledUtcMs=clock_.utcMs();
   sample.configOk=sessionConfigOk(); sample.armed=armed_; sample.storageOk=storageOk_;
+  sample.uptimeMs=clock_.uptimeMs(); sample.lastStop=lastStop_;
   return sample;
 }
 void Controller::replay() const {

@@ -56,6 +56,7 @@ class TelemetryRepository:
         received_at: datetime,
         values: dict,
         state: dict,
+        diagnostics: dict | None = None,
     ) -> DeviceState:
         snapshot = self.get_state(device_id)
 
@@ -69,6 +70,7 @@ class TelemetryRepository:
                 last_received_at=received_at,
                 values=values,
                 state=state,
+                diagnostics=diagnostics,
             )
             self._session.add(snapshot)
         else:
@@ -79,6 +81,7 @@ class TelemetryRepository:
             snapshot.last_received_at = received_at
             snapshot.values = values
             snapshot.state = state
+            snapshot.diagnostics = diagnostics
 
         self._session.flush()
         return snapshot

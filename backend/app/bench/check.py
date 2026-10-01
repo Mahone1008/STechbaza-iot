@@ -78,9 +78,11 @@ def run():
             info=edge.publish(topic+suffix,json.dumps(payload),qos=1,retain=False)
             info.wait_for_publish(timeout=5);ensure(info.is_published(), "MQTT PUBACK")
         publish("/heartbeat",envelope(0))
+        diagnostics={"version":1,"firmware_version":"0.2.2","uptime_ms":3000,"reset_reason":"power_on",
+                     "connection":{"transport":"wifi","signal":{"metric":"rssi","dbm":-67}},"last_stop":None}
         publish("/telemetry",{**envelope(1),"values":{"vfd.frequency_hz":0,"vfd.set_frequency_hz":19,
             "vfd.current_a":0,"vfd.voltage_v":0},"state":{"pump_running":False,"vfd_fault_code":0,
-            "vfd_link":True,"vfd_configuration_valid":True,"control_armed":False}})
+            "vfd_link":True,"vfd_configuration_valid":True,"control_armed":False},"diagnostics":diagnostics})
         owner=Client("owner")
         path=f"/api/v1/devices/{DEVICE_ID}"
         def fresh_view():
@@ -88,6 +90,7 @@ def run():
             return result if result["telemetry_freshness"]["status"]=="fresh" else None
         view=wait_for("V3 TLS telemetry",fresh_view)
         ensure(view["device"]["uid"]==UID and view["availability"]["online"], "Physical identity/presence")
+        ensure(view["diagnostics"]==diagnostics, "Typed controller diagnostics over MQTT/TLS to overview")
         ensure(not view["allowed_commands"], "Read-only enrollment must have no command capability")
         ensure("emergency_stop" not in view["state_keys"] and "local_mode" not in view["state_keys"], "Uninstalled inputs leaked")
         ensure("pressure.bar" not in view["value_keys"], "Uninstalled pressure sensor")

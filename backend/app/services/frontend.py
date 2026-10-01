@@ -112,6 +112,7 @@ class FrontendReadService:
             device_id=device_id, now=generated_at,
         )
         return DeviceOverviewRead(
+            diagnostics=snapshot.diagnostics if snapshot else None,
             frequency_limits=configured_limits(self._session, device_id),
             generated_at=generated_at,
             device=DeviceRead.model_validate(context.device),

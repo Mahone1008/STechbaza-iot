@@ -1016,6 +1016,34 @@ export interface components {
              */
             updated_at: string;
         };
+        /** ConnectionDiagnostics */
+        ConnectionDiagnostics: {
+            signal?: components["schemas"]["SignalDiagnostics"] | null;
+            /**
+             * Transport
+             * @enum {string}
+             */
+            transport: "wifi" | "cellular" | "ethernet" | "unknown";
+        };
+        /** ControllerDiagnostics */
+        ControllerDiagnostics: {
+            connection: components["schemas"]["ConnectionDiagnostics"];
+            /** Firmware Version */
+            firmware_version: string;
+            last_stop?: components["schemas"]["StopDiagnostics"] | null;
+            /**
+             * Reset Reason
+             * @enum {string}
+             */
+            reset_reason: "unknown" | "power_on" | "external" | "software" | "panic" | "interrupt_watchdog" | "task_watchdog" | "watchdog" | "deep_sleep" | "brownout" | "sdio";
+            /** Uptime Ms */
+            uptime_ms: number;
+            /**
+             * Version
+             * @constant
+             */
+            version: 1;
+        };
         /** CurrentUserMembershipRead */
         CurrentUserMembershipRead: {
             /**
@@ -1446,6 +1474,8 @@ export interface components {
              */
             command_types: string[];
             device: components["schemas"]["DeviceRead"];
+            /** @description Діагностика того самого telemetry snapshot і boot session; має спільну telemetry_freshness. */
+            diagnostics?: components["schemas"]["ControllerDiagnostics"] | null;
             frequency_limits?: components["schemas"]["FrequencyLimits"] | null;
             /**
              * Generated At
@@ -1526,6 +1556,7 @@ export interface components {
              * Format: uuid
              */
             device_id: string;
+            diagnostics?: components["schemas"]["ControllerDiagnostics"] | null;
             /**
              * Last Received At
              * Format: date-time
@@ -1756,6 +1787,16 @@ export interface components {
             /** Refresh Token */
             refresh_token: string;
         };
+        /** SignalDiagnostics */
+        SignalDiagnostics: {
+            /** Dbm */
+            dbm: number;
+            /**
+             * Metric
+             * @enum {string}
+             */
+            metric: "rssi" | "rsrp";
+        };
         /**
          * SiteCreate
          * @description Дані для створення фізичного об'єкта організації.
@@ -1817,6 +1858,23 @@ export interface components {
             status: "missing" | "invalid" | "fresh" | "stale";
             /** Value */
             value: boolean | number | null;
+        };
+        /**
+         * StopDiagnostics
+         * @description Останній запит STOP цього запуску; підтвердження — читання частотника.
+         */
+        StopDiagnostics: {
+            /** Confirmed */
+            confirmed: boolean;
+            /**
+             * Reason
+             * @enum {string}
+             */
+            reason: "command" | "local_disarm" | "bench_timer" | "network_lost" | "vfd_link_lost" | "vfd_fault" | "configuration_mismatch" | "storage_failed" | "physical_result_unconfirmed" | "restart_recovery";
+            /** Requested At */
+            requested_at?: string | null;
+            /** Uptime Ms */
+            uptime_ms: number;
         };
         /** TelemetryBucketRead */
         TelemetryBucketRead: {
@@ -1898,6 +1956,7 @@ export interface components {
              * Format: uuid
              */
             device_id: string;
+            diagnostics?: components["schemas"]["ControllerDiagnostics"] | null;
             /**
              * Id
              * Format: uuid

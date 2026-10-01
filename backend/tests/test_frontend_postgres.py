@@ -30,6 +30,7 @@ from app.schemas.telemetry import TelemetryEnvelope
 from app.services.telemetry import TelemetryCapabilityViolationError, TelemetryService
 from app.tools.alarm_ack_check import _identity
 from app.tools.alarm_ack_http_check import _request
+from test_controller_diagnostics import diagnostic_payload
 
 
 @unittest.skipUnless(os.getenv("TECHBAZA_RUN_DB_TESTS") == "1", "Requires PostgreSQL opt-in")
@@ -112,6 +113,40 @@ class FrontendPostgresTests(unittest.TestCase):
         for key in ("capabilities", "modules", "value_keys", "state_keys", "command_types", "allowed_commands", "state_readings"):
             self.assertEqual(result[key], [], key)
         self.assertEqual(result["access"], self.request(self.access))
+        self.assertIsNone(result["diagnostics"])
+
+    def test_diagnostics_share_telemetry_ordering_session_and_tenant_guards(self):
+        device_uid = f"TB-FRONTEND-{self.devices[0].hex}"
+        boot = uuid.uuid4()
+        first = TelemetryEnvelope(schema_version=1, message_id=uuid.uuid4(), session_id=boot,
+                                  sequence=10, sent_at=self.now, diagnostics=diagnostic_payload())
+        with SessionLocal() as session:
+            service = TelemetryService(session)
+            result = service.ingest(device_uid=device_uid, payload=first, received_at=self.now)
+            self.assertTrue(result.state_updated)
+            self.assertTrue(service.ingest(device_uid=device_uid, payload=first).duplicate)
+            older = first.model_copy(update={"message_id": uuid.uuid4(), "sequence": 9, "diagnostics": None})
+            self.assertFalse(service.ingest(device_uid=device_uid, payload=older).state_updated)
+        view = self.request(self.overview)
+        self.assertEqual(view["diagnostics"], diagnostic_payload())
+        self.assertEqual(view["telemetry_freshness"]["status"], "fresh")
+        history = self.request(f"/devices/{self.devices[0]}/telemetry")
+        self.assertEqual(len(history), 2)
+        self.assertEqual(next(row for row in history if row["message_id"] == str(first.message_id))["diagnostics"], diagnostic_payload())
+        self.request(self.overview, who="outsider", expected=404)
+        self.assertIsNone(self.request(f"/devices/{self.devices[1]}/overview")["diagnostics"])
+        with SessionLocal() as session:
+            session.get(Device, self.devices[0]).last_observed_session_id = uuid.uuid4()
+            session.commit()
+        view = self.request(self.overview)
+        self.assertEqual(view["telemetry_freshness"]["reason"], "session_changed")
+        # An explicit absent block replaces rather than revives the previous sample's data.
+        with SessionLocal() as session:
+            next_boot = session.get(Device, self.devices[0]).last_observed_session_id
+            payload = first.model_copy(update={"message_id": uuid.uuid4(), "session_id": next_boot,
+                                               "sequence": 1, "diagnostics": None, "sent_at": self.now + timedelta(seconds=1)})
+            self.assertTrue(TelemetryService(session).ingest(device_uid=device_uid, payload=payload).state_updated)
+        self.assertIsNone(self.request(self.overview)["diagnostics"])
 
     def test_enabled_modules_filter_snapshot_without_mutating_history(self):
         self.assign("pressure.read")

@@ -160,6 +160,7 @@ class TelemetryService:
                 has_snapshot=current_snapshot is not None,
             )
 
+        diagnostics = payload.diagnostics.model_dump(mode="json") if payload.diagnostics else None
         message = TelemetryMessage(
             message_id=payload.message_id,
             device_id=device.id,
@@ -170,6 +171,7 @@ class TelemetryService:
             received_at=server_received_at,
             values=payload.values,
             state=payload.state,
+            diagnostics=diagnostics,
         )
 
         try:
@@ -185,6 +187,7 @@ class TelemetryService:
                     received_at=server_received_at,
                     values=payload.values,
                     state=payload.state,
+                    diagnostics=diagnostics,
                 )
                 if payload.session_id is not None:
                     self._system_alarms.observe_session(

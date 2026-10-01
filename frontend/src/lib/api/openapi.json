@@ -407,6 +407,98 @@
         "title": "CapabilityRead",
         "type": "object"
       },
+      "ConnectionDiagnostics": {
+        "additionalProperties": false,
+        "properties": {
+          "signal": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SignalDiagnostics"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "transport": {
+            "enum": [
+              "wifi",
+              "cellular",
+              "ethernet",
+              "unknown"
+            ],
+            "title": "Transport",
+            "type": "string"
+          }
+        },
+        "required": [
+          "transport"
+        ],
+        "title": "ConnectionDiagnostics",
+        "type": "object"
+      },
+      "ControllerDiagnostics": {
+        "additionalProperties": false,
+        "properties": {
+          "connection": {
+            "$ref": "#/components/schemas/ConnectionDiagnostics"
+          },
+          "firmware_version": {
+            "maxLength": 32,
+            "minLength": 1,
+            "pattern": "^[0-9A-Za-z.+_-]+$",
+            "title": "Firmware Version",
+            "type": "string"
+          },
+          "last_stop": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StopDiagnostics"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reset_reason": {
+            "enum": [
+              "unknown",
+              "power_on",
+              "external",
+              "software",
+              "panic",
+              "interrupt_watchdog",
+              "task_watchdog",
+              "watchdog",
+              "deep_sleep",
+              "brownout",
+              "sdio"
+            ],
+            "title": "Reset Reason",
+            "type": "string"
+          },
+          "uptime_ms": {
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Uptime Ms",
+            "type": "integer"
+          },
+          "version": {
+            "const": 1,
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version",
+          "firmware_version",
+          "uptime_ms",
+          "reset_reason",
+          "connection"
+        ],
+        "title": "ControllerDiagnostics",
+        "type": "object"
+      },
       "CurrentUserMembershipRead": {
         "properties": {
           "organization_id": {
@@ -1386,6 +1478,17 @@
           "device": {
             "$ref": "#/components/schemas/DeviceRead"
           },
+          "diagnostics": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ControllerDiagnostics"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Діагностика того самого telemetry snapshot і boot session; має спільну telemetry_freshness."
+          },
           "frequency_limits": {
             "anyOf": [
               {
@@ -1551,6 +1654,16 @@
             "format": "uuid",
             "title": "Device Id",
             "type": "string"
+          },
+          "diagnostics": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ControllerDiagnostics"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "last_received_at": {
             "format": "date-time",
@@ -2053,6 +2166,31 @@
         "title": "RefreshTokenRequest",
         "type": "object"
       },
+      "SignalDiagnostics": {
+        "additionalProperties": false,
+        "properties": {
+          "dbm": {
+            "maximum": 0.0,
+            "minimum": -160.0,
+            "title": "Dbm",
+            "type": "integer"
+          },
+          "metric": {
+            "enum": [
+              "rssi",
+              "rsrp"
+            ],
+            "title": "Metric",
+            "type": "string"
+          }
+        },
+        "required": [
+          "metric",
+          "dbm"
+        ],
+        "title": "SignalDiagnostics",
+        "type": "object"
+      },
       "SiteCreate": {
         "description": "Дані для створення фізичного об'єкта організації.",
         "properties": {
@@ -2170,6 +2308,57 @@
           "status"
         ],
         "title": "StateReadingRead",
+        "type": "object"
+      },
+      "StopDiagnostics": {
+        "additionalProperties": false,
+        "description": "Останній запит STOP цього запуску; підтвердження — читання частотника.",
+        "properties": {
+          "confirmed": {
+            "title": "Confirmed",
+            "type": "boolean"
+          },
+          "reason": {
+            "enum": [
+              "command",
+              "local_disarm",
+              "bench_timer",
+              "network_lost",
+              "vfd_link_lost",
+              "vfd_fault",
+              "configuration_mismatch",
+              "storage_failed",
+              "physical_result_unconfirmed",
+              "restart_recovery"
+            ],
+            "title": "Reason",
+            "type": "string"
+          },
+          "requested_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requested At"
+          },
+          "uptime_ms": {
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Uptime Ms",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "reason",
+          "uptime_ms",
+          "confirmed"
+        ],
+        "title": "StopDiagnostics",
         "type": "object"
       },
       "TelemetryBucketRead": {
@@ -2385,6 +2574,16 @@
             "format": "uuid",
             "title": "Device Id",
             "type": "string"
+          },
+          "diagnostics": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ControllerDiagnostics"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "id": {
             "format": "uuid",
@@ -2621,7 +2820,7 @@
   "info": {
     "description": "Backend API платформи TechBaza IoT Pump Control",
     "title": "TechBaza Backend",
-    "version": "0.39.0"
+    "version": "0.40.0"
   },
   "openapi": "3.1.0",
   "paths": {

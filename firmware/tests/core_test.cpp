@@ -1,5 +1,6 @@
 #include "../kerumo_v3/src/core.h"
 #include "../kerumo_v3/src/protocol.h"
+#include "../kerumo_v3/src/diagnostics.h"
 #include <cassert>
 #include <cstring>
 #include <cstdio>
@@ -8,8 +9,9 @@
 #include <limits>
 using namespace kerumo;
 struct TestClock : Clock {
-  uint32_t ms=1000; int64_t epoch=1790686800000LL; bool valid=true;
+  uint64_t ms=1000; int64_t epoch=1790686800000LL; bool valid=true;
   uint32_t monotonicMs() const override { return ms; }
+  uint64_t uptimeMs() const override { return ms; }
   int64_t utcMs() const override { return valid?epoch+ms:0; }
 };
 struct TestBus : Bus {
@@ -215,9 +217,59 @@ void protocol() {
     std::string serialized; serializeJson(doc,serialized); assert(!parseCommand(serialized.c_str(),serialized.size(),c));
   }
 }
+void diagnosticStopLifecycle() {
+  Fixture f;
+  assert(f.controller.sample().lastStop.reason==StopReason::None);
+  assert(f.armExtended()); f.receive(f.command(1)); f.controller.tick(true);
+  // 64-bit diagnostic clock must not wrap at the control clock's 49-day boundary.
+  f.clock.ms=(1ULL<<32)+2000; f.bus.stopWorks=false;
+  f.controller.tick(false);
+  const auto first=f.controller.sample();
+  assert(first.uptimeMs>(1ULL<<32) && first.lastStop.reason==StopReason::Network);
+  assert(!first.lastStop.confirmed && first.lastStop.requestedUtcMs!=0);
+  f.clock.ms+=2000; f.controller.tick(false);
+  auto retried=f.controller.sample();
+  assert(retried.lastStop.uptimeMs==first.lastStop.uptimeMs);
+  f.bus.stopWorks=true; f.clock.ms+=1000; f.controller.tick(true);
+  assert(f.controller.sample().lastStop.confirmed);
+  assert(f.armExtended()); f.receive(f.command(2)); f.controller.tick(true);
+  assert(f.controller.sample().lastStop.reason==StopReason::Network); // last event survives a new RUN
+  f.receive(f.command(3,Type::Stop));
+  auto requested=f.controller.sample();
+  assert(requested.lastStop.reason==StopReason::Command && !requested.lastStop.confirmed);
+  f.controller.tick(true); assert(f.controller.sample().lastStop.confirmed);
+  f.controller.disarm(); // already stopped: no invented physical stop event
+  assert(f.controller.sample().lastStop.reason==StopReason::Command);
+
+  Fixture unknown; assert(unknown.armExtended()); unknown.receive(unknown.command(1)); unknown.controller.tick(true);
+  unknown.clock.valid=false; unknown.controller.disarm();
+  const auto noUtc=unknown.controller.sample();
+  assert(noUtc.lastStop.reason==StopReason::LocalDisarm && noUtc.lastStop.requestedUtcMs==0);
+  unknown.clock.valid=true;
+  assert(unknown.controller.sample().lastStop.requestedUtcMs==0); // never invent the past UTC
+  Controller reboot(unknown.bus,unknown.storage,unknown.clock,unknown.events,true);
+  assert(reboot.begin("test-device"));
+  assert(reboot.sample().lastStop.reason==StopReason::Restart && !reboot.sample().lastStop.confirmed);
+  reboot.tick(true); assert(reboot.sample().lastStop.confirmed);
+  Controller cleanBoot(unknown.bus,unknown.storage,unknown.clock,unknown.events,true);
+  assert(cleanBoot.begin("test-device")); assert(cleanBoot.sample().lastStop.reason==StopReason::None);
+
+  JsonDocument doc;
+  writeDiagnostics(doc.to<JsonObject>(),first,"0.2.2","brownout",{"wifi","rssi",-67});
+  assert(doc["uptime_ms"].as<uint64_t>()==first.uptimeMs);
+  assert(doc["last_stop"]["reason"]=="network_lost" && !doc["last_stop"]["confirmed"].as<bool>());
+  assert(doc["connection"]["signal"]["dbm"]==-67);
+  int64_t recorded=0; assert(parseUtcMs(doc["last_stop"]["requested_at"],recorded));
+  assert(recorded==first.lastStop.requestedUtcMs/1000*1000);
+  doc.clear(); writeDiagnostics(doc.to<JsonObject>(),noUtc,"0.2.2","software",{"cellular","rsrp",-105});
+  assert(doc["last_stop"]["requested_at"].isNull() && doc["connection"]["signal"]["metric"]=="rsrp");
+  doc.clear(); writeDiagnostics(doc.to<JsonObject>(),cleanBoot.sample(),"0.2.2","power_on",{"ethernet",nullptr,0});
+  assert(doc["last_stop"].isNull() && doc["connection"]["signal"].isNull());
+}
 int main() {
   readOnlyAndConfiguration(); timingAndOrdering(); echoIsNotPhysicalResult(); duplicateAndRestart();
   crashWindowAndStopRetry(); storageAndBoundedHistory(); profilesAndFrames(); protocol();
   protectionRegisterEncoding(); extendedTestSession(); extendedGuardsAndRecovery();
+  diagnosticStopLifecycle();
   puts("PASS: read-only, profile/scaling, TTL, sequence, duplicate/reboot, crash window, stop retry, network loss, storage, CRC, strict v2 parsing, all 65536 F5.00 words, extended session and loss-of-permission recovery");
 }

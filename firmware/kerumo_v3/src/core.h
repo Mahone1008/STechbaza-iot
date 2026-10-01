@@ -65,6 +65,7 @@ struct Storage {
 struct Clock {
   virtual ~Clock() = default;
   virtual uint32_t monotonicMs() const = 0;
+  virtual uint64_t uptimeMs() const = 0; // діагностика переживає переповнення 32-бітного millis()
   virtual int64_t utcMs() const = 0; // zero if UTC has not been synchronized recently
 };
 struct Events {
@@ -86,12 +87,20 @@ bool frequencyWord(double hz, const Su600Config& config, uint16_t& result);
 bool stopped(uint16_t state, uint16_t outputFrequency);
 bool runningForward(uint16_t state);
 
+struct StopDiagnostic {
+  StopReason reason{StopReason::None};
+  uint64_t uptimeMs{};
+  int64_t requestedUtcMs{}; // нуль: UTC був недоступний у момент запиту STOP
+  bool confirmed{}; // стан VFD + 0 Гц, не незалежне вимірювання обертання вала
+};
 struct Sample {
   uint16_t raw[6]{}; // fault, state, set frequency, output frequency, current, voltage
   bool ok[6]{};
   uint32_t sampledMs{};
   int64_t sampledUtcMs{};
   bool configOk{}, armed{}, storageOk{};
+  uint64_t uptimeMs{};
+  StopDiagnostic lastStop{};
 };
 class Controller {
  public:
@@ -112,6 +121,7 @@ class Controller {
   bool save();
   void finish(Record& record, Outcome outcome, Error error = Error::None, double actual = 0);
   void requestStop(StopReason reason);
+  void recordStop(StopReason reason);
   bool sessionConfigOk() const;
   Bus& bus_; Storage& storage_; Clock& clock_; Events& events_;
   const bool controls_;
@@ -120,6 +130,7 @@ class Controller {
   bool storageOk_{}, armed_{}, stopping_{};
   SessionMode mode_{SessionMode::Bench}; // RAM only: reboot never restores permission.
   StopReason stopReason_{StopReason::None};
+  StopDiagnostic lastStop_{}; // лише поточний boot; формат NVS journal незмінний
   uint32_t runSince_{}, lastStopAttempt_{}, lastConfigRead_{};
   int pending_{-1};
   uint32_t pendingSince_{};

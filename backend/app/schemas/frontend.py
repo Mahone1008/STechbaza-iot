@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 from app.schemas.availability import DeviceAvailabilityRead
 from app.schemas.capability import CapabilityRead
 from app.schemas.device import DeviceRead
+from app.schemas.diagnostics import ControllerDiagnostics
 from app.schemas.command_profile import FrequencyLimits
 from app.schemas.telemetry import DeviceStateRead
 from app.schemas.telemetry_read import MetricReadingRead, StateReadingRead, TelemetryFreshnessRead
@@ -43,6 +44,9 @@ class DeviceModuleRead(BaseModel):
 
 
 class DeviceOverviewRead(BaseModel):
+    diagnostics: ControllerDiagnostics | None = Field(
+        default=None, description="Діагностика того самого telemetry snapshot і boot session; має спільну telemetry_freshness.",
+    )
     frequency_limits: FrequencyLimits | None = None
     generated_at: datetime
     device: DeviceRead
@@ -76,4 +80,3 @@ class DeviceOverviewRead(BaseModel):
 
 class AccessErrorRead(BaseModel):
     detail: str
-

@@ -1,13 +1,14 @@
 import { invalidResponse, isRecord, parseOrganizationAccessResponse, requiredDateTime, requiredString, requiredUuid } from "./access";
 import { matchingId, parseAvailability, parseDevice, type Device } from "./inventory";
 import type { components } from "./schema";
+import { parseDiagnostics, type ControllerDiagnostics } from "./diagnostics";
 type Schemas = components["schemas"];
 export type Quality = Schemas["MetricReadingRead"]["status"];
 export type Freshness = Schemas["TelemetryFreshnessRead"];
 export type Channel = Readonly<{ key: string; source: string; data_type: string; unit: string | null; supports_series?: boolean }>;
 export type Reading = Readonly<{ value: number | boolean | null; status: Quality }>;
 export type Module = Readonly<{ assignmentId: string; code: string; name: string; supported: boolean; channels: (Channel & Reading)[]; commands: string[]; allowedCommands: string[] }>;
-export type Overview = Readonly<{ generatedAt: string; device: Device; availability: Schemas["DeviceAvailabilityRead"]; freshness: Freshness; modules: Module[]; allowedCommands: string[]; frequencyLimits: { min_hz: number; max_hz: number } | null }>;
+export type Overview = Readonly<{ generatedAt: string; device: Device; availability: Schemas["DeviceAvailabilityRead"]; freshness: Freshness; diagnostics: ControllerDiagnostics | null; modules: Module[]; allowedCommands: string[]; frequencyLimits: { min_hz: number; max_hz: number } | null }>;
 const path = "/api/v1/devices/overview";
 const qualities = new Set(["fresh", "stale", "missing", "invalid"]);
 const reasons = new Set(["no_telemetry", "recent", "timeout", "session_changed", "future_timestamp", "delayed_report"]);
@@ -98,7 +99,9 @@ export function parseOverview(value: unknown, expected: Device, organizationId: 
     if (typeof min !== "number" || typeof max !== "number" || !Number.isFinite(min) || !Number.isFinite(max) || min < 0 || max > 100 || min >= max) invalidResponse(path, "frequency limits");
     frequencyLimits = { min_hz: min, max_hz: max };
   }
-  return { frequencyLimits, allowedCommands, generatedAt: requiredDateTime(data, "generated_at", path), device, availability: parseAvailability(data.availability, device), freshness, modules };
+  const diagnostics = parseDiagnostics(data.diagnostics);
+  if (diagnostics && freshness.status === "missing") invalidResponse(path, "diagnostics without telemetry");
+  return { frequencyLimits, allowedCommands, generatedAt: requiredDateTime(data, "generated_at", path), device, availability: parseAvailability(data.availability, device), freshness, diagnostics, modules };
 }
 export function effectiveQuality(status: Quality, freshness: Freshness, elapsedSeconds: number): Quality {
   if (status !== "fresh") return status;

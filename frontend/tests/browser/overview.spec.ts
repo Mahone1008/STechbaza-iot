@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { overviewFixture } from "../fixtures/overview";
+import { diagnosticsFixture, overviewFixture } from "../fixtures/overview";
 import { API_ORIGIN, DEVICE_ID, ORGANIZATION_ID, SITE_ID, REFRESH_URL, devicePayload, fulfillJson, fulfillPreflight, mockAuthenticatedWorkspace, mockBrowserLogoutSuccess } from "./auth-fixtures";
 test.describe.configure({ retries: 0 });
 const url = `${API_ORIGIN}/api/v1/devices/${DEVICE_ID}/overview`;
@@ -9,6 +9,37 @@ async function mockOverview(page: Page, get: () => unknown, status = 200) {
 }
 const fixture = () => overviewFixture(devicePayload());
 test.beforeEach(async ({ page }) => mockAuthenticatedWorkspace(page));
+
+test("diagnostics distinguish a requested stop from readback and transport-specific signals", async ({ page }) => {
+  const data = fixture(); data.diagnostics = diagnosticsFixture();
+  await mockOverview(page, () => data);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(path);
+  await expect(page.getByText("RSSI: -67 dBm", { exact: true })).toBeVisible();
+  await expect(page.getByText("Просідання живлення", { exact: true })).toBeVisible();
+  await expect(page.getByText("1 д 1 год 1 хв 1 с", { exact: true })).toBeVisible();
+  await expect(page.getByText("Зупинку ще не підтверджено", { exact: true })).toBeVisible();
+  await expect(page.getByText("UTC на момент події був недоступний")).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  data.diagnostics.connection = { transport: "cellular", signal: { metric: "rsrp", dbm: -105 } };
+  data.diagnostics.last_stop!.confirmed = true;
+  await page.getByRole("button", { name: "Оновити панель" }).click();
+  await expect(page.getByText("RSRP: -105 dBm", { exact: true })).toBeVisible();
+  await expect(page.getByText("STOP і 0 Гц підтверджено читанням частотника", { exact: true })).toBeVisible();
+  await expect(page.getByText("RSSI: -67 dBm", { exact: true })).toHaveCount(0);
+  data.diagnostics = null;
+  await page.getByRole("button", { name: "Оновити панель" }).click();
+  await expect(page.getByText("Розширена діагностика ще не надходила від контролера.")).toBeVisible();
+  await expect(page.getByText("RSRP: -105 dBm", { exact: true })).toHaveCount(0);
+});
+
+test("diagnostics from an earlier boot are explicitly historical", async ({ page }) => {
+  const data = fixture(); data.diagnostics = diagnosticsFixture();
+  data.telemetry_freshness.status = "stale"; data.telemetry_freshness.reason = "session_changed";
+  for (const item of [...data.readings, ...data.state_readings]) item.status = "stale";
+  await mockOverview(page, () => data); await page.goto(path);
+  await expect(page.getByText("Діагностика попереднього запуску контролера; очікуємо нові дані.")).toBeVisible();
+});
 
 test("assigned numeric/state widgets preserve zero and false, with unsupported and command-only fallbacks", async ({ page }) => {
   await page.goto(path);

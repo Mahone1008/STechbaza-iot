@@ -17,7 +17,7 @@ Assert-Step 'build backend'
 docker compose run --rm -T backend alembic upgrade head
 Assert-Step 'apply migrations'
 docker compose run --rm -T backend alembic current
-Assert-Step 'current migration: expected 20260929_0018 (head)'
+Assert-Step 'current migration: expected 20261001_0019 (head)'
 docker compose run --rm -T -e TECHBAZA_RUN_DB_TESTS=1 -e TECHBAZA_RUN_MQTT_TESTS=1 backend python -m unittest discover -s tests -v
 Assert-Step '74 regression and integration tests'
 docker compose up -d backend

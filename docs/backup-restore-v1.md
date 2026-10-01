@@ -1,6 +1,8 @@
 # Чисте встановлення та backup/restore v1
 
-> Оновлення 0.39.0: поточні правила порядку команд, TTL, пізніх відповідей та міграції описані в [command-safety-v2.md](command-safety-v2.md).
+> Оновлення 0.40.0: поточна migration 0019 додає nullable діагностику телеметрії.
+> Нові backup manifests містять 0.40.0/0019; перевірка manifests 0.39.0/0018 збережена.
+> Правила порядку команд, TTL та пізніх відповідей: [command-safety-v2.md](command-safety-v2.md).
 
 Етап 8, операція 6. Backend **0.37.0**, PostgreSQL **16**, міграція
 **20260926_0017**. Повний CI та локальне приймання пройдено 26.09.2026:
@@ -172,4 +174,3 @@ Retry-After; захист входу на звичайному demo не вим�
 [pg_dump](https://www.postgresql.org/docs/16/app-pgdump.html),
 [pg_restore](https://www.postgresql.org/docs/16/app-pgrestore.html),
 [SQLite Connection.backup](https://docs.python.org/3.13/library/sqlite3.html#sqlite3.Connection.backup).
-

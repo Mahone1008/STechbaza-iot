@@ -2,7 +2,9 @@ import uuid
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+from app.schemas.diagnostics import ControllerDiagnostics
 
 
 class TelemetryEnvelope(BaseModel):
@@ -17,6 +19,13 @@ class TelemetryEnvelope(BaseModel):
     sequence: int | None = Field(default=None, ge=0, le=2**63 - 1)
     values: dict[str, Any] = Field(default_factory=dict, max_length=128)
     state: dict[str, Any] = Field(default_factory=dict, max_length=128)
+    diagnostics: ControllerDiagnostics | None = None
+
+    @model_validator(mode="after")
+    def validate_diagnostic_session(self):
+        if self.diagnostics is not None and self.session_id is None:
+            raise ValueError("Діагностика потребує boot session_id")
+        return self
 
     @field_validator("sent_at")
     @classmethod
@@ -41,6 +50,7 @@ class TelemetryMessageRead(BaseModel):
     received_at: datetime
     values: dict[str, Any]
     state: dict[str, Any]
+    diagnostics: ControllerDiagnostics | None = None
 
 
 class DeviceStateRead(BaseModel):
@@ -56,5 +66,6 @@ class DeviceStateRead(BaseModel):
     last_received_at: datetime
     values: dict[str, Any]
     state: dict[str, Any]
+    diagnostics: ControllerDiagnostics | None = None
     created_at: datetime
     updated_at: datetime

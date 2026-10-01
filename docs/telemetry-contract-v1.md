@@ -9,6 +9,9 @@
 ## Payload
 
 Payload містить `schema_version`, `message_id`, `session_id`, `sent_at`, `sequence`, `values` і `state`.
+З backend 0.40.0 підтримується необов'язковий типізований `diagnostics`:
+[контракт, транспорт V3/V4/V5 та порядок оновлення](controller-diagnostics-v1.md).
+З ним `session_id` обов'язковий; старі пакети без діагностики підтримуються.
 
 ### message_id
 

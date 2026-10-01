@@ -29,6 +29,7 @@
 - [Демонстраційний стенд v1](demo-stand-v1.md)
 - [Стандарти розробки TechBaza](development-standards.md)
 - [Device Presence v1](device-presence-v1.md)
+- [Діагностика контролера v1 — оновлення V3, контракт для V4/V5](controller-diagnostics-v1.md)
 - [Events & Alarms Data Model v1](events-alarms-data-model-v1.md)
 - [Контракт API перших екранів — Етап 8, операції 1–3](frontend-api-contract-v1.md)
 - [Локальне середовище розробки](local-development.md)

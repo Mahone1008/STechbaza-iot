@@ -94,6 +94,8 @@ class TelemetryMessage(Base):
 
     device: Mapped["Device"] = relationship(back_populates="telemetry_messages")
 
+    diagnostics: Mapped[dict[str, Any] | None] = mapped_column(JSONB(none_as_null=True), nullable=True)
+
 
 class DeviceState(TimestampMixin, Base):
     """Останній відомий телеметричний стан конкретного пристрою."""
@@ -147,6 +149,7 @@ class DeviceState(TimestampMixin, Base):
     )
 
     device: Mapped["Device"] = relationship(back_populates="state_snapshot")
+    diagnostics: Mapped[dict[str, Any] | None] = mapped_column(JSONB(none_as_null=True), nullable=True)
     last_telemetry: Mapped[TelemetryMessage | None] = relationship(
         foreign_keys=[last_telemetry_id],
     )

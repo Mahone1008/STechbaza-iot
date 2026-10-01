@@ -8,13 +8,13 @@ CI звіряє його з tracked code. Це перелік реалізаці
 
 | Компонент | Значення з коду |
 |---|---|
-| Backend / OpenAPI / health | 0.39.0 |
-| Alembic head | `20260929_0018`; 18 міграцій |
+| Backend / OpenAPI / health | 0.40.0 |
+| Alembic head | `20261001_0019`; 19 міграцій |
 | Frontend package | 0.1.0 |
 | Node engine | `>=20.9.0` |
 | Package manager | `npm@10.9.2` |
 | Next.js / React | 16.3.6 / 19.2.8 |
-| Firmware V3 | 0.2.1 |
+| Firmware V3 | 0.2.2 |
 | OpenAPI paths | 47 |
 
 ## Канали телеметрії

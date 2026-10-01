@@ -11,6 +11,7 @@
 #include <ctime>
 #include "src/core.h"
 #include "src/protocol.h"
+#include "src/diagnostics.h"
 #if __has_include("config.local.h")
 #include "config.local.h"
 #else
@@ -22,6 +23,7 @@
 
 using namespace kerumo;
 namespace {
+constexpr char FirmwareVersion[]="0.2.2";
 std::atomic<int64_t> syncEpochMs{0}, syncMonoMs{0};
 std::atomic<bool> networkReady{false};
 std::atomic<uint32_t> networkCheckedMs{0};
@@ -45,11 +47,27 @@ void synchronized(struct timeval* tv) {
 class DeviceClock : public Clock {
  public:
   uint32_t monotonicMs() const override { return millis(); }
+  uint64_t uptimeMs() const override { return static_cast<uint64_t>(esp_timer_get_time())/1000; }
   int64_t utcMs() const override {
     const int64_t epoch=syncEpochMs.load(), age=esp_timer_get_time()/1000-syncMonoMs.load();
     return epoch>1704067200000LL && age>=0 && age<3600000?epoch+age:0;
   }
 } deviceClock;
+const char* resetReasonCode() {
+  switch (esp_reset_reason()) {
+    case ESP_RST_POWERON: return "power_on";
+    case ESP_RST_EXT: return "external";
+    case ESP_RST_SW: return "software";
+    case ESP_RST_PANIC: return "panic";
+    case ESP_RST_INT_WDT: return "interrupt_watchdog";
+    case ESP_RST_TASK_WDT: return "task_watchdog";
+    case ESP_RST_WDT: return "watchdog";
+    case ESP_RST_DEEPSLEEP: return "deep_sleep";
+    case ESP_RST_BROWNOUT: return "brownout";
+    case ESP_RST_SDIO: return "sdio";
+    default: return "unknown";
+  }
+}
 void timestamp(JsonVariant target,int64_t ms) {
   if (!ms) { target.set(nullptr); return; }
   const time_t seconds=ms/1000; struct tm utc{}; gmtime_r(&seconds,&utc);
@@ -205,6 +223,12 @@ void telemetry(const Sample& sample,uint64_t sequence) {
   state["vfd_link"]=fresh && sample.ok[0] && sample.ok[1] && sample.ok[3];
   state["vfd_configuration_valid"]=fresh && sample.configOk;
   state["control_armed"]=fresh && sample.armed && sample.storageOk;
+  if (fresh) {
+    const int32_t rssi=WiFi.RSSI();
+    const bool measured=WiFi.status()==WL_CONNECTED && rssi>=-127 && rssi<0;
+    writeDiagnostics(doc["diagnostics"].to<JsonObject>(),sample,FirmwareVersion,resetReasonCode(),
+      {"wifi",measured?"rssi":nullptr,static_cast<int16_t>(measured?rssi:0)});
+  }
   publish("/telemetry",doc);
 }
 } // namespace
@@ -221,7 +245,7 @@ void setup() {
   transport.setCACert(KERUMO_MQTT_CA); transport.setHandshakeTimeout(5); transport.setTimeout(2000);
   mqtt.setId(String(KERUMO_DEVICE_UID)+"-esp32"); mqtt.setUsernamePassword(KERUMO_DEVICE_UID,KERUMO_MQTT_PASSWORD);
   mqtt.setCleanSession(true); mqtt.setConnectionTimeout(2000); mqtt.setKeepAliveInterval(5000); mqtt.onMessage(received);
-  Serial.println("KERUMO V3 test 0.2.1. Serial: ARM SU600 / ARM SU600 TEST / DISARM. No local HTTP command endpoint.");
+  Serial.printf("KERUMO V3 test %s. Serial: ARM SU600 / ARM SU600 TEST / DISARM. No local HTTP command endpoint.\n",FirmwareVersion);
 }
 void loop() {
   static uint32_t reconnectAt=0,lastHeartbeat=0,lastTelemetry=0;

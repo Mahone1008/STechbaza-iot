@@ -2,6 +2,13 @@ import type { components } from "../../src/lib/api/schema";
 type Overview = components["schemas"]["DeviceOverviewRead"];
 export const overviewDevice = { id: "a8f2f2d6-e380-492a-a9dc-d0b9ba792136", site_id: "739512a9-6ddb-4f8e-99e9-211c8553651e", name: "Насосна станція №1", uid: "TB-TEST-0", device_type: "modular_controller", lifecycle_status: "active", last_seen_at: "2026-09-28T12:00:00Z", created_at: "2026-09-27T12:00:00Z", updated_at: "2026-09-27T12:00:00Z" };
 export const overviewOrg = "670b979d-9e60-5207-a5d2-5d86ee70c71c";
+export function diagnosticsFixture(): components["schemas"]["ControllerDiagnostics"] {
+  return {
+    version: 1, firmware_version: "0.2.2", uptime_ms: 90061000, reset_reason: "brownout",
+    connection: { transport: "wifi", signal: { metric: "rssi", dbm: -67 } },
+    last_stop: { reason: "network_lost", uptime_ms: 60000, requested_at: null, confirmed: false },
+  };
+}
 export function overviewFixture(device = overviewDevice): Overview {
   const now = new Date().toISOString();
   const entries = [
