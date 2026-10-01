@@ -17,7 +17,7 @@ import { apiErrorDisplayMessage, apiQueryKeys, isApiError } from "@/lib/api";
 import { formatSeen } from "@/lib/api/inventory";
 import { channelLabel, channelSupported, effectiveQuality, parseOverview, qualityLabels, readingText, reasonLabels, type Overview } from "@/lib/api/overview";
 
-function OverviewContent({ overview, receivedAt, timezone }: { overview: Overview; receivedAt: number; timezone: string }) {
+function OverviewContent({ overview, receivedAt, timezone, onViewProgram }: { overview: Overview; receivedAt: number; timezone: string; onViewProgram?: (() => void) | undefined }) {
   const [elapsed, setElapsed] = useState(() => Math.max(0, (performance.now() - receivedAt) / 1000));
   useEffect(() => {
     const update = () => setElapsed(Math.max(0, (performance.now() - receivedAt) / 1000));
@@ -35,7 +35,7 @@ function OverviewContent({ overview, receivedAt, timezone }: { overview: Overvie
       <dl className="overview-details"><div><dt>UID</dt><dd>{overview.device.uid}</dd></div><div><dt>Життєвий цикл</dt><dd>{overview.device.lifecycle_status}</dd></div><div><dt>Останній зв’язок</dt><dd>{formatSeen(presence.last_seen_at, timezone)}</dd></div><div><dt>Телеметрію отримано</dt><dd>{overview.freshness.received_at ? formatSeen(overview.freshness.received_at, timezone) : "Немає даних"}</dd></div><div><dt>Панель перевірено</dt><dd>{formatSeen(overview.generatedAt, timezone)}</dd></div></dl>
       <p className="help-copy">Online означає наявність зв’язку. Стан обладнання визначається окремими показаннями. Частота автоматичного оновлення задається вище; доступна кнопка «Оновити панель».</p>
     </Card>
-    <ProgramStatus progress={overview.diagnostics?.program} fresh={quality === "fresh" && presence.online && !presenceExpired} />
+    <ProgramStatus progress={overview.diagnostics?.program} fresh={quality === "fresh" && presence.online && !presenceExpired} onViewProgram={onViewProgram} />
     <ControllerDiagnostics data={overview.diagnostics} quality={quality} previousSession={overview.freshness.reason === "session_changed"} timezone={timezone} />
     <section aria-labelledby="modules-heading"><h2 id="modules-heading">Модулі та канали</h2><p className="help-copy">Показані лише увімкнені можливості цього пристрою. Призначення модуля не визначає кількість фізичних датчиків.</p>
       {overview.modules.length === 0 ? <Card><p>Для пристрою немає увімкнених модулів.</p></Card> : <div className="overview-modules">{overview.modules.map((module) => <Card key={module.assignmentId} title={module.name} description={module.code}>
@@ -65,16 +65,20 @@ function DevicePanel({ context }: { context: ReadyAccessSnapshot }) {
     },
   });
   const denied = isApiError(query.error) && ["forbidden", "not-found"].includes(query.error.kind);
+  const programCommandId = query.isError ? null : query.data?.overview.diagnostics?.program?.command_id ?? null;
+  // Після F5 відновлюємо серверний план за ID із телеметрії, а не чернетку форми.
+  const displayedCommand = selectedCommand ?? programCommandId;
+  const onViewProgram = context.access.permissions.includes("command.read") && programCommandId ? () => setSelectedCommand(programCommandId) : undefined;
   return <>
     <PageHeader title={device.name} description="Модулі, показання та якість даних пристрою." actions={<>{context.access.permissions.includes("alarm.read") && <Link className="button button-secondary" href={alarmsHref(device.id)}>Аварії пристрою</Link>}<Button disabled={!canRead || query.isFetching || !query.active} onClick={query.refresh}>Оновити панель</Button></>} />
     <div className="history-controls"><label>Автооновлення<select aria-label="Автооновлення" value={poll} onChange={(e) => setPoll(Number(e.target.value) as PollSeconds)}><option value={5}>Панель: 5 с; історія: 60 с</option><option value={30}>Панель: 30 с; історія: 60 с</option><option value={60}>Щохвилини</option><option value={0}>Лише вручну</option></select></label></div>
     {!query.active && <p role="status">Автооновлення призупинено: вкладка прихована або немає мережі.</p>}
     <CommandControls context={context} overview={query.isError ? null : query.data?.overview ?? null} receivedAt={query.data?.receivedAt ?? 0} active={query.active} refreshing={query.isFetching} onCreated={setSelectedCommand} />
-    <div id="selected-command">{selectedCommand && context.access.permissions.includes("command.read") && <CommandDetail key={selectedCommand} context={context} id={selectedCommand} auto={poll > 0} />}</div>
+    <div id="selected-command">{displayedCommand && context.access.permissions.includes("command.read") && <CommandDetail key={displayedCommand} context={context} id={displayedCommand} auto={poll > 0} />}</div>
     <StableRegion className="overview-result-region" preserveHeight={query.isFetching || query.isError}>{!canRead ? <section className="notice notice-warning" role="alert"><h2>Недостатньо прав для панелі</h2><p>Потрібен доступ до модулів і телеметрії.</p></section>
       : query.isFetching && !query.data ? <p role="status">Перевіряємо модулі та показання…</p>
         : query.isError ? <section className="notice notice-warning" role="alert"><h2>{denied ? "Дані більше недоступні" : "Не вдалося завантажити панель"}</h2><p>{apiErrorDisplayMessage(query.error)}</p><div className="ui-row"><Button onClick={query.refresh}>Повторити</Button><Link className="button button-secondary" href="/organizations">Обрати організацію</Link></div></section>
-          : query.data ? <OverviewContent key={query.dataUpdatedAt} overview={query.data.overview} receivedAt={query.data.receivedAt} timezone={context.activeSite?.timezone ?? "UTC"} /> : null}</StableRegion>
+          : query.data ? <OverviewContent key={query.dataUpdatedAt} overview={query.data.overview} receivedAt={query.data.receivedAt} timezone={context.activeSite?.timezone ?? "UTC"} onViewProgram={onViewProgram} /> : null}</StableRegion>
     {canRead && query.data && !query.isError && <TelemetryHistory context={context} overview={query.data.overview} poll={poll} />}
     {context.access.permissions.includes("command.read") && <CommandJournal context={context} onSelect={setSelectedCommand} auto={poll > 0} />}
   </>;

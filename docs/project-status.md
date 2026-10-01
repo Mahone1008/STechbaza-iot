@@ -1,7 +1,8 @@
 # Поточний стан KERUMO
 
 Оновлено **01.10.2026**: додано таймер і програми частоти (backend 0.41.0,
-firmware 0.3.0); їх фізичне приймання ще попереду. Базову діагностику V3
+firmware 0.3.0); на стенді перевірено таймер, п'ять етапів, продовження після
+F5 і STOP на другому етапі; повне PROGRAM-01 ще відкрите. Базову діагностику V3
 0.2.2 прийнято на стенді з доказами та підтвердженням оператора.
 Це поточний реєстр стану; датовані досьє зберігають історичні докази.
 [Версії/схема/API/канали/права з коду](generated-code-reference.md),
@@ -13,7 +14,7 @@ firmware 0.3.0); їх фізичне приймання ще попереду. �
 |---|---|---|
 | Backend | Real auth/RBAC, tenant isolation, telemetry/history, commands, alarms, notifications; integration/restore CI | Локальний single-process runtime, не production scale |
 | Команди | Outbound v2, monotonic sequence, Stop ordering, HTTP idempotency, TTL, late replies, перевірка прав і frequency profile при dispatch | ACK/Result — повідомлення edge; не незалежний фізичний вимір |
-| Таймер / програми | Прихований вибір режиму; до 8 етапів/24 год; локальний відлік, STOP скасовує решту, прогрес і фінальний результат у журналі | Потрібні capability і firmware 0.3.0; фізичний тест активної програми ще не прийнято |
+| Таймер / програми | До 8 етапів/24 год; локальний відлік, прогрес і Result; стендові таймер, 5 етапів, F5 під RUN та STOP; повний план після F5 відновлюється із серверної команди | Потрібні capability і firmware 0.3.0; повтор UI після виправлення та переривання активної програми залишаються у PROGRAM-01 |
 | Frontend | Етапи 9–14 реалізовано; реальні API, polling, command journal | Повністю прийнято 10/24 операцій; залишок manual acceptance у roadmap |
 | V3 читання | ESP32-S3 N16R8 → SU600 → Wi-Fi/TLS → API/UI підтверджено | Це конкретний SU600 profile, не всі SUSWE/RS485 моделі |
 | V3 керування | Частота 20→30 Гц, START/STOP, повторний пуск; оператор підтвердив обертання/зупинку | Не прийнято повний діапазон/навантаження/польові умови |
@@ -62,7 +63,7 @@ firmware 0.3.0); їх фізичне приймання ще попереду. �
 | V3-03 | Після ESP power-loss останній запис містить STOP, ARM=0, fault 16/E485 | Окремо зафіксоване усунення причини/відновлення; автоматичного fault reset немає |
 | V3-04 | Налаштування захисту двигуна/установки, повний BOM і електрична схема | Перевірені інженером параметри й незалежна зупинка; повний hardware acceptance |
 | UI-01 | Решта manual сценаріїв 11.3–14.4, F5 history filters, F5 під RUN, multi-role/mobile/a11y | Checklist із конкретними revision, очікуванням та доказами; CI не закриває його автоматично |
-| PROGRAM-01 | Фізичне приймання 0.3.0: NVS upgrade, таймер, два етапи, F5, STOP, переривання/відсутність самозапуску | Процедура й докази за control-programs-v1; до цього прийняті лише автоматичні сценарії |
+| PROGRAM-01 | Частково прийнято на стенді: таймер, 5 етапів, продовження після F5, STOP на другому етапі | Повтор UI F5 після виправлення; STOP до переходу й незапуск наступного етапу; gateway loss/reboot без самовідновлення; NVS sequence/history. Докази в control-programs-v1 |
 | PROD-01 | TLS/identity вже є на V3 gateway, але fleet provisioning/rotation/revocation та transfer/config lifecycle неповні | Реалізація й приймання P1/P2 |
 | PROD-02 | Deployment, процеси/worker ownership, production settings, logs/metrics, DB retention/PITR | P5, restore/release rehearsal, виміряні RPO/RTO |
 | PROD-03 | OTA, незалежний security review, load/reconnect/soak, pilot/support/conformity | P6–P9 з окремими доказами |

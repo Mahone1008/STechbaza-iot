@@ -2,7 +2,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 import { commandFixture, commandId, programOverview } from "../fixtures/commands";
 import type { CommandInput } from "../../src/lib/api/commands";
-import { API_ORIGIN, DEVICE_ID, fulfillJson, fulfillPreflight, mockAuthenticatedWorkspace } from "./auth-fixtures";
+import { API_ORIGIN, DEVICE_ID, fulfillJson, fulfillPreflight, mockAuthenticatedWorkspace, viewerPermissions } from "./auth-fixtures";
 
 test.describe.configure({ retries: 0 });
 const url = `${API_ORIGIN}/api/v1/devices/${DEVICE_ID}`;
@@ -55,18 +55,75 @@ test("timer confirmation sends one complete plan with separate TTL and validates
   expect(posts[0]).toMatchObject({ command_type: "vfd.program.start", ttl_seconds: 30, payload: { version: 1, steps: [{ frequency_hz: 40, duration_seconds: 7200 }] } });
 });
 
-test("F5 restores controller progress without issuing commands and leaves STOP available", async ({ page }) => {
+test("F5 restores every saved stage without issuing commands and leaves STOP available", async ({ page }) => {
+  await page.setViewportSize({ width: 393, height: 852 });
   const data = programOverview();
   data.diagnostics!.program = { ...data.diagnostics!.program!, command_id: commandId, state: "holding", step_index: 2, step_count: 3, target_frequency_hz: 40, remaining_seconds: 3590 };
+  const command = commandFixture({ command_type: "vfd.program.start", status: "acknowledged", payload: { version: 1, steps: [
+    { frequency_hz: 20, duration_seconds: 60 }, { frequency_hz: 40, duration_seconds: 3600 }, { frequency_hz: 50, duration_seconds: 30 },
+  ] } });
   await page.route(`${url}/overview`, async (route) => { if (!await fulfillPreflight(route)) await fulfillJson(route, 200, data); });
+  await page.route(`${API_ORIGIN}/api/v1/commands/${commandId}`, async (route) => { if (!await fulfillPreflight(route)) await fulfillJson(route, 200, command); });
   let posts = 0;
   page.on("request", (request) => { if (request.method() === "POST" && request.url().endsWith("/commands")) posts++; });
-  await page.goto(`/devices/${DEVICE_ID}`); await page.reload();
+  await page.goto(`/devices/${DEVICE_ID}`);
+  await expect(page.locator("#selected-command .program-summary li")).toHaveText(["20 Гц · 1 хв", "40 Гц · 1 год", "50 Гц · 30 с"]);
+  data.diagnostics!.program!.remaining_seconds = 3580;
+  await page.reload();
+  await expect(page.locator("#selected-command .program-summary li")).toHaveText(["20 Гц · 1 хв", "40 Гц · 1 год", "50 Гц · 30 с"]);
   await expect(page.getByRole("heading", { name: "Виконання програми", exact: true })).toBeVisible();
   await expect(page.getByText("Етап 2 з 3 · 40 Гц.", { exact: true })).toBeVisible();
+  await expect(page.getByText("Залишок етапу за повідомленням контролера: 59 хв 40 с.", { exact: true })).toBeVisible();
+  await page.getByText("Додаткові налаштування команди", { exact: true }).click();
+  await expect(page.getByRole("combobox", { name: "Режим роботи", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("spinbutton", { name: /Частота|Задана частота/ })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Запустити", exact: true })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Зупинити", exact: true })).toBeEnabled();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await test.info().attach("program-restored-after-f5-393", { body: await page.screenshot({ fullPage: true }), contentType: "image/png" });
   expect(posts).toBe(0);
+
+  const stopId = "c8f2f2d6-e380-492a-a9dc-d0b9ba792136";
+  await page.route(`${url}/commands`, async (route) => {
+    if (await fulfillPreflight(route)) return;
+    expect(route.request().postDataJSON().command_type).toBe("vfd.stop");
+    await fulfillJson(route, 201, commandFixture({ ...route.request().postDataJSON(), id: stopId }));
+  });
+  await page.route(`${API_ORIGIN}/api/v1/commands/${stopId}`, async (route) => { if (!await fulfillPreflight(route)) await fulfillJson(route, 200, commandFixture({ id: stopId, command_type: "vfd.stop", status: "succeeded" })); });
+  await page.getByRole("button", { name: "Зупинити", exact: true }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Надіслати команду", exact: true }).click();
+  await expect(page.locator("#selected-command")).toContainText("Контролер повідомив про виконання");
+  await page.getByRole("link", { name: "Переглянути етапи програми", exact: true }).click();
+  await expect(page.locator("#selected-command .program-summary li")).toHaveText(["20 Гц · 1 хв", "40 Гц · 1 год", "50 Гц · 30 с"]);
+  expect(posts).toBe(1);
+});
+
+for (const canReadCommands of [true, false]) test(`restored program respects command.read=${canReadCommands}`, async ({ page }) => {
+  const permissions = viewerPermissions.filter((permission) => canReadCommands || permission !== "command.read");
+  await mockAuthenticatedWorkspace(page, { role: "viewer", permissions });
+  const data = programOverview(); data.access = { ...data.access, organization_role: "viewer", permissions }; data.allowed_commands = [];
+  for (const capability of data.modules) capability.allowed_commands = [];
+  data.diagnostics!.program = { ...data.diagnostics!.program!, command_id: commandId, state: "holding", step_index: 1, step_count: 1, target_frequency_hz: 20, remaining_seconds: 15 };
+  await page.route(`${url}/overview`, async (route) => { if (!await fulfillPreflight(route)) await fulfillJson(route, 200, data); });
+  let reads = 0;
+  await page.route(`${API_ORIGIN}/api/v1/commands/${commandId}`, async (route) => {
+    if (await fulfillPreflight(route)) return;
+    reads++;
+    await fulfillJson(route, 200, commandFixture({ command_type: "vfd.program.start", status: "acknowledged", payload: { version: 1, steps: [{ frequency_hz: 20, duration_seconds: 60 }] } }));
+  });
+  await page.goto(`/devices/${DEVICE_ID}`);
+  await expect(page.getByText("Етап 1 з 1 · 20 Гц.", { exact: true })).toBeVisible();
+  if (canReadCommands) {
+    await expect(page.locator("#selected-command .program-summary li")).toHaveText(["20 Гц · 1 хв"]);
+    await expect(page.getByRole("link", { name: "Переглянути етапи програми", exact: true })).toBeVisible();
+    expect(reads).toBeGreaterThan(0);
+  } else {
+    await expect(page.getByRole("link", { name: "Переглянути етапи програми", exact: true })).toHaveCount(0);
+    await expect(page.locator("#selected-command")).toBeEmpty();
+    expect(reads).toBe(0);
+  }
+  await expect(page.getByRole("button", { name: "Запустити", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Зупинити", exact: true })).toHaveCount(0);
 });
 
 test("an old firmware and stale status cannot enable a program", async ({ page }) => {
