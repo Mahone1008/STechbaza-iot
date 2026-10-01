@@ -45,7 +45,7 @@ export function TelemetryHistory({ context, overview, poll }: { context: ReadyAc
   };
   return <Card title="Історія телеметрії" description="Час приймання сервером; середнє за валідними зразками, а не за тривалістю. Оновлення пересуває період до поточного часу.">
     {!channel ? <p>Увімкнених каналів з підтримкою історії немає.</p> : <>
-      <div className="history-controls">
+      <div className="history-controls telemetry-history-controls">
         <label>Метрика<select aria-label="Метрика" value={channel.key} onChange={(e) => change({ metric: e.target.value })}>{channels.map((c) => <option key={c.key} value={c.key}>{channelLabel(c.key)} · {c.unit}</option>)}</select></label>
         <label>Період<select aria-label="Період" value={seconds} onChange={(e) => { const period = periods.find((p) => p.seconds === Number(e.target.value))!; change({ seconds: period.seconds, bucket: period.bucket }); }}>{periods.map((p) => <option key={p.seconds} value={p.seconds}>{p.label}</option>)}</select></label>
         <label>Інтервал<select aria-label="Інтервал" value={bucket} onChange={(e) => change({ bucket: Number(e.target.value) })}>{historyBuckets.map((b) => <option key={b} value={b} disabled={Math.ceil(seconds / b) > 1000}>{b < 3600 ? `${b / 60} хв` : `${b / 3600} год`}</option>)}</select></label>

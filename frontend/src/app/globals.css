@@ -541,6 +541,38 @@ h1, h2, h3 { letter-spacing: -0.02em; }
 .history-controls { display: flex; flex-wrap: wrap; gap: 1rem; margin-block: 1rem; }
 .history-controls label { display: grid; gap: .4rem; min-width: 0; max-width: 100%; }
 .history-controls select { max-width: 100%; padding: .65rem; border: 1px solid var(--control-border); border-radius: .5rem; background: var(--surface); color: var(--text); }
+.telemetry-history-controls { display: grid; grid-template-columns: minmax(0, 2fr) repeat(2, minmax(0, 1fr)); max-width: 42rem; align-items: start; }
+.telemetry-history-controls select { width: 100%; min-width: 0; min-height: 44px; }
+@media (max-width: 520px) {
+  .telemetry-history-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .telemetry-history-controls > label:first-child { grid-column: 1 / -1; }
+  .telemetry-history-controls select { font-size: 16px; }
+}
+/* Native select semantics and keyboard handling; older browsers keep their system picker. */
+@supports (appearance: base-select) {
+  .telemetry-history-controls select,
+  .telemetry-history-controls select::picker(select) { appearance: base-select; }
+  .telemetry-history-controls select { align-items: center; gap: .5rem; }
+  .telemetry-history-controls select::picker(select) {
+    box-sizing: border-box;
+    inline-size: anchor-size(self-inline);
+    max-inline-size: calc(100vw - 2rem);
+    max-block-size: min(18rem, 50dvh);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border: 1px solid var(--control-border);
+    border-radius: .5rem;
+    background: var(--surface);
+    color: var(--text);
+    box-shadow: var(--shadow-md);
+    padding: .25rem;
+    font: inherit;
+  }
+  .telemetry-history-controls option { min-height: 44px; padding: .5rem .65rem; gap: .5rem; white-space: normal; overflow-wrap: anywhere; }
+  .telemetry-history-controls option:checked { background: var(--brand-soft); color: var(--brand); }
+  .telemetry-history-controls option:not(:disabled):is(:hover, :focus-visible) { background: var(--surface-muted); }
+  .telemetry-history-controls option:disabled { color: var(--text-soft); opacity: .55; }
+}
 .telemetry-chart { display: block; width: 100%; height: auto; color: var(--brand); margin-top: 1rem; }
 .telemetry-chart text { fill: currentColor; font-size: 11px; }
 .history-table { max-width: 100%; max-height: 28rem; overflow: auto; margin-top: 1rem; }

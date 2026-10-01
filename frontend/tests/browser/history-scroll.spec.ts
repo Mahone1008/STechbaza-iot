@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { overviewWithFrequencyFixture } from "../fixtures/overview";
+import { diagnosticsFixture, overviewWithFrequencyFixture } from "../fixtures/overview";
 import { seriesFixture } from "../fixtures/series";
 import { API_ORIGIN, DEVICE_ID, devicePayload, fulfillJson, fulfillPreflight, mockAuthenticatedWorkspace } from "./auth-fixtures";
 
@@ -46,6 +46,33 @@ test.beforeEach(async ({ page }) => {
   await mockAuthenticatedWorkspace(page);
   await page.route(overviewUrl, async (route) => { if (await fulfillPreflight(route)) return; await fulfillJson(route, 200, overviewWithFrequencyFixture(devicePayload())); });
   await page.route(seriesUrl, async (route) => { if (await fulfillPreflight(route)) return; await fulfillJson(route, 200, series(route.request().url())); });
+});
+
+async function gapBeforeHistory(page: Page) {
+  const lastModule = await page.locator(".overview-modules > .card").last().boundingBox();
+  const history = await page.locator("section.card").filter({ has: page.getByRole("heading", { name: "Історія телеметрії", exact: true }) }).boundingBox();
+  return history!.y - (lastModule!.y + lastModule!.height);
+}
+
+test("resizing between mobile and desktop does not leave empty space before history", async ({ page }) => {
+  await page.setViewportSize({ width: 393, height: 852 }); await ready(page);
+  for (const width of [1280, 393, 820, 1280]) {
+    await page.setViewportSize({ width, height: 852 });
+    await expect.poll(() => gapBeforeHistory(page)).toBeLessThanOrEqual(24);
+  }
+});
+
+for (const width of [1280, 393]) test(`settled diagnostics release unused panel space at ${width}px`, async ({ page }) => {
+  const data = overviewWithFrequencyFixture(devicePayload());
+  data.diagnostics = diagnosticsFixture();
+  await page.route(overviewUrl, async (route) => { if (await fulfillPreflight(route)) return; await fulfillJson(route, 200, data); });
+  await page.setViewportSize({ width, height: 852 }); await ready(page);
+  await expect(page.getByText("Зупинку ще не підтверджено", { exact: true })).toBeVisible();
+  data.diagnostics.last_stop = null;
+  data.diagnostics.uptime_ms = 3000;
+  await page.getByRole("button", { name: "Оновити панель" }).click();
+  await expect(page.getByText("Не зафіксовано", { exact: true })).toBeVisible();
+  await expect.poll(() => gapBeforeHistory(page)).toBeLessThanOrEqual(24);
 });
 
 for (const viewport of [{ width: 1280, height: 720 }, { width: 390, height: 844 }]) {
