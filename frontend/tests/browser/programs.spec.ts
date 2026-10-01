@@ -15,10 +15,10 @@ test.beforeEach(async ({ page }) => {
 for (const width of [320, 393, 1280]) test(`program editor is collapsed by default and fits ${width}px`, async ({ page }) => {
   await page.setViewportSize({ width, height: 852 });
   await page.goto(`/devices/${DEVICE_ID}`);
-  await expect(page.getByLabel("Режим роботи", { exact: true })).not.toBeVisible();
+  await expect(page.getByRole("combobox", { name: "Режим роботи", exact: true })).not.toBeVisible();
   await expect(page.getByRole("button", { name: "Запустити", exact: true })).toBeVisible();
   await page.getByText("Додаткові налаштування команди", { exact: true }).click();
-  await page.getByLabel("Режим роботи", { exact: true }).selectOption("program");
+  await page.getByRole("combobox", { name: "Режим роботи", exact: true }).selectOption("program");
   await page.getByLabel("Частота етапу 1, Гц", { exact: true }).fill("40");
   await page.getByRole("button", { name: "Додати етап", exact: true }).click();
   await page.getByLabel("Частота етапу 2, Гц", { exact: true }).fill("50");
@@ -29,7 +29,7 @@ for (const width of [320, 393, 1280]) test(`program editor is collapsed by defau
   expect((await new AxeBuilder({ page }).include(".program-settings").withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze()).violations).toEqual([]);
   await test.info().attach(`program-editor-${width}`, { body: await page.screenshot({ fullPage: true }), contentType: "image/png" });
   await page.getByText("Додаткові налаштування команди", { exact: true }).click();
-  await expect(page.locator(".program-mode-notice")).toContainText("Програма · 2 етапів");
+  await expect(page.locator(".program-mode-notice")).toContainText("Програма · етапів: 2");
   await expect(page.getByRole("button", { name: "Зупинити", exact: true })).toBeVisible();
 });
 
@@ -42,7 +42,7 @@ test("timer confirmation sends one complete plan with separate TTL and validates
   });
   await page.goto(`/devices/${DEVICE_ID}`);
   await page.getByText("Додаткові налаштування команди", { exact: true }).click();
-  await page.getByLabel("Режим роботи", { exact: true }).selectOption("timer");
+  await page.getByRole("combobox", { name: "Режим роботи", exact: true }).selectOption("timer");
   await page.getByLabel("Частота, Гц", { exact: true }).fill("40");
   await page.getByLabel("Години", { exact: true }).fill("2");
   await page.getByLabel("Хвилини", { exact: true }).fill("0");
@@ -74,13 +74,15 @@ test("an old firmware and stale status cannot enable a program", async ({ page }
   await page.route(`${url}/overview`, async (route) => { if (!await fulfillPreflight(route)) await fulfillJson(route, 200, data); });
   await page.goto(`/devices/${DEVICE_ID}`);
   await page.getByText("Додаткові налаштування команди", { exact: true }).click();
-  await expect(page.getByLabel("Режим роботи", { exact: true }).getByRole("option", { name: "За таймером", exact: true })).toHaveJSProperty("disabled", true);
+  await expect(page.getByRole("combobox", { name: "Режим роботи", exact: true }).locator('option[value="timer"]')).toHaveJSProperty("disabled", true);
   data = programOverview(); data.diagnostics!.program!.ready = false;
   await page.getByRole("button", { name: "Оновити панель", exact: true }).click();
-  await page.getByLabel("Режим роботи", { exact: true }).selectOption("timer");
+  await page.getByRole("combobox", { name: "Режим роботи", exact: true }).selectOption("timer");
   await page.getByLabel("Частота, Гц", { exact: true }).fill("40");
   await expect(page.getByRole("button", { name: "Запустити на 1 хв", exact: true })).toBeDisabled();
   data.diagnostics!.program!.ready = true;
+  await page.getByRole("button", { name: "Оновити панель", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Запустити на 1 хв", exact: true })).toBeEnabled();
   data.telemetry_freshness.status = "stale"; data.telemetry_freshness.reason = "timeout"; data.telemetry_freshness.received_age_seconds = 1000;
   for (const reading of [...data.readings, ...data.state_readings]) if (reading.status === "fresh") reading.status = "stale";
   await page.getByRole("button", { name: "Оновити панель", exact: true }).click();
