@@ -145,7 +145,30 @@ PUT із `expected_revision` захищає від перезапису чужи
    сервера, втрату gateway та RESET під RUN; після повернення немає самозапуску.
 6. Зберегти версії/SHA, Serial, часові межі, журнал і підтвердження оператора.
 
-Автотести: календар 600 місяців, 29 лютого/2100, DST gap/fold, UTC після 2038,
-перетини, RBAC/tenant, ревізії, одночасні workers, пропуски, STOP ordering,
-fixed-deadline executor, NVS upgrade, мобільний UI/F5/a11y. Точні результати CI
-додаються після завершення перевірок цієї ревізії; фізичні результати не припускаються.
+## Автоматичне приймання 01.10.2026
+
+Початкова реалізація — `868b055`. Останні зміни backend — `df20c44`,
+firmware — `e386b40`, frontend — `829733f`. Наступні записи документації
+не змінюють перевірену поведінку цих компонентів.
+
+| Перевірка | Доказ і результат |
+|---|---|
+| Backend regression | [CI 36864718388](https://github.com/Mahone1008/STechbaza-iot/actions/runs/36864718388): 214 тести, нуль пропусків; справжні PostgreSQL/MQTT, downgrade/upgrade, Chromium auth |
+| Calendar HTTP/MQTT та recovery | [Demo job 110378098487](https://github.com/Mahone1008/STechbaza-iot/actions/runs/36864718388/job/110378098487): preview/повтор PUT/очікування реального часу/ACK/Result/STOP; simulator/backend restart, broker reconnect, H-04/H-05 backup/restore — PASS |
+| Firmware і gateway | [CI 36864949690](https://github.com/Mahone1008/STechbaza-iot/actions/runs/36864949690): native ASan/UBSan, 4 складання ESP32-S3 N16R8, TLS/ACL/enrollment — PASS |
+| Frontend | [CI 36865616479](https://github.com/Mahone1008/STechbaza-iot/actions/runs/36865616479): 105 unit, 180 browser, 44 повторні browser і 10 live API/MQTT перевірок; typecheck/lint/build/budget/audit — PASS |
+| Документація | Локальна перевірка 108 Markdown-файлів: актуальний generated reference і коректні посилання |
+
+Календарні тести охоплюють 600 місяців, 29 лютого/2100, DST gap/fold,
+UTC після 2038, перетини, RBAC/tenant, ревізії, одночасні workers, пропуски,
+STOP ordering та відсутність пізнього старту після reconnect. Нативні тести
+перевіряють fixed-deadline executor і міграцію фактичних bytes NVS 0.3.0.
+У browser-тестах — 320/393/1280 px, preview, підтвердження без дублювання,
+F5, пауза, viewer і a11y. CI не замінює фізичне приймання SCHEDULE-01.
+
+Extended USB-UART build: sketch 1 037 115 / 3 145 728 bytes, статичні globals
+52 888 / 327 680 bytes. Це звіт складання, не вимірювання пікового heap/stack
+під навантаженням. Frontend: 25 JS chunks, разом gzip 283 214 / 358 400 bytes,
+найбільший chunk 71 628 / 122 880 bytes. Порівняно з версією без календаря
+приріст — близько 10 КБ gzip; редактор завантажується на вимогу.
+Це не fleet load-тест.
