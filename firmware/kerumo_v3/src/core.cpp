@@ -297,6 +297,7 @@ void Controller::completeProgram(bool stopConfirmed) {
   if (!stopConfirmed) programError_=Error::Unconfirmed;
   record.programStopConfirmed=stopConfirmed;
   programSlot_=-1; // Збій збереження фіналу не повинен повторно скасувати цю програму.
+  if (!stopConfirmed) disarm(StopReason::Unconfirmed);
   finish(record,stopConfirmed?(success?Outcome::Succeeded:Outcome::Failed):Outcome::Unknown,programError_,0);
 }
 void Controller::tickProgram() {

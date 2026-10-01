@@ -337,6 +337,17 @@ void programBoundaries() {
   f.clock.ms+=60001; f.controller.tick(true);
   assert(f.controller.journal().motionPossible && f.controller.journal().records[0].outcome==Outcome::Unknown);
   f.bus.stopWorks=true; f.clock.ms+=1000; f.controller.tick(true); assert(!f.controller.journal().motionPossible);
+  Fixture automatic; assert(automatic.armExtended()); auto timed=programCommand(automatic);
+  timed.program.count=1; automatic.receive(timed); reachHold(automatic);
+  automatic.bus.stopWorks=false; automatic.clock.ms+=10000; automatic.controller.tick(true);
+  automatic.clock.ms+=60001; automatic.controller.tick(true);
+  assert(automatic.controller.journal().records[0].outcome==Outcome::Unknown);
+  assert(!automatic.controller.isArmed() && automatic.controller.journal().motionPossible);
+  const auto blockedWrites=automatic.bus.writes.size();
+  automatic.receive(automatic.command(2,Type::Frequency,40));
+  assert(automatic.events.records.back().error==Error::NotArmed && automatic.bus.writes.size()==blockedWrites);
+  automatic.bus.stopWorks=true; automatic.clock.ms+=1000; automatic.controller.tick(true);
+  assert(!automatic.controller.journal().motionPossible && !automatic.controller.isArmed());
   Fixture target; assert(target.armExtended()); auto c=programCommand(target); target.receive(c);
   target.clock.ms+=300; target.controller.tick(true); target.bus.registers[0x2103]=500;
   target.clock.ms+=300; target.controller.tick(true);
