@@ -1,4 +1,4 @@
-"""Program admission and monotonic simulator behavior; no physical actuation."""
+"""Допуск програм і монотонне виконання в симуляторі без фізичного керування."""
 import copy
 import json
 import tempfile
@@ -65,7 +65,7 @@ class ProgramTests(unittest.TestCase):
         self.assertEqual(self.state.device("pump")["frequency"], 40)
         self.t += 9; self.state.tick_program()
         self.assertEqual(self.state.program_progress()["remaining_seconds"], 1)
-        self.state.command("pump", request)  # retry cannot renew a hold deadline
+        self.state.command("pump", request)  # Повтор не подовжує поточну витримку.
         self.t += 1; self.state.tick_program()
         self.assertEqual(self.state.device("pump")["frequency"], 50)
         self.assertEqual(self.state.program_progress()["step_index"], 2)
