@@ -1,6 +1,6 @@
 """Обмежені програми витримки, незалежні від транспорту; v1 завершується STOP."""
 import uuid
-from typing import Literal
+from typing import ClassVar, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -8,6 +8,8 @@ from app.numeric import finite_number
 
 MAX_PROGRAM_STEPS = 8
 MAX_PROGRAM_SECONDS = 86400
+MAX_SCHEDULE_DAYS = 7
+MAX_SCHEDULE_SECONDS = MAX_SCHEDULE_DAYS * 86400
 PROGRAM_TRANSITION_SECONDS = 60
 PROGRAM_ACTIVE_STATES = {"setting", "starting", "holding", "stopping"}
 
@@ -28,6 +30,7 @@ class ProgramStep(BaseModel):
 
 class ProgramPlan(BaseModel):
     model_config = ConfigDict(extra="forbid")
+    max_duration_seconds: ClassVar[int] = MAX_PROGRAM_SECONDS
     version: Literal[1]
     steps: list[ProgramStep] = Field(min_length=1, max_length=MAX_PROGRAM_STEPS)
 
@@ -40,8 +43,8 @@ class ProgramPlan(BaseModel):
 
     @model_validator(mode="after")
     def bounded_duration(self):
-        if sum(step.duration_seconds for step in self.steps) > MAX_PROGRAM_SECONDS:
-            raise ValueError("Total holding time cannot exceed 24 hours")
+        if sum(step.duration_seconds for step in self.steps) > self.max_duration_seconds:
+            raise ValueError(f"Тривалість запуску — до {self.max_duration_seconds // 3600} годин")
         return self
 
     @property
@@ -55,12 +58,14 @@ class ProgramProgress(BaseModel):
     version: Literal[1]
     ready: bool = Field(strict=True)
     supports_schedule: bool = Field(default=False, strict=True)
+    # Старі контролери без цього поля виконують календарні запуски лише до доби.
+    max_schedule_seconds: int = Field(default=MAX_PROGRAM_SECONDS, strict=True, ge=60, le=MAX_SCHEDULE_SECONDS)
     command_id: uuid.UUID | None
     state: Literal["idle", "setting", "starting", "holding", "stopping", "completed", "interrupted", "failed"]
     step_index: int = Field(strict=True, ge=0, le=MAX_PROGRAM_STEPS)
     step_count: int = Field(strict=True, ge=0, le=MAX_PROGRAM_STEPS)
     target_frequency_hz: float | None = Field(ge=0, le=100)
-    remaining_seconds: int | None = Field(strict=True, ge=0, le=MAX_PROGRAM_SECONDS)
+    remaining_seconds: int | None = Field(strict=True, ge=0, le=MAX_SCHEDULE_SECONDS)
     reason: str | None = Field(max_length=96)
 
     @field_validator("version", mode="before")

@@ -1,6 +1,6 @@
 "use client";
 import { Button, SelectField, TextField } from "@/components/ui";
-import { repeatLabels, type ScheduleSpec } from "@/lib/api/schedules";
+import { repeatLabels, scheduleDayLabels, type ScheduleSpec } from "@/lib/api/schedules";
 
 const weekdays = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Нд"];
 const months = [
@@ -76,8 +76,11 @@ export function ScheduleForm({
             value={value.stop_day_offset}
             onChange={(event) => change("stop_day_offset", Number(event.target.value))}
           >
-            <option value={0}>Того самого дня</option>
-            <option value={1}>Наступного дня</option>
+            {scheduleDayLabels.map((label, offset) => (
+              <option key={offset} value={offset}>
+                {label}
+              </option>
+            ))}
           </SelectField>
           <TextField
             label="Час зупинки"
@@ -100,12 +103,16 @@ export function ScheduleForm({
         onChange={(event) => change("frequency_hz", Number(event.target.value))}
         hint={
           limits
-            ? `Робочі межі: ${limits.min_hz}–${limits.max_hz} Гц. Тривалість одного запуску — від 1 хв до 24 год.`
+            ? `Робочі межі: ${limits.min_hz}–${limits.max_hz} Гц. Тривалість одного запуску — від 1 хв до 7 діб (168 год).`
             : "Спочатку налаштуйте допустимі межі частоти обладнання."
         }
       />
       <details>
         <summary>Повторення та сезон</summary>
+        <p className="help-copy">
+          Це повторення окремих запусків. Для роботи без зупинки протягом тижня оберіть «Через 7 днів» у полі «День
+          зупинки».
+        </p>
         <div className="schedule-grid">
           <SelectField
             label="Повторення"
@@ -227,8 +234,11 @@ export function ScheduleForm({
                   )
                 }
               >
-                <option value={0}>День запуску</option>
-                <option value={1}>Наступний день</option>
+                {scheduleDayLabels.map((label, offset) => (
+                  <option key={offset} value={offset}>
+                    {label}
+                  </option>
+                ))}
               </SelectField>
               <TextField
                 label={`Нова частота ${index + 1}, Гц`}

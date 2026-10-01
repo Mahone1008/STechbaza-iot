@@ -7,13 +7,13 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from app.schemas.program import ProgramPlan, ProgramStep
+from app.schemas.program import MAX_PROGRAM_STEPS, MAX_SCHEDULE_DAYS, MAX_SCHEDULE_SECONDS, ProgramPlan, ProgramStep
 
 
 class FrequencyChange(BaseModel):
     model_config = ConfigDict(extra="forbid")
     at: time
-    day_offset: int = Field(default=0, strict=True, ge=0, le=1)
+    day_offset: int = Field(default=0, strict=True, ge=0, le=MAX_SCHEDULE_DAYS)
     frequency_hz: float = Field(gt=0, le=100)
 
     @field_validator("at")
@@ -37,7 +37,7 @@ class ScheduleSpec(BaseModel):
     until_date: date
     start_time: time
     stop_time: time
-    stop_day_offset: int = Field(default=0, strict=True, ge=0, le=1)
+    stop_day_offset: int = Field(default=0, strict=True, ge=0, le=MAX_SCHEDULE_DAYS)
     frequency_hz: float = Field(gt=0, le=100)
     repeat: Literal["once", "daily", "weekly", "interval", "monthly", "yearly"] = "once"
     weekdays: list[int] = Field(default_factory=list, max_length=7)
@@ -103,8 +103,8 @@ class ScheduleSpec(BaseModel):
             raise ValueError("Дати винятків не повинні повторюватися")
         start = datetime.combine(self.start_date, self.start_time)
         stop = datetime.combine(self.start_date + timedelta(days=self.stop_day_offset), self.stop_time)
-        if not 60 <= (stop - start).total_seconds() <= 86400:
-            raise ValueError("Тривалість запуску — від хвилини до доби")
+        if not 60 <= (stop - start).total_seconds() <= MAX_SCHEDULE_SECONDS:
+            raise ValueError("Тривалість запуску — від 1 хвилини до 7 діб (168 годин)")
         previous = start
         for change in self.changes:
             point = datetime.combine(self.start_date + timedelta(days=change.day_offset), change.at)
@@ -114,8 +114,14 @@ class ScheduleSpec(BaseModel):
         return self
 
 
+class ScheduleStep(ProgramStep):
+    duration_seconds: int = Field(strict=True, ge=10, le=MAX_SCHEDULE_SECONDS)
+
+
 class ScheduleRun(ProgramPlan):
     """UTC-межі одного виконання; переходи не пересувають фінальний STOP."""
+    max_duration_seconds = MAX_SCHEDULE_SECONDS
+    steps: list[ScheduleStep] = Field(min_length=1, max_length=MAX_PROGRAM_STEPS)
     starts_at: datetime
     stops_at: datetime
 

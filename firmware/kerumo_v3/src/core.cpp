@@ -134,7 +134,7 @@ bool Controller::begin(const char* uid) {
   storageOk_=true;
   for (auto& record:journal_.records) if (record.outcome==Outcome::Pending) {
     if (programType(record.command.type)) {
-      if (programSlot_>=0 || !validProgram(record.command.program)) return false;
+      if (programSlot_>=0 || !validProgram(record.command.program,record.command.type==Type::Schedule?MaxScheduleSeconds:MaxProgramSeconds)) return false;
       programSlot_=static_cast<int>(&record-journal_.records);
       journal_.motionPossible=true; // Відновлення незавершеної програми вимагає підтвердження STOP.
       std::strncpy(program_.commandId,record.command.id,36);
@@ -242,7 +242,7 @@ void Controller::receive(const Command& c,const char* session,const char* ackId,
   if (c.type!=Type::Stop && (!bus_.read(0x2100,fault) || fault!=0)) { finish(record,Outcome::Failed,Error::Fault); disarm(StopReason::Fault); return; }
   if (c.type==Type::Frequency && !frequencyWord(c.hz,config_,value)) { finish(record,Outcome::Failed,Error::Frequency); return; }
   if (programType(c.type)) {
-    if (mode_!=SessionMode::ExtendedTest || !validProgram(c.program)) { finish(record,Outcome::Failed,Error::ProgramInvalid); return; }
+    if (mode_!=SessionMode::ExtendedTest || !validProgram(c.program,c.type==Type::Schedule?MaxScheduleSeconds:MaxProgramSeconds)) { finish(record,Outcome::Failed,Error::ProgramInvalid); return; }
     for (size_t i=0;i<c.program.count;++i) if (!frequencyWord(c.program.steps[i].hz,config_,value)) { finish(record,Outcome::Failed,Error::Frequency); return; }
     uint16_t state{},output{};
     if (journal_.motionPossible || stopping_ || !bus_.read(0x2101,state) || !bus_.read(0x2103,output) || !stopped(state,output)) {

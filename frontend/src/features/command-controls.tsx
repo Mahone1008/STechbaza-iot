@@ -373,6 +373,7 @@ export function CommandControls({
                 visible={settingsOpen}
                 limits={limits ?? null}
                 supported={overview.diagnostics?.program?.supports_schedule === true}
+                maxScheduleSeconds={overview.diagnostics?.program?.max_schedule_seconds}
                 onCommand={onCreated}
               />
             )}

@@ -24,7 +24,7 @@
 
 using namespace kerumo;
 namespace {
-constexpr char FirmwareVersion[]="0.4.0";
+constexpr char FirmwareVersion[]="0.5.0";
 static_assert(sizeof(time_t)>=8,"Calendar execution requires 64-bit time_t");
 std::atomic<int64_t> syncEpochMs{0}, syncMonoMs{0};
 std::atomic<bool> networkReady{false};

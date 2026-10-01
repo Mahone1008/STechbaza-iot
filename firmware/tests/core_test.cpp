@@ -450,6 +450,15 @@ void calendarParsingAndMigration() {
   assert(upgraded.records[0].command.program.steps[1].seconds==120);
   const char* json=R"({"schema_version":2,"control_sequence":42,"command_id":"00000000-0000-4000-8000-000000000042","request_id":"00000000-0000-4000-8000-000000000001","issued_at":"2076-02-29T13:00:00Z","expires_at":"2076-02-29T13:00:30Z","ttl_seconds":30,"command_type":"vfd.schedule.start","payload":{"version":1,"starts_at":"2076-02-29T13:00:00Z","stops_at":"2076-02-29T13:02:00Z","steps":[{"frequency_hz":40,"duration_seconds":60},{"frequency_hz":50,"duration_seconds":60}]}})";
   Command c; assert(parseCommand(json,strlen(json),c) && c.type==Type::Schedule && c.scheduledStartMs>2147483647000LL);
+  JsonDocument week; deserializeJson(week,json);
+  week["payload"]["stops_at"]="2076-03-07T13:00:00Z";
+  week["payload"]["steps"][0]["duration_seconds"]=MaxScheduleSeconds-60;
+  std::string weekly; serializeJson(week,weekly);
+  assert(parseCommand(weekly.c_str(),weekly.size(),c));
+  week["payload"]["stops_at"]="2076-03-07T13:00:01Z";
+  week["payload"]["steps"][0]["duration_seconds"]=MaxScheduleSeconds-59;
+  weekly.clear(); serializeJson(week,weekly);
+  assert(!parseCommand(weekly.c_str(),weekly.size(),c));
   for(unsigned n=0;n<4;++n) {
     JsonDocument doc; deserializeJson(doc,json);
     if(n==0) doc["payload"]["stops_at"]="2076-02-29T13:03:00Z";
@@ -470,8 +479,45 @@ void calendarParsingAndMigration() {
   ++old.highest; assert(!upgradeJournal(old,next));
 }
 
+void calendarWeekExecution() {
+  Fixture f; f.clock.ms=std::numeric_limits<uint32_t>::max()-86400000ULL;
+  assert(f.armExtended()); auto c=scheduledCommand(f);
+  c.program.count=1; c.program.steps[0]={40,MaxScheduleSeconds};
+  c.scheduledStopMs=c.scheduledStartMs+MaxScheduleSeconds*1000LL;
+  assert(validProgram(c.program,MaxScheduleSeconds) && !validProgram(c.program));
+  const auto started=f.clock.ms;
+  f.receive(c); reachHold(f); f.clock.ms+=1000; f.controller.tick(true);
+  JsonDocument diagnostic;
+  writeDiagnostics(diagnostic.to<JsonObject>(),f.controller.sample(),"0.5.0","power_on",{"wifi",nullptr,0});
+  assert(diagnostic["program"]["max_schedule_seconds"]==MaxScheduleSeconds);
+  assert(diagnostic["program"]["remaining_seconds"].as<uint32_t>()>MaxProgramSeconds);
+  f.clock.ms=started+MaxScheduleSeconds*1000ULL-1000; f.controller.tick(true);
+  assert(f.controller.sample().program.phase==ProgramPhase::Holding);
+  assert(f.controller.sample().program.remainingSeconds==1);
+  f.clock.ms+=1000; f.controller.tick(true); f.clock.ms+=1000; f.controller.tick(true);
+  assert(f.controller.journal().records[0].outcome==Outcome::Succeeded);
+  assert(!f.controller.journal().motionPossible);
+  for(unsigned action=0;action<3;++action) {
+    Fixture stop; assert(stop.armExtended()); auto plan=scheduledCommand(stop);
+    plan.program.count=1; plan.program.steps[0]={40,MaxScheduleSeconds};
+    plan.scheduledStopMs=plan.scheduledStartMs+MaxScheduleSeconds*1000LL;
+    stop.receive(plan); reachHold(stop);
+    if(action==0) stop.receive(stop.command(2,Type::Stop));
+    if(action==1) stop.controller.tick(false);
+    if(action==2) {
+      Controller reboot(stop.bus,stop.storage,stop.clock,stop.events,true);
+      assert(reboot.begin("test-device")); reboot.tick(true);
+      assert(!reboot.isArmed() && reboot.journal().records[0].error==Error::Restarted);
+      assert(!reboot.journal().motionPossible);
+      continue;
+    }
+    stop.clock.ms+=1000; stop.controller.tick(true);
+    assert(!stop.controller.journal().motionPossible);
+  }
+}
+
 int main() {
-  calendarExecution(); calendarParsingAndMigration();
+  calendarExecution(); calendarParsingAndMigration(); calendarWeekExecution();
   programExecution(); programCancellationAndRecovery(); programBoundaries(); programParsingAndMigration();
   readOnlyAndConfiguration(); timingAndOrdering(); echoIsNotPhysicalResult(); duplicateAndRestart();
   crashWindowAndStopRetry(); storageAndBoundedHistory(); profilesAndFrames(); protocol();

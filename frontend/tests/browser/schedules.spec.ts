@@ -44,6 +44,7 @@ function overview() {
   data.command_types.push("vfd.schedule.start");
   data.allowed_commands.push("vfd.schedule.start");
   data.diagnostics!.program!.supports_schedule = true;
+  data.diagnostics!.program!.max_schedule_seconds = 604800;
   return data;
 }
 
@@ -105,12 +106,10 @@ for (const width of [320, 393, 1280])
     await page.getByRole("combobox", { name: "Повторення", exact: true }).selectOption("daily");
     await expect(page.getByRole("checkbox", { name: "Жовтень", exact: true })).toBeChecked();
     await page.getByRole("combobox", { name: "Повторення", exact: true }).selectOption("once");
-    await test
-      .info()
-      .attach(`calendar-editor-${width}`, {
-        body: await page.locator(".schedule-editor").screenshot(),
-        contentType: "image/png",
-      });
+    await test.info().attach(`calendar-editor-${width}`, {
+      body: await page.locator(".schedule-editor").screenshot(),
+      contentType: "image/png",
+    });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     expect(
       (await new AxeBuilder({ page }).include(".schedule-editor").withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze())
@@ -290,8 +289,12 @@ test("preview is invalidated by edits and conflicts prevent saving", async ({ pa
 test("required fields and frequency limits are checked before calendar preview", async ({ page }) => {
   await mockAuthenticatedWorkspace(page);
   const data = overview();
-  await page.route(`${base}/overview`, async (route) => { if (!await fulfillPreflight(route)) await fulfillJson(route, 200, data); });
-  await page.route(`${base}/schedules`, async (route) => { if (!await fulfillPreflight(route)) await fulfillJson(route, 200, []); });
+  await page.route(`${base}/overview`, async (route) => {
+    if (!(await fulfillPreflight(route))) await fulfillJson(route, 200, data);
+  });
+  await page.route(`${base}/schedules`, async (route) => {
+    if (!(await fulfillPreflight(route))) await fulfillJson(route, 200, []);
+  });
   let previews = 0;
   await page.route(`${base}/schedules/preview`, async (route) => {
     if (await fulfillPreflight(route)) return;
@@ -323,11 +326,22 @@ test("closing the calendar stops both list and selected history polling", async 
   await page.clock.install();
   await mockAuthenticatedWorkspace(page);
   const data = overview();
-  const item = { id: conflictId, revision: 1, device_id: DEVICE_ID, organization_id: data.access.organization_id,
-    enabled: true, spec: { ...newScheduleSpec("Europe/Kyiv", "2076-10-01"), name: "Полив", frequency_hz: 40 },
-    next_start_at: start, created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
-  await page.route(`${base}/overview`, async (route) => { if (!await fulfillPreflight(route)) await fulfillJson(route, 200, data); });
-  let lists = 0, histories = 0;
+  const item = {
+    id: conflictId,
+    revision: 1,
+    device_id: DEVICE_ID,
+    organization_id: data.access.organization_id,
+    enabled: true,
+    spec: { ...newScheduleSpec("Europe/Kyiv", "2076-10-01"), name: "Полив", frequency_hz: 40 },
+    next_start_at: start,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+  await page.route(`${base}/overview`, async (route) => {
+    if (!(await fulfillPreflight(route))) await fulfillJson(route, 200, data);
+  });
+  let lists = 0,
+    histories = 0;
   await page.route(`${base}/schedules`, async (route) => {
     if (await fulfillPreflight(route)) return;
     lists++;
@@ -351,4 +365,104 @@ test("closing the calendar stops both list and selected history polling", async 
   await page.getByText("Додаткові налаштування команди", { exact: true }).click();
   await expect(page.getByText("Запусків ще не було.", { exact: true })).toBeVisible();
   expect(histories).toBeGreaterThan(counts[1]!);
+});
+
+test("week-long rule previews, confirms and keeps all day offsets after reload", async ({ page }) => {
+  await page.setViewportSize({ width: 393, height: 852 });
+  await mockAuthenticatedWorkspace(page);
+  const data = overview();
+  await page.route(`${base}/overview`, async (route) => {
+    if (!(await fulfillPreflight(route))) await fulfillJson(route, 200, data);
+  });
+  const saved: Schedule[] = [];
+  await page.route(
+    (url) => url.href.startsWith(`${base}/schedules`),
+    async (route) => {
+      if (await fulfillPreflight(route)) return;
+      if (route.request().method() === "GET") return fulfillJson(route, 200, saved);
+      const body = route.request().postDataJSON() as ScheduleWrite;
+      expect(body.spec.stop_day_offset).toBe(7);
+      expect(body.spec.changes?.[0]?.day_offset).toBe(3);
+      if (route.request().url().endsWith("/preview"))
+        return fulfillJson(route, 200, {
+          runs: [
+            {
+              version: 1,
+              starts_at: start,
+              stops_at: "2076-10-08T16:00:00Z",
+              steps: [
+                { frequency_hz: 40, duration_seconds: 259200 },
+                { frequency_hz: 30, duration_seconds: 345600 },
+              ],
+            },
+          ],
+          conflicts: [],
+          conflict_horizon_days: 366,
+          notes: [],
+        });
+      saved.push({
+        id: body.id,
+        revision: 1,
+        device_id: DEVICE_ID,
+        organization_id: data.access.organization_id,
+        enabled: true,
+        spec: body.spec,
+        next_start_at: start,
+        created_at: start,
+        updated_at: start,
+      });
+      return fulfillJson(route, 200, saved[0]);
+    },
+  );
+  await page.goto(`/devices/${DEVICE_ID}`);
+  await openSchedules(page);
+  await page.getByRole("button", { name: "Новий розклад", exact: true }).click();
+  await expect(page.getByRole("form", { name: "Редактор розкладу" })).toContainText(
+    "Після підтвердження розклад запуститься автоматично",
+  );
+  await page.getByLabel("Назва розкладу", { exact: true }).fill("Тижневий запуск");
+  await page.getByLabel("Дата початку", { exact: true }).fill("2076-10-01");
+  await page.getByLabel("День зупинки", { exact: true }).selectOption("7");
+  await page.getByLabel("Час зупинки", { exact: true }).fill("19:00");
+  await page.getByLabel("Частота за розкладом, Гц", { exact: true }).fill("40");
+  await page.getByText("Зміна частоти протягом роботи", { exact: true }).click();
+  await page.getByRole("button", { name: "Додати зміну частоти", exact: true }).click();
+  await page.getByLabel("Час зміни 1", { exact: true }).fill("19:00");
+  await page.getByLabel("День зміни 1", { exact: true }).selectOption("3");
+  await page.getByLabel("Нова частота 1, Гц", { exact: true }).fill("30");
+  await page.getByRole("button", { name: "Перевірити розклад", exact: true }).click();
+  await expect(page.getByRole("region", { name: "Попередній перегляд розкладу" })).toContainText("08.10.2076");
+  await page.getByRole("button", { name: "Зберегти та увімкнути", exact: true }).click();
+  await expect(page.getByRole("dialog")).toContainText("через 7 днів");
+  await page.getByRole("button", { name: "Підтвердити розклад", exact: true }).click();
+  await expect(page.locator(".schedule-list")).toContainText("через 7 днів");
+  await page.reload();
+  await openSchedules(page);
+  await page.getByRole("button", { name: "Змінити", exact: true }).click();
+  await expect(page.getByLabel("День зупинки", { exact: true })).toHaveValue("7");
+  await page.getByText("Зміна частоти протягом роботи", { exact: true }).click();
+  await expect(page.getByLabel("День зміни 1", { exact: true })).toHaveValue("3");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await test
+    .info()
+    .attach("week-calendar-393", {
+      body: await page.locator(".schedule-editor").screenshot(),
+      contentType: "image/png",
+    });
+});
+
+test("legacy calendar firmware explains its one-day duration limit", async ({ page }) => {
+  await mockAuthenticatedWorkspace(page);
+  const data = overview();
+  data.diagnostics!.program!.max_schedule_seconds = 86400;
+  await page.route(`${base}/overview`, async (route) => {
+    if (!(await fulfillPreflight(route))) await fulfillJson(route, 200, data);
+  });
+  await page.route(`${base}/schedules`, async (route) => {
+    if (!(await fulfillPreflight(route))) await fulfillJson(route, 200, []);
+  });
+  await page.goto(`/devices/${DEVICE_ID}`);
+  await openSchedules(page);
+  await expect(page.locator(".schedule-panel")).toContainText("Поточна прошивка підтримує запуск до 24 год");
+  await expect(page.locator(".schedule-panel")).toContainText("оновіть контролер до 0.5.0");
 });

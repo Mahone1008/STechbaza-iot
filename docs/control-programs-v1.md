@@ -1,6 +1,6 @@
 # Таймер і програми частоти v1
 
-Поточна реалізація: backend **0.42.0**, firmware V3 **0.4.0**, MQTT command envelope v2.
+Поточна реалізація: backend **0.43.0**, firmware V3 **0.5.0**, MQTT command envelope v2.
 Таймер і етапи додано у 0.41.0/0.3.0. Міграція `20261001_0020` додає окремі
 [календарні розклади](control-schedules-v1.md); семантика витримок не змінилася.
 Стендові запуски таймера, п'яти етапів, F5 під час RUN і STOP на другому
@@ -151,7 +151,7 @@ VFD-профілі потребують власної реалізації й �
 
 ```powershell
 Set-Location "C:\Users\seraf\Documents\TechBaza\techbaza-iot"
-$sketchBackup = Join-Path (Split-Path (Get-Location) -Parent) ("kerumo_v3_before_040_" + (Get-Date -Format "yyyyMMdd_HHmmss"))
+$sketchBackup = Join-Path (Split-Path (Get-Location) -Parent) ("kerumo_v3_before_050_" + (Get-Date -Format "yyyyMMdd_HHmmss"))
 Copy-Item .\firmware\kerumo_v3 $sketchBackup -Recurse -ErrorAction Stop
 git pull --ff-only origin main
 if ($LASTEXITCODE -ne 0) { throw 'Не вдалося оновити код; збережіть повідомлення про конфлікт' }
@@ -176,7 +176,7 @@ npm.cmd run dev
 
 Процедура передбачає вже запущені PostgreSQL, Mosquitto та V3 TLS gateway
 попереднього стенда; gateway не потрібно перестворювати. `/health` має
-показати **0.42.0**, Alembic head — `20261001_0020`. Повторний seed додає
+показати **0.43.0**, Alembic head — `20261001_0020`. Повторний seed додає
 відсутню capability симулятора; команда bench додає/вмикає `vfd.program` та `vfd.schedule`
 для фізичного стенда, але не виконує ARM чи RUN. Змінений вручну профіль
 не перезаписується автоматично. `prepare-v3.ps1` для цього оновлення не
@@ -188,13 +188,13 @@ npm.cmd run dev
 `KERUMO_ENABLE_CONTROL` і `KERUMO_ENABLE_EXTENDED_TEST`; типові шаблони
 залишають їх `false`. Не вмикати **Erase All Flash** і не стирати NVS.
 
-0.4.0 мігрує попередній journal v0.1/v0.2/v0.3 зі збереженням UID, sequence,
+Починаючи з 0.4.0, скетч мігрує попередній journal v0.1/v0.2/v0.3 зі збереженням UID, sequence,
 історії та motion latch до нового формату. Некоректний журнал блокує
 керування. Повернення старої прошивки після міграції може дати
 `storage=LOCKED`; стирання NVS для обходу не є процедурою rollback.
 Для rollback потрібне окреме узгодження стану сервера/контролера.
 
-Serial Monitor **115200**: версія **0.4.0**, `storage=OK`, MQTT/TLS.
+Serial Monitor **115200**: версія **0.5.0**, `storage=OK`, MQTT/TLS.
 Після перевірки зупинки й чинної підготовки стенда ввести
 **`ARM SU600 TEST`** у рядок Serial Monitor і надіслати з newline.
 Короткий `ARM SU600` не дозволяє програми. Після ARM дочекатися свіжої

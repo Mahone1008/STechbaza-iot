@@ -51,14 +51,14 @@ class SchedulePostgresTests(unittest.TestCase):
             session.commit()
         self.fresh(self.due)
 
-    def fresh(self, now, *, supported=True):
+    def fresh(self, now, *, supported=True, max_schedule_seconds=86400):
         with SessionLocal() as session:
             device = session.get(Device, self.devices[0]); device.last_seen_at = now; device.last_observed_session_id = self.boot
             snapshot = session.get(DeviceState, device.id) or DeviceState(device_id=device.id)
             snapshot.last_received_at = now; snapshot.last_reported_at = now; snapshot.last_session_id = self.boot
             snapshot.state = {"pump_running": False}
             snapshot.values = {}
-            snapshot.diagnostics = {"program": {"version": 1, "ready": True, "supports_schedule": supported, "state": "idle", "command_id": None,
+            snapshot.diagnostics = {"program": {"version": 1, "ready": True, "supports_schedule": supported, "max_schedule_seconds": max_schedule_seconds, "state": "idle", "command_id": None,
                 "step_index": 0, "step_count": 0, "target_frequency_hz": None, "remaining_seconds": None, "reason": None}}
             session.add(snapshot); session.commit()
 
@@ -85,6 +85,31 @@ class SchedulePostgresTests(unittest.TestCase):
         self.assertEqual(len(self.call(self.base + "/schedules", who="viewer")), 1)
         with SessionLocal() as session:
             self.assertEqual(session.scalar(select(func.count()).select_from(ScheduleRevision).where(ScheduleRevision.schedule_id == uuid.UUID(row["id"]))), 1)
+
+    def test_week_requires_compatible_controller_at_save_and_dispatch(self):
+        data = {"id": str(uuid.uuid4()), "expected_revision": 0, "enabled": True,
+            "spec": {**self.rule, "stop_day_offset": 7, "stop_time": self.rule["start_time"]}}
+        self.call(self.base + "/schedules/preview", method="POST", body=data, expected=409)
+        self.call(self.base + "/schedules/" + data["id"], method="PUT", body=data, expected=409)
+        self.fresh(self.due, max_schedule_seconds=604800)
+        preview = self.call(self.base + "/schedules/preview", method="POST", body=data)
+        self.assertEqual(preview["runs"][0]["steps"][0]["duration_seconds"], 604800)
+        row = self.call(self.base + "/schedules/" + data["id"], method="PUT", body=data)
+        self.assertEqual(self.process(row), "queued")
+        # Заміна контролера старою версією після збереження не обходить перевірку.
+        self.fresh(self.due)
+        with SessionLocal() as session:
+            command = session.scalar(select(DeviceCommand).where(DeviceCommand.schedule_id == uuid.UUID(row["id"])))
+            result = CommandDispatchService(session).dispatch(command.id, now=self.due)
+            self.assertEqual(result.reason, "schedule_duration_unsupported")
+
+    def test_overlapping_repetitions_cannot_be_enabled(self):
+        self.fresh(self.due, max_schedule_seconds=604800)
+        data = {"id": str(uuid.uuid4()), "expected_revision": 0, "enabled": True,
+            "spec": {**self.rule, "stop_day_offset": 7, "stop_time": self.rule["start_time"],
+                "repeat": "daily", "until_date": (self.due + timedelta(days=30)).date().isoformat()}}
+        self.call(self.base + "/schedules/preview", method="POST", body=data, expected=409)
+        self.call(self.base + "/schedules/" + data["id"], method="PUT", body=data, expected=409)
 
     def test_two_workers_and_restarts_create_one_command(self):
         row, _ = self.save_rule()

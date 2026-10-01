@@ -31,4 +31,14 @@ describe("calendar API boundaries", () => {
     expect(parseScheduleRun({ ...run, injected: true })).toBeNull();
     expect(parseScheduleRun({ ...run, starts_at: "2076-02-29T17:00:00", stops_at: "2076-02-29T17:02:00" })).toBeNull();
   });
+  it("accepts a full week and rejects invalid day offsets and excess duration", () => {
+    expect(parseScheduleSpec({ ...rule, stop_day_offset: 7, changes: [{ at: "12:00", day_offset: 3, frequency_hz: 30 }] }).stop_day_offset).toBe(7);
+    for (const offset of [8, -1, 1.5, true, "7"]) {
+      expect(() => parseScheduleSpec({ ...rule, stop_day_offset: offset })).toThrow();
+      expect(() => parseScheduleSpec({ ...rule, changes: [{ at: "12:00", day_offset: offset, frequency_hz: 30 }] })).toThrow();
+    }
+    const week = { version: 1, starts_at: "2076-02-29T17:00:00Z", stops_at: "2076-03-07T17:00:00Z", steps: [{ frequency_hz: 40, duration_seconds: 604800 }] };
+    expect(parseScheduleRun(week)).toEqual(week);
+    expect(parseScheduleRun({ ...week, stops_at: "2076-03-07T17:00:01Z", steps: [{ frequency_hz: 40, duration_seconds: 604801 }] })).toBeNull();
+  });
 });

@@ -1869,6 +1869,11 @@ export interface components {
         ProgramProgress: {
             /** Command Id */
             command_id: string | null;
+            /**
+             * Max Schedule Seconds
+             * @default 86400
+             */
+            max_schedule_seconds: number;
             /** Ready */
             ready: boolean;
             /** Reason */
@@ -1896,13 +1901,6 @@ export interface components {
              * @constant
              */
             version: 1;
-        };
-        /** ProgramStep */
-        ProgramStep: {
-            /** Duration Seconds */
-            duration_seconds: number;
-            /** Frequency Hz */
-            frequency_hz: number;
         };
         /**
          * RefreshTokenRequest
@@ -2008,7 +2006,7 @@ export interface components {
              */
             starts_at: string;
             /** Steps */
-            steps: components["schemas"]["ProgramStep"][];
+            steps: components["schemas"]["ScheduleStep"][];
             /**
              * Stops At
              * Format: date-time
@@ -2077,6 +2075,13 @@ export interface components {
             until_date: string;
             /** Weekdays */
             weekdays?: number[];
+        };
+        /** ScheduleStep */
+        ScheduleStep: {
+            /** Duration Seconds */
+            duration_seconds: number;
+            /** Frequency Hz */
+            frequency_hz: number;
         };
         /** ScheduleWrite */
         ScheduleWrite: {

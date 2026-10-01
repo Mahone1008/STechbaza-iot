@@ -7,15 +7,19 @@ from app.services.telemetry_quality import freshness
 from app.services.command_profile import configured_limits
 
 
+def read_program_progress(snapshot):
+    raw = (snapshot.diagnostics or {}).get("program") if snapshot else None
+    try:
+        return ProgramProgress.model_validate(raw) if raw is not None else None
+    except ValueError:
+        return None
+
+
 def program_rejection(session, device, command_type, payload, now, command_id=None):
     if command_type == "vfd.stop":
         return None
     snapshot = TelemetryRepository(session).get_state(device.id)
-    raw = (snapshot.diagnostics or {}).get("program") if snapshot else None
-    try:
-        progress = ProgramProgress.model_validate(raw) if raw is not None else None
-    except ValueError:
-        progress = None
+    progress = read_program_progress(snapshot)
     # Активна програма керує частотою; повтор її власного запиту не запускає її знову.
     if progress and progress.state in PROGRAM_ACTIVE_STATES and progress.command_id != command_id:
         return "program_active"
@@ -34,6 +38,8 @@ def program_rejection(session, device, command_type, payload, now, command_id=No
         if not progress.supports_schedule:
             return "schedule_firmware_unavailable"
         plan = ScheduleRun.model_validate(payload)
+        if sum(step.duration_seconds for step in plan.steps) > progress.max_schedule_seconds:
+            return "schedule_duration_unsupported"
         if not 0 <= (now - plan.starts_at).total_seconds() < 30 or now >= plan.stops_at:
             return "schedule_window_expired"
     else:

@@ -58,6 +58,32 @@ class ProgramTests(unittest.TestCase):
         self.assertEqual(result_timeout_seconds(command), 11100)
         self.assertEqual(command.ttl_seconds, 30)
 
+    def test_week_schedule_progress_deadline_and_legacy_firmware(self):
+        now = datetime.now(timezone.utc).replace(microsecond=0)
+        payload = {"version": 1, "starts_at": now.isoformat(), "stops_at": (now + timedelta(days=7)).isoformat(),
+            "steps": [{"frequency_hz": 40, "duration_seconds": 604800}]}
+        self.assertEqual(result_timeout_seconds(SimpleNamespace(command_type="vfd.schedule.start", payload=payload, created_at=now)), 604980)
+        boot = uuid.uuid4()
+        device = SimpleNamespace(id=uuid.uuid4(), last_observed_session_id=boot)
+        progress = self.state.program_progress()
+        snapshot = SimpleNamespace(diagnostics={"program": progress}, state={"pump_running": False},
+            last_received_at=now, last_reported_at=now, last_session_id=boot)
+        with patch("app.services.program_policy.TelemetryRepository") as telemetry, patch("app.services.program_policy.CapabilityRepository") as caps, patch("app.services.program_policy.configured_limits") as limits:
+            telemetry.return_value.get_state.return_value = snapshot
+            caps.return_value.get_enabled_codes_for_device.return_value = {"vfd.control", "vfd.program", "vfd.schedule"}
+            limits.return_value = SimpleNamespace(min_hz=20, max_hz=50)
+            self.assertIsNone(program_rejection(None, device, "vfd.schedule.start", payload, now))
+            del progress["max_schedule_seconds"]
+            self.assertEqual(ProgramProgress.model_validate(progress).max_schedule_seconds, 86400)
+            self.assertEqual(program_rejection(None, device, "vfd.schedule.start", payload, now), "schedule_duration_unsupported")
+        self.state.command("pump", self.command("vfd.schedule.start", payload))
+        ProgramProgress.model_validate(self.state.program_progress())
+        self.t += 604799; self.state.tick_program()
+        self.assertTrue(self.state.device("pump")["running"])
+        self.t += 1; self.state.tick_program()
+        self.assertFalse(self.state.device("pump")["running"])
+        self.assertEqual(self.state.program_progress()["state"], "completed")
+
     def test_ordered_execution_duplicate_and_completion(self):
         request = self.command()
         self.state.command("pump", request)

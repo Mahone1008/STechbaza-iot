@@ -11,11 +11,14 @@ from app.repositories.capabilities import CapabilityRepository
 from app.repositories.devices import DeviceRepository
 from app.repositories.memberships import MembershipRepository
 from app.repositories.schedules import ScheduleRepository
+from app.repositories.telemetry import TelemetryRepository
+from app.schemas.program import MAX_PROGRAM_SECONDS
 from app.schemas.schedule import SchedulePreview, ScheduleSpec
 from app.security.roles import Permission, PlatformRole, role_has_permission
 from app.services.command_profile import configured_limits
 from app.services.commands import CommandActorSnapshot
-from app.services.schedule_calendar import first_overlap, upcoming
+from app.services.program_policy import read_program_progress
+from app.services.schedule_calendar import first_overlap, self_overlap, upcoming
 
 
 def schedule_actor(session, schedule):
@@ -55,10 +58,18 @@ class ScheduleService:
         limits = configured_limits(self.session, device_id)
         if limits is None or any(not limits.min_hz <= hz <= limits.max_hz for hz in [spec.frequency_hz, *(change.frequency_hz for change in spec.changes)]):
             raise HTTPException(409, "Частота розкладу поза робочими межами обладнання")
+        duration = (datetime.combine(spec.start_date + timedelta(days=spec.stop_day_offset), spec.stop_time)
+            - datetime.combine(spec.start_date, spec.start_time)).total_seconds()
+        if duration > MAX_PROGRAM_SECONDS:
+            progress = read_program_progress(TelemetryRepository(self.session).get_state(device_id))
+            if progress is None or not progress.supports_schedule or duration > progress.max_schedule_seconds:
+                raise HTTPException(409, "Для запуску понад добу оновіть прошивку контролера до 0.5.0 та дочекайтеся нової телеметрії")
 
     def preview(self, device_id, spec, *, exclude_id=None, now=None):
         self.validate_device(device_id, spec)
         now = now or datetime.now(timezone.utc)
+        if self_overlap(spec, now):
+            raise HTTPException(409, "Запуски цього розкладу перетинаються. Збільшіть інтервал повторення або скоротіть тривалість")
         conflicts = [item.id for item in self.repo.for_device(device_id)
             if item.enabled and item.id != exclude_id and first_overlap(spec, ScheduleSpec.model_validate(item.spec), now)]
         return SchedulePreview(runs=upcoming(spec, now, limit=5), conflicts=conflicts, notes=[

@@ -46,7 +46,7 @@ inline bool parseCommand(const char* bytes,size_t length,Command& out) {
           !raw["duration_seconds"].is<uint32_t>()) return false;
       out.program.steps[i++]={raw["frequency_hz"].as<double>(),raw["duration_seconds"].as<uint32_t>()};
     }
-    if (!validProgram(out.program)) return false;
+    if (!validProgram(out.program,out.type==Type::Schedule?MaxScheduleSeconds:MaxProgramSeconds)) return false;
     if (out.type==Type::Schedule) {
       if (!parseUtcMs(payload["starts_at"] | "",out.scheduledStartMs) ||
           !parseUtcMs(payload["stops_at"] | "",out.scheduledStopMs)) return false;

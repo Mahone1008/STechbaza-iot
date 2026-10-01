@@ -6,6 +6,8 @@ export type ProgramPlan = Readonly<{ version: 1; steps: ProgramStep[] }>;
 export type ProgramProgress = components["schemas"]["ProgramProgress"];
 export const MAX_PROGRAM_STEPS = 8;
 export const MAX_PROGRAM_SECONDS = 86400;
+export const MAX_SCHEDULE_DAYS = 7;
+export const MAX_SCHEDULE_SECONDS = MAX_SCHEDULE_DAYS * 86400;
 export const programStateLabels: Record<ProgramProgress["state"], string> = {
   idle: "Готовий до програми", setting: "Встановлення частоти", starting: "Очікування робочої частоти",
   holding: "Виконується", stopping: "Очікування підтвердження зупинки", completed: "Програму завершено",
@@ -18,16 +20,16 @@ export function durationText(seconds: number) {
   const parts = [Math.floor(seconds / 3600) ? `${Math.floor(seconds / 3600)} год` : "", Math.floor(seconds % 3600 / 60) ? `${Math.floor(seconds % 3600 / 60)} хв` : "", seconds % 60 ? `${seconds % 60} с` : ""];
   return parts.filter(Boolean).join(" ") || "0 с";
 }
-export function parseProgramPlan(raw: unknown): ProgramPlan | null {
+export function parseProgramPlan(raw: unknown, maxSeconds = MAX_PROGRAM_SECONDS): ProgramPlan | null {
   if (!isRecord(raw) || raw.version !== 1 || Object.keys(raw).length !== 2 || !Array.isArray(raw.steps) || raw.steps.length < 1 || raw.steps.length > MAX_PROGRAM_STEPS) return null;
   const steps: ProgramStep[] = [];
   for (const step of raw.steps) {
     if (!isRecord(step) || Object.keys(step).length !== 2 || typeof step.frequency_hz !== "number" || !Number.isFinite(step.frequency_hz)
       || step.frequency_hz <= 0 || step.frequency_hz > 100 || Math.abs(step.frequency_hz * 100 - Math.round(step.frequency_hz * 100)) > 0.000001
-      || typeof step.duration_seconds !== "number" || !Number.isInteger(step.duration_seconds) || step.duration_seconds < 10 || step.duration_seconds > MAX_PROGRAM_SECONDS) return null;
+      || typeof step.duration_seconds !== "number" || !Number.isInteger(step.duration_seconds) || step.duration_seconds < 10 || step.duration_seconds > maxSeconds) return null;
     steps.push({ frequency_hz: step.frequency_hz, duration_seconds: step.duration_seconds });
   }
-  return steps.reduce((sum, step) => sum + step.duration_seconds, 0) <= MAX_PROGRAM_SECONDS ? { version: 1, steps } : null;
+  return steps.reduce((sum, step) => sum + step.duration_seconds, 0) <= maxSeconds ? { version: 1, steps } : null;
 }
 export function sameProgram(a: unknown, b: unknown) {
   const left = parseProgramPlan(a), right = parseProgramPlan(b);
@@ -44,11 +46,12 @@ export function parseProgramProgress(raw: unknown): ProgramProgress | null {
   if ((raw.step_index as number) > (raw.step_count as number)) invalidResponse(path, "program step order");
   if (raw.command_id !== null) requiredUuid(raw, "command_id", path);
   if (raw.target_frequency_hz !== null && (typeof raw.target_frequency_hz !== "number" || !Number.isFinite(raw.target_frequency_hz) || raw.target_frequency_hz < 0 || raw.target_frequency_hz > 100)) invalidResponse(path, "program frequency");
-  if (raw.remaining_seconds !== null && (typeof raw.remaining_seconds !== "number" || !Number.isInteger(raw.remaining_seconds) || raw.remaining_seconds < 0 || raw.remaining_seconds > MAX_PROGRAM_SECONDS)) invalidResponse(path, "program remaining time");
+  if (raw.remaining_seconds !== null && (typeof raw.remaining_seconds !== "number" || !Number.isInteger(raw.remaining_seconds) || raw.remaining_seconds < 0 || raw.remaining_seconds > MAX_SCHEDULE_SECONDS)) invalidResponse(path, "program remaining time");
   if (raw.reason !== null && (typeof raw.reason !== "string" || raw.reason.length > 96)) invalidResponse(path, "program reason");
   if (raw.state === "idle" ? (raw.command_id !== null || raw.step_index !== 0 || raw.step_count !== 0 || raw.target_frequency_hz !== null || raw.remaining_seconds !== null || raw.reason !== null) : (raw.command_id === null || raw.step_count === 0)) invalidResponse(path, "program identity");
   if (["setting", "starting", "holding"].includes(raw.state) && (raw.step_index === 0 || raw.target_frequency_hz === null)) invalidResponse(path, "program active target");
   if (raw.state === "holding" && raw.remaining_seconds === null) invalidResponse(path, "program hold time");
   if (raw.supports_schedule !== undefined && typeof raw.supports_schedule !== "boolean") invalidResponse(path, "calendar support");
-  return raw as ProgramProgress;
+  if (raw.max_schedule_seconds !== undefined && (typeof raw.max_schedule_seconds !== "number" || !Number.isInteger(raw.max_schedule_seconds) || raw.max_schedule_seconds < 60 || raw.max_schedule_seconds > MAX_SCHEDULE_SECONDS)) invalidResponse(path, "calendar duration limit");
+  return { ...raw, max_schedule_seconds: raw.max_schedule_seconds ?? MAX_PROGRAM_SECONDS } as ProgramProgress;
 }

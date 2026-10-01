@@ -11,7 +11,7 @@ from pathlib import Path
 
 from app.demo.catalog import LIVE_DEVICES
 from app.schemas.command import CommandEnvelope, DeviceCommandCreate
-from app.schemas.program import PROGRAM_ACTIVE_STATES, ProgramPlan
+from app.schemas.program import MAX_SCHEDULE_SECONDS, PROGRAM_ACTIVE_STATES, ProgramPlan
 from app.schemas.schedule import ScheduleRun
 
 MODES = {
@@ -102,7 +102,7 @@ class DemoState:
             values = {"pressure.bar": 0.4 if item["mode"] == "alarm" else round(2.5 + wave, 3)}
         if key == "pump":
             packet["diagnostics"] = {
-                "version": 1, "firmware_version": "simulator-0.4.0",
+                "version": 1, "firmware_version": "simulator-0.5.0",
                 "uptime_ms": max(0, int((self._monotonic() - self._boot_time) * 1000)),
                 "reset_reason": "software", "connection": {"transport": "unknown", "signal": None},
                 "last_stop": None, "program": self.program_progress(),
@@ -201,10 +201,10 @@ class DemoState:
         row = self.db.execute("SELECT * FROM programs WHERE device='pump'").fetchone()
         ready = self.device("pump")["mode"] == "normal"
         if row is None:
-            return {"version": 1, "ready": ready, "supports_schedule": True, "command_id": None, "state": "idle", "step_index": 0,
+            return {"version": 1, "ready": ready, "supports_schedule": True, "max_schedule_seconds": MAX_SCHEDULE_SECONDS, "command_id": None, "state": "idle", "step_index": 0,
                     "step_count": 0, "target_frequency_hz": None, "remaining_seconds": None, "reason": None}
         steps = json.loads(row["plan"])["steps"]
-        return {"version": 1, "ready": ready, "supports_schedule": True, "command_id": row["command_id"], "state": row["state"],
+        return {"version": 1, "ready": ready, "supports_schedule": True, "max_schedule_seconds": MAX_SCHEDULE_SECONDS, "command_id": row["command_id"], "state": row["state"],
                 "step_index": row["step"] + 1, "step_count": len(steps),
                 "target_frequency_hz": steps[row["step"]]["frequency_hz"],
                 "remaining_seconds": row["remaining"] if row["state"] == "holding" else None, "reason": row["reason"]}

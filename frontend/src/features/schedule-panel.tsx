@@ -3,6 +3,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { Button, StatusBadge } from "@/components/ui";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { apiErrorDisplayMessage, apiQueryKeys, isApiError } from "@/lib/api";
+import { durationText, MAX_PROGRAM_SECONDS, MAX_SCHEDULE_SECONDS } from "@/lib/api/programs";
 import { statusLabels } from "@/lib/api/commands";
 import { ScheduleRunSummary } from "./schedule-summary";
 import {
@@ -15,6 +16,7 @@ import {
   parseSchedules,
   parseScheduleSpec,
   repeatLabels,
+  scheduleDayLabels,
   type Schedule,
   type SchedulePreview,
   type ScheduleSpec,
@@ -38,6 +40,7 @@ const reasonLabels: Record<string, string> = {
   schedule_access_revoked: "Дозвіл автора відкликано",
   schedule_window_expired: "Час прийняття запуску минув",
   program_firmware_unavailable: "Немає свіжих даних або локального дозволу",
+  schedule_duration_unsupported: "Прошивка не підтримує таку тривалість запуску",
   schedule_firmware_unavailable: "Потрібне оновлення прошивки",
   program_active: "Виконується інший запуск",
   program_requires_stopped_device: "Зупинку пристрою не підтверджено",
@@ -105,12 +108,14 @@ export function SchedulePanel({
   visible,
   limits,
   supported,
+  maxScheduleSeconds = MAX_PROGRAM_SECONDS,
   onCommand,
 }: {
   context: ReadyAccessSnapshot;
   visible: boolean;
   limits: { min_hz: number; max_hz: number } | null;
   supported: boolean;
+  maxScheduleSeconds?: number | undefined;
   onCommand: (id: string) => void;
 }) {
   const { authorizedRequest } = useAuthSession();
@@ -194,7 +199,7 @@ export function SchedulePanel({
         query.refresh();
         setNotice(
           saved.enabled
-            ? "Розклад збережено й увімкнено. Прийом і виконання кожного запуску відображатимуться в історії."
+            ? "Розклад збережено й увімкнено. Контролер запуститься автоматично у вказаний час. Стан запуску — в історії."
             : "Майбутні запуски призупинено. Уже прийнятий запуск зупиняється окремою кнопкою STOP.",
         );
       }
@@ -221,6 +226,12 @@ export function SchedulePanel({
         <p role="status">
           Збережений розклад потребує сумісної прошивки з підтримкою календарних запусків. До оновлення контролер не
           виконає його.
+        </p>
+      )}
+      {supported && maxScheduleSeconds < MAX_SCHEDULE_SECONDS && (
+        <p role="status">
+          Поточна прошивка підтримує запуск до {durationText(maxScheduleSeconds)}. Для роботи до 7 діб оновіть контролер
+          до 0.5.0 та дочекайтеся нових даних.
         </p>
       )}
       {query.isError && <p role="alert">{errorText(query.error)}</p>}
@@ -258,7 +269,8 @@ export function SchedulePanel({
                   <p>
                     {repeatLabels[item.spec.repeat ?? "once"]} · {item.spec.start_time.slice(0, 5)} →{" "}
                     {item.spec.stop_time.slice(0, 5)}
-                    {item.spec.stop_day_offset ? " наступного дня" : ""} · {item.spec.frequency_hz} Гц
+                    {` · ${scheduleDayLabels[item.spec.stop_day_offset ?? 0]?.toLocaleLowerCase("uk-UA")}`} ·{" "}
+                    {item.spec.frequency_hz} Гц
                     {item.spec.changes?.length ? ` · змін частоти: ${item.spec.changes.length}` : ""}
                   </p>
                   {item.next_start_at && (
@@ -304,7 +316,18 @@ export function SchedulePanel({
         </>
       )}
       {draft && (
-        <form className="schedule-editor" aria-label="Редактор розкладу" onSubmit={(event) => { event.preventDefault(); void action("preview", draft); }}>
+        <form
+          className="schedule-editor"
+          aria-label="Редактор розкладу"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void action("preview", draft);
+          }}
+        >
+          <p className="help-copy">
+            Заповніть форму → перевірте найближчі запуски → збережіть і підтвердьте. Після підтвердження розклад
+            запуститься автоматично у вибраний час.
+          </p>
           <ScheduleForm value={draft.spec as ScheduleSpec} onChange={change} disabled={busy} limits={limits} />
           <div className="ui-row">
             <Button type="submit" disabled={actionDisabled}>
@@ -393,7 +416,8 @@ export function SchedulePanel({
           <p>
             {confirmation.spec.start_date} — {confirmation.spec.until_date} · {confirmation.spec.start_time.slice(0, 5)}{" "}
             → {confirmation.spec.stop_time.slice(0, 5)}
-            {confirmation.spec.stop_day_offset ? " наступного дня" : ""} · {confirmation.spec.frequency_hz} Гц
+            {` · ${scheduleDayLabels[confirmation.spec.stop_day_offset ?? 0]?.toLocaleLowerCase("uk-UA")}`} ·{" "}
+            {confirmation.spec.frequency_hz} Гц
           </p>
         )}
       </ConfirmDialog>

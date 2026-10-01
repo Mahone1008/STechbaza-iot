@@ -21,6 +21,7 @@ inline void writeDiagnostics(JsonObject target, const Sample& sample,
   auto program=target["program"].to<JsonObject>();
   program["version"]=1; program["ready"]=progress.ready;
   program["supports_schedule"]=true;
+  program["max_schedule_seconds"]=MaxScheduleSeconds;
   if (progress.phase==ProgramPhase::Idle) program["command_id"]=nullptr;
   else program["command_id"]=progress.commandId;
   program["state"]=programPhaseCode(progress.phase);

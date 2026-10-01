@@ -5,8 +5,9 @@ from zoneinfo import ZoneInfo
 
 from pydantic import ValidationError
 
+from app.schemas.program import ProgramPlan
 from app.schemas.schedule import ScheduleRun, ScheduleSpec
-from app.services.schedule_calendar import civil_utc, first_overlap, run_on_date, upcoming
+from app.services.schedule_calendar import civil_utc, first_overlap, run_on_date, self_overlap, upcoming
 
 
 def spec(**changes):
@@ -17,6 +18,48 @@ def spec(**changes):
 
 
 class CalendarTests(unittest.TestCase):
+    def test_full_week_and_changes_across_month_boundary(self):
+        rule = spec(start_date="2026-12-29", until_date="2026-12-29", stop_day_offset=7, stop_time="19:00",
+            changes=[{"at": "19:00", "day_offset": 3, "frequency_hz": 30}])
+        run = run_on_date(rule, rule.start_date)
+        self.assertEqual(run.stops_at.astimezone(ZoneInfo(rule.timezone)).date(), date(2027, 1, 5))
+        self.assertEqual([step.duration_seconds for step in run.steps], [3 * 86400, 4 * 86400])
+        self.assertEqual(ScheduleRun.model_validate_json(run.model_dump_json()), run)
+        # Розширення календаря не змінює ліміт ручних таймерів та програм.
+        with self.assertRaises(ValidationError):
+            ProgramPlan.model_validate({"version": 1, "steps": [step.model_dump() for step in run.steps]})
+
+    def test_week_limits_reject_one_minute_over_and_invalid_change_days(self):
+        for change in ({"stop_day_offset": 7, "stop_time": "19:01"}, {"stop_day_offset": 8},
+                       {"stop_day_offset": True}, {"stop_day_offset": 2.5},
+                       {"changes": [{"at": "19:00", "day_offset": 8, "frequency_hz": 30}]}):
+            with self.subTest(change=change), self.assertRaises(ValidationError):
+                spec(**change)
+        rule = spec(stop_day_offset=7, stop_time="19:00")
+        raw = run_on_date(rule, rule.start_date).model_dump(mode="json")
+        raw["steps"][0]["duration_seconds"] += 1
+        raw["stops_at"] = "2026-10-08T16:00:01Z"
+        with self.assertRaises(ValidationError):
+            ScheduleRun.model_validate(raw)
+
+    def test_overlap_checks_whole_previous_week_and_repeating_rule_itself(self):
+        week = spec(stop_day_offset=7, stop_time="19:00")
+        inside = spec(start_date="2026-10-06", until_date="2026-10-06", stop_day_offset=0, stop_time="20:00")
+        now = datetime(2026, 10, 6, tzinfo=timezone.utc)
+        self.assertTrue(first_overlap(week, inside, now))
+        adjacent = spec(start_date="2026-10-08", until_date="2026-10-08")
+        self.assertFalse(first_overlap(week, adjacent, now))
+        self.assertTrue(self_overlap(spec(stop_day_offset=7, stop_time="19:00", repeat="daily", until_date="2026-11-01"), now))
+        self.assertFalse(self_overlap(spec(stop_day_offset=7, stop_time="19:00", repeat="interval", interval_days=7, until_date="2026-11-01"), now))
+
+    def test_dst_keeps_actual_week_limit_without_silent_truncation(self):
+        spring = spec(start_date="2026-03-25", until_date="2026-03-25", stop_day_offset=7, stop_time="19:00")
+        self.assertEqual(run_on_date(spring, spring.start_date).steps[0].duration_seconds, 167 * 3600)
+        autumn = spec(start_date="2026-10-21", until_date="2026-10-21", stop_day_offset=7, stop_time="19:00")
+        self.assertIsNone(run_on_date(autumn, autumn.start_date))
+        autumn.stop_time = autumn.stop_time.replace(hour=18)
+        self.assertEqual(run_on_date(autumn, autumn.start_date).steps[0].duration_seconds, 168 * 3600)
+
     def test_overnight_has_exact_utc_window(self):
         plan = run_on_date(spec(), date(2026, 10, 1))
         self.assertEqual(plan.starts_at.isoformat(), "2026-10-01T16:00:00+00:00")

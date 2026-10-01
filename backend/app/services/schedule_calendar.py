@@ -3,8 +3,8 @@ import calendar
 from datetime import date, datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
-from app.schemas.program import ProgramStep
-from app.schemas.schedule import ScheduleRun, ScheduleSpec
+from app.schemas.program import MAX_SCHEDULE_DAYS, MAX_SCHEDULE_SECONDS
+from app.schemas.schedule import ScheduleRun, ScheduleSpec, ScheduleStep
 
 START_GRACE_SECONDS = 30
 
@@ -43,10 +43,10 @@ def run_on_date(spec: ScheduleSpec, day: date) -> ScheduleRun | None:
         return None
     durations = [int((end - start).total_seconds()) for start, end in zip(points, points[1:])]
     # DST може змінити реальну тривалість або порядок; такий запуск не переінакшуємо.
-    if any(duration < 10 for duration in durations) or sum(durations) > 86400:
+    if any(duration < 10 for duration in durations) or sum(durations) > MAX_SCHEDULE_SECONDS:
         return None
     return ScheduleRun(version=1, starts_at=points[0], stops_at=points[-1], steps=[
-        ProgramStep(frequency_hz=hz, duration_seconds=duration) for hz, duration in zip(frequencies, durations)
+        ScheduleStep(frequency_hz=hz, duration_seconds=duration) for hz, duration in zip(frequencies, durations)
     ])
 
 
@@ -67,11 +67,20 @@ def upcoming(spec: ScheduleSpec, after: datetime, *, limit: int = 1, until: date
     return runs
 
 
+def overlap_window(spec: ScheduleSpec, after: datetime, days: int) -> list[ScheduleRun]:
+    return upcoming(spec, after - timedelta(days=MAX_SCHEDULE_DAYS),
+        limit=days + MAX_SCHEDULE_DAYS + 3, until=after + timedelta(days=days))
+
+
+def self_overlap(spec: ScheduleSpec, after: datetime, *, days: int = 366) -> bool:
+    runs = overlap_window(spec, after, days)
+    return any(max(current.starts_at, after) < previous.stops_at for previous, current in zip(runs, runs[1:]))
+
+
 def first_overlap(left: ScheduleSpec, right: ScheduleSpec, after: datetime, *, days: int = 366) -> bool:
     # Не більше одного запуску на календарний день; обмежене preview не сканує 50 років.
-    end = after + timedelta(days=days)
-    a = upcoming(left, after - timedelta(days=1), limit=days + 3, until=end)
-    b = upcoming(right, after - timedelta(days=1), limit=days + 3, until=end)
+    a = overlap_window(left, after, days)
+    b = overlap_window(right, after, days)
     i = j = 0
     while i < len(a) and j < len(b):
         if max(a[i].starts_at, b[j].starts_at, after) < min(a[i].stops_at, b[j].stops_at):

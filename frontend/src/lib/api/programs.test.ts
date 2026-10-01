@@ -37,4 +37,13 @@ describe("controller programs", () => {
     for (const change of [{ version: true }, { ready: 1 }, { state: "holding" }, { step_index: 1 }, { target_frequency_hz: true }, { remaining_seconds: -1 }]) expect(() => parseProgramProgress({ ...idle, ...change })).toThrow();
     expect(parseProgramProgress(undefined)).toBeNull();
   });
+  it("reads week-long progress and defaults legacy firmware to one day", () => {
+    const idle = programOverview().diagnostics!.program!;
+    const legacy = { ...idle, max_schedule_seconds: undefined };
+    expect(parseProgramProgress(legacy)?.max_schedule_seconds).toBe(86400);
+    const progress = { ...idle, max_schedule_seconds: 604800, state: "holding", command_id: commandFixture().id, step_index: 1, step_count: 1, target_frequency_hz: 40, remaining_seconds: 604800 };
+    expect(parseProgramProgress(progress)?.remaining_seconds).toBe(604800);
+    for (const max_schedule_seconds of [true, 604801, 0, "604800"]) expect(() => parseProgramProgress({ ...idle, max_schedule_seconds })).toThrow();
+    expect(() => parseProgramProgress({ ...progress, remaining_seconds: 604801 })).toThrow();
+  });
 });

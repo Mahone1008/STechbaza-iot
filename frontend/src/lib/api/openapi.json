@@ -1782,7 +1782,7 @@
           },
           "day_offset": {
             "default": 0,
-            "maximum": 1.0,
+            "maximum": 7.0,
             "minimum": 0.0,
             "title": "Day Offset",
             "type": "integer"
@@ -2218,6 +2218,13 @@
             ],
             "title": "Command Id"
           },
+          "max_schedule_seconds": {
+            "default": 86400,
+            "maximum": 604800.0,
+            "minimum": 60.0,
+            "title": "Max Schedule Seconds",
+            "type": "integer"
+          },
           "ready": {
             "title": "Ready",
             "type": "boolean"
@@ -2237,7 +2244,7 @@
           "remaining_seconds": {
             "anyOf": [
               {
-                "maximum": 86400.0,
+                "maximum": 604800.0,
                 "minimum": 0.0,
                 "type": "integer"
               },
@@ -2309,29 +2316,6 @@
           "reason"
         ],
         "title": "ProgramProgress",
-        "type": "object"
-      },
-      "ProgramStep": {
-        "additionalProperties": false,
-        "properties": {
-          "duration_seconds": {
-            "maximum": 86400.0,
-            "minimum": 10.0,
-            "title": "Duration Seconds",
-            "type": "integer"
-          },
-          "frequency_hz": {
-            "exclusiveMinimum": 0.0,
-            "maximum": 100.0,
-            "title": "Frequency Hz",
-            "type": "number"
-          }
-        },
-        "required": [
-          "frequency_hz",
-          "duration_seconds"
-        ],
-        "title": "ProgramStep",
         "type": "object"
       },
       "RefreshTokenRequest": {
@@ -2537,7 +2521,7 @@
           },
           "steps": {
             "items": {
-              "$ref": "#/components/schemas/ProgramStep"
+              "$ref": "#/components/schemas/ScheduleStep"
             },
             "maxItems": 8,
             "minItems": 1,
@@ -2644,7 +2628,7 @@
           },
           "stop_day_offset": {
             "default": 0,
-            "maximum": 1.0,
+            "maximum": 7.0,
             "minimum": 0.0,
             "title": "Stop Day Offset",
             "type": "integer"
@@ -2684,6 +2668,29 @@
           "frequency_hz"
         ],
         "title": "ScheduleSpec",
+        "type": "object"
+      },
+      "ScheduleStep": {
+        "additionalProperties": false,
+        "properties": {
+          "duration_seconds": {
+            "maximum": 604800.0,
+            "minimum": 10.0,
+            "title": "Duration Seconds",
+            "type": "integer"
+          },
+          "frequency_hz": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 100.0,
+            "title": "Frequency Hz",
+            "type": "number"
+          }
+        },
+        "required": [
+          "frequency_hz",
+          "duration_seconds"
+        ],
+        "title": "ScheduleStep",
         "type": "object"
       },
       "ScheduleWrite": {
@@ -3371,7 +3378,7 @@
   "info": {
     "description": "Backend API платформи TechBaza IoT Pump Control",
     "title": "TechBaza Backend",
-    "version": "0.42.0"
+    "version": "0.43.0"
   },
   "openapi": "3.1.0",
   "paths": {
