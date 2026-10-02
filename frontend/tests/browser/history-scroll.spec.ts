@@ -50,8 +50,13 @@ test.beforeEach(async ({ page }) => {
 
 async function gapBeforeHistory(page: Page) {
   const lastModule = await page.locator(".overview-modules > .card").last().boundingBox();
+  const equipment = await page.locator("section.card").filter({ has: page.getByRole("heading", { name: "Обладнання", exact: true }) }).boundingBox();
   const history = await page.locator("section.card").filter({ has: page.getByRole("heading", { name: "Історія телеметрії", exact: true }) }).boundingBox();
-  return history!.y - (lastModule!.y + lastModule!.height);
+  // Між модулями й історією є паспорт: перевіряємо обидва порожні проміжки.
+  return Math.max(
+    equipment!.y - (lastModule!.y + lastModule!.height),
+    history!.y - (equipment!.y + equipment!.height),
+  );
 }
 
 test("resizing between mobile and desktop does not leave empty space before history", async ({ page }) => {
