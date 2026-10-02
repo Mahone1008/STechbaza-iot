@@ -49,7 +49,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="TechBaza Backend",
-    version="0.44.0",
+    version="0.45.0",
     description="Backend API платформи TechBaza IoT Pump Control",
     lifespan=lifespan,
 )
@@ -65,10 +65,10 @@ app.add_middleware(AuthNoStoreMiddleware)
 
 @app.exception_handler(RequestValidationError)
 async def validation_error(request: Request, exc: RequestValidationError):
-    if request.url.path.startswith("/api/v1/auth/"):
+    if request.url.path.startswith(("/api/v1/auth/", "/api/v1/connect/", "/api/v1/bootstrap/", "/api/v1/factory/")):
         # Стандартна validation response містить input: password/refresh не
         # повинні повертатися клієнту чи потрапляти до журналів його помилок.
-        return JSONResponse({"detail": "Некоректний формат auth-запиту"}, status_code=422)
+        return JSONResponse({"detail": "Некоректний формат захищеного запиту"}, status_code=422)
     return await request_validation_exception_handler(request, exc)
 
 
@@ -77,7 +77,7 @@ def health() -> dict[str, str]:
     return {
         "status": "ok",
         "service": "techbaza-backend",
-        "version": "0.44.0",
+        "version": "0.45.0",
     }
 
 

@@ -1,6 +1,8 @@
 "use client";
 
 import type { Route } from "next";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useSyncExternalStore, type FormEvent } from "react";
 
@@ -45,6 +47,9 @@ function currentLoginDestination(): Route {
 
 export function LoginPanel() {
   const router = useRouter();
+  const params = useSearchParams();
+  const returnTo = safeLoginReturnTo(params.get("returnTo"));
+  const [otp, setOtp] = useState("");
   const { login, session } = useAuthSession();
   const abortControllerRef = useRef<AbortController | null>(null);
   const redirectTargetRef = useRef<Route | null>(null);
@@ -118,7 +123,7 @@ export function LoginPanel() {
 
     try {
       await login(
-        { email: validation.normalizedEmail, password },
+        { email: validation.normalizedEmail, password, ...(otp ? { otp } : {}) },
         controller.signal,
       );
       setPassword("");
@@ -175,7 +180,7 @@ export function LoginPanel() {
         <div className="login-card">
           <Brand />
           <h2>Вхід до кабінету</h2>
-          <p>Введіть облікові дані, видані адміністратором вашої організації.</p>
+          <p>Увійдіть до свого облікового запису KERUMO.</p>
 
           {loggedOutNotice && session.status === "anonymous" ? (
             <div className="login-alert login-alert-success" role="status">
@@ -252,6 +257,7 @@ export function LoginPanel() {
                 if (fieldErrors.password) setFieldErrors((current) => withoutFieldError(current, "password"));
               }}
             />
+            <TextField label="Код двоетапного входу, якщо ввімкнено" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={otp} onChange={(event) => setOtp(event.target.value)} />
             <Button
               type="submit"
               variant="primary"
@@ -264,8 +270,8 @@ export function LoginPanel() {
           </form>
 
           <div className="login-support">
-            <span>Немає доступу?</span>
-            <strong>Зверніться до адміністратора організації</strong>
+            <Link href={`/register?returnTo=${encodeURIComponent(returnTo)}` as Route}>Створити обліковий запис</Link>
+            <Link href={`/recover?returnTo=${encodeURIComponent(returnTo)}` as Route}>Відновити доступ</Link>
           </div>
           <div className="login-security">
             Refresh token зберігається лише в HttpOnly cookie. Access token залишається

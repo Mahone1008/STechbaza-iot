@@ -1,7 +1,8 @@
 import uuid
+from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, CheckConstraint, ForeignKey, String, UniqueConstraint
+from sqlalchemy import DateTime, JSON, Boolean, CheckConstraint, ForeignKey, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -60,6 +61,9 @@ class OrganizationMembership(TimestampMixin, Base):
         default=True,
         server_default="true",
     )
+
+    site_ids: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     organization: Mapped["Organization"] = relationship(
         back_populates="memberships",

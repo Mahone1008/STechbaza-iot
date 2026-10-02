@@ -30,7 +30,7 @@ def schedule_actor(session, schedule):
         return None
     membership = MembershipRepository(session).get_active(user.id, org.id)
     role = membership.role if membership else None
-    if user.platform_role != PlatformRole.SUPERADMIN.value and (role is None or not role_has_permission(role, Permission.COMMAND_EXECUTE)):
+    if user.platform_role != PlatformRole.SUPERADMIN.value and (role is None or (membership.site_ids is not None and str(site.id) not in membership.site_ids) or not role_has_permission(role, Permission.COMMAND_EXECUTE)):
         return None
     # Logout не відкликає збережене доручення. Чинні User/RBAC перевіряються кожного запуску.
     return CommandActorSnapshot(user.id, None, org.id, user.platform_role, role, user.email, user.display_name)

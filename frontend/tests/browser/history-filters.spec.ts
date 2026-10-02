@@ -24,7 +24,7 @@ test.beforeEach(async ({ page }) => {
 
 for (const width of [320, 393]) test(`history filters and their open pickers fit a ${width}px mobile viewport`, async ({ page }) => {
   await page.setViewportSize({ width, height: 852 });
-  await page.goto(`/devices/${DEVICE_ID}`);
+  await page.goto(`/devices/${DEVICE_ID}`); await page.getByRole("tab", { name: "Графіки", exact: true }).click();
   await expect(page.locator(".telemetry-chart")).toBeVisible();
   await page.getByLabel("Автооновлення", { exact: true }).selectOption("0");
 

@@ -74,6 +74,8 @@ def configuration_state(device, row, snapshot, now) -> str:
 
 def command_target(session, device, now, *, stop=False) -> dict | None:
     row = desired_configuration(session, device.id)
+    if device.uid.startswith("FC-") and (row is None or device.lifecycle_status == "retired"):
+        raise EquipmentConflict("Завершіть налаштування та підтвердження обладнання")
     snapshot = TelemetryRepository(session).get_state(device.id)
     state = configuration_state(device, row, snapshot, now)
     if state == "legacy":

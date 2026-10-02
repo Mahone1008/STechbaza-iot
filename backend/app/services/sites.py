@@ -35,6 +35,7 @@ class SiteService:
         *,
         limit: int,
         offset: int,
+        allowed_site_ids: list[uuid.UUID] | None = None,
     ) -> list[Site]:
         if self._organizations.get(organization_id) is None:
             raise ParentOrganizationNotFoundError
@@ -42,7 +43,7 @@ class SiteService:
         return self._sites.list_for_organization(
             organization_id,
             limit=limit,
-            offset=offset,
+            offset=offset, allowed_site_ids=allowed_site_ids,
         )
 
     def get(self, site_id: uuid.UUID) -> Site:

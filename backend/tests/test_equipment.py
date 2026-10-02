@@ -48,7 +48,7 @@ class EquipmentTests(unittest.TestCase):
         self.text = manifest_fixture()
         self.manifest = EquipmentManifest.model_validate_json(self.text)
         self.now = datetime.now(timezone.utc)
-        self.device = SimpleNamespace(id=uuid.uuid4(), last_observed_session_id=uuid.uuid4())
+        self.device = SimpleNamespace(id=uuid.uuid4(), uid="LEGACY-TEST", lifecycle_status="active", last_observed_session_id=uuid.uuid4())
         self.row = SimpleNamespace(canonical_manifest=self.text, configuration_hash=configuration_hash(self.text),
             created_at=self.now, actor_user_id=uuid.uuid4())
         self.report = report_for(self.manifest.model_dump(mode="json"), self.row.configuration_hash)

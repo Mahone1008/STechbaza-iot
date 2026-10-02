@@ -31,7 +31,7 @@ for (const viewport of [{ width: 1440, height: 1000 }, { width: 768, height: 102
       await page.goto(path!);
       await expect(page.getByRole("heading", { name: heading!, exact: true })).toBeVisible();
       await expect(page.getByText(/^Завантажуємо/u)).toHaveCount(0);
-      if (heading === "Насос A") await expect(page.getByRole("button", { name: "Оновити історію" })).toBeEnabled();
+      if (heading === "Насос A") await expect(page.getByRole("tab", { name: "Панель", exact: true })).toHaveAttribute("aria-selected", "true");
       if (heading === "Повідомлення") await expect(page.getByRole("link", { name: "Повідомлення A", exact: true })).toBeVisible();
       await noPageOverflow(page);
       await audit(page, `${viewport.width}-${heading}`);
@@ -67,7 +67,7 @@ for (const width of [1440, 320]) test(`skip link and account menu support keyboa
   const action = page.getByRole("menuitem", { name: /Вийти з акаунта/u });
   await expect(action).toBeFocused();
   await expect(page.getByRole("menu")).toHaveAttribute("id", (await trigger.getAttribute("aria-controls"))!);
-  await page.keyboard.press("ArrowDown"); await expect(action).toBeFocused();
+  await page.keyboard.press("ArrowDown"); await expect(page.getByRole("menuitem", { name: "Безпека облікового запису", exact: true })).toBeFocused();
   await audit(page, `menu-${width}`);
   await page.screenshot({ path: test.info().outputPath(`menu-${width}.png`) });
   await page.keyboard.press("Escape"); await expect(trigger).toBeFocused();

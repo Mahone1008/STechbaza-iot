@@ -1,5 +1,9 @@
 import uuid
 
+from fastapi import HTTPException
+from sqlalchemy import select
+from app.models.site import Site
+from app.security.tokens import utc_now
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -79,6 +83,17 @@ class MembershipService:
             and actor_membership.role == OrganizationRole.OWNER.value
         )
 
+    def _validate_scope(self, organization_id, role, site_ids, expires_at, *, check_expiry=True):
+        if role == OrganizationRole.OWNER.value and (site_ids is not None or expires_at is not None):
+            raise HTTPException(422, "Власник має постійний доступ до всієї організації")
+        if site_ids is not None:
+            expected = set(map(str, site_ids))
+            actual = set(map(str, self._session.scalars(select(Site.id).where(Site.organization_id == organization_id, Site.id.in_([uuid.UUID(str(value)) for value in site_ids])))))
+            if expected != actual:
+                raise HTTPException(422, "Усі об’єкти мають належати цій організації")
+        if check_expiry and expires_at is not None and expires_at <= utc_now():
+            raise HTTPException(422, "Термін доступу має бути в майбутньому")
+
     def create(
         self,
         organization_id: uuid.UUID,
@@ -111,11 +126,14 @@ class MembershipService:
         ):
             raise MembershipAlreadyExistsError
 
+        self._validate_scope(organization_id, payload.role.value, payload.site_ids, payload.expires_at)
         membership = OrganizationMembership(
             organization_id=organization_id,
             user_id=payload.user_id,
             role=payload.role.value,
             is_active=True,
+            site_ids=[str(value) for value in payload.site_ids] if payload.site_ids is not None else None,
+            expires_at=payload.expires_at,
         )
 
         try:
@@ -180,6 +198,11 @@ class MembershipService:
         ):
             raise MembershipLastOwnerError
 
+        site_ids = payload.site_ids if "site_ids" in payload.model_fields_set else membership.site_ids
+        expires_at = payload.expires_at if "expires_at" in payload.model_fields_set else membership.expires_at
+        self._validate_scope(organization_id, resulting_role, site_ids, expires_at, check_expiry="expires_at" in payload.model_fields_set)
+        membership.site_ids = [str(value) for value in site_ids] if site_ids is not None else None
+        membership.expires_at = expires_at
         membership.role = resulting_role
         membership.is_active = resulting_active
 

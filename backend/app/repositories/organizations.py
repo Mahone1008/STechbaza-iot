@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import uuid
+from app.security.tokens import utc_now
 
-from sqlalchemy import select
+from sqlalchemy import or_, func, select
 from sqlalchemy.orm import Session
 
 from app.models.organization import Organization
@@ -40,6 +41,7 @@ class OrganizationRepository:
             .where(
                 OrganizationMembership.user_id == user_id,
                 OrganizationMembership.is_active.is_(True),
+                or_(OrganizationMembership.expires_at.is_(None), OrganizationMembership.expires_at > utc_now()),
                 Organization.is_active.is_(True),
             )
             .order_by(Organization.created_at.desc(), Organization.id.desc())

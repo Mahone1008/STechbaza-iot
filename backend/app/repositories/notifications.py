@@ -49,11 +49,13 @@ class NotificationRepository:
 
     def list_for_organization(
         self, organization_id: uuid.UUID, user_id: uuid.UUID, *,
-        limit: int, offset: int, unread_only: bool = False,
+        limit: int, offset: int, unread_only: bool = False, allowed_site_ids: list[uuid.UUID] | None = None,
     ) -> list[tuple[AlarmNotification, datetime | None]]:
         query = self._visible_with_reader(user_id).where(
             AlarmNotification.organization_id == organization_id,
         )
+        if allowed_site_ids is not None:
+            query = query.where(Site.id.in_(allowed_site_ids))
         if unread_only:
             query = query.where(NotificationRead.notification_id.is_(None))
         rows = self._session.execute(
@@ -62,11 +64,13 @@ class NotificationRepository:
         )
         return [(item, read_at) for item, read_at in rows]
 
-    def unread_count(self, organization_id: uuid.UUID, user_id: uuid.UUID) -> int:
+    def unread_count(self, organization_id: uuid.UUID, user_id: uuid.UUID, *, allowed_site_ids: list[uuid.UUID] | None = None) -> int:
         query = self._visible_with_reader(user_id).where(
             AlarmNotification.organization_id == organization_id,
             NotificationRead.notification_id.is_(None),
         ).with_only_columns(func.count()).select_from(AlarmNotification)
+        if allowed_site_ids is not None:
+            query = query.where(Site.id.in_(allowed_site_ids))
         return self._session.scalar(query) or 0
 
     def read_at(self, notification_id: uuid.UUID, user_id: uuid.UUID) -> datetime | None:

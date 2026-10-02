@@ -52,6 +52,7 @@ export function CommandControls({
   refreshing,
   poll,
   onCreated,
+  onSchedules,
 }: {
   context: ReadyAccessSnapshot;
   overview: Overview | null;
@@ -60,6 +61,7 @@ export function CommandControls({
   refreshing: boolean;
   poll: PollSeconds;
   onCreated: (id: string) => void;
+  onSchedules?: () => void;
 }) {
   const { authorizedRequest } = useAuthSession();
   const device = context.activeDevice!;
@@ -384,7 +386,7 @@ export function CommandControls({
               />
             )}
             {mode === "schedule" && canReadSchedules && (
-              <SchedulePanel
+              onSchedules ? <div className="ui-row"><Button onClick={onSchedules}>Перейти до розкладів</Button></div> : <SchedulePanel
                 context={context}
                 visible={settingsOpen}
                 poll={poll}
@@ -510,7 +512,7 @@ export function CommandControls({
         </section>
       )}
       <ConfirmDialog
-        open={!!dialog}
+        open={active && !!dialog}
         title={dialog?.kind === "discard" ? "Завершити перевірку?" : "Підтвердити команду"}
         description={
           dialog?.kind === "discard"

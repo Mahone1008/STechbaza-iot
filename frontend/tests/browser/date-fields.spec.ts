@@ -10,7 +10,7 @@ const trigger = (page: Page, label: string) =>
 async function editor(page: Page) {
   await page.goto(`/devices/${DEVICE_ID}`);
   await page.getByText("Додаткові налаштування команди", { exact: true }).click();
-  await page.getByLabel("Режим роботи", { exact: true }).selectOption("schedule");
+  await page.getByRole("tab", { name: "Розклади", exact: true }).click();
   await page.getByRole("button", { name: "Новий розклад", exact: true }).click();
 }
 test.beforeEach(async ({ page }) => {

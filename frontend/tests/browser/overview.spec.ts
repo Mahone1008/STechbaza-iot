@@ -38,18 +38,20 @@ test("diagnostics from an earlier boot are explicitly historical", async ({ page
   data.telemetry_freshness.status = "stale"; data.telemetry_freshness.reason = "session_changed";
   for (const item of [...data.readings, ...data.state_readings]) item.status = "stale";
   await mockOverview(page, () => data); await page.goto(path);
+  await page.getByRole("tab", { name: "Обладнання", exact: true }).click();
+  await page.getByText("Технічні дані контролера", { exact: true }).click();
   await expect(page.getByText("Діагностика попереднього запуску контролера; очікуємо нові дані.")).toBeVisible();
 });
 
 test("assigned numeric/state widgets preserve zero and false, with unsupported and command-only fallbacks", async ({ page }) => {
   await page.goto(path);
-  await expect(page.getByRole("heading", { name: "Модулі та канали", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Показники обладнання", exact: true })).toBeVisible();
   const pressure = page.locator(".metric-card").filter({ hasText: "Тиск" });
   await expect(pressure.locator("strong")).toHaveText("0"); await expect(pressure).toContainText("bar");
   await expect(page.locator(".metric-card").filter({ hasText: "Стан RUN частотника" }).locator("strong")).toHaveText("Ні");
   await expect(page.locator(".metric-card").filter({ hasText: "Код помилки" }).locator("strong")).toHaveText("0");
-  await expect(page.getByText("Цей модуль ще не підтримує відображення даних.")).toBeVisible();
-  await expect(page.getByText(/Модуль керування без вимірювальних каналів/)).toBeVisible();
+  await expect(page.getByText("Цей модуль ще не підтримує відображення даних.")).toHaveCount(0);
+  await expect(page.getByText(/Модуль керування без вимірювальних каналів/)).toHaveCount(0);
   await expect(page.getByRole("button", { name: /Запустити|Зупинити/ })).toHaveCount(0);
 });
 
@@ -108,7 +110,7 @@ test("late overview is aborted across navigation and cannot repopulate the direc
 
 test("viewer sees read-only modules on mobile without horizontal overflow", async ({ page }) => {
   await mockAuthenticatedWorkspace(page, { role: "viewer" }); await page.setViewportSize({ width: 390, height: 844 }); await page.goto(path);
-  await expect(page.getByRole("heading", { name: "Модулі та канали", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Показники обладнання", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: /Запустити|Зупинити/ })).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });

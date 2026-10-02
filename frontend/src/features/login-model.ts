@@ -28,7 +28,7 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/u;
 const MAX_EMAIL_LENGTH = 254;
 const MAX_PASSWORD_LENGTH = 128;
 const DEFAULT_LOGIN_DESTINATION: Route = "/devices";
-const ALLOWED_RETURN_PATHS = ["/devices", "/organizations", "/alarms", "/notifications", "/ui-kit"] as const;
+const ALLOWED_RETURN_PATHS = ["/devices", "/organizations", "/alarms", "/notifications", "/ui-kit", "/connect", "/account", "/factory"] as const;
 
 export function safeLoginReturnTo(value: string | null | undefined): Route {
   if (!value || !value.startsWith("/") || value.startsWith("//") || value.includes("\\")) {

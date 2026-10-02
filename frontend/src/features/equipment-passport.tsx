@@ -8,9 +8,9 @@ import { apiErrorDisplayMessage } from "@/lib/api";
 import { equipmentStateLabels, parseEquipmentPassport } from "@/lib/api/equipment";
 import { formatSeen } from "@/lib/api/inventory";
 
-export function EquipmentPassportPanel({ context }: { context: ReadyAccessSnapshot }) {
+export function EquipmentPassportPanel({ context, expanded = false }: { context: ReadyAccessSnapshot; expanded?: boolean }) {
   const device = context.activeDevice!;
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(expanded);
   const { authorizedRequest } = useAuthSession();
   const query = usePanelQuery({
     queryKey: ["equipment-passport", context.scope, context.activeOrganization.id, device.id],
@@ -19,13 +19,13 @@ export function EquipmentPassportPanel({ context }: { context: ReadyAccessSnapsh
   });
   const data = query.data;
   return <Card title="Обладнання">
-    <Button aria-expanded={open} aria-controls="equipment-passport" onClick={() => setOpen(!open)}>{open ? "Згорнути паспорт" : "Паспорт обладнання"}</Button>
+    {!expanded && <Button aria-expanded={open} aria-controls="equipment-passport" onClick={() => setOpen(!open)}>{open ? "Згорнути паспорт" : "Паспорт обладнання"}</Button>}
     {open && <div id="equipment-passport" className="equipment-passport">
       <div className="ui-row"><Button disabled={!query.active || query.isFetching} onClick={query.refresh}>Оновити паспорт</Button></div>
       {query.isPending ? <p role="status">Завантаження паспорта…</p> : query.isError ? <p role="alert">{apiErrorDisplayMessage(query.error)}</p> : data && <>
         <StatusBadge tone={data.configuration_state === "verified" ? "success" : data.configuration_state === "legacy" ? "neutral" : "warning"}>{equipmentStateLabels[data.configuration_state]}</StatusBadge>
         <p className="help-copy">Паспорт завантажується на запит. Реєстрація модуля не вмикає керування ним.</p>
-        {data.modules.length === 0 ? <p>Підключені модулі ще не внесено в паспорт. Чинне стендове підключення збережено.</p> : data.modules.map((module) => <section key={module.id} className="equipment-module" aria-label={module.name}>
+        {data.modules.length === 0 ? <p>Обладнання ще не внесено в паспорт. Для заповнення потрібні модель зі шильдика та перевірка підключення. Зверніться до адміністратора об’єкта.</p> : data.modules.map((module) => <section key={module.id} className="equipment-module" aria-label={module.name}>
           <h3>{module.name}</h3>
           <dl className="overview-details">
             <div><dt>Установка</dt><dd>{data.installations.find((item) => item.id === module.installation_id)?.name}</dd></div>
@@ -51,7 +51,6 @@ export function EquipmentPassportPanel({ context }: { context: ReadyAccessSnapsh
             <div><dt>Повідомлений hash</dt><dd>{data.reported?.configuration_hash ?? "Не отримано"}</dd></div>
           </dl></details>
         </section>}
-        <p className="help-copy">Зараз керування реалізовано для стендового SU600A-5RG1-B. Решта серій SUSWE внесені до каталогу за інструкціями та потребують окремих драйверів і перевірки на обладнанні.</p>
       </>}
     </div>}
   </Card>;

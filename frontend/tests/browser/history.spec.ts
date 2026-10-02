@@ -13,7 +13,7 @@ async function populated(page: Page) {
   });
 }
 async function ready(page: Page) {
-  await page.goto(path); await expect(page.getByRole("button", { name: "Оновити історію" })).toBeEnabled();
+  await page.goto(path); await page.getByRole("tab", { name: "Графіки", exact: true }).click(); await expect(page.getByRole("button", { name: "Оновити історію" })).toBeEnabled();
   await expect(page.getByText("Завантажуємо історію…")).toHaveCount(0);
 }
 test.beforeEach(async ({ page }) => { await mockAuthenticatedWorkspace(page); });
@@ -99,7 +99,7 @@ test("late history after navigation is cancelled and never renders on directory"
   let release!: () => void; const gate = new Promise<void>((resolve) => { release = resolve; }); let started = false;
   await page.route(seriesUrl, async (route) => { if (await fulfillPreflight(route)) return; started = true; await gate; await fulfillJson(route, 200, {}).catch(() => {}); });
   try {
-    await page.goto(path); await expect.poll(() => started).toBe(true);
+    await page.goto(path); await page.getByRole("tab", { name: "Графіки", exact: true }).click(); await expect.poll(() => started).toBe(true);
     await page.getByRole("navigation", { name: "Шлях до об’єкта" }).getByRole("link", { name: "Організації", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Організації", exact: true })).toBeVisible(); release();
     await expect(page.getByRole("heading", { name: "Історія телеметрії" })).toHaveCount(0);

@@ -49,6 +49,7 @@ def list_sites(
             organization_id,
             limit=limit,
             offset=offset,
+            allowed_site_ids=AccessControl(session, current).allowed_site_ids(organization_id),
         )
     except ParentOrganizationNotFoundError as exc:
         raise HTTPException(

@@ -24,7 +24,7 @@ services:
       - demo_mqtt:/mosquitto/data
 
   backend:
-    image: techbaza-acceptance-backend:0.44.0
+    image: techbaza-acceptance-backend:0.45.0
     build:
       context: ./backend
     restart: unless-stopped
@@ -59,7 +59,7 @@ services:
       start_period: 5s
 
   simulator:
-    image: techbaza-acceptance-backend:0.44.0
+    image: techbaza-acceptance-backend:0.45.0
     restart: unless-stopped
     command: ["python", "-m", "app.demo.simulator", "run"]
     environment:

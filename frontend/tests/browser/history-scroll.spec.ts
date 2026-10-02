@@ -18,7 +18,7 @@ function series(url: string, populated = true) {
   return { ...seriesFixture({ start: params.get("start")!, end: params.get("end")!, bucket_seconds: Number(params.get("bucket_seconds")) }, metric, DEVICE_ID, populated), unit: metric === "vfd.frequency_hz" ? "Hz" : "bar" };
 }
 async function ready(page: Page, manual = true) {
-  await page.goto(`/devices/${DEVICE_ID}`);
+  await page.goto(`/devices/${DEVICE_ID}`); await page.getByRole("tab", { name: "Графіки", exact: true }).click();
   await expect(page.locator(".telemetry-chart")).toBeVisible();
   if (manual) await page.getByLabel("Автооновлення", { exact: true }).selectOption("0");
 }

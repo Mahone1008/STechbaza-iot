@@ -30,3 +30,8 @@ api_v1_router.include_router(commands_router)
 api_v1_router.include_router(frontend_router)
 api_v1_router.include_router(schedules_router)
 api_v1_router.include_router(equipment_router)
+
+from app.api.v1.account_security import router as account_security_router
+from app.api.v1.onboarding import router as onboarding_router
+api_v1_router.include_router(account_security_router)
+api_v1_router.include_router(onboarding_router)

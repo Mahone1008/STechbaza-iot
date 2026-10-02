@@ -1,19 +1,24 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, model_validator
+from pydantic import AwareDatetime, BaseModel, Field, model_validator
 
 from app.security.roles import OrganizationRole
 
 
-class MembershipCreate(BaseModel):
+class MembershipScope(BaseModel):
+    site_ids: list[uuid.UUID] | None = Field(default=None, min_length=1, max_length=100)
+    expires_at: AwareDatetime | None = None
+
+
+class MembershipCreate(MembershipScope):
     """Дані для додавання існуючого User до Organization."""
 
     user_id: uuid.UUID
     role: OrganizationRole = OrganizationRole.VIEWER
 
 
-class MembershipUpdate(BaseModel):
+class MembershipUpdate(MembershipScope):
     """Зміни tenant-role або active state membership."""
 
     role: OrganizationRole | None = None
@@ -21,8 +26,8 @@ class MembershipUpdate(BaseModel):
 
     @model_validator(mode="after")
     def require_change(self) -> "MembershipUpdate":
-        if self.role is None and self.is_active is None:
-            raise ValueError("Потрібно передати role або is_active")
+        if not self.model_fields_set:
+            raise ValueError("Потрібно передати зміну доступу")
         return self
 
 
@@ -36,5 +41,7 @@ class MembershipRead(BaseModel):
     user_display_name: str
     role: OrganizationRole
     is_active: bool
+    site_ids: list[uuid.UUID] | None = None
+    expires_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
