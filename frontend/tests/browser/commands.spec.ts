@@ -16,6 +16,19 @@ async function confirm(page: Page, label = "Запустити") { await control
 async function mockDetail(page: Page, get: () => Command = commandFixture) { await page.route(detailUrl, async (route) => { if (await fulfillPreflight(route)) return; await fulfillJson(route, 200, get()); }); }
 test.beforeEach(async ({ page }) => { await mockAuthenticatedWorkspace(page); await mockOverview(page); await mockDetail(page); });
 
+test("a confirmation opened before equipment replacement cannot retarget its request", async ({ page }) => {
+  let target = { binding_id: "11111111-1111-4111-8111-111111111111", revision: 1, configuration_hash: "a".repeat(64) };
+  await mockOverview(page, () => ({ ...controlOverview(), equipment_state: "verified", equipment_target: target }));
+  let posts = 0;
+  await mockPost(page, async (route, body) => { posts++; await fulfillJson(route, 201, commandFixture(body)); });
+  await page.goto(path);
+  await controls(page).getByRole("button", { name: "Запустити", exact: true }).click();
+  target = { ...target, revision: 2, configuration_hash: "b".repeat(64) };
+  await page.getByRole("dialog").getByRole("button", { name: "Надіслати команду" }).click();
+  await expect(page.getByText("Обладнання або його конфігурація змінилися. Оновіть панель та підтвердьте нову команду.", { exact: true })).toBeVisible();
+  expect(posts).toBe(0);
+});
+
 test("default polling keeps a 15-second presence lease current and refreshes journal without hiding readings", async ({ page }) => {
   await page.clock.install(); let gets = 0; let records: Command[] = [];
   await mockOverview(page, () => { gets++; const data = controlOverview(); data.availability.timeout_seconds = 15; data.availability.seconds_since_seen = 0; return data; });

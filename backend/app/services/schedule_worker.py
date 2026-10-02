@@ -11,7 +11,7 @@ from app.repositories.schedules import ScheduleRepository
 from app.schemas.command import DeviceCommandCreate
 from app.schemas.schedule import ScheduleSpec
 from app.services.commands import CommandService, CommandCapabilityViolationError, CommandProgramError
-from app.services.equipment import EquipmentConflict
+from app.services.equipment import EquipmentConflict, command_target
 from app.services.device_presence import DevicePresenceService
 from app.services.schedule_calendar import START_GRACE_SECONDS, run_on_date
 from app.services.schedules import refresh_next, schedule_actor
@@ -63,11 +63,14 @@ def process_schedule(session, schedule_id, *, now=None):
         try:
             command, _ = CommandService(session).create(item.device_id,
                 DeviceCommandCreate(request_id=occurrence.id, command_type="vfd.schedule.start",
+                    equipment_target=command_target(session, device, now),
                     ttl_seconds=30, payload=run.model_dump(mode="json")),
                 actor=actor, now=now, schedule_id=item.id, commit=False)
             occurrence.command_id = command.id
             occurrence.status = "queued"
-        except (CommandCapabilityViolationError, CommandProgramError, EquipmentConflict) as exc:
+        except EquipmentConflict:
+            occurrence.reason = "equipment_configuration_unconfirmed"
+        except (CommandCapabilityViolationError, CommandProgramError) as exc:
             occurrence.reason = str(exc)
     refresh_next(item, spec, now + timedelta(microseconds=1))
     session.add(occurrence)

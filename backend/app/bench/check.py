@@ -90,7 +90,7 @@ def run():
             return result if result["telemetry_freshness"]["status"]=="fresh" else None
         view=wait_for("V3 TLS telemetry",fresh_view)
         ensure(view["device"]["uid"]==UID and view["availability"]["online"], "Physical identity/presence")
-        ensure(view["diagnostics"]=={**diagnostics, "program": None}, "Typed controller diagnostics over MQTT/TLS to overview")
+        ensure(view["diagnostics"]=={**diagnostics, "program": None, "equipment": None}, "Typed controller diagnostics over MQTT/TLS to overview")
         ensure(not view["allowed_commands"], "Read-only enrollment must have no command capability")
         ensure("emergency_stop" not in view["state_keys"] and "local_mode" not in view["state_keys"], "Uninstalled inputs leaked")
         ensure("pressure.bar" not in view["value_keys"], "Uninstalled pressure sensor")

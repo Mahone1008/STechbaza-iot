@@ -14,7 +14,7 @@ from app.schemas.command import DeviceCommandCreate
 from app.services.command_profile import frequency_allowed
 from app.services.command_outcomes import stop_delivery
 from app.services.program_policy import program_rejection
-from app.services.equipment import command_target
+from app.services.equipment import EquipmentConflict, command_target
 
 
 @dataclass(frozen=True)
@@ -83,6 +83,7 @@ class CommandService:
             and command.payload == payload.payload
             and command.ttl_seconds == payload.ttl_seconds
             and command.supersedes_request_id == payload.supersedes_request_id
+            and command.equipment_target == (payload.equipment_target.model_dump(mode="json") if payload.equipment_target else None)
             and command.actor_user_id == actor.user_id
         )
 
@@ -131,6 +132,9 @@ class CommandService:
         if rejection:
             raise CommandProgramError(rejection)
         target = command_target(self._session, device, created_at, stop=payload.command_type == "vfd.stop")
+        expected_target = payload.equipment_target.model_dump(mode="json") if payload.equipment_target else None
+        if expected_target != target:
+            raise EquipmentConflict("Прив'язка обладнання змінилася; оновіть панель і підтвердьте нову команду")
         device.command_sequence += 1
         if device.command_sequence > 9007199254740991:
             raise RuntimeError("Command sequence exhausted; re-enrollment required")

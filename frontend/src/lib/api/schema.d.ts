@@ -1483,6 +1483,7 @@ export interface components {
              * @enum {string}
              */
             command_type: "vfd.start" | "vfd.stop" | "vfd.frequency.set" | "vfd.program.start" | "vfd.schedule.start";
+            equipment_target?: components["schemas"]["EquipmentTarget"] | null;
             /** Payload */
             payload?: {
                 [key: string]: unknown;
@@ -1715,6 +1716,7 @@ export interface components {
              * @enum {string}
              */
             equipment_state: "legacy" | "awaiting" | "mismatch" | "stale" | "incompatible" | "verified";
+            equipment_target?: components["schemas"]["EquipmentTarget"] | null;
             frequency_limits?: components["schemas"]["FrequencyLimits"] | null;
             /**
              * Generated At

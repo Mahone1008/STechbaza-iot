@@ -33,6 +33,14 @@ def read_configuration(row: EquipmentConfiguration) -> ConfigurationRead:
         configuration_hash=row.configuration_hash, created_at=row.created_at, actor_user_id=row.actor_user_id)
 
 
+def configuration_target(row: EquipmentConfiguration | None) -> dict | None:
+    if row is None:
+        return None
+    manifest = read_configuration(row).manifest
+    return EquipmentTarget(binding_id=manifest.binding_id, revision=manifest.revision,
+                           configuration_hash=row.configuration_hash).model_dump(mode="json")
+
+
 def read_report(snapshot) -> EquipmentReport | None:
     raw = (snapshot.diagnostics or {}).get("equipment") if snapshot else None
     try:
@@ -73,9 +81,7 @@ def command_target(session, device, now, *, stop=False) -> dict | None:
     # STOP може доставлятися за старої телеметрії, але тільки тій самій підтвердженій прив'язці.
     if state != "verified" and not (stop and state == "stale"):
         raise EquipmentConflict("Конфігурацію обладнання ще не підтверджено контролером")
-    manifest = read_configuration(row).manifest
-    return EquipmentTarget(binding_id=manifest.binding_id, revision=manifest.revision,
-                           configuration_hash=row.configuration_hash).model_dump(mode="json")
+    return configuration_target(row)
 
 
 def equipment_rejection(session, device, command, now) -> str | None:

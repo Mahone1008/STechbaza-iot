@@ -28,6 +28,7 @@ class DeviceCommandCreate(BaseModel):
         )
     )
     supersedes_request_id: uuid.UUID | None = None
+    equipment_target: EquipmentTarget | None = None
     command_type: CommandType
     payload: dict[str, Any] = Field(default_factory=dict, max_length=32)
     ttl_seconds: int = Field(default=30, ge=5, le=300)

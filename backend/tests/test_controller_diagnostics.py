@@ -11,7 +11,7 @@ from app.schemas.telemetry import TelemetryEnvelope
 
 def diagnostic_payload():
     return {
-        "program": None, "version": 1, "firmware_version": "0.2.2", "uptime_ms": 2**32 + 9000,
+        "program": None, "equipment": None, "version": 1, "firmware_version": "0.2.2", "uptime_ms": 2**32 + 9000,
         "reset_reason": "brownout", "connection": {"transport": "wifi", "signal": {"metric": "rssi", "dbm": -67}},
         "last_stop": {"reason": "network_lost", "uptime_ms": 2**32 + 3000,
                       "requested_at": None, "confirmed": False},

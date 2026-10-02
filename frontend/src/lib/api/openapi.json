@@ -1071,6 +1071,16 @@
             "title": "Command Type",
             "type": "string"
           },
+          "equipment_target": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EquipmentTarget"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "payload": {
             "additionalProperties": true,
             "maxProperties": 32,
@@ -1676,6 +1686,16 @@
             ],
             "title": "Equipment State",
             "type": "string"
+          },
+          "equipment_target": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EquipmentTarget"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "frequency_limits": {
             "anyOf": [

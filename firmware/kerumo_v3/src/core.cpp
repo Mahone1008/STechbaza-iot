@@ -91,14 +91,19 @@ bool Controller::save() {
   if (!storageOk_) disarm(StopReason::Storage);
   return storageOk_;
 }
+static void clearJournal(Journal& target) {
+  // Avoid repeated large aggregate temporaries: Xtensa GCC 14 ICEs while lowering them.
+  static const Journal empty{};
+  target=empty;
+}
 bool Controller::begin(const char* uid) {
   if (!uid || std::strlen(uid)>96) return false;
   const int loaded=storage_.load(journal_);
-  if (loaded<0) { journal_=Journal{}; return false; }
-  if (loaded==0) { journal_=Journal{}; std::strncpy(journal_.uid,uid,96); if (!save()) return false; }
+  if (loaded<0) { clearJournal(journal_); return false; }
+  if (loaded==0) { clearJournal(journal_); std::strncpy(journal_.uid,uid,96); if (!save()) return false; }
   else if (journal_.magic!=0x4B563303 || journal_.checksum!=checksum(journal_) || journal_.next>=LedgerSize ||
       std::strncmp(journal_.uid,uid,sizeof(journal_.uid))!=0 || journal_.highest>MaxSequence) {
-    journal_=Journal{}; return false;
+    clearJournal(journal_); return false;
   }
   storageOk_=true;
   for (auto& record:journal_.records) if (record.outcome==Outcome::Pending) {

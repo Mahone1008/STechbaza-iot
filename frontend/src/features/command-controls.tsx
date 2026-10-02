@@ -27,6 +27,7 @@ import {
 import { durationText, parseProgramPlan, programActive, programWithinLimits } from "@/lib/api/programs";
 import { controlBlockReason, effectiveQuality, parseOverview, type Overview } from "@/lib/api/overview";
 import type { PollSeconds } from "@/lib/api/polling-policy";
+import { sameEquipmentTarget, type EquipmentTarget } from "@/lib/api/equipment";
 
 const SchedulePanel = dynamic(() => import("./schedule-panel").then((module) => module.SchedulePanel), {
   loading: () => <p role="status">Завантажуємо розклади…</p>,
@@ -34,7 +35,7 @@ const SchedulePanel = dynamic(() => import("./schedule-panel").then((module) => 
 
 type Intent = Readonly<{ input: CommandInput; deadline: number }>;
 type Uncertain = Readonly<{ intent: Intent; retryAt: number; message: string }>;
-type Dialog = { kind: "new"; type: CommandType } | { kind: "retry" } | { kind: "discard" };
+type Dialog = { kind: "new"; type: CommandType; target: EquipmentTarget | null } | { kind: "retry" } | { kind: "discard" };
 // Read only from event handlers/effects, never while rendering controls.
 function monotonicNow() {
   return performance.now();
@@ -177,6 +178,8 @@ export function CommandControls({
         timeoutMs: 10_000,
       });
       const fresh = parseOverview(raw, device, context.activeOrganization.id);
+      if (!sameEquipmentTarget(fresh.equipmentTarget, intent.input.equipment_target))
+        throw new Error("Обладнання або його конфігурація змінилися. Оновіть панель та підтвердьте нову команду.");
       if (!fresh.allowedCommands.includes(intent.input.command_type))
         throw new Error("Команда більше недоступна. Оновіть панель та права доступу.");
       if (intent.input.command_type !== "vfd.stop" && !fresh.availability.online)
@@ -262,6 +265,7 @@ export function CommandControls({
     if (!enabled(dialog.type)) return;
     const seconds = validTtl ? Number(ttl) : 30;
     const input = makeCommandInput(dialog.type, frequency, seconds, crypto.randomUUID(), plan);
+    if (dialog.target) input.equipment_target = dialog.target;
     if (dialog.type === "vfd.stop") {
       const prior = pendingIntent.current ?? uncertain?.intent;
       if (prior) input.supersedes_request_id = prior.input.supersedes_request_id ?? prior.input.request_id;
@@ -438,7 +442,7 @@ export function CommandControls({
                 {(mode === "timer" || mode === "program") && (
                   <Button
                     disabled={!enabled("vfd.program.start")}
-                    onClick={() => setDialog({ kind: "new", type: "vfd.program.start" })}
+                    onClick={() => setDialog({ kind: "new", type: "vfd.program.start", target: overview?.equipmentTarget ?? null })}
                   >
                     {mode === "timer"
                       ? programValid
@@ -456,7 +460,7 @@ export function CommandControls({
                       key={type}
                       variant={type === "vfd.stop" ? "danger" : "primary"}
                       disabled={!enabled(type)}
-                      onClick={() => setDialog({ kind: "new", type })}
+                      onClick={() => setDialog({ kind: "new", type, target: overview?.equipmentTarget ?? null })}
                     >
                       {commandLabel(type)}
                     </Button>

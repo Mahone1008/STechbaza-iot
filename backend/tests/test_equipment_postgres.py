@@ -89,8 +89,10 @@ class EquipmentPostgresTests(unittest.TestCase):
         passport = self.call(self.base + "/equipment")
         self.assertEqual(passport["configuration_state"], "verified")
         self.assertEqual(self.call(self.base + "/overview")["frequency_limits"], {"min_hz":20,"max_hz":45})
+        target = {key: configured["manifest"][key] for key in ("binding_id", "revision")}
+        target["configuration_hash"] = configured["configuration_hash"]
         with patch("app.services.command_dispatch.publish_command_message", return_value=(True,"published")) as mqtt:
-            command = self.call(self.base + "/commands", method="POST", body={"request_id":str(uuid.uuid4()), "command_type":"vfd.start"}, expected=201)
+            command = self.call(self.base + "/commands", method="POST", body={"request_id":str(uuid.uuid4()), "command_type":"vfd.start", "equipment_target":target}, expected=201)
         self.assertEqual(mqtt.call_args.kwargs["payload"]["schema_version"], 3)
         self.assertEqual(mqtt.call_args.kwargs["payload"]["equipment_target"]["configuration_hash"], configured["configuration_hash"])
         self.call(self.base + "/equipment/configurations", method="POST", body={**self.body,"expected_revision":1}, who="owner", expected=409)
@@ -102,6 +104,10 @@ class EquipmentPostgresTests(unittest.TestCase):
         self.assertNotEqual(newer["manifest"]["binding_id"], configured["manifest"]["binding_id"])
         self.assertEqual(newer["manifest"]["binding_generation"], 2)
         self.fresh(report_for(newer["manifest"], newer["configuration_hash"]))
+        for stale_target in (None, target):
+            # A delayed HTTP request must not acquire the new target at creation time.
+            self.call(self.base + "/commands", method="POST", body={"request_id":str(uuid.uuid4()),
+                "command_type":"vfd.start", "equipment_target":stale_target}, expected=409)
         with SessionLocal() as session:
             row = session.get(DeviceCommand, uuid.UUID(command["id"])); row.status="queued"; row.last_publish_attempt_at=None; session.commit()
             with patch("app.services.command_dispatch.publish_command_message") as publish:

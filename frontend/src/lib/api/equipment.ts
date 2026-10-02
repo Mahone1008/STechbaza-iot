@@ -4,6 +4,7 @@ import type { components } from "./schema";
 
 export type EquipmentPassport = components["schemas"]["EquipmentPassport"];
 export type EquipmentState = EquipmentPassport["configuration_state"];
+export type EquipmentTarget = components["schemas"]["EquipmentTarget"];
 export const equipmentStateLabels: Record<EquipmentState, string> = {
   legacy: "Паспорт ще не введено в експлуатацію",
   awaiting: "Контролер ще не підтвердив конфігурацію обладнання",
@@ -26,6 +27,17 @@ function revision(value: unknown) {
 }
 function hash(value: unknown) {
   if (typeof value !== "string" || !/^[a-f0-9]{64}$/u.test(value)) invalidResponse(path, "configuration hash");
+}
+export function parseEquipmentTarget(value: unknown): EquipmentTarget | null {
+  if (value === undefined || value === null) return null;
+  const data = record(value);
+  const bindingId = requiredUuid(data, "binding_id", path);
+  revision(data.revision); hash(data.configuration_hash);
+  return { binding_id: bindingId, revision: data.revision as number, configuration_hash: data.configuration_hash as string };
+}
+export function sameEquipmentTarget(a?: EquipmentTarget | null, b?: EquipmentTarget | null): boolean {
+  if (a == null || b == null) return a == null && b == null;
+  return a.binding_id === b.binding_id && a.revision === b.revision && a.configuration_hash === b.configuration_hash;
 }
 function binding(value: unknown, report: boolean) {
   const data = record(value);

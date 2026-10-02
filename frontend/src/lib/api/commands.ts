@@ -1,6 +1,7 @@
 import { invalidResponse, isRecord, requiredDateTime, requiredString, requiredUuid } from "./access";
 import type { components } from "./schema";
 import { parseProgramPlan, sameProgram, type ProgramPlan } from "./programs";
+import { parseEquipmentTarget, sameEquipmentTarget } from "./equipment";
 export type Command = components["schemas"]["DeviceCommandRead"];
 export type CommandType = components["schemas"]["DeviceCommandCreate"]["command_type"];
 export type CommandInput = components["schemas"]["DeviceCommandCreate"];
@@ -47,6 +48,7 @@ export function parseCommand(raw: unknown, deviceId: string, organizationId: str
   }
   if (raw.control_sequence !== undefined && raw.control_sequence !== null && (typeof raw.control_sequence !== "number" || !Number.isSafeInteger(raw.control_sequence) || raw.control_sequence < 1)) invalidResponse(path, "control sequence");
   if (raw.supersedes_request_id !== undefined && raw.supersedes_request_id !== null) requiredUuid(raw, "supersedes_request_id", path);
+  parseEquipmentTarget(raw.equipment_target);
   requiredString(raw, "command_type", path);
   if (typeof raw.status !== "string" || !Object.hasOwn(statusLabels, raw.status)) invalidResponse(path, "command status");
   if (!isRecord(raw.payload) || !isRecord(raw.result)) invalidResponse(path, "command payload/result");
@@ -57,6 +59,7 @@ export function parseCommand(raw: unknown, deviceId: string, organizationId: str
 }
 export function parseCommandReceipt(raw: unknown, deviceId: string, organizationId: string, userId: string, input: CommandInput): Command {
   const command = parseCommand(raw, deviceId, organizationId);
+  if (!sameEquipmentTarget(command.equipment_target, input.equipment_target)) invalidResponse(path, "matching equipment target");
   if (command.request_id !== input.request_id || command.command_type !== input.command_type || command.ttl_seconds !== input.ttl_seconds || (command.supersedes_request_id ?? null) !== (input.supersedes_request_id ?? null) || command.actor_user_id !== userId || command.actor_organization_id !== organizationId || (input.command_type === "vfd.program.start" ? !sameProgram(command.payload, input.payload) : Object.keys(command.payload).length !== Object.keys(input.payload ?? {}).length || Object.entries(input.payload ?? {}).some(([key, value]) => command.payload[key] !== value))) invalidResponse(path, "matching command receipt");
   return command;
 }
@@ -67,4 +70,3 @@ export function parseCommandPage(raw: unknown, deviceId: string, organizationId:
   commands.forEach((row, index) => { const boundary = index ? commandCursor(commands[index - 1]!) : cursor; if (boundary && !isBefore(row, boundary)) invalidResponse(path, "ordered cursor page"); });
   return commands;
 }
-
