@@ -44,7 +44,7 @@ class AuthNoStoreMiddleware:
         self.app = app
 
     async def __call__(self, scope, receive, send):
-        if scope["type"] != "http" or not scope["path"].startswith("/api/v1/auth/"):
+        if scope["type"] != "http" or not scope["path"].startswith(("/api/v1/auth/", "/api/v1/connect/", "/api/v1/bootstrap/", "/api/v1/factory/")):
             return await self.app(scope, receive, send)
 
         async def send_no_store(message):

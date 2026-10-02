@@ -81,7 +81,7 @@ def _login_pair(
     except InvalidCredentialsError as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Невірний email або пароль",
+            detail="Невірний email, пароль або код двоетапного входу",
             headers={"WWW-Authenticate": "Bearer"},
         ) from exc
     except InactiveUserError as exc:

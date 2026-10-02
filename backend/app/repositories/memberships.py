@@ -1,6 +1,7 @@
 import uuid
+from app.security.tokens import utc_now
 
-from sqlalchemy import func, select
+from sqlalchemy import or_, func, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.models.organization_membership import OrganizationMembership
@@ -70,6 +71,7 @@ class MembershipRepository:
             OrganizationMembership.user_id == user_id,
             OrganizationMembership.organization_id == organization_id,
             OrganizationMembership.is_active.is_(True),
+                or_(OrganizationMembership.expires_at.is_(None), OrganizationMembership.expires_at > utc_now()),
         ).execution_options(populate_existing=True)
         return self._session.scalar(statement)
 
@@ -100,6 +102,7 @@ class MembershipRepository:
             .where(
                 OrganizationMembership.user_id == user_id,
                 OrganizationMembership.is_active.is_(True),
+                or_(OrganizationMembership.expires_at.is_(None), OrganizationMembership.expires_at > utc_now()),
             )
             .order_by(
                 OrganizationMembership.organization_id.asc(),
@@ -118,6 +121,7 @@ class MembershipRepository:
             OrganizationMembership.organization_id == organization_id,
             OrganizationMembership.role == OrganizationRole.OWNER.value,
             OrganizationMembership.is_active.is_(True),
+                or_(OrganizationMembership.expires_at.is_(None), OrganizationMembership.expires_at > utc_now()),
         )
         return int(self._session.scalar(statement) or 0)
 

@@ -18,10 +18,12 @@ class SiteRepository:
         *,
         limit: int,
         offset: int,
+        allowed_site_ids: list[uuid.UUID] | None = None,
     ) -> list[Site]:
         statement = (
             select(Site)
             .where(Site.organization_id == organization_id)
+            .where(Site.id.in_(allowed_site_ids) if allowed_site_ids is not None else True)
             .order_by(Site.created_at.desc(), Site.id.desc())
             .limit(limit)
             .offset(offset)

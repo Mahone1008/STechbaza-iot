@@ -53,6 +53,8 @@ class AuthSession(TimestampMixin, Base):
         nullable=True,
     )
 
+    mfa_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
     user: Mapped["User"] = relationship(
         back_populates="auth_sessions",
     )

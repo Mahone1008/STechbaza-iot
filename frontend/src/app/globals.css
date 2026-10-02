@@ -658,3 +658,18 @@ h1, h2, h3 { letter-spacing: -0.02em; }
 .equipment-passport .status-badge { white-space: normal; overflow-wrap: anywhere; }
 .equipment-passport .status-dot { flex-shrink: 0; }
 .equipment-module { border-block-start: 1px solid var(--border); padding-block-start: 1rem; }
+
+/* Device sections retain drafts but hidden sections never affect layout. */
+[hidden] { display: none !important; }
+.device-tabs { display: flex; gap: .4rem; flex-wrap: wrap; padding: .4rem; margin: 1rem 0; border: 1px solid var(--border, #d7e2e0); border-radius: 1rem; }
+.device-tabs [role="tab"] { flex: 1 1 7rem; min-width: 0; padding: .8rem 1rem; border: 0; border-radius: .65rem; color: inherit; background: transparent; font: inherit; cursor: pointer; }
+.device-tabs [aria-selected="true"] { background: var(--accent, #176b5a); color: white; font-weight: 650; }
+.device-tabs [role="tab"]:focus-visible { outline: 3px solid #65ad9e; outline-offset: 2px; }
+[role="tabpanel"] { display: grid; gap: 1rem; min-width: 0; }
+.device-events { display: grid; gap: 1rem; padding-left: 1.4rem; }
+.device-events time { display: block; font-size: .875rem; opacity: .8; }
+.connect-page { max-width: 760px; margin: 0 auto; padding: clamp(1rem, 4vw, 2.5rem); display: grid; gap: 1.25rem; }
+.connect-page form, .connect-fields { display: grid; gap: 1rem; min-width: 0; }
+.recovery-key { overflow-wrap: anywhere; user-select: all; padding: 1rem; background: #eff5f3; border-radius: .65rem; }
+.device-tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: thin; overscroll-behavior-x: contain; }
+.device-tabs [role="tab"] { flex: 0 0 auto; padding: .7rem .9rem; }

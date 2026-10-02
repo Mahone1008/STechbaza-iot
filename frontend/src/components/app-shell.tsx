@@ -226,8 +226,10 @@ function UserMenu({
       {open ? (
         <div className="user-menu-popover" id={menuId} role="menu" aria-label="Меню користувача"
           onKeyDown={(event) => {
-            // Меню має одну дію; клавіші навігації лишають фокус у цьому пункті.
-            if (["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) { event.preventDefault(); actionRef.current?.focus(); }
+            const items = [...event.currentTarget.querySelectorAll<HTMLElement>('[role="menuitem"]')];
+            const index = items.indexOf(document.activeElement as HTMLElement);
+            const next = event.key === "Home" ? 0 : event.key === "End" ? items.length - 1 : event.key === "ArrowDown" ? (index + 1) % items.length : event.key === "ArrowUp" ? (index + items.length - 1) % items.length : -1;
+            if (next >= 0) { event.preventDefault(); items[next]?.focus(); }
           }}>
           <div className="user-menu-profile">
             <strong>{presentation.userName}</strong>
@@ -235,6 +237,8 @@ function UserMenu({
             <small>{organizationName}</small>
           </div>
           <div className="user-menu-separator" />
+          <Link className="user-menu-action" role="menuitem" href={"/account/security" as Route} onClick={() => setOpen(false)}>Безпека облікового запису</Link>
+          <Link className="user-menu-action" role="menuitem" href={"/connect" as Route} onClick={() => setOpen(false)}>Додати контролер</Link>
           <button
             className="user-menu-action user-menu-action-danger"
             type="button"

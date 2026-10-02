@@ -42,11 +42,13 @@ test("default polling keeps a 15-second presence lease current and refreshes jou
     await expect(page.getByText("Потрібно оновити зв’язок", { exact: true })).toHaveCount(0);
   }
   records = [commandFixture({ status: "succeeded" })]; await page.clock.fastForward(5100);
+  await page.getByRole("tab", { name: "Журнал", exact: true }).click();
   const journal = page.getByRole("table", { name: "Журнал команд пристрою" });
   await expect(journal).toContainText("Контролер повідомив про виконання");
   await page.getByLabel("Автооновлення", { exact: true }).selectOption("0");
   records = []; const stopped = gets; await page.clock.fastForward(16000);
   expect(gets).toBe(stopped); await expect(journal).toBeVisible();
+  await page.getByRole("tab", { name: "Панель", exact: true }).click();
   await expect(controls(page).getByRole("button", { name: "Запустити", exact: true })).toBeDisabled();
   await expect(controls(page).getByRole("button", { name: "Зупинити", exact: true })).toBeEnabled();
 });

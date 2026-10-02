@@ -8,14 +8,14 @@ CI звіряє його з tracked code. Це перелік реалізаці
 
 | Компонент | Значення з коду |
 |---|---|
-| Backend / OpenAPI / health | 0.44.0 |
-| Alembic head | `20261002_0021`; 21 міграцій |
+| Backend / OpenAPI / health | 0.45.0 |
+| Alembic head | `20261002_0022`; 22 міграцій |
 | Frontend package | 0.1.0 |
 | Node engine | `>=20.9.0` |
 | Package manager | `npm@10.9.2` |
 | Next.js / React | 16.3.6 / 19.2.8 |
 | Firmware V3 | 0.6.0 |
-| OpenAPI paths | 57 |
+| OpenAPI paths | 73 |
 
 ## Канали телеметрії
 
@@ -91,9 +91,22 @@ ACK/Result лишаються v1. Дозвіл API не замінює лока�
 | `/api/v1/auth/login` | POST |
 | `/api/v1/auth/logout` | POST |
 | `/api/v1/auth/me` | GET |
+| `/api/v1/auth/recover` | POST |
 | `/api/v1/auth/refresh` | POST |
+| `/api/v1/auth/register` | POST |
+| `/api/v1/auth/security` | GET |
+| `/api/v1/auth/security/recovery` | POST |
+| `/api/v1/auth/security/totp/confirm` | POST |
+| `/api/v1/auth/security/totp/setup` | POST |
+| `/api/v1/auth/sessions` | GET |
+| `/api/v1/auth/sessions/{session_id}` | DELETE |
+| `/api/v1/bootstrap/{controller_id}/contact` | POST |
 | `/api/v1/capabilities` | GET, POST |
 | `/api/v1/commands/{command_id}` | GET |
+| `/api/v1/connect/sites` | GET |
+| `/api/v1/connect/{controller_id}` | GET |
+| `/api/v1/connect/{controller_id}/claim` | POST |
+| `/api/v1/connect/{controller_id}/equipment` | PUT |
 | `/api/v1/devices/{device_id}` | GET |
 | `/api/v1/devices/{device_id}/alarms` | GET |
 | `/api/v1/devices/{device_id}/availability` | GET |
@@ -115,6 +128,9 @@ ACK/Result лишаються v1. Дозвіл API не замінює лока�
 | `/api/v1/devices/{device_id}/telemetry/series` | GET |
 | `/api/v1/equipment/profiles` | GET |
 | `/api/v1/events/{event_id}` | GET |
+| `/api/v1/factory/controllers` | GET, POST |
+| `/api/v1/factory/controllers/{controller_id}/audit` | GET |
+| `/api/v1/factory/controllers/{controller_id}/shipments` | POST |
 | `/api/v1/notifications/{notification_id}` | GET |
 | `/api/v1/notifications/{notification_id}/read` | POST |
 | `/api/v1/organizations` | GET, POST |

@@ -182,6 +182,7 @@ export function WorkspaceGuard({ children }: Readonly<{ children: ReactNode }>) 
         description={`${snapshot.message} Кабінет не показує tenant data без підтвердженого access context.`}
         tone="warning"
       >
+        <Link className="button button-secondary" href={"/account/security" as Route}>Безпека облікового запису</Link>
         <Button variant="secondary" onClick={retryAccess}>Повторити</Button>
         <Link className="button button-secondary" href={"/organizations" as Route}>Обрати організацію</Link>
         <Button onClick={() => void logout()}>Вийти</Button>
@@ -191,7 +192,8 @@ export function WorkspaceGuard({ children }: Readonly<{ children: ReactNode }>) 
 
   if (snapshot.status === "no-access") {
     return (
-      <AccessGate title="Немає доступної організації" description={snapshot.message} tone="danger">
+      <AccessGate title="Додайте свій перший контролер" description="Відскануйте QR на контролері. Під час активації ви створите об’єкт і виберете обладнання." tone="warning">
+        <Link className="button button-primary" href={"/connect" as Route}>Додати контролер</Link>
         <Button variant="secondary" onClick={retryAccess}>Оновити доступ</Button>
         <Link className="button button-secondary" href={"/organizations" as Route}>Обрати організацію</Link>
         <Button onClick={() => void logout()}>Вийти</Button>

@@ -7,6 +7,7 @@ test.describe.configure({ retries: 0 });
 const path = `/devices/${DEVICE_ID}`;
 const overviewUrl = `${API_ORIGIN}/api/v1/devices/${DEVICE_ID}/overview`;
 async function ready(page: Page) {
+  if (await page.getByRole("tab", { name: "Графіки", exact: true }).getAttribute("aria-selected") !== "true") await page.getByRole("tab", { name: "Графіки", exact: true }).click();
   await expect(page.locator(".telemetry-chart")).toBeVisible();
   await expect(page.getByRole("button", { name: "Оновити історію" })).toBeEnabled();
 }
@@ -34,7 +35,7 @@ test.beforeEach(async ({ page }) => {
 test("F5 restores metric, six-hour period and fifteen-minute interval before the first series request", async ({ page }) => {
   const requests: string[] = [];
   page.on("request", (r) => { if (r.method() === "GET" && r.url().includes("/telemetry/series?")) requests.push(r.url()); });
-  await page.goto(path); await ready(page); await choose(page);
+  await page.goto(path); await page.getByRole("tab", { name: "Графіки", exact: true }).click(); await ready(page); await choose(page);
   requests.length = 0;
   await page.reload(); await ready(page);
   await selection(page, "vfd.frequency_hz", "21600", "900");
@@ -47,7 +48,7 @@ test("F5 restores metric, six-hour period and fifteen-minute interval before the
 });
 
 test("reload validates stored metric against enabled channels and recovers from corrupt storage", async ({ page }) => {
-  await page.goto(path); await ready(page); await choose(page);
+  await page.goto(path); await page.getByRole("tab", { name: "Графіки", exact: true }).click(); await ready(page); await choose(page);
   await page.route(overviewUrl, async (route) => { if (await fulfillPreflight(route)) return; await fulfillJson(route, 200, overviewFixture(devicePayload())); });
   const metrics: string[] = [];
   page.on("request", (r) => { if (r.method() === "GET" && r.url().includes("/telemetry/series?")) metrics.push(new URL(r.url()).searchParams.get("metric")!); });
@@ -67,11 +68,11 @@ test("device and session selections stay isolated and logout clears saved histor
   await page.route(`${API_ORIGIN}/api/v1/devices/${other.id}`, async (route) => { if (await fulfillPreflight(route)) return; await fulfillJson(route, 200, other); });
   await page.route(`${API_ORIGIN}/api/v1/devices/${other.id}/overview`, async (route) => { if (await fulfillPreflight(route)) return; await fulfillJson(route, 200, overviewWithFrequencyFixture(other)); });
   await mockBrowserLogoutSuccess(page);
-  await page.goto(path); await ready(page); await choose(page);
-  await page.goto(`/devices/${other.id}`); await ready(page);
+  await page.goto(path); await page.getByRole("tab", { name: "Графіки", exact: true }).click(); await ready(page); await choose(page);
+  await page.goto(`/devices/${other.id}`); await page.getByRole("tab", { name: "Графіки", exact: true }).click(); await ready(page);
   await selection(page, "pressure.bar", "3600", "60");
   await page.getByLabel("Період", { exact: true }).selectOption("86400"); await ready(page);
-  await page.goto(path); await ready(page);
+  await page.goto(path); await page.getByRole("tab", { name: "Графіки", exact: true }).click(); await ready(page);
   await selection(page, "vfd.frequency_hz", "21600", "900");
   await page.route(ME_URL, async (route) => { if (await fulfillPreflight(route)) return; await fulfillJson(route, 200, { ...currentUserPayload(), auth_session_id: "4df58667-7a29-47f8-b6d6-055e47717681" }); });
   await page.reload(); await ready(page);
@@ -85,7 +86,7 @@ test("device and session selections stay isolated and logout clears saved histor
 
 test("blocked sessionStorage permits filter changes and safely uses defaults after reload", async ({ page }) => {
   await page.addInitScript(() => Object.defineProperty(window, "sessionStorage", { configurable: true, get() { throw new DOMException("Blocked", "SecurityError"); } }));
-  await page.goto(path); await ready(page); await choose(page);
+  await page.goto(path); await page.getByRole("tab", { name: "Графіки", exact: true }).click(); await ready(page); await choose(page);
   await selection(page, "vfd.frequency_hz", "21600", "900");
   await page.reload(); await ready(page);
   await selection(page, "pressure.bar", "3600", "60");

@@ -166,6 +166,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/recover": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Recover */
+        post: operations["recover_api_v1_auth_recover_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/refresh": {
         parameters: {
             query?: never;
@@ -177,6 +194,142 @@ export interface paths {
         put?: never;
         /** Refresh */
         post: operations["refresh_api_v1_auth_refresh_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/register": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Register */
+        post: operations["register_api_v1_auth_register_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/security": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Security */
+        get: operations["security_api_v1_auth_security_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/security/recovery": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Rotate Recovery */
+        post: operations["rotate_recovery_api_v1_auth_security_recovery_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/security/totp/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Confirm Totp */
+        post: operations["confirm_totp_api_v1_auth_security_totp_confirm_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/security/totp/setup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Setup Totp */
+        post: operations["setup_totp_api_v1_auth_security_totp_setup_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Sessions */
+        get: operations["sessions_api_v1_auth_sessions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/sessions/{session_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Revoke Session */
+        delete: operations["revoke_session_api_v1_auth_sessions__session_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/bootstrap/{controller_id}/contact": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Bootstrap Contact */
+        post: operations["bootstrap_contact_api_v1_bootstrap__controller_id__contact_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -210,6 +363,74 @@ export interface paths {
         };
         /** Get Command */
         get: operations["get_command_api_v1_commands__command_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/connect/{controller_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Connection */
+        get: operations["connection_api_v1_connect__controller_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/connect/{controller_id}/claim": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Claim Controller */
+        post: operations["claim_controller_api_v1_connect__controller_id__claim_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/connect/{controller_id}/equipment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Equipment Selection */
+        put: operations["equipment_selection_api_v1_connect__controller_id__equipment_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/connect/sites": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Buyer Sites */
+        get: operations["buyer_sites_api_v1_connect_sites_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -589,6 +810,58 @@ export interface paths {
         get: operations["get_event_api_v1_events__event_id__get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/factory/controllers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Factory List */
+        get: operations["factory_list_api_v1_factory_controllers_get"];
+        put?: never;
+        /** Factory Create */
+        post: operations["factory_create_api_v1_factory_controllers_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/factory/controllers/{controller_id}/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Factory Audit */
+        get: operations["factory_audit_api_v1_factory_controllers__controller_id__audit_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/factory/controllers/{controller_id}/shipments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Shipment */
+        post: operations["shipment_api_v1_factory_controllers__controller_id__shipments_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1126,6 +1399,11 @@ export interface components {
              */
             transition_type: "raised" | "repeated" | "acknowledged" | "resolved" | "reopened" | "severity_changed";
         };
+        /** BootstrapContact */
+        BootstrapContact: {
+            /** Firmware Version */
+            firmware_version: string;
+        };
         /**
          * BrowserTokenResponse
          * @description Refresh secret залишається лише в HttpOnly cookie, access — у пам'яті UI.
@@ -1212,6 +1490,16 @@ export interface components {
              */
             updated_at: string;
         };
+        /** ClaimRequest */
+        ClaimRequest: {
+            /** Activation Code */
+            activation_code: string;
+            /** Device Name */
+            device_name: string;
+            new_site?: components["schemas"]["NewSite"] | null;
+            /** Site Id */
+            site_id?: string | null;
+        };
         /** ConfigurationCreate */
         ConfigurationCreate: {
             bus: components["schemas"]["BusSettings"];
@@ -1252,6 +1540,31 @@ export interface components {
              * @enum {string}
              */
             transport: "wifi" | "cellular" | "ethernet" | "unknown";
+        };
+        /** ConnectionRead */
+        ConnectionRead: {
+            /**
+             * Controller Id
+             * Format: uuid
+             */
+            controller_id: string;
+            /** Device Id */
+            device_id: string | null;
+            /** Firmware Version */
+            firmware_version: string | null;
+            /** Hardware Model */
+            hardware_model: string;
+            /** Last Contact At */
+            last_contact_at: string | null;
+            /** Serial Number */
+            serial_number: string;
+            /** Site Id */
+            site_id: string | null;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "ready" | "claimed";
         };
         /** ControllerDiagnostics */
         ControllerDiagnostics: {
@@ -1921,6 +2234,24 @@ export interface components {
             /** Revision */
             revision: number;
         };
+        /** EquipmentSelection */
+        EquipmentSelection: {
+            /** Hardware Revision */
+            hardware_revision?: string | null;
+            /** Model */
+            model: string;
+            /**
+             * Nameplate Confirmed
+             * @constant
+             */
+            nameplate_confirmed: true;
+            /** Profile Id */
+            profile_id: string;
+            /** Profile Version */
+            profile_version: number;
+            /** Software Revision */
+            software_revision?: string | null;
+        };
         /** EquipmentTarget */
         EquipmentTarget: {
             /**
@@ -1932,6 +2263,62 @@ export interface components {
             configuration_hash: string;
             /** Revision */
             revision: number;
+        };
+        /** FactoryCreate */
+        FactoryCreate: {
+            /** Batch */
+            batch: string;
+            /**
+             * Factory Test Passed
+             * @constant
+             */
+            factory_test_passed: true;
+            /** Hardware Model */
+            hardware_model: string;
+            /** Hardware Revision */
+            hardware_revision: string;
+            /** Serial Number */
+            serial_number: string;
+            /** Test Reference */
+            test_reference: string;
+        };
+        /** FactoryRead */
+        FactoryRead: {
+            /** Batch */
+            batch: string;
+            /** Claimed At */
+            claimed_at: string | null;
+            /** Device Id */
+            device_id: string | null;
+            /** Distributor */
+            distributor: string | null;
+            /** Generation */
+            generation: number;
+            /** Hardware Model */
+            hardware_model: string;
+            /** Hardware Revision */
+            hardware_revision: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Last Contact At */
+            last_contact_at: string | null;
+            /** Serial Number */
+            serial_number: string;
+            /** Status */
+            status: string;
+        };
+        /** FactorySecrets */
+        FactorySecrets: {
+            /** Activation Code */
+            activation_code: string;
+            /** Bootstrap Key */
+            bootstrap_key: string;
+            controller: components["schemas"]["FactoryRead"];
+            /** Qr Path */
+            qr_path: string;
         };
         /** FrequencyChange */
         FrequencyChange: {
@@ -1990,6 +2377,8 @@ export interface components {
              * Format: email
              */
             email: string;
+            /** Otp */
+            otp?: string | null;
             /** Password */
             password: string;
         };
@@ -2006,8 +2395,12 @@ export interface components {
          * @description Дані для додавання існуючого User до Organization.
          */
         MembershipCreate: {
+            /** Expires At */
+            expires_at?: string | null;
             /** @default viewer */
             role: components["schemas"]["OrganizationRole"];
+            /** Site Ids */
+            site_ids?: string[] | null;
             /**
              * User Id
              * Format: uuid
@@ -2024,6 +2417,8 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            /** Expires At */
+            expires_at?: string | null;
             /**
              * Id
              * Format: uuid
@@ -2037,6 +2432,8 @@ export interface components {
              */
             organization_id: string;
             role: components["schemas"]["OrganizationRole"];
+            /** Site Ids */
+            site_ids?: string[] | null;
             /**
              * Updated At
              * Format: date-time
@@ -2057,9 +2454,13 @@ export interface components {
          * @description Зміни tenant-role або active state membership.
          */
         MembershipUpdate: {
+            /** Expires At */
+            expires_at?: string | null;
             /** Is Active */
             is_active?: boolean | null;
             role?: components["schemas"]["OrganizationRole"] | null;
+            /** Site Ids */
+            site_ids?: string[] | null;
         };
         /** MetricReadingRead */
         MetricReadingRead: {
@@ -2155,6 +2556,16 @@ export interface components {
             rated_power_kw?: number | null;
             /** Rated Voltage V */
             rated_voltage_v?: number | null;
+        };
+        /** NewSite */
+        NewSite: {
+            /** Name */
+            name: string;
+            /**
+             * Timezone
+             * @default Europe/Kyiv
+             */
+            timezone: string;
         };
         /** NotificationReadReceipt */
         NotificationReadReceipt: {
@@ -2317,6 +2728,23 @@ export interface components {
              */
             version: 1;
         };
+        /** RecoveryRead */
+        RecoveryRead: {
+            /** Recovery Key */
+            recovery_key: string;
+        };
+        /** RecoveryRequest */
+        RecoveryRequest: {
+            /**
+             * Email
+             * Format: email
+             */
+            email: string;
+            /** New Password */
+            new_password: string;
+            /** Recovery Key */
+            recovery_key: string;
+        };
         /**
          * RefreshTokenRequest
          * @description Opaque refresh token для ротації access token.
@@ -2324,6 +2752,18 @@ export interface components {
         RefreshTokenRequest: {
             /** Refresh Token */
             refresh_token: string;
+        };
+        /** RegisterRequest */
+        RegisterRequest: {
+            /** Display Name */
+            display_name: string;
+            /**
+             * Email
+             * Format: email
+             */
+            email: string;
+            /** Password */
+            password: string;
         };
         /** ScheduleOccurrenceRead */
         ScheduleOccurrenceRead: {
@@ -2510,6 +2950,53 @@ export interface components {
              */
             id: string;
             spec: components["schemas"]["ScheduleSpec"];
+        };
+        /** SecurityProof */
+        SecurityProof: {
+            /** Otp */
+            otp?: string | null;
+            /** Password */
+            password: string;
+        };
+        /** SecurityRead */
+        SecurityRead: {
+            /** Current Session Verified */
+            current_session_verified: boolean;
+            /** Mfa Enabled */
+            mfa_enabled: boolean;
+            /** Privileged Mfa Required */
+            privileged_mfa_required: boolean;
+            /** Recovery Available */
+            recovery_available: boolean;
+        };
+        /** SessionRead */
+        SessionRead: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Current */
+            current: boolean;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Last Used At */
+            last_used_at: string | null;
+        };
+        /** ShipmentRequest */
+        ShipmentRequest: {
+            /** Distributor */
+            distributor: string;
+            /** Reference */
+            reference: string;
         };
         /** SignalDiagnostics */
         SignalDiagnostics: {
@@ -2775,6 +3262,18 @@ export interface components {
              * @constant
              */
             token_type: "bearer";
+        };
+        /** TotpConfirm */
+        TotpConfirm: {
+            /** Otp */
+            otp: string;
+        };
+        /** TotpSetupRead */
+        TotpSetupRead: {
+            /** Secret */
+            secret: string;
+            /** Uri */
+            uri: string;
         };
         /** ValidationError */
         ValidationError: {
@@ -3213,6 +3712,39 @@ export interface operations {
             };
         };
     };
+    recover_api_v1_auth_recover_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecoveryRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecoveryRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     refresh_api_v1_auth_refresh_post: {
         parameters: {
             query?: never;
@@ -3271,6 +3803,242 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    register_api_v1_auth_register_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RegisterRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecoveryRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    security_api_v1_auth_security_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SecurityRead"];
+                };
+            };
+        };
+    };
+    rotate_recovery_api_v1_auth_security_recovery_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SecurityProof"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecoveryRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    confirm_totp_api_v1_auth_security_totp_confirm_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TotpConfirm"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    setup_totp_api_v1_auth_security_totp_setup_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SecurityProof"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TotpSetupRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    sessions_api_v1_auth_sessions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionRead"][];
+                };
+            };
+        };
+    };
+    revoke_session_api_v1_auth_sessions__session_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    bootstrap_contact_api_v1_bootstrap__controller_id__contact_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                controller_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BootstrapContact"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectionRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
             };
         };
     };
@@ -3357,6 +4125,139 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DeviceCommandRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    connection_api_v1_connect__controller_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                controller_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectionRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    claim_controller_api_v1_connect__controller_id__claim_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                controller_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClaimRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectionRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    equipment_selection_api_v1_connect__controller_id__equipment_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                controller_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EquipmentSelection"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModuleRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    buyer_sites_api_v1_connect_sites_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SiteRead"][];
                 };
             };
             /** @description Validation Error */
@@ -4190,6 +5091,140 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DeviceEventRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    factory_list_api_v1_factory_controllers_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FactoryRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    factory_create_api_v1_factory_controllers_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FactoryCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FactorySecrets"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    factory_audit_api_v1_factory_controllers__controller_id__audit_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                controller_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    shipment_api_v1_factory_controllers__controller_id__shipments_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                controller_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ShipmentRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FactoryRead"];
                 };
             };
             /** @description Validation Error */

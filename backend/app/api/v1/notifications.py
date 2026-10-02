@@ -35,6 +35,7 @@ def list_notifications(
     rows = NotificationRepository(session).list_for_organization(
         organization_id, current.user.id,
         limit=limit, offset=offset, unread_only=unread_only,
+        allowed_site_ids=AccessControl(session, current).allowed_site_ids(organization_id),
     )
     return [
         AlarmNotificationRead.model_validate(item).model_copy(update={"read_at": read_at})
@@ -54,6 +55,7 @@ def unread_count(
     )
     return NotificationUnreadCount(unread_count=NotificationRepository(session).unread_count(
         organization_id, current.user.id,
+        allowed_site_ids=AccessControl(session, current).allowed_site_ids(organization_id),
     ))
 
 

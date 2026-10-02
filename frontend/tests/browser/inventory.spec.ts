@@ -142,7 +142,7 @@ test("presence distinguishes offline, never connected and unavailable without fa
   await expect(page.getByRole("button", { name: "Запустити" })).toHaveCount(0);
   await page.getByRole("link", { name: "Насосна станція №1" }).click();
   await expect(page.getByRole("heading", { name: "Насосна станція №1" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Модулі та канали" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Показники обладнання" })).toBeVisible();
   await expect(page.getByText("Насос працює")).toHaveCount(0);
 });
 

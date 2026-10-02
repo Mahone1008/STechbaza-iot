@@ -1,7 +1,11 @@
 import uuid
 from dataclasses import dataclass
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
+from app.models.user import User
+from app.models.onboarding import AccountSecurity
+from app.security.account_keys import secret_box, verify_totp
 
 from app.models.auth_session import AuthSession
 from app.repositories.auth_sessions import AuthSessionRepository
@@ -53,7 +57,7 @@ class AuthService:
 
     def login(self, payload: LoginRequest) -> TokenPair:
         email = str(payload.email).strip().lower()
-        user = self._users.get_by_email(email)
+        user = self._session.scalar(select(User).where(User.email == email).with_for_update())
 
         if user is None:
             # Dummy verify зменшує timing-різницю між unknown email і bad password.
@@ -66,6 +70,14 @@ class AuthService:
         if not user.is_active:
             raise InactiveUserError
 
+        security = self._session.scalar(select(AccountSecurity).where(AccountSecurity.user_id == user.id).with_for_update())
+        mfa_verified = False
+        if security and security.totp_enabled_at:
+            counter = verify_totp(secret_box().decrypt(security.totp_secret.encode()).decode(), payload.otp or "", security.totp_last_counter)
+            if counter is None:
+                raise InvalidCredentialsError
+            security.totp_last_counter = counter
+            mfa_verified = True
         now = utc_now()
 
         if password_hash_needs_rehash(user.password_hash):
@@ -77,6 +89,7 @@ class AuthService:
             user_id=user.id,
             refresh_token_hash=refresh.token_hash,
             expires_at=refresh.expires_at,
+            mfa_verified_at=now if mfa_verified else None,
         )
 
         user.last_login_at = now

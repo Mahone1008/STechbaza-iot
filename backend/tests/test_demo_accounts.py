@@ -19,7 +19,7 @@ from app.demo.catalog import identity
 from app.demo.review_accounts import (
     ACCOUNTS, _prepare_accounts, provision_accounts, read_or_create_credentials, validate_passwords,
 )
-from app.models import AuthSession, Organization, OrganizationMembership, User
+from app.models import AccountSecurity, AuthSession, Organization, OrganizationMembership, User
 from app.models.base import Base
 from app.schemas.auth import LoginRequest
 from app.security.authorization import AccessControl
@@ -76,7 +76,7 @@ class ReviewAccountTests(unittest.TestCase):
         self.engine = create_engine("sqlite://")
         self.addCleanup(self.engine.dispose)
         Base.metadata.create_all(self.engine, tables=[model.__table__ for model in (
-            User, Organization, OrganizationMembership, AuthSession,
+            User, Organization, OrganizationMembership, AuthSession, AccountSecurity,
         )])
         self.sessions = sessionmaker(self.engine, expire_on_commit=False)
         self.passwords = {a.key: a.key + '-local-test-only-password-' + 'x' * 16 for a in ACCOUNTS}

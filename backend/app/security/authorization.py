@@ -1,4 +1,5 @@
 import uuid
+from app.security.mfa_policy import require_privileged_mfa
 from dataclasses import dataclass
 
 from fastapi import HTTPException, status
@@ -98,6 +99,7 @@ class AccessControl:
         self,
         *roles: PlatformRole,
     ) -> None:
+        require_privileged_mfa(self._current)
         allowed = {role.value for role in roles}
         if self._current.user.platform_role not in allowed:
             raise _forbidden()
@@ -108,6 +110,7 @@ class AccessControl:
         limit: int,
         offset: int,
     ) -> list[Organization]:
+        require_privileged_mfa(self._current)
         if self.is_superadmin:
             return self._organizations.list(limit=limit, offset=offset)
 
@@ -127,6 +130,7 @@ class AccessControl:
             raise _not_found()
 
         if self.is_superadmin:
+            require_privileged_mfa(self._current)
             return OrganizationAccessContext(
                 organization=organization,
                 organization_role=None,
@@ -142,6 +146,9 @@ class AccessControl:
         if membership is None:
             raise _not_found()
 
+        require_privileged_mfa(self._current, membership.role)
+        if membership.site_ids is not None and permission in (Permission.SITE_CREATE, Permission.MEMBERSHIP_READ, Permission.MEMBERSHIP_MANAGE):
+            raise _forbidden()
         if not role_has_permission(membership.role, permission):
             raise _forbidden()
 
@@ -160,6 +167,19 @@ class AccessControl:
             permission,
         ).organization
 
+    def allowed_site_ids(self, organization_id: uuid.UUID) -> list[uuid.UUID] | None:
+        if self.is_superadmin:
+            return None
+        membership = self._memberships.get_active(self._current.user.id, organization_id)
+        if membership is None:
+            raise _not_found()
+        return [uuid.UUID(value) for value in membership.site_ids] if membership.site_ids is not None else None
+
+    def _require_site_scope(self, site: Site):
+        allowed = self.allowed_site_ids(site.organization_id)
+        if allowed is not None and site.id not in allowed:
+            raise _not_found()
+
     def require_site(
         self,
         site_id: uuid.UUID,
@@ -170,6 +190,7 @@ class AccessControl:
             raise _not_found()
 
         self.require_organization(site.organization_id, permission)
+        self._require_site_scope(site)
         return site
 
     def require_device_context(
@@ -189,6 +210,7 @@ class AccessControl:
             site.organization_id,
             permission,
         )
+        self._require_site_scope(site)
         return DeviceAccessContext(
             device=device,
             organization_id=organization_access.organization.id,

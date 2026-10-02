@@ -48,7 +48,7 @@ test("real organization and site selection shows API devices, presence and resto
     .then(async (response) => { expect(response.status()).toBe(200); return await response.json() as components["schemas"]["DeviceOverviewRead"]; });
   await page.getByRole("link", { name: "DEMO: насос з частотником", exact: true }).click();
   await expect(page.getByRole("heading", { name: "DEMO: насос з частотником", exact: true })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Модулі та канали" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Показники обладнання" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Запустити", exact: true })).toBeVisible();
   const overview = await overviewPromise;
   expect(overview.modules.length).toBeGreaterThan(0);

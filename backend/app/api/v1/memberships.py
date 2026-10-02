@@ -45,6 +45,7 @@ def _read(item: OrganizationMembership) -> MembershipRead:
         user_display_name=item.user.display_name,
         role=item.role,
         is_active=item.is_active,
+        site_ids=item.site_ids, expires_at=item.expires_at,
         created_at=item.created_at,
         updated_at=item.updated_at,
     )

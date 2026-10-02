@@ -6,6 +6,7 @@ from pydantic import BaseModel, EmailStr, Field
 class LoginRequest(BaseModel):
     """Credentials для створення authenticated session."""
 
+    otp: str | None = Field(default=None, pattern=r"^[0-9]{6}$")
     email: EmailStr
     password: str = Field(min_length=1, max_length=128)
 

@@ -59,6 +59,9 @@ class DeviceService:
         if self._sites.get(site_id) is None:
             raise ParentSiteNotFoundError
 
+        if payload.uid.startswith("FC-"):
+            raise DeviceAlreadyExistsError
+
         # uid має бути глобально унікальним: один фізичний контролер не може
         # одночасно бути зареєстрований на двох об'єктах.
         if self._devices.get_by_uid(payload.uid) is not None:

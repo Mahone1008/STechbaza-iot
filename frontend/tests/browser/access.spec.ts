@@ -80,7 +80,7 @@ test("an authenticated account without active membership receives an explicit no
 
   await page.goto("/devices");
 
-  await expect(page.getByRole("heading", { name: "Немає доступної організації" })).toBeVisible();
-  await expect(page.getByText(/немає активної доступної організації/u)).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Додайте свій перший контролер" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Додати контролер", exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Пристрої" })).not.toBeVisible();
 });
