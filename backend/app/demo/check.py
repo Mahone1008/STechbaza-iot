@@ -36,7 +36,7 @@ def wait_for(label, read, timeout=45):
 
 
 class Client:
-    def __init__(self, account, *, session_file=None):
+    def __init__(self, account, *, session_file=None, credentials=None):
         # Лише міжпроцесні resilience-тести використовують окремий приватний cookie file.
         self.session_file = session_file
         jar = http.cookiejar.LWPCookieJar(str(session_file)) if session_file else http.cookiejar.CookieJar()
@@ -46,7 +46,7 @@ class Client:
             jar.load(ignore_discard=True)
             result = self.call("POST", "/api/v1/auth/browser/refresh")
         else:
-            result = self.call("POST", "/api/v1/auth/browser/login", {
+            result = self.call("POST", "/api/v1/auth/browser/login", credentials if credentials is not None else {
                 "email": email(account), "password": os.environ["DEMO_" + account.upper() + "_PASSWORD"],
             })
         self.access = result["access_token"]
