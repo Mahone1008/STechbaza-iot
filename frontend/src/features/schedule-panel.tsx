@@ -42,6 +42,7 @@ const reasonLabels: Record<string, string> = {
   schedule_access_revoked: "Дозвіл автора відкликано",
   schedule_window_expired: "Час прийняття запуску минув",
   program_firmware_unavailable: "Немає свіжих даних або локального дозволу",
+  equipment_configuration_unconfirmed: "Конфігурацію обладнання ще не підтверджено",
   schedule_duration_unsupported: "Прошивка не підтримує таку тривалість запуску",
   schedule_firmware_unavailable: "Потрібне оновлення прошивки",
   program_active: "Виконується інший запуск",

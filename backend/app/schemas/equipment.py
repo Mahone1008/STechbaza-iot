@@ -91,7 +91,7 @@ class EquipmentReport(EquipmentTarget):
 
 class EquipmentManifest(EquipmentModel):
     version: Literal[1] = 1
-    device_uid: str = Field(min_length=1, max_length=96, pattern=r"^[A-Za-z0-9_.-]+$")
+    device_uid: str = Field(min_length=1, max_length=96, pattern=r"^[A-Za-z0-9._:-]+$")
     module_id: uuid.UUID
     binding_id: uuid.UUID
     binding_generation: Revision

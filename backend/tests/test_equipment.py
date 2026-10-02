@@ -69,6 +69,8 @@ class EquipmentTests(unittest.TestCase):
         self.assertEqual(canonical_json(self.manifest.model_dump(mode="json")), self.text)
         profile = get_profile(self.manifest.profile_id, self.manifest.profile_version)
         self.assertEqual(profile.profile_hash, self.manifest.profile_hash)
+        named = {**self.manifest.model_dump(mode="json"), "device_uid": "controller:01"}
+        self.assertEqual(EquipmentManifest.model_validate(named).device_uid, "controller:01")
         line = next(line for line in header(self.text).splitlines() if line.startswith("#define "))
         self.assertEqual(json.loads(line.split(" ", 2)[2]), self.text)
         for bad in (self.text + "\n", self.text.replace("suswe.su600.modbus", "suswe.su100.modbus")):
