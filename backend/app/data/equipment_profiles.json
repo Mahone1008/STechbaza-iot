@@ -1,0 +1,169 @@
+[
+  {
+    "id": "suswe.su100.modbus",
+    "version": 1,
+    "manufacturer": "SUSWE",
+    "series": "SU100",
+    "parameter_family": "P",
+    "support": "documented",
+    "driver_id": null,
+    "driver_version": null,
+    "command_protocol": null,
+    "tested_model": null,
+    "manual": "SU-100-750W20250121.pdf",
+    "manual_sha256": "6c8e41c14c820c156318e53f16ae8e58612ad95c042a1143b790562919fc871a",
+    "manual_pages": [
+      13
+    ],
+    "notes": [
+      "Параметри P; приклади Modbus використовують базову адресу 40000 (0x9C40) та FC16 для запису. Не використовувати регістри SU600.",
+      "Визначення моделі лише за успішним читанням Modbus не підтримується.",
+      "Повний сервісний каталог F/P і hardware acceptance виконуються окремо."
+    ]
+  },
+  {
+    "id": "suswe.su300.modbus",
+    "version": 1,
+    "manufacturer": "SUSWE",
+    "series": "SU300",
+    "parameter_family": "F",
+    "support": "documented",
+    "driver_id": null,
+    "driver_version": null,
+    "command_protocol": null,
+    "tested_model": null,
+    "manual": "SU300-2025.11.11.pdf",
+    "manual_sha256": "7434bc40590767232860d1e7b0c06d4027e4e54a3fb87beab1bb92917849c1a2",
+    "manual_pages": [
+      14,
+      15,
+      21
+    ],
+    "notes": [
+      "FC03/06 і частина адрес схожі на SU600; це не підтверджує однакові захисти, масштаби або сумісність драйвера.",
+      "Визначення моделі лише за успішним читанням Modbus не підтримується.",
+      "Повний сервісний каталог F/P і hardware acceptance виконуються окремо."
+    ]
+  },
+  {
+    "id": "suswe.su600.modbus",
+    "version": 1,
+    "manufacturer": "SUSWE",
+    "series": "SU600",
+    "parameter_family": "F",
+    "support": "bench_limited",
+    "driver_id": "suswe.su600",
+    "driver_version": 1,
+    "command_protocol": 3,
+    "tested_model": "SU600A-5RG1-B",
+    "manual": "SU-600-24.12.18.pdf",
+    "manual_sha256": "e4ba8baede05e0e881d36733c0340bdf0507c9be206834e5dd9244e8c36ac07d",
+    "manual_pages": [
+      23,
+      31,
+      33,
+      55
+    ],
+    "notes": [
+      "Драйвер обмежений перевіреним стендовим профілем: адреса 1, 9600 8N1, максимум VFD 50 Гц; межі установки можуть бути вужчими.",
+      "Визначення моделі лише за успішним читанням Modbus не підтримується.",
+      "Повний сервісний каталог F/P і hardware acceptance виконуються окремо."
+    ]
+  },
+  {
+    "id": "suswe.su700.modbus",
+    "version": 1,
+    "manufacturer": "SUSWE",
+    "series": "SU700",
+    "parameter_family": "P/A",
+    "support": "documented",
+    "driver_id": null,
+    "driver_version": null,
+    "command_protocol": null,
+    "tested_model": null,
+    "manual": "SU7008009001000-20241114.pdf",
+    "manual_sha256": "fec54328db3d9b2417e5404fdf68f34344b27cf86bd4e371f839396b12aeda20",
+    "manual_pages": [
+      15,
+      55,
+      56
+    ],
+    "notes": [
+      "Спільна інструкція для сімейства не є прийманням конкретної моделі. Адреси читання EEPROM і запису RAM різні; драйвер ще не дозволено.",
+      "Визначення моделі лише за успішним читанням Modbus не підтримується.",
+      "Повний сервісний каталог F/P і hardware acceptance виконуються окремо."
+    ]
+  },
+  {
+    "id": "suswe.su800.modbus",
+    "version": 1,
+    "manufacturer": "SUSWE",
+    "series": "SU800",
+    "parameter_family": "P/A",
+    "support": "documented",
+    "driver_id": null,
+    "driver_version": null,
+    "command_protocol": null,
+    "tested_model": null,
+    "manual": "SU7008009001000-20241114.pdf",
+    "manual_sha256": "fec54328db3d9b2417e5404fdf68f34344b27cf86bd4e371f839396b12aeda20",
+    "manual_pages": [
+      15,
+      55,
+      56
+    ],
+    "notes": [
+      "Спільна інструкція для сімейства не є прийманням конкретної моделі. Адреси читання EEPROM і запису RAM різні; драйвер ще не дозволено.",
+      "Визначення моделі лише за успішним читанням Modbus не підтримується.",
+      "Повний сервісний каталог F/P і hardware acceptance виконуються окремо."
+    ]
+  },
+  {
+    "id": "suswe.su900.modbus",
+    "version": 1,
+    "manufacturer": "SUSWE",
+    "series": "SU900",
+    "parameter_family": "P/A",
+    "support": "documented",
+    "driver_id": null,
+    "driver_version": null,
+    "command_protocol": null,
+    "tested_model": null,
+    "manual": "SU7008009001000-20241114.pdf",
+    "manual_sha256": "fec54328db3d9b2417e5404fdf68f34344b27cf86bd4e371f839396b12aeda20",
+    "manual_pages": [
+      15,
+      55,
+      56
+    ],
+    "notes": [
+      "Спільна інструкція для сімейства не є прийманням конкретної моделі. Адреси читання EEPROM і запису RAM різні; драйвер ще не дозволено.",
+      "Визначення моделі лише за успішним читанням Modbus не підтримується.",
+      "Повний сервісний каталог F/P і hardware acceptance виконуються окремо."
+    ]
+  },
+  {
+    "id": "suswe.su1000.modbus",
+    "version": 1,
+    "manufacturer": "SUSWE",
+    "series": "SU1000",
+    "parameter_family": "P/A",
+    "support": "documented",
+    "driver_id": null,
+    "driver_version": null,
+    "command_protocol": null,
+    "tested_model": null,
+    "manual": "SU7008009001000-20241114.pdf",
+    "manual_sha256": "fec54328db3d9b2417e5404fdf68f34344b27cf86bd4e371f839396b12aeda20",
+    "manual_pages": [
+      15,
+      55,
+      56
+    ],
+    "notes": [
+      "Спільна інструкція для сімейства не є прийманням конкретної моделі. Адреси читання EEPROM і запису RAM різні; драйвер ще не дозволено.",
+      "Визначення моделі лише за успішним читанням Modbus не підтримується.",
+      "Повний сервісний каталог F/P і hardware acceptance виконуються окремо."
+    ]
+  }
+]

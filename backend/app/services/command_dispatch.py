@@ -81,7 +81,8 @@ class CommandDispatchService:
 
         uid = device.uid
         topic = command_topic(uid)
-        envelope = CommandEnvelope(schema_version=2, control_sequence=command.control_sequence,
+        envelope = CommandEnvelope(schema_version=3 if command.equipment_target else 2,
+            equipment_target=command.equipment_target, control_sequence=command.control_sequence,
             command_id=command.id, request_id=command.request_id, issued_at=command.created_at,
             expires_at=command.expires_at, ttl_seconds=command.ttl_seconds,
             command_type=command.command_type, payload=command.payload)
@@ -95,7 +96,7 @@ class CommandDispatchService:
         attempt = command.publish_attempts
         self._session.commit()
         published, reason = publish_command_message(topic=topic,
-            payload=envelope.model_dump(mode="json"), command_id=command_id, device_uid=uid)
+            payload=envelope.model_dump(mode="json", exclude_none=True), command_id=command_id, device_uid=uid)
         # Під час MQTT publish можуть бути збережені ACK/Result або новий Stop.
         # Не перезаписуємо їхній lifecycle чи діагностику новішої спроби.
         self._devices.get_for_update(device_id)

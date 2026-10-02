@@ -14,6 +14,7 @@ from app.security.current_user import (
 )
 from app.security.roles import Permission
 from app.services.command_dispatch import CommandDispatchService
+from app.services.equipment import EquipmentConflict
 from app.services.commands import (
     CommandActorSnapshot,
     CommandCapabilityViolationError,
@@ -68,6 +69,8 @@ def create_command(
             payload,
             actor=actor,
         )
+    except EquipmentConflict as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     except CommandDeviceNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

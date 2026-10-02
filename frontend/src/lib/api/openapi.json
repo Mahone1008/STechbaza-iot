@@ -321,6 +321,62 @@
         "title": "BrowserTokenResponse",
         "type": "object"
       },
+      "BusSettings": {
+        "additionalProperties": false,
+        "properties": {
+          "address": {
+            "maximum": 247.0,
+            "minimum": 1.0,
+            "title": "Address",
+            "type": "integer"
+          },
+          "baud": {
+            "enum": [
+              1200,
+              2400,
+              4800,
+              9600,
+              19200,
+              38400,
+              57600,
+              115200
+            ],
+            "title": "Baud",
+            "type": "integer"
+          },
+          "parity": {
+            "enum": [
+              "none",
+              "even",
+              "odd"
+            ],
+            "title": "Parity",
+            "type": "string"
+          },
+          "stop_bits": {
+            "enum": [
+              1,
+              2
+            ],
+            "title": "Stop Bits",
+            "type": "integer"
+          },
+          "transport": {
+            "const": "modbus_rtu",
+            "default": "modbus_rtu",
+            "title": "Transport",
+            "type": "string"
+          }
+        },
+        "required": [
+          "address",
+          "baud",
+          "parity",
+          "stop_bits"
+        ],
+        "title": "BusSettings",
+        "type": "object"
+      },
       "CapabilityCreate": {
         "description": "Дані для створення capability у глобальному каталозі.",
         "properties": {
@@ -407,6 +463,81 @@
         "title": "CapabilityRead",
         "type": "object"
       },
+      "ConfigurationCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "bus": {
+            "$ref": "#/components/schemas/BusSettings"
+          },
+          "expected_revision": {
+            "maximum": 2147483646.0,
+            "minimum": 0.0,
+            "title": "Expected Revision",
+            "type": "integer"
+          },
+          "frequency_limits": {
+            "$ref": "#/components/schemas/FrequencyLimits"
+          },
+          "module_id": {
+            "format": "uuid",
+            "title": "Module Id",
+            "type": "string"
+          },
+          "profile_id": {
+            "maxLength": 96,
+            "minLength": 1,
+            "title": "Profile Id",
+            "type": "string"
+          },
+          "profile_version": {
+            "maximum": 2147483647.0,
+            "minimum": 1.0,
+            "title": "Profile Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "expected_revision",
+          "module_id",
+          "profile_id",
+          "profile_version",
+          "bus",
+          "frequency_limits"
+        ],
+        "title": "ConfigurationCreate",
+        "type": "object"
+      },
+      "ConfigurationRead": {
+        "additionalProperties": false,
+        "properties": {
+          "actor_user_id": {
+            "format": "uuid",
+            "title": "Actor User Id",
+            "type": "string"
+          },
+          "configuration_hash": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Configuration Hash",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "manifest": {
+            "$ref": "#/components/schemas/EquipmentManifest"
+          }
+        },
+        "required": [
+          "manifest",
+          "configuration_hash",
+          "created_at",
+          "actor_user_id"
+        ],
+        "title": "ConfigurationRead",
+        "type": "object"
+      },
       "ConnectionDiagnostics": {
         "additionalProperties": false,
         "properties": {
@@ -442,6 +573,16 @@
         "properties": {
           "connection": {
             "$ref": "#/components/schemas/ConnectionDiagnostics"
+          },
+          "equipment": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EquipmentReport"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "firmware_version": {
             "maxLength": 32,
@@ -1101,6 +1242,16 @@
             "title": "Device Id",
             "type": "string"
           },
+          "equipment_target": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EquipmentTarget"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "error_code": {
             "anyOf": [
               {
@@ -1513,6 +1664,19 @@
             ],
             "description": "Діагностика того самого telemetry snapshot і boot session; має спільну telemetry_freshness."
           },
+          "equipment_state": {
+            "default": "legacy",
+            "enum": [
+              "legacy",
+              "awaiting",
+              "mismatch",
+              "stale",
+              "incompatible",
+              "verified"
+            ],
+            "title": "Equipment State",
+            "type": "string"
+          },
           "frequency_limits": {
             "anyOf": [
               {
@@ -1772,6 +1936,294 @@
         "title": "DeviceStateRead",
         "type": "object"
       },
+      "EquipmentManifest": {
+        "additionalProperties": false,
+        "properties": {
+          "binding_generation": {
+            "maximum": 2147483647.0,
+            "minimum": 1.0,
+            "title": "Binding Generation",
+            "type": "integer"
+          },
+          "binding_id": {
+            "format": "uuid",
+            "title": "Binding Id",
+            "type": "string"
+          },
+          "bus": {
+            "$ref": "#/components/schemas/BusSettings"
+          },
+          "device_uid": {
+            "maxLength": 96,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9_.-]+$",
+            "title": "Device Uid",
+            "type": "string"
+          },
+          "driver_id": {
+            "maxLength": 96,
+            "minLength": 1,
+            "title": "Driver Id",
+            "type": "string"
+          },
+          "driver_version": {
+            "maximum": 2147483647.0,
+            "minimum": 1.0,
+            "title": "Driver Version",
+            "type": "integer"
+          },
+          "frequency_limits": {
+            "$ref": "#/components/schemas/FrequencyLimits"
+          },
+          "module_id": {
+            "format": "uuid",
+            "title": "Module Id",
+            "type": "string"
+          },
+          "profile_hash": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Profile Hash",
+            "type": "string"
+          },
+          "profile_id": {
+            "maxLength": 96,
+            "minLength": 1,
+            "title": "Profile Id",
+            "type": "string"
+          },
+          "profile_version": {
+            "maximum": 2147483647.0,
+            "minimum": 1.0,
+            "title": "Profile Version",
+            "type": "integer"
+          },
+          "revision": {
+            "maximum": 2147483647.0,
+            "minimum": 1.0,
+            "title": "Revision",
+            "type": "integer"
+          },
+          "version": {
+            "const": 1,
+            "default": 1,
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "device_uid",
+          "module_id",
+          "binding_id",
+          "binding_generation",
+          "revision",
+          "profile_id",
+          "profile_version",
+          "profile_hash",
+          "driver_id",
+          "driver_version",
+          "bus",
+          "frequency_limits"
+        ],
+        "title": "EquipmentManifest",
+        "type": "object"
+      },
+      "EquipmentPassport": {
+        "additionalProperties": false,
+        "properties": {
+          "configuration_state": {
+            "enum": [
+              "legacy",
+              "awaiting",
+              "mismatch",
+              "stale",
+              "incompatible",
+              "verified"
+            ],
+            "title": "Configuration State",
+            "type": "string"
+          },
+          "controller_uid": {
+            "title": "Controller Uid",
+            "type": "string"
+          },
+          "desired": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ConfigurationRead"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "device_id": {
+            "format": "uuid",
+            "title": "Device Id",
+            "type": "string"
+          },
+          "firmware_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Firmware Version"
+          },
+          "installations": {
+            "items": {
+              "$ref": "#/components/schemas/InstallationRead"
+            },
+            "title": "Installations",
+            "type": "array"
+          },
+          "modules": {
+            "items": {
+              "$ref": "#/components/schemas/ModuleRead"
+            },
+            "title": "Modules",
+            "type": "array"
+          },
+          "reported": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EquipmentReport"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "device_id",
+          "controller_uid",
+          "firmware_version",
+          "installations",
+          "modules",
+          "desired",
+          "reported",
+          "configuration_state"
+        ],
+        "title": "EquipmentPassport",
+        "type": "object"
+      },
+      "EquipmentReport": {
+        "additionalProperties": false,
+        "properties": {
+          "binding_generation": {
+            "maximum": 2147483647.0,
+            "minimum": 1.0,
+            "title": "Binding Generation",
+            "type": "integer"
+          },
+          "binding_id": {
+            "format": "uuid",
+            "title": "Binding Id",
+            "type": "string"
+          },
+          "command_protocol": {
+            "const": 3,
+            "title": "Command Protocol",
+            "type": "integer"
+          },
+          "compatible": {
+            "title": "Compatible",
+            "type": "boolean"
+          },
+          "configuration_hash": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Configuration Hash",
+            "type": "string"
+          },
+          "driver_id": {
+            "maxLength": 96,
+            "minLength": 1,
+            "title": "Driver Id",
+            "type": "string"
+          },
+          "driver_version": {
+            "maximum": 2147483647.0,
+            "minimum": 1.0,
+            "title": "Driver Version",
+            "type": "integer"
+          },
+          "module_id": {
+            "format": "uuid",
+            "title": "Module Id",
+            "type": "string"
+          },
+          "profile_hash": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Profile Hash",
+            "type": "string"
+          },
+          "profile_id": {
+            "maxLength": 96,
+            "minLength": 1,
+            "title": "Profile Id",
+            "type": "string"
+          },
+          "profile_version": {
+            "maximum": 2147483647.0,
+            "minimum": 1.0,
+            "title": "Profile Version",
+            "type": "integer"
+          },
+          "revision": {
+            "maximum": 2147483647.0,
+            "minimum": 1.0,
+            "title": "Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "binding_id",
+          "revision",
+          "configuration_hash",
+          "module_id",
+          "binding_generation",
+          "profile_id",
+          "profile_version",
+          "profile_hash",
+          "driver_id",
+          "driver_version",
+          "command_protocol",
+          "compatible"
+        ],
+        "title": "EquipmentReport",
+        "type": "object"
+      },
+      "EquipmentTarget": {
+        "additionalProperties": false,
+        "properties": {
+          "binding_id": {
+            "format": "uuid",
+            "title": "Binding Id",
+            "type": "string"
+          },
+          "configuration_hash": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Configuration Hash",
+            "type": "string"
+          },
+          "revision": {
+            "maximum": 2147483647.0,
+            "minimum": 1.0,
+            "title": "Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "binding_id",
+          "revision",
+          "configuration_hash"
+        ],
+        "title": "EquipmentTarget",
+        "type": "object"
+      },
       "FrequencyChange": {
         "additionalProperties": false,
         "properties": {
@@ -1835,6 +2287,52 @@
           }
         },
         "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "InstallationCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "maxLength": 160,
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "InstallationCreate",
+        "type": "object"
+      },
+      "InstallationRead": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 160,
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Name",
+            "type": "string"
+          },
+          "site_id": {
+            "format": "uuid",
+            "title": "Site Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "id",
+          "site_id"
+        ],
+        "title": "InstallationRead",
         "type": "object"
       },
       "LoginRequest": {
@@ -2021,6 +2519,293 @@
         "title": "MetricReadingRead",
         "type": "object"
       },
+      "ModuleCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "hardware_revision": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hardware Revision"
+          },
+          "installation_id": {
+            "format": "uuid",
+            "title": "Installation Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "vfd",
+              "pressure_sensor",
+              "digital_input",
+              "relay",
+              "other"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "manufacturer": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Manufacturer",
+            "type": "string"
+          },
+          "model": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Model",
+            "type": "string"
+          },
+          "motor": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MotorNameplate"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "name": {
+            "maxLength": 160,
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Name",
+            "type": "string"
+          },
+          "serial_number": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Serial Number"
+          },
+          "series": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Series",
+            "type": "string"
+          },
+          "slot": {
+            "maxLength": 48,
+            "minLength": 1,
+            "pattern": "^[a-z0-9][a-z0-9_.-]*$",
+            "title": "Slot",
+            "type": "string"
+          },
+          "software_revision": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Software Revision"
+          }
+        },
+        "required": [
+          "installation_id",
+          "slot",
+          "kind",
+          "name",
+          "manufacturer",
+          "series",
+          "model"
+        ],
+        "title": "ModuleCreate",
+        "type": "object"
+      },
+      "ModuleRead": {
+        "additionalProperties": false,
+        "properties": {
+          "device_id": {
+            "format": "uuid",
+            "title": "Device Id",
+            "type": "string"
+          },
+          "hardware_revision": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hardware Revision"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "installation_id": {
+            "format": "uuid",
+            "title": "Installation Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "vfd",
+              "pressure_sensor",
+              "digital_input",
+              "relay",
+              "other"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "manufacturer": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Manufacturer",
+            "type": "string"
+          },
+          "model": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Model",
+            "type": "string"
+          },
+          "motor": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MotorNameplate"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "name": {
+            "maxLength": 160,
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Name",
+            "type": "string"
+          },
+          "serial_number": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Serial Number"
+          },
+          "series": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Series",
+            "type": "string"
+          },
+          "slot": {
+            "maxLength": 48,
+            "minLength": 1,
+            "pattern": "^[a-z0-9][a-z0-9_.-]*$",
+            "title": "Slot",
+            "type": "string"
+          },
+          "software_revision": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Software Revision"
+          }
+        },
+        "required": [
+          "installation_id",
+          "slot",
+          "kind",
+          "name",
+          "manufacturer",
+          "series",
+          "model",
+          "id",
+          "device_id"
+        ],
+        "title": "ModuleRead",
+        "type": "object"
+      },
+      "MotorNameplate": {
+        "additionalProperties": false,
+        "properties": {
+          "rated_current_a": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "maximum": 10000.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rated Current A"
+          },
+          "rated_frequency_hz": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 400.0,
+            "title": "Rated Frequency Hz",
+            "type": "number"
+          },
+          "rated_power_kw": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "maximum": 10000.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rated Power Kw"
+          },
+          "rated_voltage_v": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "maximum": 10000.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rated Voltage V"
+          }
+        },
+        "required": [
+          "rated_frequency_hz"
+        ],
+        "title": "MotorNameplate",
+        "type": "object"
+      },
       "NotificationReadReceipt": {
         "properties": {
           "notification_id": {
@@ -2202,6 +2987,132 @@
         ],
         "title": "PlatformRole",
         "type": "string"
+      },
+      "ProfileRead": {
+        "additionalProperties": false,
+        "properties": {
+          "command_protocol": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Command Protocol"
+          },
+          "driver_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Driver Id"
+          },
+          "driver_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Driver Version"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "manual": {
+            "title": "Manual",
+            "type": "string"
+          },
+          "manual_pages": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Manual Pages",
+            "type": "array"
+          },
+          "manual_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Manual Sha256",
+            "type": "string"
+          },
+          "manufacturer": {
+            "title": "Manufacturer",
+            "type": "string"
+          },
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Notes",
+            "type": "array"
+          },
+          "parameter_family": {
+            "title": "Parameter Family",
+            "type": "string"
+          },
+          "profile_hash": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Profile Hash",
+            "type": "string"
+          },
+          "series": {
+            "title": "Series",
+            "type": "string"
+          },
+          "support": {
+            "enum": [
+              "documented",
+              "bench_limited"
+            ],
+            "title": "Support",
+            "type": "string"
+          },
+          "tested_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tested Model"
+          },
+          "version": {
+            "maximum": 2147483647.0,
+            "minimum": 1.0,
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "version",
+          "profile_hash",
+          "manufacturer",
+          "series",
+          "parameter_family",
+          "support",
+          "driver_id",
+          "driver_version",
+          "command_protocol",
+          "tested_model",
+          "manual",
+          "manual_sha256",
+          "manual_pages",
+          "notes"
+        ],
+        "title": "ProfileRead",
+        "type": "object"
       },
       "ProgramProgress": {
         "additionalProperties": false,
@@ -3378,7 +4289,7 @@
   "info": {
     "description": "Backend API платформи TechBaza IoT Pump Control",
     "title": "TechBaza Backend",
-    "version": "0.43.0"
+    "version": "0.44.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -4597,6 +5508,211 @@
         ]
       }
     },
+    "/api/v1/devices/{device_id}/equipment": {
+      "get": {
+        "operationId": "equipment_passport_api_v1_devices__device_id__equipment_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "device_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Device Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EquipmentPassport"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Equipment Passport",
+        "tags": [
+          "equipment"
+        ]
+      }
+    },
+    "/api/v1/devices/{device_id}/equipment/configurations": {
+      "post": {
+        "operationId": "configure_equipment_api_v1_devices__device_id__equipment_configurations_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "device_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Device Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfigurationCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfigurationRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Configure Equipment",
+        "tags": [
+          "equipment"
+        ]
+      }
+    },
+    "/api/v1/devices/{device_id}/equipment/manifest": {
+      "get": {
+        "operationId": "equipment_manifest_api_v1_devices__device_id__equipment_manifest_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "device_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Device Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Equipment Manifest",
+        "tags": [
+          "equipment"
+        ]
+      }
+    },
+    "/api/v1/devices/{device_id}/equipment/modules": {
+      "post": {
+        "operationId": "create_module_api_v1_devices__device_id__equipment_modules_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "device_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Device Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModuleCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModuleRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Module",
+        "tags": [
+          "equipment"
+        ]
+      }
+    },
     "/api/v1/devices/{device_id}/events": {
       "get": {
         "description": "Повернути tenant-scoped timeline подій конкретного Device.",
@@ -5354,6 +6470,36 @@
         "summary": "Get Device Telemetry Series",
         "tags": [
           "frontend"
+        ]
+      }
+    },
+    "/api/v1/equipment/profiles": {
+      "get": {
+        "operationId": "list_profiles_api_v1_equipment_profiles_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProfileRead"
+                  },
+                  "title": "Response List Profiles Api V1 Equipment Profiles Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Profiles",
+        "tags": [
+          "equipment"
         ]
       }
     },
@@ -6354,6 +7500,64 @@
         "summary": "Create Device",
         "tags": [
           "devices"
+        ]
+      }
+    },
+    "/api/v1/sites/{site_id}/installations": {
+      "post": {
+        "operationId": "create_installation_api_v1_sites__site_id__installations_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "site_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Site Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InstallationCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InstallationRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Installation",
+        "tags": [
+          "equipment"
         ]
       }
     },

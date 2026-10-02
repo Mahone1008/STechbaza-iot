@@ -2,6 +2,7 @@
 import { ProgramStatus } from "@/features/program-status";
 import { CommandControls } from "@/features/command-controls";
 import { ControllerDiagnostics } from "@/features/controller-diagnostics";
+import { EquipmentPassportPanel } from "@/features/equipment-passport";
 import { alarmsHref } from "@/features/alarm-shared";
 import { CommandDetail, CommandJournal } from "@/features/command-journal";
 import { usePanelQuery } from "@/features/use-panel-query";
@@ -86,6 +87,7 @@ function DevicePanel({ context }: { context: ReadyAccessSnapshot }) {
       : query.isFetching && !query.data ? <p role="status">Перевіряємо модулі та показання…</p>
         : query.isError ? <section className="notice notice-warning" role="alert"><h2>{denied ? "Дані більше недоступні" : "Не вдалося завантажити панель"}</h2><p>{apiErrorDisplayMessage(query.error)}</p><div className="ui-row"><Button onClick={query.refresh}>Повторити</Button><Link className="button button-secondary" href="/organizations">Обрати організацію</Link></div></section>
           : query.data ? <OverviewContent key={query.dataUpdatedAt} overview={query.data.overview} receivedAt={query.data.receivedAt} timezone={context.activeSite?.timezone ?? "UTC"} onViewProgram={onViewProgram} /> : null}</StableRegion>
+    <EquipmentPassportPanel context={context} />
     {canRead && query.data && !query.isError && <TelemetryHistory context={context} overview={query.data.overview} poll={poll} />}
     {context.access.permissions.includes("command.read") && <CommandJournal context={context} onSelect={setSelectedCommand} poll={poll} />}
   </>;

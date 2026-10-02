@@ -1,15 +1,18 @@
 #pragma once
 #include "core.h"
+#include "equipment.h"
 #include <ArduinoJson.h>
 #include <cstring>
 #include <cmath>
 
 namespace kerumo {
-inline bool parseCommand(const char* bytes,size_t length,Command& out) {
+inline bool parseCommand(const char* bytes,size_t length,Command& out,const EquipmentBinding* binding=nullptr) {
   if (!length || length>1536 || std::memchr(bytes,0,length)) return false;
   JsonDocument doc;
   if (deserializeJson(doc,bytes,length,DeserializationOption::NestingLimit(4))) return false;
-  if (!doc.is<JsonObject>() || doc.as<JsonObject>().size()!=9 || !doc["schema_version"].is<int>() || doc["schema_version"].as<int>()!=2) return false;
+  if (!doc.is<JsonObject>() || doc.as<JsonObject>().size()!=(binding?10U:9U) ||
+      !doc["schema_version"].is<int>() || doc["schema_version"].as<int>()!=(binding?3:2)) return false;
+  if (binding && !matchingTarget(doc["equipment_target"],*binding)) return false;
   if (!doc["control_sequence"].is<uint64_t>() || !doc["ttl_seconds"].is<unsigned>()) return false;
   const char* id=doc["command_id"] | "";
   if (!validUuid(id) || !validUuid(doc["request_id"] | "")) return false;

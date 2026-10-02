@@ -22,7 +22,7 @@ export function overviewFixture(device = overviewDevice): Overview {
   ];
   const capabilities = entries.map((entry, index) => ({ id: `c41c4b87-b82d-4e35-8faa-${String(index).padStart(12, "0")}`, code: entry.code, name: entry.name, description: null, created_at: now, updated_at: now }));
   return {
-    generated_at: now, device,
+    generated_at: now, device, equipment_state: "legacy",
     access: { organization_id: overviewOrg, platform_role: "user", organization_role: "owner", permissions: ["device.read", "capability.read", "telemetry.read"] },
     availability: { device_id: device.id, uid: device.uid, online: true, last_seen_at: now, timeout_seconds: 90, seconds_since_seen: 0 },
     capabilities,

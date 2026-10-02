@@ -8,14 +8,14 @@ CI звіряє його з tracked code. Це перелік реалізаці
 
 | Компонент | Значення з коду |
 |---|---|
-| Backend / OpenAPI / health | 0.43.0 |
-| Alembic head | `20261001_0020`; 20 міграцій |
+| Backend / OpenAPI / health | 0.44.0 |
+| Alembic head | `20261002_0021`; 21 міграцій |
 | Frontend package | 0.1.0 |
 | Node engine | `>=20.9.0` |
 | Package manager | `npm@10.9.2` |
 | Next.js / React | 16.3.6 / 19.2.8 |
-| Firmware V3 | 0.5.0 |
-| OpenAPI paths | 51 |
+| Firmware V3 | 0.6.0 |
+| OpenAPI paths | 57 |
 
 ## Канали телеметрії
 
@@ -100,6 +100,10 @@ ACK/Result лишаються v1. Дозвіл API не замінює лока�
 | `/api/v1/devices/{device_id}/capabilities` | GET |
 | `/api/v1/devices/{device_id}/capabilities/{capability_id}` | PATCH, POST |
 | `/api/v1/devices/{device_id}/commands` | GET, POST |
+| `/api/v1/devices/{device_id}/equipment` | GET |
+| `/api/v1/devices/{device_id}/equipment/configurations` | POST |
+| `/api/v1/devices/{device_id}/equipment/manifest` | GET |
+| `/api/v1/devices/{device_id}/equipment/modules` | POST |
 | `/api/v1/devices/{device_id}/events` | GET |
 | `/api/v1/devices/{device_id}/overview` | GET |
 | `/api/v1/devices/{device_id}/schedules` | GET |
@@ -109,6 +113,7 @@ ACK/Result лишаються v1. Дозвіл API не замінює лока�
 | `/api/v1/devices/{device_id}/state` | GET |
 | `/api/v1/devices/{device_id}/telemetry` | GET |
 | `/api/v1/devices/{device_id}/telemetry/series` | GET |
+| `/api/v1/equipment/profiles` | GET |
 | `/api/v1/events/{event_id}` | GET |
 | `/api/v1/notifications/{notification_id}` | GET |
 | `/api/v1/notifications/{notification_id}/read` | POST |
@@ -122,6 +127,7 @@ ACK/Result лишаються v1. Дозвіл API не замінює лока�
 | `/api/v1/organizations/{organization_id}/sites` | GET, POST |
 | `/api/v1/sites/{site_id}` | GET |
 | `/api/v1/sites/{site_id}/devices` | GET, POST |
+| `/api/v1/sites/{site_id}/installations` | POST |
 | `/command/reliability/status` | GET |
 | `/health` | GET |
 | `/health/db` | GET |

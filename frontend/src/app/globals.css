@@ -651,3 +651,10 @@ h1, h2, h3 { letter-spacing: -0.02em; }
   .program-step { padding: .75rem; }
   .program-duration { gap: .4rem; }
 }
+
+/* Passport remains collapsed and performs no background polling. */
+.equipment-passport { display: grid; gap: 1rem; margin-block-start: 1rem; min-width: 0; }
+.equipment-passport dd { overflow-wrap: anywhere; }
+.equipment-passport .status-badge { white-space: normal; overflow-wrap: anywhere; }
+.equipment-passport .status-dot { flex-shrink: 0; }
+.equipment-module { border-block-start: 1px solid var(--border); padding-block-start: 1rem; }

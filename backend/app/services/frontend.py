@@ -19,6 +19,7 @@ from app.security.authorization import AccessControl
 from app.security.current_user import CurrentUserContext
 from app.security.roles import Permission, role_has_permission
 from app.services.command_profile import configured_limits
+from app.services.equipment import configuration_state, desired_configuration
 from app.services.device_presence import DevicePresenceService
 from app.services.telemetry_quality import freshness, readings, state_readings, json_safe
 
@@ -98,6 +99,11 @@ class FrontendReadService:
             })
 
         generated_at = datetime.now(timezone.utc)
+        equipment_state = configuration_state(context.device, desired_configuration(self._session, device_id), stored, generated_at)
+        if equipment_state not in {"legacy", "verified"}:
+            for module in modules:
+                module.allowed_commands = [command for command in module.allowed_commands
+                                           if equipment_state == "stale" and command == "vfd.stop"]
         quality = freshness(snapshot, device_session_id=context.device.last_observed_session_id, now=generated_at)
         metric_readings = readings(value_keys, snapshot, quality)
         typed_states = state_readings(state_keys, snapshot, quality)
@@ -112,6 +118,7 @@ class FrontendReadService:
             device_id=device_id, now=generated_at,
         )
         return DeviceOverviewRead(
+            equipment_state=equipment_state,
             diagnostics=snapshot.diagnostics if snapshot else None,
             frequency_limits=configured_limits(self._session, device_id),
             generated_at=generated_at,
@@ -125,7 +132,7 @@ class FrontendReadService:
             ),
             capabilities=capabilities, modules=modules, value_keys=value_keys, state_keys=state_keys,
             command_types=command_types,
-            allowed_commands=command_types if can_execute else [],
+            allowed_commands=sorted(command for module in modules for command in module.allowed_commands),
             snapshot=snapshot,
             telemetry_freshness=quality, readings=metric_readings,
             state_readings=typed_states,

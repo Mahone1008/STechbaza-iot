@@ -17,7 +17,7 @@ Assert-Step 'build backend'
 docker compose run --rm -T backend alembic upgrade head
 Assert-Step 'apply migrations'
 docker compose run --rm -T backend alembic current
-Assert-Step 'current migration: expected 20261001_0020 (head)'
+Assert-Step 'current migration: expected 20261002_0021 (head)'
 docker compose run --rm -T -e TECHBAZA_RUN_DB_TESTS=1 -e TECHBAZA_RUN_MQTT_TESTS=1 backend python -m unittest discover -s tests -v
 Assert-Step '74 regression and integration tests'
 docker compose up -d backend
@@ -62,4 +62,3 @@ if ($unauthorizedStatus -ne 401) { throw "Expected series 401 without JWT, got $
 $health | Format-Table
 Write-Host 'PASS: series route, overview quality fields, unauthenticated request rejected with 401' -ForegroundColor Green
 Write-Host 'PASS: Stage 8 operation 3 - tests and backend 0.34.0 ready' -ForegroundColor Green
-

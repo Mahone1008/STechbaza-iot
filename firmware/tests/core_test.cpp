@@ -1,4 +1,5 @@
 #include "../kerumo_v3/src/core.h"
+#include "../kerumo_v3/src/su600_driver.h"
 #include "../kerumo_v3/src/protocol.h"
 #include "../kerumo_v3/src/diagnostics.h"
 #include "../kerumo_v3/src/journal_upgrade.h"
@@ -46,8 +47,9 @@ struct TestStorage : Storage {
 struct TestEvents : Events { std::vector<Record> records; void emit(const Record& r) override { records.push_back(r); } };
 struct Fixture {
   TestClock clock; TestBus bus{clock}; TestStorage storage; TestEvents events;
+  Su600Driver driver{bus};
   Controller controller;
-  explicit Fixture(bool controls=true):controller(bus,storage,clock,events,controls) { assert(controller.begin("test-device")); }
+  explicit Fixture(bool controls=true):controller(driver,storage,clock,events,controls) { assert(controller.begin("test-device")); }
   Command command(uint64_t sequence,Type type=Type::Start,double hz=0) {
     Command c{}; snprintf(c.id,sizeof(c.id),"00000000-0000-4000-8000-%012llu",static_cast<unsigned long long>(sequence));
     c.sequence=sequence; c.issuedMs=clock.utcMs(); c.expiresMs=c.issuedMs+30000; c.ttl=30; c.type=type; c.hz=hz; return c;
@@ -122,7 +124,7 @@ void extendedGuardsAndRecovery() {
   pending.bus.stopWorks=true; pending.clock.ms+=1000; pending.controller.tick(true);
   assert(!pending.controller.journal().motionPossible && !pending.controller.isArmed());
   Fixture reset; assert(reset.armExtended()); reset.receive(reset.command(1)); reset.controller.tick(true);
-  Controller reboot(reset.bus,reset.storage,reset.clock,reset.events,true); assert(reboot.begin("test-device"));
+  Controller reboot(reset.driver,reset.storage,reset.clock,reset.events,true); assert(reboot.begin("test-device"));
   assert(!reboot.isArmed() && reboot.sessionMode()==SessionMode::Bench);
   reboot.tick(true); assert(!reboot.journal().motionPossible && !reboot.isArmed());
 }
@@ -157,16 +159,16 @@ void duplicateAndRestart() {
   size_t n=f.bus.writes.size(); auto response=f.events.records.back(); f.clock.ms+=40000; f.receive(c);
   assert(f.bus.writes.size()==n); assert(f.events.records.back().acceptedMs==response.acceptedMs);
   auto changed=c; changed.hz=5; f.receive(changed); assert(f.bus.writes.size()==n);
-  Controller restarted(f.bus,f.storage,f.clock,f.events,true); assert(restarted.begin("test-device"));
+  Controller restarted(f.driver,f.storage,f.clock,f.events,true); assert(restarted.begin("test-device"));
   restarted.receive(c,"s","a","r"); assert(f.bus.writes.size()==n); assert(!restarted.isArmed());
   restarted.tick(true); assert(f.bus.writes.back()==std::make_pair(uint16_t(0x2000),uint16_t(1)));
   assert(!restarted.journal().motionPossible);
-  Controller wrongIdentity(f.bus,f.storage,f.clock,f.events,true); assert(!wrongIdentity.begin("another-device"));
-  f.storage.saved.highest++; Controller corrupt(f.bus,f.storage,f.clock,f.events,true); assert(!corrupt.begin("test-device"));
+  Controller wrongIdentity(f.driver,f.storage,f.clock,f.events,true); assert(!wrongIdentity.begin("another-device"));
+  f.storage.saved.highest++; Controller corrupt(f.driver,f.storage,f.clock,f.events,true); assert(!corrupt.begin("test-device"));
 }
 void crashWindowAndStopRetry() {
   Fixture f; assert(f.controller.arm()); f.receive(f.command(1)); // crash before readback/result
-  Controller restarted(f.bus,f.storage,f.clock,f.events,true); assert(restarted.begin("test-device"));
+  Controller restarted(f.driver,f.storage,f.clock,f.events,true); assert(restarted.begin("test-device"));
   assert(restarted.journal().records[0].outcome==Outcome::Unknown);
   restarted.tick(true); assert(!restarted.journal().motionPossible);
   Fixture timer; assert(timer.controller.arm()); timer.receive(timer.command(1)); timer.controller.tick(true);
@@ -178,7 +180,7 @@ void crashWindowAndStopRetry() {
   assert(!offline.controller.journal().motionPossible); assert(!offline.controller.isArmed());
   Fixture recovery; assert(recovery.controller.arm()); recovery.receive(recovery.command(1));
   recovery.bus.readable=false;
-  Controller disconnectedBoot(recovery.bus,recovery.storage,recovery.clock,recovery.events,true);
+  Controller disconnectedBoot(recovery.driver,recovery.storage,recovery.clock,recovery.events,true);
   assert(disconnectedBoot.begin("test-device")); disconnectedBoot.tick(true);
   assert(disconnectedBoot.journal().motionPossible);
   recovery.bus.readable=true; recovery.clock.ms+=1000; disconnectedBoot.tick(true);
@@ -250,11 +252,11 @@ void diagnosticStopLifecycle() {
   assert(noUtc.lastStop.reason==StopReason::LocalDisarm && noUtc.lastStop.requestedUtcMs==0);
   unknown.clock.valid=true;
   assert(unknown.controller.sample().lastStop.requestedUtcMs==0); // never invent the past UTC
-  Controller reboot(unknown.bus,unknown.storage,unknown.clock,unknown.events,true);
+  Controller reboot(unknown.driver,unknown.storage,unknown.clock,unknown.events,true);
   assert(reboot.begin("test-device"));
   assert(reboot.sample().lastStop.reason==StopReason::Restart && !reboot.sample().lastStop.confirmed);
   reboot.tick(true); assert(reboot.sample().lastStop.confirmed);
-  Controller cleanBoot(unknown.bus,unknown.storage,unknown.clock,unknown.events,true);
+  Controller cleanBoot(unknown.driver,unknown.storage,unknown.clock,unknown.events,true);
   assert(cleanBoot.begin("test-device")); assert(cleanBoot.sample().lastStop.reason==StopReason::None);
 
   JsonDocument doc;
@@ -323,7 +325,7 @@ void programCancellationAndRecovery() {
     assert(f.bus.writes.size()==writes); // Жодний наступний етап чи повтор не відновлює RUN.
   }
   Fixture restart; assert(restart.armExtended()); restart.receive(programCommand(restart)); reachHold(restart);
-  Controller reboot(restart.bus,restart.storage,restart.clock,restart.events,true);
+  Controller reboot(restart.driver,restart.storage,restart.clock,restart.events,true);
   assert(reboot.begin("test-device")); reboot.tick(true);
   assert(!reboot.isArmed() && !reboot.journal().motionPossible);
   assert(reboot.journal().records[0].error==Error::Restarted && reboot.journal().records[0].outcome==Outcome::Failed);
@@ -388,8 +390,8 @@ void programParsingAndMigration() {
   old.records[0].outcome=Outcome::Pending; old.next=1; old.checksum=legacyChecksum(old);
   Journal next{}; assert(upgradeJournal(old,next)); assert(next.highest==42 && next.motionPossible);
   assert(next.records[0].command.sequence==42 && next.records[0].outcome==Outcome::Pending);
-  TestClock clock; TestBus bus(clock); TestStorage storage; TestEvents events;
-  storage.exists=true; storage.saved=next; Controller controller(bus,storage,clock,events,true);
+  TestClock clock; TestBus bus(clock); Su600Driver driver(bus); TestStorage storage; TestEvents events;
+  storage.exists=true; storage.saved=next; Controller controller(driver,storage,clock,events,true);
   assert(controller.begin("test-device")); controller.tick(true); assert(!controller.journal().motionPossible && controller.journal().highest==42);
   old.highest++; assert(!upgradeJournal(old,next));
 }
@@ -421,7 +423,7 @@ void calendarExecution() {
     if(action==0) stop.receive(stop.command(2,Type::Stop));
     if(action==1) stop.controller.tick(false);
     if(action==2) {
-      Controller reboot(stop.bus,stop.storage,stop.clock,stop.events,true);
+      Controller reboot(stop.driver,stop.storage,stop.clock,stop.events,true);
       assert(reboot.begin("test-device")); reboot.tick(true);
       assert(!reboot.isArmed() && reboot.journal().records[0].error==Error::Restarted);
       continue;
@@ -472,8 +474,8 @@ void calendarParsingAndMigration() {
   previous.command.program.count=1; previous.command.program.steps[0]={40,60}; previous.outcome=Outcome::Pending;
   strcpy(previous.command.id,"00000000-0000-4000-8000-000000000042"); old.checksum=legacyChecksum(old);
   Journal next{}; assert(upgradeJournal(old,next)); assert(next.highest==42 && next.records[0].command.program.steps[0].seconds==60);
-  TestClock clock; TestBus bus(clock); TestStorage storage; TestEvents events;
-  storage.saved=next; storage.exists=true; Controller reboot(bus,storage,clock,events,true);
+  TestClock clock; TestBus bus(clock); Su600Driver driver(bus); TestStorage storage; TestEvents events;
+  storage.saved=next; storage.exists=true; Controller reboot(driver,storage,clock,events,true);
   assert(reboot.begin("test-device")); reboot.tick(true); assert(!reboot.isArmed() && !reboot.journal().motionPossible);
   assert(reboot.journal().records[0].error==Error::Restarted);
   ++old.highest; assert(!upgradeJournal(old,next));
@@ -505,7 +507,7 @@ void calendarWeekExecution() {
     if(action==0) stop.receive(stop.command(2,Type::Stop));
     if(action==1) stop.controller.tick(false);
     if(action==2) {
-      Controller reboot(stop.bus,stop.storage,stop.clock,stop.events,true);
+      Controller reboot(stop.driver,stop.storage,stop.clock,stop.events,true);
       assert(reboot.begin("test-device")); reboot.tick(true);
       assert(!reboot.isArmed() && reboot.journal().records[0].error==Error::Restarted);
       assert(!reboot.journal().motionPossible);
@@ -516,7 +518,9 @@ void calendarWeekExecution() {
   }
 }
 
+#include "equipment_test.h"
 int main() {
+  driverIndependence(); equipmentBindingAndJournal();
   calendarExecution(); calendarParsingAndMigration(); calendarWeekExecution();
   programExecution(); programCancellationAndRecovery(); programBoundaries(); programParsingAndMigration();
   readOnlyAndConfiguration(); timingAndOrdering(); echoIsNotPhysicalResult(); duplicateAndRestart();

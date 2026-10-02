@@ -118,6 +118,8 @@ class DemoState:
         if envelope.expires_at.tzinfo is None or envelope.issued_at.tzinfo is None:
             raise ValueError("Command timestamps потребують timezone")
         encoded = envelope.model_dump(mode="json")
+        if envelope.schema_version < 3:
+            encoded.pop("equipment_target", None)  # Preserve existing v1/v2 durable fingerprints.
         if envelope.schema_version == 1:
             encoded.pop("control_sequence", None)  # Зберігаємо сумісність відбитків legacy ledger.
         fingerprint = hashlib.sha256(json.dumps(encoded, sort_keys=True).encode()).hexdigest()
@@ -274,4 +276,3 @@ class DemoState:
         records = [tuple(row) for row in self.db.execute("SELECT id, device, fingerprint, ack, result FROM commands ORDER BY id")]
         return {"devices": {key: self.device(key) for key in LIVE_DEVICES},
                 "ledger_digest": hashlib.sha256(json.dumps(records).encode()).hexdigest()}
-

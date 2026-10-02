@@ -82,42 +82,9 @@ bool readResponse(const uint8_t* bytes, size_t size, uint8_t slave, uint16_t& va
 bool writeResponse(const uint8_t* bytes, size_t size, const uint8_t request[8]) {
   return size==8 && std::memcmp(bytes,request,8)==0 && modbusCrc(bytes,size)==0;
 }
-bool Su600Config::profileOk() const { return readOk && protocol==0 && address==1 && serial==0 && responseDelay<=200; }
-bool Su600Config::controlOk() const {
-  return profileOk() && runSource==2 && frequencySource==6 && maxRaw==500 && upperRaw==500 && lowerRaw==0 && scaleRaw==100;
-}
-bool Su600Config::extendedTestOk() const {
-  // SU600A bench: keypad F5.00=1001 is register 0x1001 (decimal 4097).
-  // Each keypad digit occupies four bits; decimal /100 and %10 are incorrect.
-  // F6.02 is an ordinary numeric register in 0.1 s, not packed digits.
-  // These are communication checks, not a certification of motor protection or wiring.
-  const unsigned overload=protection&0xF;
-  const unsigned pidBreak=(protection>>4)&0xF;
-  const unsigned lossAction=(protection>>8)&0xF;
-  const unsigned suppression=(protection>>12)&0xF;
-  return controlOk() && protectionReadOk && timeoutRaw>=50 && timeoutRaw<=100 && autoReset==0 &&
-    overload==1 && pidBreak<=1 && (lossAction==0 || lossAction==2) && suppression<=1;
-}
-Su600Config readConfig(Bus& bus) {
-  Su600Config result{};
-  const uint16_t addresses[] = {0x0002,0x0003,0x0004,0x0005,0x0006,0x0600,0x0601,0x0602,0x0603,0x0604,0x0605};
-  uint16_t* values[] = {&result.runSource,&result.frequencySource,&result.maxRaw,&result.upperRaw,&result.lowerRaw,
-    &result.address,&result.serial,&result.timeoutRaw,&result.responseDelay,&result.scaleRaw,&result.protocol};
-  result.readOk=true;
-  for (size_t i=0;i<11;++i) if (!bus.read(addresses[i],*values[i])) { result.readOk=false; break; }
-  // Optional for the old read-only/60 s bench; required before an extended test.
-  if (result.readOk) result.protectionReadOk=bus.read(0x0500,result.protection) && bus.read(0x0408,result.autoReset);
-  return result;
-}
-bool frequencyWord(double hz, const Su600Config& config, uint16_t& result) {
-  if (!config.controlOk() || !std::isfinite(hz) || hz<0 || hz>50) return false;
-  result=static_cast<uint16_t>(std::lround(hz/(config.maxRaw/10.0)*10000.0)); return true;
-}
-bool stopped(uint16_t state, uint16_t output) { return (state&3)==2 && output==0; }
-bool runningForward(uint16_t state) { return (state&3)==1 && (state&8) && !(state&16); }
 
-Controller::Controller(Bus& bus, Storage& storage, Clock& clock, Events& events, bool controls)
-    : bus_(bus),storage_(storage),clock_(clock),events_(events),controls_(controls) {}
+Controller::Controller(VfdDriver& driver, Storage& storage, Clock& clock, Events& events, bool controls)
+    : driver_(driver),storage_(storage),clock_(clock),events_(events),controls_(controls) {}
 bool Controller::save() {
   journal_.checksum=checksum(journal_);
   storageOk_=storage_.save(journal_);
@@ -127,10 +94,12 @@ bool Controller::save() {
 bool Controller::begin(const char* uid) {
   if (!uid || std::strlen(uid)>96) return false;
   const int loaded=storage_.load(journal_);
-  if (loaded<0) return false;
+  if (loaded<0) { journal_=Journal{}; return false; }
   if (loaded==0) { journal_=Journal{}; std::strncpy(journal_.uid,uid,96); if (!save()) return false; }
   else if (journal_.magic!=0x4B563303 || journal_.checksum!=checksum(journal_) || journal_.next>=LedgerSize ||
-      std::strncmp(journal_.uid,uid,sizeof(journal_.uid))!=0 || journal_.highest>MaxSequence) return false;
+      std::strncmp(journal_.uid,uid,sizeof(journal_.uid))!=0 || journal_.highest>MaxSequence) {
+    journal_=Journal{}; return false;
+  }
   storageOk_=true;
   for (auto& record:journal_.records) if (record.outcome==Outcome::Pending) {
     if (programType(record.command.type)) {
@@ -144,14 +113,14 @@ bool Controller::begin(const char* uid) {
     } else { record.outcome=Outcome::Unknown; record.error=Error::Restarted; }
   }
   if (!save()) return false;
-  config_=readConfig(bus_); lastConfigRead_=clock_.monotonicMs();
+  driver_.refreshConfig(); lastConfigRead_=clock_.monotonicMs();
   // No blanket boot write: a persisted run intent is stopped only in the verified profile.
   stopping_=controls_ && journal_.motionPossible;
   if (stopping_) { stopReason_=StopReason::Restart; recordStop(StopReason::Restart); }
   return true;
 }
 bool Controller::sessionConfigOk() const {
-  return mode_==SessionMode::ExtendedTest?config_.extendedTestOk():config_.controlOk();
+  return mode_==SessionMode::ExtendedTest?driver_.extendedTestOk():driver_.controlOk();
 }
 bool Controller::arm(SessionMode mode) {
   // A repeated ARM during motion must not change the session or the timer.
@@ -159,10 +128,10 @@ bool Controller::arm(SessionMode mode) {
   armed_=false;
   mode_=SessionMode::Bench;
   if (!controls_ || !storageOk_ || !clock_.utcMs()) return false;
-  config_=readConfig(bus_); lastConfigRead_=clock_.monotonicMs();
-  uint16_t state{},output{},fault{};
-  armed_=(mode==SessionMode::ExtendedTest?config_.extendedTestOk():config_.controlOk()) && bus_.read(0x2101,state) && bus_.read(0x2103,output) &&
-    bus_.read(0x2100,fault) && fault==0 && stopped(state,output);
+  driver_.refreshConfig(); lastConfigRead_=clock_.monotonicMs();
+  DriveState state{}; double output{}; uint16_t fault{};
+  armed_=(mode==SessionMode::ExtendedTest?driver_.extendedTestOk():driver_.controlOk()) && driver_.readState(state) && driver_.readOutputHz(output) &&
+    driver_.readFault(fault) && fault==0 && confirmedStopped(state,output);
   if (armed_) mode_=mode;
   return armed_;
 }
@@ -234,18 +203,18 @@ void Controller::receive(const Command& c,const char* session,const char* ackId,
   if (!save()) return;
   auto& record=journal_.records[slot]; events_.emit(record);
   if (record.outcome!=Outcome::Pending) return;
-  config_=readConfig(bus_); lastConfigRead_=clock_.monotonicMs();
-  if (!(c.type==Type::Stop?config_.profileOk():sessionConfigOk())) { finish(record,Outcome::Failed,Error::Config); disarm(StopReason::Config); return; }
+  driver_.refreshConfig(); lastConfigRead_=clock_.monotonicMs();
+  if (!(c.type==Type::Stop?driver_.profileOk():sessionConfigOk())) { finish(record,Outcome::Failed,Error::Config); disarm(StopReason::Config); return; }
   // Configuration reads take time; expiry is checked again immediately before actuation.
   if (!clock_.utcMs() || clock_.utcMs()>=c.expiresMs) { finish(record,Outcome::Failed,Error::Expired); return; }
-  uint16_t fault{},value{};
-  if (c.type!=Type::Stop && (!bus_.read(0x2100,fault) || fault!=0)) { finish(record,Outcome::Failed,Error::Fault); disarm(StopReason::Fault); return; }
-  if (c.type==Type::Frequency && !frequencyWord(c.hz,config_,value)) { finish(record,Outcome::Failed,Error::Frequency); return; }
+  uint16_t fault{};
+  if (c.type!=Type::Stop && (!driver_.readFault(fault) || fault!=0)) { finish(record,Outcome::Failed,Error::Fault); disarm(StopReason::Fault); return; }
+  if (c.type==Type::Frequency && !driver_.frequencyAllowed(c.hz)) { finish(record,Outcome::Failed,Error::Frequency); return; }
   if (programType(c.type)) {
     if (mode_!=SessionMode::ExtendedTest || !validProgram(c.program,c.type==Type::Schedule?MaxScheduleSeconds:MaxProgramSeconds)) { finish(record,Outcome::Failed,Error::ProgramInvalid); return; }
-    for (size_t i=0;i<c.program.count;++i) if (!frequencyWord(c.program.steps[i].hz,config_,value)) { finish(record,Outcome::Failed,Error::Frequency); return; }
-    uint16_t state{},output{};
-    if (journal_.motionPossible || stopping_ || !bus_.read(0x2101,state) || !bus_.read(0x2103,output) || !stopped(state,output)) {
+    for (size_t i=0;i<c.program.count;++i) if (!driver_.frequencyAllowed(c.program.steps[i].hz)) { finish(record,Outcome::Failed,Error::Frequency); return; }
+    DriveState state{}; double output{};
+    if (journal_.motionPossible || stopping_ || !driver_.readState(state) || !driver_.readOutputHz(output) || !confirmedStopped(state,output)) {
       finish(record,Outcome::Failed,Error::Busy); return;
     }
     if (!clock_.utcMs() || clock_.utcMs()>=c.expiresMs) { finish(record,Outcome::Failed,Error::Expired); return; }
@@ -268,8 +237,8 @@ void Controller::receive(const Command& c,const char* session,const char* ackId,
     return;
   }
   if (c.type==Type::Start) {
-    uint16_t state{},setpoint{};
-    if (journal_.motionPossible || !bus_.read(0x2101,state) || !bus_.read(0x2102,setpoint) || (state&3)!=2 || setpoint==0 || setpoint>5000) {
+    DriveState state{}; double setpoint{};
+    if (journal_.motionPossible || !driver_.readState(state) || !driver_.readSetHz(setpoint) || !state.stopped || setpoint==0 || !driver_.frequencyAllowed(setpoint)) {
       finish(record,Outcome::Failed,Error::Frequency); return;
     }
     if (!clock_.utcMs() || clock_.utcMs()>=c.expiresMs) { finish(record,Outcome::Failed,Error::Expired); return; }
@@ -284,23 +253,24 @@ void Controller::receive(const Command& c,const char* session,const char* ackId,
     return;
   }
   pending_=static_cast<int>(slot); pendingSince_=clock_.monotonicMs();
-  bus_.write(c.type==Type::Frequency?0x2001:0x2000,c.type==Type::Frequency?value:c.type==Type::Start?0x0012:0x0001);
+  if (c.type==Type::Frequency) driver_.setFrequency(c.hz);
+  else if (c.type==Type::Start) driver_.startForward();
+  else driver_.stop();
   // FC06 echo is not a physical success. tick() verifies the actual register state.
 }
 void Controller::beginProgramStep() {
   auto& record=journal_.records[programSlot_];
   const auto& step=record.command.program.steps[record.stepsCompleted];
-  config_=readConfig(bus_); lastConfigRead_=clock_.monotonicMs();
+  driver_.refreshConfig(); lastConfigRead_=clock_.monotonicMs();
   if (!sessionConfigOk()) { requestStop(StopReason::Config); return; }
   if (record.command.type==Type::Schedule && clock_.uptimeMs()>=calendarStepEnd()) {
     programError_=Error::ProgramTimeout; requestStop(StopReason::Unconfirmed); return;
   }
-  uint16_t value{};
-  if (!frequencyWord(step.hz,config_,value)) { requestStop(StopReason::Config); return; }
+  if (!driver_.frequencyAllowed(step.hz)) { requestStop(StopReason::Config); return; }
   program_.step=record.stepsCompleted+1; program_.targetHz=step.hz;
   program_.remainingSeconds=step.seconds; program_.phase=ProgramPhase::Setting;
   programPhaseSince_=clock_.uptimeMs(); lastProgramPoll_=0;
-  bus_.write(0x2001,value);
+  driver_.setFrequency(step.hz);
 }
 uint64_t Controller::calendarStepEnd() const {
   const auto& record=journal_.records[programSlot_];
@@ -344,14 +314,14 @@ void Controller::tickProgram() {
     return;
   }
   const auto& step=record.command.program.steps[record.stepsCompleted];
-  uint16_t state{},output{},setpoint{},fault{};
-  if (!bus_.read(0x2100,fault) || !bus_.read(0x2101,state) || !bus_.read(0x2102,setpoint) || !bus_.read(0x2103,output)) {
+  DriveState state{}; double output{},setpoint{}; uint16_t fault{};
+  if (!driver_.readFault(fault) || !driver_.readState(state) || !driver_.readSetHz(setpoint) || !driver_.readOutputHz(output)) {
     requestStop(StopReason::Link); return;
   }
   if (fault) { requestStop(StopReason::Fault); return; }
-  const bool target=std::fabs(output/100.0-step.hz)<=0.11;
+  const bool target=std::fabs(output-step.hz)<=0.11;
   if (program_.phase==ProgramPhase::Holding) {
-    if (!runningForward(state) || !target || std::fabs(setpoint/100.0-step.hz)>0.11) { requestStop(StopReason::Unconfirmed); return; }
+    if (!state.forward || !target || std::fabs(setpoint-step.hz)>0.11) { requestStop(StopReason::Unconfirmed); return; }
     const uint64_t elapsed=clock_.uptimeMs()-programHoldSince_;
     program_.remainingSeconds=calendar?(calendarStepEnd()>clock_.uptimeMs()?static_cast<uint32_t>((calendarStepEnd()-clock_.uptimeMs()+999)/1000):0):
       elapsed>=step.seconds*1000ULL?0:static_cast<uint32_t>((step.seconds*1000ULL-elapsed+999)/1000);
@@ -366,18 +336,18 @@ void Controller::tickProgram() {
   if (clock_.uptimeMs()-programPhaseSince_>=ProgramTransitionMs) {
     programError_=Error::ProgramTimeout; requestStop(StopReason::Unconfirmed); return;
   }
-  if (std::fabs(setpoint/100.0-step.hz)>0.11) return;
+  if (std::fabs(setpoint-step.hz)>0.11) return;
   if (program_.phase==ProgramPhase::Setting && record.stepsCompleted==0) {
-    if (!stopped(state,output)) { requestStop(StopReason::Unconfirmed); return; }
+    if (!confirmedStopped(state,output)) { requestStop(StopReason::Unconfirmed); return; }
     if (!clock_.utcMs() || clock_.utcMs()>=record.command.expiresMs ||
         (calendar && (clock_.utcMs()<record.command.scheduledStartMs || clock_.utcMs()>=record.command.scheduledStartMs+30000 || clock_.uptimeMs()>=calendarStepEnd()))) {
       programError_=Error::Expired; requestStop(StopReason::Unconfirmed); return;
     }
     program_.phase=ProgramPhase::Starting;
-    bus_.write(0x2000,0x0012); // Один RUN; втрату echo перевіряємо читанням, без повторного запуску.
+    driver_.startForward(); // Один RUN; втрату echo перевіряємо читанням, без повторного запуску.
     return;
   }
-  if (runningForward(state) && target) {
+  if (state.forward && target) {
     program_.phase=ProgramPhase::Holding; programHoldSince_=clock_.uptimeMs();
   }
 }
@@ -388,13 +358,12 @@ void Controller::tick(bool networkConnected) {
   if (stopping_ && controls_ && static_cast<uint32_t>(now-lastStopAttempt_)>=1000) {
     lastStopAttempt_=now;
     // UART may have been unavailable during boot with a persisted RUN intent.
-    if (!config_.profileOk()) { config_=readConfig(bus_); lastConfigRead_=clock_.monotonicMs(); }
+    if (!driver_.profileOk()) { driver_.refreshConfig(); lastConfigRead_=clock_.monotonicMs(); }
     // Recheck protocol before recovery writes. This is NOT automatic hardware identification.
-    uint16_t mode{};
-    if (config_.profileOk() && bus_.read(0x0605,mode) && mode==0) {
-      bus_.write(0x2000,0x0001);
-      uint16_t state{},output{};
-      if (bus_.read(0x2101,state) && bus_.read(0x2103,output) && stopped(state,output)) {
+    if (driver_.recoveryAllowed()) {
+      driver_.stop();
+      DriveState state{}; double output{};
+      if (driver_.readState(state) && driver_.readOutputHz(output) && confirmedStopped(state,output)) {
         journal_.motionPossible=false; stopping_=false; lastStop_.confirmed=true; save();
         if (programSlot_>=0) completeProgram(true);
       }
@@ -402,11 +371,11 @@ void Controller::tick(bool networkConnected) {
   }
   if (pending_>=0 && storageOk_) {
     auto& record=journal_.records[pending_]; const Type type=record.command.type;
-    uint16_t state{},output{},fault{}; bool verified=false; double actual=0;
-    if (type==Type::Frequency) { verified=bus_.read(0x2102,output) && std::fabs(output/100.0-record.command.hz)<=0.11; actual=output/100.0; }
-    else if (bus_.read(0x2101,state) && bus_.read(0x2103,output) && bus_.read(0x2100,fault)) {
-      verified=type==Type::Stop?stopped(state,output):runningForward(state)&&fault==0&&!stopping_;
-      actual=output/100.0;
+    DriveState state{}; double output{}; uint16_t fault{}; bool verified=false; double actual=0;
+    if (type==Type::Frequency) { verified=driver_.readSetHz(output) && std::fabs(output-record.command.hz)<=0.11; actual=output; }
+    else if (driver_.readState(state) && driver_.readOutputHz(output) && driver_.readFault(fault)) {
+      verified=type==Type::Stop?confirmedStopped(state,output):state.forward&&fault==0&&!stopping_;
+      actual=output;
     }
     if (verified) {
       if (type==Type::Stop) { journal_.motionPossible=false; stopping_=false; lastStop_.confirmed=true; }
@@ -418,17 +387,15 @@ void Controller::tick(bool networkConnected) {
   }
   tickProgram();
   if ((!journal_.motionPossible || mode_==SessionMode::ExtendedTest) && pending_<0 && static_cast<uint32_t>(now-lastConfigRead_)>=10000) {
-    config_=readConfig(bus_); lastConfigRead_=clock_.monotonicMs();
+    driver_.refreshConfig(); lastConfigRead_=clock_.monotonicMs();
     if (!sessionConfigOk()) disarm(StopReason::Config);
   }
 }
 Sample Controller::sample() {
   Sample sample{};
-  const uint16_t addresses[]={0x2100,0x2101,0x2102,0x2103,0x2104,0x2106};
-  // If the configured map is not confirmed, do not label arbitrary registers as SU600 telemetry.
-  if (config_.profileOk()) for (size_t i=0;i<6;++i) sample.ok[i]=bus_.read(addresses[i],sample.raw[i]);
-  if (journal_.motionPossible && (!sample.ok[0] || !sample.ok[1] || !sample.ok[3])) requestStop(StopReason::Link);
-  else if (journal_.motionPossible && sample.raw[0]!=0) requestStop(StopReason::Fault);
+  sample.vfd=driver_.sample();
+  if (journal_.motionPossible && (!sample.vfd.ok[0] || !sample.vfd.ok[1] || !sample.vfd.ok[3])) requestStop(StopReason::Link);
+  else if (journal_.motionPossible && sample.vfd.fault!=0) requestStop(StopReason::Fault);
   sample.sampledMs=clock_.monotonicMs(); sample.sampledUtcMs=clock_.utcMs();
   sample.configOk=sessionConfigOk(); sample.armed=armed_; sample.storageOk=storageOk_;
   sample.uptimeMs=clock_.uptimeMs(); sample.lastStop=lastStop_;

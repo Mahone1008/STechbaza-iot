@@ -13,6 +13,7 @@ from app.api.v1.organizations import router as organizations_router
 from app.api.v1.sites import router as sites_router
 from app.api.v1.telemetry import router as telemetry_router
 from app.api.v1.schedules import router as schedules_router
+from app.api.v1.equipment import router as equipment_router
 
 api_v1_router = APIRouter()
 api_v1_router.include_router(auth_router)
@@ -28,3 +29,4 @@ api_v1_router.include_router(notifications_router)
 api_v1_router.include_router(commands_router)
 api_v1_router.include_router(frontend_router)
 api_v1_router.include_router(schedules_router)
+api_v1_router.include_router(equipment_router)

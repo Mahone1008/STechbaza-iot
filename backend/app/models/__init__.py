@@ -13,8 +13,10 @@ from app.models.site import Site
 from app.models.telemetry import DeviceState, TelemetryMessage
 from app.models.user import User
 from app.models.schedule import DeviceSchedule, ScheduleOccurrence, ScheduleRevision
+from app.models.equipment import PumpInstallation, EquipmentModule, EquipmentConfiguration
 
 __all__ = [
+    "PumpInstallation", "EquipmentModule", "EquipmentConfiguration",
     "AlarmNotification",
     "NotificationRead",
     "AuthSession",

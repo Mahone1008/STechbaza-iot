@@ -7,12 +7,18 @@
 #include <esp_sntp.h>
 #include <esp_timer.h>
 #include <esp_system.h>
+#include <mbedtls/sha256.h>
 #include <atomic>
 #include <ctime>
 #include "src/core.h"
+#include "src/su600_driver.h"
 #include "src/protocol.h"
 #include "src/diagnostics.h"
 #include "src/journal_upgrade.h"
+#include "src/scoped_journal.h"
+#if __has_include("equipment_config.local.h")
+#include "equipment_config.local.h"
+#endif
 #if __has_include("config.local.h")
 #include "config.local.h"
 #else
@@ -24,12 +30,14 @@
 
 using namespace kerumo;
 namespace {
-constexpr char FirmwareVersion[]="0.5.0";
+constexpr char FirmwareVersion[]="0.6.0";
+EquipmentBinding equipment{};
+bool managedEquipment=false;
 static_assert(sizeof(time_t)>=8,"Calendar execution requires 64-bit time_t");
 std::atomic<int64_t> syncEpochMs{0}, syncMonoMs{0};
 std::atomic<bool> networkReady{false};
 std::atomic<uint32_t> networkCheckedMs{0};
-std::atomic<uint8_t> localAction{0}; // 1 bench arm, 2 disarm, 3 replay, 4 extended test arm
+std::atomic<uint8_t> localAction{0}; // 1 arm, 2 disarm, 3 replay, 4 extended test, 5 confirm stopped equipment binding
 QueueHandle_t commands, stopCommands, responses, samples;
 char sessionId[37]{};
 String baseTopic;
@@ -77,27 +85,44 @@ void timestamp(JsonVariant target,int64_t ms) {
 }
 class NvsStorage : public Storage {
   Preferences prefs;
+  ScopedJournal previous{};
  public:
-  bool opened=false;
+  bool opened=false, needsBinding=false;
   int load(Journal& value) override {
-    opened=prefs.begin("kerumo-v3",false);
+    if (!opened) opened=prefs.begin("kerumo-v3",false);
     if (!opened) return -1;
     if (!prefs.isKey("journal")) return 0;
-    if (prefs.getBytesLength("journal")==sizeof(ProgramJournalV3)) {
+    const size_t size=prefs.getBytesLength("journal");
+    if (size==sizeof(ScopedJournal)) {
+      if (prefs.getBytes("journal",&previous,sizeof(previous))!=sizeof(previous) || !validScope(previous)) return -1;
+      value=previous.journal;
+    } else if (size==sizeof(ProgramJournalV3)) {
       ProgramJournalV3 legacy{};
       if (prefs.getBytes("journal",&legacy,sizeof(legacy))!=sizeof(legacy) || !upgradeJournal(legacy,value)) return -1;
-      return 1;
-    }
-    if (prefs.getBytesLength("journal")==sizeof(LegacyJournal)) {
+      previous=wrapJournal(value,"");
+    } else if (size==sizeof(LegacyJournal)) {
       LegacyJournal legacy{};
       if (prefs.getBytes("journal",&legacy,sizeof(legacy))!=sizeof(legacy) || !upgradeJournal(legacy,value)) return -1;
-      return 1; // begin() перевіряє UID і атомарно зберігає новий blob до керування VFD.
+      previous=wrapJournal(value,"");
+    } else {
+      if (size!=sizeof(value) || prefs.getBytes("journal",&value,sizeof(value))!=sizeof(value) || !validJournal(value)) return -1;
+      previous=wrapJournal(value,"");
     }
-    if (prefs.getBytesLength("journal")!=sizeof(value)) return -1;
-    return prefs.getBytes("journal",&value,sizeof(value))==sizeof(value)?1:-1;
+    if (std::strcmp(previous.configurationHash,managedEquipment?equipment.hash:"")!=0) {
+      needsBinding=true; return -1; // No recovery I/O to a different drive.
+    }
+    needsBinding=false; return 1;
   }
   bool save(const Journal& value) override {
-    return opened && prefs.putBytes("journal",&value,sizeof(value))==sizeof(value);
+    const ScopedJournal scoped=wrapJournal(value,managedEquipment?equipment.hash:"");
+    return opened && prefs.putBytes("journal",&scoped,sizeof(scoped))==sizeof(scoped);
+  }
+  bool bindStoppedEquipment(const char* uid) {
+    if (!opened || !managedEquipment || !needsBinding || !validScope(previous) || std::strcmp(previous.journal.uid,uid)!=0) return false;
+    // Archive before atomic replacement; power loss leaves either the old locked or the new stopped journal.
+    if (prefs.putBytes("previous",&previous,sizeof(previous))!=sizeof(previous)) return false;
+    if (!save(journalForNewBinding(previous.journal))) return false;
+    needsBinding=false; return true;
   }
 } storage;
 class Modbus : public Bus {
@@ -134,16 +159,24 @@ class ResponseEvents : public Events {
     xQueueSend(responses,&record,0);
   }
 } events;
-Controller controller(bus,storage,deviceClock,events,KERUMO_ENABLE_CONTROL);
+Su600Driver drive(bus);
+Controller controller(drive,storage,deviceClock,events,KERUMO_ENABLE_CONTROL);
 
 void deviceTask(void*) {
   vfdSerial.begin(9600,SERIAL_8N1,18,17);
+  if (managedEquipment) drive.setInstallationLimits(equipment.minHz,equipment.maxHz);
   const bool ready=controller.begin(KERUMO_DEVICE_UID);
   Serial.printf("V3: storage=%s mode=%s UID=%s\n",ready?"OK":"LOCKED",KERUMO_ENABLE_CONTROL?"CONTROL / DISARMED":"READ ONLY",KERUMO_DEVICE_UID);
   uint32_t lastSample=0,lastReplay=0;
   StopReason lastReason=StopReason::None;
   for (;;) {
     uint8_t action=localAction.exchange(0);
+    if (action==5) {
+      DriveState state{}; double hz{}; drive.refreshConfig();
+      const bool bound=!controller.isArmed() && drive.controlOk() && drive.readState(state) && drive.readOutputHz(hz) &&
+        confirmedStopped(state,hz) && storage.bindStoppedEquipment(KERUMO_DEVICE_UID) && controller.begin(KERUMO_DEVICE_UID);
+      Serial.println(bound?"EQUIPMENT BOUND; DISARMED. Old journal archived.":"BIND DENIED: require managed manifest, pending binding, matching UID, valid profile and stopped drive");
+    }
     if (action==1) Serial.println(controller.arm()?"ARMED: SU600 bench, automatic STOP after 60 seconds":"ARM DENIED: inspect configuration, clock and stopped state");
     if (action==4) Serial.println(!KERUMO_ENABLE_EXTENDED_TEST?"ARM TEST DENIED: extended test is disabled in config.local.h":
       controller.arm(SessionMode::ExtendedTest)?"ARMED: SU600 EXTENDED TEST, no duration cap; normal STOP keeps permission":
@@ -162,16 +195,16 @@ void deviceTask(void*) {
     const uint32_t now=millis();
     if (static_cast<uint32_t>(now-lastSample)>=3000) {
       Sample sample=controller.sample(); xQueueOverwrite(samples,&sample); lastSample=millis();
-      const auto& c=controller.config();
+      const auto& c=drive.config();
       Serial.printf("SU600: read=%d profile=%d config=%d F0.02=%u F0.03=%u F0.04=%u F0.05=%u F0.06=%u F6.00=%u F6.01=%u F6.02=%u F6.03=%u F6.04=%u F6.05=%u armed=%d\n",
         c.readOk,c.profileOk(),c.controlOk(),c.runSource,c.frequencySource,c.maxRaw,c.upperRaw,c.lowerRaw,c.address,c.serial,c.timeoutRaw,c.responseDelay,c.scaleRaw,c.protocol,controller.isArmed());
       Serial.printf("TEST: session=%s guards_read=%d ready=%d F5.00=%04X (raw=%u) F4.08=%u last_stop=%s\n",
         controller.sessionMode()==SessionMode::ExtendedTest?"EXTENDED":"BENCH",c.protectionReadOk,c.extendedTestOk(),
         static_cast<unsigned>(c.protection),static_cast<unsigned>(c.protection),c.autoReset,stopReasonCode(controller.stopReason()));
       Serial.printf("READ: fault=%s:%u state=%s:%u set=%s:%.2f out=%s:%.2f I=%s:%.1f U=%s:%.1f\n",
-        sample.ok[0]?"OK":"MISSING",sample.raw[0],sample.ok[1]?"OK":"MISSING",sample.raw[1],
-        sample.ok[2]?"OK":"MISSING",sample.raw[2]/100.0,sample.ok[3]?"OK":"MISSING",sample.raw[3]/100.0,
-        sample.ok[4]?"OK":"MISSING",sample.raw[4]/10.0,sample.ok[5]?"OK":"MISSING",sample.raw[5]/10.0);
+        sample.vfd.ok[0]?"OK":"MISSING",sample.vfd.fault,sample.vfd.ok[1]?"OK":"MISSING",sample.vfd.state.raw,
+        sample.vfd.ok[2]?"OK":"MISSING",sample.vfd.setHz,sample.vfd.ok[3]?"OK":"MISSING",sample.vfd.outputHz,
+        sample.vfd.ok[4]?"OK":"MISSING",sample.vfd.currentA,sample.vfd.ok[5]?"OK":"MISSING",sample.vfd.voltageV);
     }
     if (action==3 || static_cast<uint32_t>(now-lastReplay)>=10000) { controller.replay(); lastReplay=now; }
     delay(10);
@@ -187,7 +220,7 @@ void received(int size) {
   }
   if (count!=size) { Serial.println("COMMAND DROPPED: incomplete"); networkReady.store(false); mqtt.stop(); return; }
   Command command{};
-  if (!parseCommand(payload,count,command)) { Serial.println("COMMAND DROPPED: invalid v2 envelope"); return; }
+  if (!parseCommand(payload,count,command,managedEquipment?&equipment:nullptr)) { Serial.println("COMMAND DROPPED: invalid envelope or equipment binding"); return; }
   BaseType_t queued;
   if (command.type==Type::Stop) {
     Command waiting{};
@@ -233,11 +266,12 @@ void telemetry(const Sample& sample,uint64_t sequence) {
   // Never re-label an old sample as current after a network stall.
   const bool fresh=static_cast<uint32_t>(millis()-sample.sampledMs)<5000;
   const char* keys[]={"vfd.set_frequency_hz","vfd.frequency_hz","vfd.current_a","vfd.voltage_v"};
-  for (size_t i=0;i<4;++i) if(fresh && sample.ok[i+2]) values[keys[i]]=sample.raw[i+2]/(i<2?100.0:10.0);
-  if (fresh && sample.ok[0]) state["vfd_fault_code"]=sample.raw[0];
-  if (fresh && sample.ok[1] && (sample.raw[1]&3)==1) state["pump_running"]=true;
-  if (fresh && sample.ok[1] && (sample.raw[1]&3)==2) state["pump_running"]=false;
-  state["vfd_link"]=fresh && sample.ok[0] && sample.ok[1] && sample.ok[3];
+  const double readings[]={sample.vfd.setHz,sample.vfd.outputHz,sample.vfd.currentA,sample.vfd.voltageV};
+  for (size_t i=0;i<4;++i) if(fresh && sample.vfd.ok[i+2]) values[keys[i]]=readings[i];
+  if (fresh && sample.vfd.ok[0]) state["vfd_fault_code"]=sample.vfd.fault;
+  if (fresh && sample.vfd.ok[1] && sample.vfd.state.running) state["pump_running"]=true;
+  if (fresh && sample.vfd.ok[1] && sample.vfd.state.stopped) state["pump_running"]=false;
+  state["vfd_link"]=fresh && sample.vfd.ok[0] && sample.vfd.ok[1] && sample.vfd.ok[3];
   state["vfd_configuration_valid"]=fresh && sample.configOk;
   state["control_armed"]=fresh && sample.armed && sample.storageOk;
   if (fresh) {
@@ -245,6 +279,7 @@ void telemetry(const Sample& sample,uint64_t sequence) {
     const bool measured=WiFi.status()==WL_CONNECTED && rssi>=-127 && rssi<0;
     writeDiagnostics(doc["diagnostics"].to<JsonObject>(),sample,FirmwareVersion,resetReasonCode(),
       {"wifi",measured?"rssi":nullptr,static_cast<int16_t>(measured?rssi:0)});
+    if (managedEquipment) writeEquipment(doc["diagnostics"]["equipment"].to<JsonObject>(),equipment,KERUMO_ENABLE_CONTROL && sample.configOk && sample.storageOk);
   }
   publish("/telemetry",doc);
 }
@@ -252,6 +287,17 @@ void telemetry(const Sample& sample,uint64_t sequence) {
 
 void setup() {
   Serial.begin(115200);
+#ifdef KERUMO_EQUIPMENT_JSON
+  const char* manifest=KERUMO_EQUIPMENT_JSON;
+  uint8_t digest[32]{};
+  if (!parseEquipment(manifest,std::strlen(manifest),KERUMO_DEVICE_UID,equipment) ||
+      mbedtls_sha256(reinterpret_cast<const unsigned char*>(manifest),std::strlen(manifest),digest,0)!=0) {
+    Serial.println("FATAL: invalid or unsupported equipment manifest; VFD I/O disabled");
+    while(true) delay(1000);
+  }
+  for (size_t i=0;i<32;++i) snprintf(equipment.hash+i*2,3,"%02x",digest[i]);
+  managedEquipment=true;
+#endif
   uuid(sessionId); baseTopic=String("techbaza/devices/")+KERUMO_DEVICE_UID;
   commands=xQueueCreate(8,sizeof(Command)); stopCommands=xQueueCreate(1,sizeof(Command));
   responses=xQueueCreate(24,sizeof(Record)); samples=xQueueCreate(1,sizeof(Sample));
@@ -275,6 +321,7 @@ void loop() {
       line[lineSize]=0;
       if(strcmp(line,"ARM SU600")==0) localAction.store(1);
       else if(strcmp(line,"ARM SU600 TEST")==0) localAction.store(4);
+      else if(strcmp(line,"BIND EQUIPMENT STOPPED")==0) localAction.store(5);
       else if(strcmp(line,"DISARM")==0) localAction.store(2);
       lineSize=0;
     } else if (ch!='\r') { if(lineSize+1<sizeof(line)) line[lineSize++]=ch; else lineSize=0; }

@@ -2,6 +2,7 @@
 #include <cstddef>
 #include <cstdint>
 #include "program.h"
+#include "vfd_driver.h"
 
 namespace kerumo {
 constexpr size_t LedgerSize = 8;
@@ -57,11 +58,6 @@ uint16_t modbusCrc(const uint8_t* bytes, size_t size);
 bool readResponse(const uint8_t* bytes, size_t size, uint8_t slave, uint16_t& value);
 bool writeResponse(const uint8_t* bytes, size_t size, const uint8_t request[8]);
 
-struct Bus {
-  virtual ~Bus() = default;
-  virtual bool read(uint16_t address, uint16_t& value) = 0;
-  virtual bool write(uint16_t address, uint16_t value) = 0;
-};
 struct Storage {
   virtual ~Storage() = default;
   // 0 = new namespace, 1 = loaded, -1 = corrupt/unavailable. Never erase to recover.
@@ -78,21 +74,6 @@ struct Events {
   virtual ~Events() = default;
   virtual void emit(const Record& record) = 0;
 };
-struct Su600Config {
-  uint16_t runSource{}, frequencySource{}, maxRaw{}, upperRaw{}, lowerRaw{};
-  uint16_t address{}, serial{}, timeoutRaw{}, responseDelay{}, scaleRaw{}, protocol{};
-  bool readOk{};
-  uint16_t protection{}, autoReset{}; // F5.00 keeps its raw, four-bits-per-digit register encoding.
-  bool protectionReadOk{};
-  bool profileOk() const;
-  bool controlOk() const;
-  bool extendedTestOk() const;
-};
-Su600Config readConfig(Bus& bus);
-bool frequencyWord(double hz, const Su600Config& config, uint16_t& result);
-bool stopped(uint16_t state, uint16_t outputFrequency);
-bool runningForward(uint16_t state);
-
 struct StopDiagnostic {
   StopReason reason{StopReason::None};
   uint64_t uptimeMs{};
@@ -100,8 +81,7 @@ struct StopDiagnostic {
   bool confirmed{}; // стан VFD + 0 Гц, не незалежне вимірювання обертання вала
 };
 struct Sample {
-  uint16_t raw[6]{}; // fault, state, set frequency, output frequency, current, voltage
-  bool ok[6]{};
+  DriveSample vfd{};
   uint32_t sampledMs{};
   int64_t sampledUtcMs{};
   bool configOk{}, armed{}, storageOk{};
@@ -112,7 +92,7 @@ struct Sample {
 };
 class Controller {
  public:
-  Controller(Bus& bus, Storage& storage, Clock& clock, Events& events, bool controls);
+  Controller(VfdDriver& driver, Storage& storage, Clock& clock, Events& events, bool controls);
   bool begin(const char* uid);
   bool arm(SessionMode mode = SessionMode::Bench);
   void disarm(StopReason reason = StopReason::LocalDisarm);
@@ -121,7 +101,6 @@ class Controller {
   Sample sample();
   void replay() const;
   const Journal& journal() const { return journal_; }
-  const Su600Config& config() const { return config_; }
   bool isArmed() const { return armed_; }
   SessionMode sessionMode() const { return mode_; }
   StopReason stopReason() const { return stopReason_; }
@@ -134,10 +113,9 @@ class Controller {
   void beginProgramStep();
   void tickProgram();
   void completeProgram(bool stopConfirmed);
-  Bus& bus_; Storage& storage_; Clock& clock_; Events& events_;
+  VfdDriver& driver_; Storage& storage_; Clock& clock_; Events& events_;
   const bool controls_;
   Journal journal_{};
-  Su600Config config_{};
   bool storageOk_{}, armed_{}, stopping_{};
   SessionMode mode_{SessionMode::Bench}; // RAM only: reboot never restores permission.
   StopReason stopReason_{StopReason::None};

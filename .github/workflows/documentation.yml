@@ -16,4 +16,6 @@ jobs:
         with:
           python-version: '3.13'
       - name: Check code reference and local Markdown links
-        run: python scripts/check-docs.py
+        run: |
+          python scripts/check-docs.py
+          python scripts/check-equipment-profiles.py

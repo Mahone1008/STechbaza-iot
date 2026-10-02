@@ -31,7 +31,7 @@ class ControllerDiagnosticsTests(unittest.TestCase):
 
     def test_preserves_unknown_time_false_and_64_bit_uptime(self):
         expected = {**diagnostic_payload(), "program": None}
-        self.assertEqual(self.envelope(expected).diagnostics.model_dump(mode="json"), expected)
+        self.assertEqual(self.envelope(expected).diagnostics.model_dump(mode="json"), {**expected, "equipment": None})
         with self.assertRaises(ValidationError):
             self.envelope(expected, session_id=None)
 

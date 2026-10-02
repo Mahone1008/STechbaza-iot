@@ -14,6 +14,7 @@ from app.schemas.command import DeviceCommandCreate
 from app.services.command_profile import frequency_allowed
 from app.services.command_outcomes import stop_delivery
 from app.services.program_policy import program_rejection
+from app.services.equipment import command_target
 
 
 @dataclass(frozen=True)
@@ -129,6 +130,7 @@ class CommandService:
         rejection = program_rejection(self._session, device, payload.command_type, payload.payload, created_at)
         if rejection:
             raise CommandProgramError(rejection)
+        target = command_target(self._session, device, created_at, stop=payload.command_type == "vfd.stop")
         device.command_sequence += 1
         if device.command_sequence > 9007199254740991:
             raise RuntimeError("Command sequence exhausted; re-enrollment required")
@@ -144,6 +146,7 @@ class CommandService:
             device_id=device_id,
             command_type=payload.command_type,
             control_sequence=device.command_sequence,
+            equipment_target=target,
             supersedes_request_id=payload.supersedes_request_id,
             payload=payload.payload,
             status="queued",

@@ -328,6 +328,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/devices/{device_id}/equipment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Equipment Passport */
+        get: operations["equipment_passport_api_v1_devices__device_id__equipment_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/devices/{device_id}/equipment/configurations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Configure Equipment */
+        post: operations["configure_equipment_api_v1_devices__device_id__equipment_configurations_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/devices/{device_id}/equipment/manifest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Equipment Manifest */
+        get: operations["equipment_manifest_api_v1_devices__device_id__equipment_manifest_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/devices/{device_id}/equipment/modules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Module */
+        post: operations["create_module_api_v1_devices__device_id__equipment_modules_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/devices/{device_id}/events": {
         parameters: {
             query?: never;
@@ -482,6 +550,23 @@ export interface paths {
          * @description Обмежений графік числової метрики за часом приймання сервером, [start, end).
          */
         get: operations["get_device_telemetry_series_api_v1_devices__device_id__telemetry_series_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/equipment/profiles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Profiles */
+        get: operations["list_profiles_api_v1_equipment_profiles_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -715,6 +800,23 @@ export interface paths {
         put?: never;
         /** Create Device */
         post: operations["create_device_api_v1_sites__site_id__devices_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sites/{site_id}/installations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Installation */
+        post: operations["create_installation_api_v1_sites__site_id__installations_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1042,6 +1144,32 @@ export interface components {
              */
             token_type: "bearer";
         };
+        /** BusSettings */
+        BusSettings: {
+            /** Address */
+            address: number;
+            /**
+             * Baud
+             * @enum {integer}
+             */
+            baud: 1200 | 2400 | 4800 | 9600 | 19200 | 38400 | 57600 | 115200;
+            /**
+             * Parity
+             * @enum {string}
+             */
+            parity: "none" | "even" | "odd";
+            /**
+             * Stop Bits
+             * @enum {integer}
+             */
+            stop_bits: 1 | 2;
+            /**
+             * Transport
+             * @default modbus_rtu
+             * @constant
+             */
+            transport: "modbus_rtu";
+        };
         /**
          * CapabilityCreate
          * @description Дані для створення capability у глобальному каталозі.
@@ -1084,6 +1212,38 @@ export interface components {
              */
             updated_at: string;
         };
+        /** ConfigurationCreate */
+        ConfigurationCreate: {
+            bus: components["schemas"]["BusSettings"];
+            /** Expected Revision */
+            expected_revision: number;
+            frequency_limits: components["schemas"]["FrequencyLimits"];
+            /**
+             * Module Id
+             * Format: uuid
+             */
+            module_id: string;
+            /** Profile Id */
+            profile_id: string;
+            /** Profile Version */
+            profile_version: number;
+        };
+        /** ConfigurationRead */
+        ConfigurationRead: {
+            /**
+             * Actor User Id
+             * Format: uuid
+             */
+            actor_user_id: string;
+            /** Configuration Hash */
+            configuration_hash: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            manifest: components["schemas"]["EquipmentManifest"];
+        };
         /** ConnectionDiagnostics */
         ConnectionDiagnostics: {
             signal?: components["schemas"]["SignalDiagnostics"] | null;
@@ -1096,6 +1256,7 @@ export interface components {
         /** ControllerDiagnostics */
         ControllerDiagnostics: {
             connection: components["schemas"]["ConnectionDiagnostics"];
+            equipment?: components["schemas"]["EquipmentReport"] | null;
             /** Firmware Version */
             firmware_version: string;
             last_stop?: components["schemas"]["StopDiagnostics"] | null;
@@ -1377,6 +1538,7 @@ export interface components {
              * Format: uuid
              */
             device_id: string;
+            equipment_target?: components["schemas"]["EquipmentTarget"] | null;
             /** Error Code */
             error_code: string | null;
             /** Error Message */
@@ -1547,6 +1709,12 @@ export interface components {
             device: components["schemas"]["DeviceRead"];
             /** @description Діагностика того самого telemetry snapshot і boot session; має спільну telemetry_freshness. */
             diagnostics?: components["schemas"]["ControllerDiagnostics"] | null;
+            /**
+             * Equipment State
+             * @default legacy
+             * @enum {string}
+             */
+            equipment_state: "legacy" | "awaiting" | "mismatch" | "stale" | "incompatible" | "verified";
             frequency_limits?: components["schemas"]["FrequencyLimits"] | null;
             /**
              * Generated At
@@ -1655,6 +1823,114 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        /** EquipmentManifest */
+        EquipmentManifest: {
+            /** Binding Generation */
+            binding_generation: number;
+            /**
+             * Binding Id
+             * Format: uuid
+             */
+            binding_id: string;
+            bus: components["schemas"]["BusSettings"];
+            /** Device Uid */
+            device_uid: string;
+            /** Driver Id */
+            driver_id: string;
+            /** Driver Version */
+            driver_version: number;
+            frequency_limits: components["schemas"]["FrequencyLimits"];
+            /**
+             * Module Id
+             * Format: uuid
+             */
+            module_id: string;
+            /** Profile Hash */
+            profile_hash: string;
+            /** Profile Id */
+            profile_id: string;
+            /** Profile Version */
+            profile_version: number;
+            /** Revision */
+            revision: number;
+            /**
+             * Version
+             * @default 1
+             * @constant
+             */
+            version: 1;
+        };
+        /** EquipmentPassport */
+        EquipmentPassport: {
+            /**
+             * Configuration State
+             * @enum {string}
+             */
+            configuration_state: "legacy" | "awaiting" | "mismatch" | "stale" | "incompatible" | "verified";
+            /** Controller Uid */
+            controller_uid: string;
+            desired: components["schemas"]["ConfigurationRead"] | null;
+            /**
+             * Device Id
+             * Format: uuid
+             */
+            device_id: string;
+            /** Firmware Version */
+            firmware_version: string | null;
+            /** Installations */
+            installations: components["schemas"]["InstallationRead"][];
+            /** Modules */
+            modules: components["schemas"]["ModuleRead"][];
+            reported: components["schemas"]["EquipmentReport"] | null;
+        };
+        /** EquipmentReport */
+        EquipmentReport: {
+            /** Binding Generation */
+            binding_generation: number;
+            /**
+             * Binding Id
+             * Format: uuid
+             */
+            binding_id: string;
+            /**
+             * Command Protocol
+             * @constant
+             */
+            command_protocol: 3;
+            /** Compatible */
+            compatible: boolean;
+            /** Configuration Hash */
+            configuration_hash: string;
+            /** Driver Id */
+            driver_id: string;
+            /** Driver Version */
+            driver_version: number;
+            /**
+             * Module Id
+             * Format: uuid
+             */
+            module_id: string;
+            /** Profile Hash */
+            profile_hash: string;
+            /** Profile Id */
+            profile_id: string;
+            /** Profile Version */
+            profile_version: number;
+            /** Revision */
+            revision: number;
+        };
+        /** EquipmentTarget */
+        EquipmentTarget: {
+            /**
+             * Binding Id
+             * Format: uuid
+             */
+            binding_id: string;
+            /** Configuration Hash */
+            configuration_hash: string;
+            /** Revision */
+            revision: number;
+        };
         /** FrequencyChange */
         FrequencyChange: {
             /**
@@ -1681,6 +1957,26 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /** InstallationCreate */
+        InstallationCreate: {
+            /** Name */
+            name: string;
+        };
+        /** InstallationRead */
+        InstallationRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /**
+             * Site Id
+             * Format: uuid
+             */
+            site_id: string;
         };
         /**
          * LoginRequest
@@ -1777,6 +2073,87 @@ export interface components {
             /** Value */
             value: number | null;
         };
+        /** ModuleCreate */
+        ModuleCreate: {
+            /** Hardware Revision */
+            hardware_revision?: string | null;
+            /**
+             * Installation Id
+             * Format: uuid
+             */
+            installation_id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "vfd" | "pressure_sensor" | "digital_input" | "relay" | "other";
+            /** Manufacturer */
+            manufacturer: string;
+            /** Model */
+            model: string;
+            motor?: components["schemas"]["MotorNameplate"] | null;
+            /** Name */
+            name: string;
+            /** Serial Number */
+            serial_number?: string | null;
+            /** Series */
+            series: string;
+            /** Slot */
+            slot: string;
+            /** Software Revision */
+            software_revision?: string | null;
+        };
+        /** ModuleRead */
+        ModuleRead: {
+            /**
+             * Device Id
+             * Format: uuid
+             */
+            device_id: string;
+            /** Hardware Revision */
+            hardware_revision?: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Installation Id
+             * Format: uuid
+             */
+            installation_id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "vfd" | "pressure_sensor" | "digital_input" | "relay" | "other";
+            /** Manufacturer */
+            manufacturer: string;
+            /** Model */
+            model: string;
+            motor?: components["schemas"]["MotorNameplate"] | null;
+            /** Name */
+            name: string;
+            /** Serial Number */
+            serial_number?: string | null;
+            /** Series */
+            series: string;
+            /** Slot */
+            slot: string;
+            /** Software Revision */
+            software_revision?: string | null;
+        };
+        /** MotorNameplate */
+        MotorNameplate: {
+            /** Rated Current A */
+            rated_current_a?: number | null;
+            /** Rated Frequency Hz */
+            rated_frequency_hz: number;
+            /** Rated Power Kw */
+            rated_power_kw?: number | null;
+            /** Rated Voltage V */
+            rated_voltage_v?: number | null;
+        };
         /** NotificationReadReceipt */
         NotificationReadReceipt: {
             /**
@@ -1865,6 +2242,42 @@ export interface components {
          * @enum {string}
          */
         PlatformRole: "user" | "service_admin" | "superadmin";
+        /** ProfileRead */
+        ProfileRead: {
+            /** Command Protocol */
+            command_protocol: number | null;
+            /** Driver Id */
+            driver_id: string | null;
+            /** Driver Version */
+            driver_version: number | null;
+            /** Id */
+            id: string;
+            /** Manual */
+            manual: string;
+            /** Manual Pages */
+            manual_pages: number[];
+            /** Manual Sha256 */
+            manual_sha256: string;
+            /** Manufacturer */
+            manufacturer: string;
+            /** Notes */
+            notes: string[];
+            /** Parameter Family */
+            parameter_family: string;
+            /** Profile Hash */
+            profile_hash: string;
+            /** Series */
+            series: string;
+            /**
+             * Support
+             * @enum {string}
+             */
+            support: "documented" | "bench_limited";
+            /** Tested Model */
+            tested_model: string | null;
+            /** Version */
+            version: number;
+        };
         /** ProgramProgress */
         ProgramProgress: {
             /** Command Id */
@@ -3228,6 +3641,136 @@ export interface operations {
             };
         };
     };
+    equipment_passport_api_v1_devices__device_id__equipment_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                device_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EquipmentPassport"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    configure_equipment_api_v1_devices__device_id__equipment_configurations_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                device_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConfigurationCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConfigurationRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    equipment_manifest_api_v1_devices__device_id__equipment_manifest_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                device_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_module_api_v1_devices__device_id__equipment_modules_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                device_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ModuleCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModuleRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_device_events_api_v1_devices__device_id__events_get: {
         parameters: {
             query?: {
@@ -3603,6 +4146,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AccessErrorRead"];
+                };
+            };
+        };
+    };
+    list_profiles_api_v1_equipment_profiles_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileRead"][];
                 };
             };
         };
@@ -4178,6 +4741,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DeviceRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_installation_api_v1_sites__site_id__installations_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InstallationCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InstallationRead"];
                 };
             };
             /** @description Validation Error */

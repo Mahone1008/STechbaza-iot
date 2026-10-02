@@ -19,6 +19,7 @@ build/
 .pio/
 .platformio/
 firmware/**/config.local.h
+firmware/**/equipment_config.local.h
 /.local/
 
 # Logs and runtime files

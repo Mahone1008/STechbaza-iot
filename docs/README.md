@@ -122,3 +122,5 @@
 - [Етап H — коригування backend перед frontend](stage-h-backend-corrections.md)
 - [Telemetry ingestion — локальна перевірка](telemetry-ingestion-local-test.md)
 - [Тестова збірка backend v1 — межі приймання](test-backend-release-v1.md)
+
+- [Основа обладнання, профілі SUSWE й commissioning v1](equipment-foundation-v1.md).

@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from app.numeric import finite_number
 from app.schemas.program import ProgramPlan
 from app.schemas.schedule import ScheduleRun
+from app.schemas.equipment import EquipmentTarget
 
 CommandType = Literal[
     "vfd.start",
@@ -69,7 +70,8 @@ class DeviceCommandCreate(BaseModel):
 class CommandEnvelope(BaseModel):
     """MQTT contract однієї команди Backend → Device."""
 
-    schema_version: Literal[1, 2] = 1
+    schema_version: Literal[1, 2, 3] = 1
+    equipment_target: EquipmentTarget | None = None
     control_sequence: int | None = Field(default=None, strict=True, ge=1, le=9007199254740991)
     command_id: uuid.UUID
     request_id: uuid.UUID
@@ -81,8 +83,10 @@ class CommandEnvelope(BaseModel):
 
     @model_validator(mode="after")
     def validate_protocol(self):
-        if (self.schema_version == 2) != (self.control_sequence is not None):
+        if (self.schema_version >= 2) != (self.control_sequence is not None):
             raise ValueError("Protocol v2 requires control_sequence; v1 cannot carry it")
+        if (self.schema_version == 3) != (self.equipment_target is not None):
+            raise ValueError("Protocol v3 requires equipment_target; legacy protocols cannot carry it")
         if self.issued_at.utcoffset() is None or self.expires_at.utcoffset() is None:
             raise ValueError("Command timestamps must have a timezone")
         if self.expires_at <= self.issued_at:
@@ -100,6 +104,7 @@ class DeviceCommandRead(BaseModel):
     device_id: uuid.UUID
     command_type: str
     control_sequence: int | None = None
+    equipment_target: EquipmentTarget | None = None
     schedule_id: uuid.UUID | None = None
     supersedes_request_id: uuid.UUID | None = None
     payload: dict[str, Any]

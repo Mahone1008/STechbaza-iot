@@ -184,7 +184,7 @@ def main():
         http = json.loads((ROOT / "restored-http.json").read_text())
         simulator = json.loads((ROOT / "restored-simulator.json").read_text())
         ensure(simulator == sqlite_fingerprint(ROOT / "simulator.sqlite3"), "Final simulator comparison failed")
-        write_private_json(ROOT / "acceptance-report.json", {"status": "passed", "backend": "0.43.0",
+        write_private_json(ROOT / "acceptance-report.json", {"status": "passed", "backend": "0.44.0",
             "git_revision": manifest["git_revision"], "migration": manifest["migration"],
             "tables_compared": len(source["tables"]), "restore_guard": guard, "restored_http": http,
             "sqlite_exact_match": True, "clean_install_and_live_restore": True})

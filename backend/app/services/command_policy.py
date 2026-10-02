@@ -18,6 +18,7 @@ from app.security.roles import Permission
 from app.device_contract import COMMAND_REQUIRED_CAPABILITY
 from app.services.program_policy import program_rejection
 from app.services.command_profile import frequency_allowed
+from app.services.equipment import equipment_rejection
 
 
 def dispatch_rejection(session: Session, command: DeviceCommand, now: datetime) -> str | None:
@@ -60,4 +61,7 @@ def dispatch_rejection(session: Session, command: DeviceCommand, now: datetime) 
         return "command_capability_disabled"
     if command.command_type == "vfd.frequency.set" and not frequency_allowed(session, command.device_id, command.payload):
         return "command_frequency_profile_changed"
+    rejection = equipment_rejection(session, device, command, now)
+    if rejection:
+        return rejection
     return program_rejection(session, device, command.command_type, command.payload, now, command.id)
