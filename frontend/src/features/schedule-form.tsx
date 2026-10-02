@@ -1,6 +1,7 @@
 "use client";
 import { Button, SelectField, TextField } from "@/components/ui";
 import { TimeField } from "@/components/time-field";
+import { DateField } from "@/components/date-field";
 import { repeatLabels, scheduleDayLabels, type ScheduleSpec } from "@/lib/api/schedules";
 
 const weekdays = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Нд"];
@@ -46,18 +47,17 @@ export function ScheduleForm({
       <div className="schedule-grid">
         <fieldset className="schedule-window">
           <legend>Запуск</legend>
-          <TextField
+          <DateField
             label="Дата початку"
-            required
-            type="date"
+            timezone={value.timezone}
             min="2000-01-01"
             max="2199-12-31"
             value={value.start_date}
-            onChange={(event) =>
+            onValueChange={(date) =>
               onChange({
                 ...value,
-                start_date: event.target.value,
-                until_date: value.repeat === "once" ? event.target.value : value.until_date,
+                start_date: date,
+                until_date: value.repeat === "once" ? date : value.until_date,
               })
             }
           />
@@ -126,13 +126,13 @@ export function ScheduleForm({
             ))}
           </SelectField>
           {value.repeat !== "once" && (
-            <TextField
+            <DateField
               label="Діє до дати включно"
-              type="date"
+              timezone={value.timezone}
               min={value.start_date}
               max="2199-12-31"
               value={value.until_date}
-              onChange={(event) => change("until_date", event.target.value)}
+              onValueChange={(date) => change("until_date", date)}
             />
           )}
           {value.repeat === "interval" && (
@@ -275,14 +275,14 @@ export function ScheduleForm({
         <p className="help-copy">Виняток стосується дати початку запуску, зокрема під час роботи через північ.</p>
         {value.excluded_dates.map((day, index) => (
           <div className="ui-row" key={index}>
-            <TextField
+            <DateField
               label={`Пропустити дату ${index + 1}`}
-              type="date"
+              timezone={value.timezone}
               value={day}
-              onChange={(event) =>
+              onValueChange={(date) =>
                 change(
                   "excluded_dates",
-                  value.excluded_dates.map((item, i) => (i === index ? event.target.value : item)),
+                  value.excluded_dates.map((item, i) => (i === index ? date : item)),
                 )
               }
             />

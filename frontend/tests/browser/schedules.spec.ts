@@ -9,6 +9,7 @@ import {
   mockAuthenticatedWorkspace,
   viewerPermissions,
 } from "./auth-fixtures";
+import { scheduleOverview as overview } from "../fixtures/schedules";
 import { newScheduleSpec, type Schedule, type ScheduleWrite } from "../../src/lib/api/schedules";
 
 test.describe.configure({ retries: 0 });
@@ -19,33 +20,6 @@ const start = "2076-10-01T16:00:00Z",
 async function openSchedules(page: Page) {
   await page.getByText("Додаткові налаштування команди", { exact: true }).click();
   await page.getByRole("combobox", { name: "Режим роботи", exact: true }).selectOption("schedule");
-}
-function overview() {
-  const data = programOverview(),
-    now = new Date().toISOString();
-  const cap = "f7d6f82e-ea2f-4b91-8ee9-003b19c183d6";
-  data.capabilities.push({
-    id: cap,
-    code: "vfd.schedule",
-    name: "Календарні запуски",
-    description: null,
-    created_at: now,
-    updated_at: now,
-  });
-  data.modules.push({
-    assignment_id: conflictId,
-    capability_id: cap,
-    code: "vfd.schedule",
-    supported: true,
-    channels: [],
-    command_types: ["vfd.schedule.start"],
-    allowed_commands: ["vfd.schedule.start"],
-  });
-  data.command_types.push("vfd.schedule.start");
-  data.allowed_commands.push("vfd.schedule.start");
-  data.diagnostics!.program!.supports_schedule = true;
-  data.diagnostics!.program!.max_schedule_seconds = 604800;
-  return data;
 }
 
 for (const width of [320, 393, 1280])

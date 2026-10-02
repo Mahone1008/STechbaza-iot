@@ -95,6 +95,14 @@ Live suite потребує налаштованого demo. Opt-in сценар
   команд (зокрема STOP), тоді як запланований старт має окреме вікно 30 с.
   [Start/Stop/frequency та невідомий результат](../docs/command-safety-v2.md).
 - Alarm acknowledge не означає resolve; персональне notification read не є alarm ACK.
+- Поля дати приймають `ДД.ММ.РРРР` або 8 цифр і відкривають спільний
+  адаптивний календар. До API надходить ISO-дата; неіснуючі дні та дата
+  завершення раніше початку блокують preview. «Сьогодні» визначається
+  часовим поясом об'єкта. Escape скасовує вибір і повертає фокус.
+- Усі випадаючі списки використовують `SelectField` і спільні CSS-правила.
+  У браузерах із `appearance: base-select` відкритий список має ширину поля,
+  обмеження розміру екраном і прокрутку; для інших збережено native fallback.
+  [Аудит форм і межі перевірки 02.10](../docs/audit-2026-10-02-frontend-forms.md).
 
 OpenAPI: `src/lib/api/openapi.json`, TypeScript: `src/lib/api/schema.d.ts`.
 Після зміни DTO виконайте з кореня `python scripts/export_openapi.py`

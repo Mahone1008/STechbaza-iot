@@ -1,6 +1,7 @@
 import { invalidResponse, isRecord, requiredDateTime, requiredString, requiredUuid } from "./access";
 import { MAX_SCHEDULE_DAYS, MAX_SCHEDULE_SECONDS, parseProgramPlan } from "./programs";
 import type { components } from "./schema";
+export { calendarDate } from "../calendar-date";
 
 export type Schedule = components["schemas"]["ScheduleRead"];
 export type ScheduleSpec = Required<components["schemas"]["ScheduleSpec"]>;
@@ -34,10 +35,6 @@ export function formatScheduleTime(value: string, timezone: string): string {
   }
 }
 
-export function calendarDate(date: Date, timezone: string) {
-  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(date);
-  return ["year", "month", "day"].map((name) => parts.find((part) => part.type === name)!.value).join("-");
-}
 export function newScheduleSpec(timezone: string, today: string): ScheduleSpec {
   return { name: "", timezone, start_date: today, until_date: today, start_time: "19:00", stop_time: "02:00", stop_day_offset: 1,
     frequency_hz: 0, repeat: "once", weekdays: [], interval_days: 1, month_day: 1, months: Array.from({ length: 12 }, (_, index) => index + 1), excluded_dates: [], changes: [] };

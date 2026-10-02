@@ -304,13 +304,15 @@ h1, h2, h3 { letter-spacing: -0.02em; }
 .status-danger { border-color: #efc7c8; background: var(--danger-soft); color: var(--danger); }
 .status-info { border-color: #c9dde7; background: var(--info-soft); color: var(--info); }
 
-.field { display: grid; gap: 7px; }
+.field { display: grid; gap: 7px; min-width: 0; max-width: 100%; }
 .field-label { color: var(--text); font-size: 13px; font-weight: 700; }
 .field-hint, .field-error { font-size: 12px; }
 .field-hint { color: var(--text-soft); }
 .field-error { color: var(--danger); }
 .input, .select {
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
   min-height: 44px;
   border: 1px solid var(--control-border);
   border-radius: 10px;
@@ -339,6 +341,7 @@ h1, h2, h3 { letter-spacing: -0.02em; }
 .data-table tbody tr:last-child td { border-bottom: 0; }
 .data-table tbody tr:hover { background: #fbfcfc; }
 .table-primary { font-weight: 700; }
+.data-table .table-primary { display: block; min-width: 12rem; max-width: 26rem; overflow-wrap: break-word; }
 .table-secondary { margin-top: 2px; color: var(--text-soft); font-size: 12px; }
 .table-empty { padding: 36px; color: var(--text-secondary); text-align: center; }
 .toolbar { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 16px; }
@@ -418,13 +421,36 @@ h1, h2, h3 { letter-spacing: -0.02em; }
 .ui-stack { display: grid; gap: 12px; }
 .ui-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 
-.dialog { width: min(92vw, 480px); border: 0; border-radius: var(--radius-lg); background: var(--surface); color: var(--text); padding: 0; box-shadow: var(--shadow-md); }
+.dialog { width: min(92vw, 480px); max-height: calc(100dvh - 24px); overflow-y: auto; overscroll-behavior: contain; border: 0; border-radius: var(--radius-lg); background: var(--surface); color: var(--text); padding: 0; box-shadow: var(--shadow-md); }
 .dialog::backdrop { background: rgb(23 33 38 / 48%); backdrop-filter: blur(2px); }
 .dialog-header { padding: 22px 22px 0; }
 .dialog-title { margin-bottom: 7px; font-size: 21px; }
 .dialog-description { margin-bottom: 0; color: var(--text-secondary); }
 .dialog-body { padding: 18px 22px; }
-.dialog-actions { display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid var(--border); padding: 16px 22px; }
+.dialog-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; border-top: 1px solid var(--border); padding: 16px 22px; }
+
+.date-input-control { display: grid; grid-template-columns: minmax(0, 1fr) 44px; gap: 8px; }
+.date-trigger { width: 44px; padding: 0; }
+.date-dialog { width: min(calc(100vw - 24px), 384px); }
+.date-dialog .dialog-header { padding: 16px 16px 0; }
+.date-dialog .dialog-body { padding: 12px 16px; }
+.date-dialog .dialog-actions { padding: 12px 16px; flex-direction: row; }
+.date-dialog .dialog-actions .button { width: auto; flex: 1; }
+.calendar-navigation { display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; align-items: center; gap: 6px; }
+.calendar-navigation h3 { margin: 0; text-align: center; font-size: 17px; }
+.calendar-navigation .button { padding: 0; font-size: 24px; }
+.calendar-month-selectors { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 10px; margin-block: 12px; }
+.calendar-grid { width: 100%; table-layout: fixed; border-collapse: collapse; text-align: center; }
+.calendar-grid th { padding-block: 8px; font-size: 12px; color: var(--text-secondary); }
+.calendar-grid td { padding: 2px 0; }
+.calendar-day { width: 100%; min-height: 40px; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--text); cursor: pointer; }
+.calendar-day[data-outside] { color: var(--text-soft); }
+.calendar-day:not(:disabled):hover { background: var(--brand-soft); }
+.calendar-day[aria-current="date"] { border-color: var(--brand); }
+.calendar-grid [aria-selected="true"] .calendar-day { background: var(--brand); color: #fff; }
+.calendar-day:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; box-shadow: var(--focus); }
+.calendar-day:disabled { color: var(--text-soft); opacity: .45; cursor: default; }
+.calendar-keyboard-help { margin-block: 10px 0; }
 
 .login-page { display: grid; min-height: 100vh; grid-template-columns: minmax(0, 1.15fr) minmax(420px, 0.85fr); background: var(--surface); }
 .login-visual { position: relative; display: flex; overflow: hidden; flex-direction: column; justify-content: space-between; background: #eef4f3; padding: 42px 52px; }
@@ -456,6 +482,7 @@ h1, h2, h3 { letter-spacing: -0.02em; }
 }
 
 @media (max-width: 820px) {
+  .input, .select { font-size: 16px; }
   .sidebar { display: none; }
   .workspace { margin-left: 0; padding-bottom: calc(90px + env(safe-area-inset-bottom)); }
   .topbar { min-height: 62px; padding: 0 18px; }
@@ -539,6 +566,7 @@ h1, h2, h3 { letter-spacing: -0.02em; }
 
 /* Історія залишається в межах вузького екрана; таблиця має власний scroll. */
 .history-controls { display: flex; flex-wrap: wrap; gap: 1rem; margin-block: 1rem; }
+.history-controls > .field { flex: 1 1 12rem; max-width: 24rem; }
 .history-controls label { display: grid; gap: .4rem; min-width: 0; max-width: 100%; }
 .history-controls select { max-width: 100%; padding: .65rem; border: 1px solid var(--control-border); border-radius: .5rem; background: var(--surface); color: var(--text); }
 .panel-refresh-controls { max-width: 24rem; margin-block: 1rem; }
@@ -549,12 +577,12 @@ h1, h2, h3 { letter-spacing: -0.02em; }
   .telemetry-history-controls > label:first-child { grid-column: 1 / -1; }
   .telemetry-history-controls select { font-size: 16px; }
 }
-/* Native select semantics and keyboard handling; older browsers keep their system picker. */
+/* Єдине оформлення всіх списків. Старі браузери зберігають системний picker. */
 @supports (appearance: base-select) {
-  :is(.telemetry-history-controls, .panel-refresh-controls, .work-mode-settings, .schedule-form) select,
-  :is(.telemetry-history-controls, .panel-refresh-controls, .work-mode-settings, .schedule-form) select::picker(select) { appearance: base-select; }
-  :is(.telemetry-history-controls, .panel-refresh-controls, .work-mode-settings, .schedule-form) select { align-items: center; gap: .5rem; }
-  :is(.telemetry-history-controls, .panel-refresh-controls, .work-mode-settings, .schedule-form) select::picker(select) {
+  .select,
+  .select::picker(select) { appearance: base-select; }
+  .select { align-items: center; gap: .5rem; }
+  .select::picker(select) {
     box-sizing: border-box;
     inline-size: anchor-size(self-inline);
     max-inline-size: calc(100vw - 2rem);
@@ -569,10 +597,10 @@ h1, h2, h3 { letter-spacing: -0.02em; }
     padding: .25rem;
     font: inherit;
   }
-  :is(.telemetry-history-controls, .panel-refresh-controls, .work-mode-settings, .schedule-form) option { min-height: 44px; padding: .5rem .65rem; gap: .5rem; white-space: normal; overflow-wrap: anywhere; }
-  :is(.telemetry-history-controls, .panel-refresh-controls, .work-mode-settings, .schedule-form) option:checked { background: var(--brand-soft); color: var(--brand); }
-  :is(.telemetry-history-controls, .panel-refresh-controls, .work-mode-settings, .schedule-form) option:not(:disabled):is(:hover, :focus-visible) { background: var(--surface-muted); }
-  :is(.telemetry-history-controls, .panel-refresh-controls, .work-mode-settings, .schedule-form) option:disabled { color: var(--text-soft); opacity: .55; }
+  .select option { min-height: 44px; padding: .5rem .65rem; gap: .5rem; white-space: normal; overflow-wrap: break-word; }
+  .select option:checked { background: var(--brand-soft); color: var(--brand); }
+  .select option:not(:disabled):is(:hover, :focus-visible) { background: var(--surface-muted); }
+  .select option:disabled { color: var(--text-soft); opacity: .55; }
 }
 .telemetry-chart { display: block; width: 100%; height: auto; color: var(--brand); margin-top: 1rem; }
 .telemetry-chart text { fill: currentColor; font-size: 11px; }
@@ -615,5 +643,4 @@ h1, h2, h3 { letter-spacing: -0.02em; }
 @media (max-width: 520px) {
   .program-step { padding: .75rem; }
   .program-duration { gap: .4rem; }
-  .program-settings input, .command-delivery-settings input, .work-mode-settings select, .panel-refresh-controls select { font-size: 16px; }
 }
