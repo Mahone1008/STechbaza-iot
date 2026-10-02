@@ -23,6 +23,7 @@ describe("API error contract", () => {
       "Email некоректний Пароль закороткий",
     );
     expect(problemMessage({}, 403)).toBe("Недостатньо прав для цієї дії.");
+    expect(problemMessage({ detail: [{ type: "value_error", msg: "Value error, Оберіть дні тижня" }] }, 422)).toBe("Оберіть дні тижня");
   });
 
   it("shows network and timeout errors as failures, not empty data", () => {

@@ -619,6 +619,7 @@ h1, h2, h3 { letter-spacing: -0.02em; }
 .work-mode-label { color: var(--text-soft); font-size: .875rem; }
 .command-settings { margin-bottom: 1rem; }
 .schedule-panel { min-width: 0; margin-block: 1rem; padding-block: 1rem; border-top: 1px solid var(--border); }
+.schedule-panel > h3 { scroll-margin-block-start: 6rem; }
 .schedule-window { min-width: 0; margin: 0; padding: 1rem; border: 1px solid var(--border); border-radius: .75rem; display: grid; gap: .75rem; }
 .schedule-window legend { padding-inline: .4rem; font-weight: 600; }
 .schedule-form { min-width: 0; border: 0; padding: 0; margin-block: 1rem; display: grid; gap: 1rem; }
@@ -632,6 +633,12 @@ h1, h2, h3 { letter-spacing: -0.02em; }
 .schedule-list, .schedule-history { list-style: none; padding: 0; display: grid; gap: 1rem; }
 .schedule-list > li, .schedule-history > li { padding-block: 1rem; border-bottom: 1px solid var(--border); overflow-wrap: anywhere; }
 .schedule-editor, .schedule-preview { min-width: 0; margin-block: 1rem; }
+.schedule-section-content { display: grid; gap: 1rem; margin-top: .75rem; padding: 1rem; border: 1px solid var(--border); border-radius: .75rem; }
+.schedule-section-content > p { margin: 0; }
+.schedule-section-content > .button, .schedule-section-content .program-step > .button { justify-self: start; }
+.schedule-exclusion { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem 1rem; padding: 1rem; background: var(--surface-muted); border-radius: .5rem; }
+.schedule-exclusion > .field { flex: 1 1 15rem; max-width: 24rem; }
+.schedule-editor-actions { margin-top: 1.5rem; padding-top: 1.25rem; border-top: 1px solid var(--border); }
 .program-steps { display: grid; gap: 1rem; margin-block: 1rem; }
 .program-step { min-width: 0; margin: 0; border: 1px solid var(--border); border-radius: .75rem; padding: 1rem; display: grid; gap: .75rem; }
 .program-step legend { padding-inline: .4rem; font-weight: 600; }

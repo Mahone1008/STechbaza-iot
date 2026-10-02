@@ -3,6 +3,7 @@ import { Button, SelectField, TextField } from "@/components/ui";
 import { TimeField } from "@/components/time-field";
 import { DateField } from "@/components/date-field";
 import { repeatLabels, scheduleDayLabels, type ScheduleSpec } from "@/lib/api/schedules";
+import { scheduleTimingErrors } from "@/lib/schedule-validation";
 
 const weekdays = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Нд"];
 const months = [
@@ -34,6 +35,7 @@ export function ScheduleForm({
   limits: { min_hz: number; max_hz: number } | null;
 }) {
   const change = <K extends keyof ScheduleSpec>(key: K, item: ScheduleSpec[K]) => onChange({ ...value, [key]: item });
+  const timing = scheduleTimingErrors(value);
   return (
     <fieldset className="schedule-form" disabled={disabled}>
       <legend>Налаштування розкладу</legend>
@@ -80,10 +82,15 @@ export function ScheduleForm({
               </option>
             ))}
           </SelectField>
-          <TimeField label="Час зупинки" value={value.stop_time} onValueChange={(time) => change("stop_time", time)} />
+          <TimeField
+            label="Час зупинки"
+            value={value.stop_time}
+            validationMessage={timing.stop}
+            onValueChange={(time) => change("stop_time", time)}
+          />
         </fieldset>
       </div>
-      <p className="help-copy">Час у форматі ГГ:ХХ, від 00:00 до 23:59. Можна ввести 4 цифри: 1930 → 19:30.</p>
+      <p className="help-copy">Час від 00:00 до 23:59. Приймаємо 6:00, 06:00 або цифри: 600 → 06:00, 1930 → 19:30.</p>
       <TextField
         label="Частота за розкладом, Гц"
         required
@@ -101,210 +108,218 @@ export function ScheduleForm({
       />
       <details>
         <summary>Повторення та сезон</summary>
-        <p className="help-copy">
-          Це повторення окремих запусків. Для роботи без зупинки протягом тижня оберіть «Через 7 днів» у полі «День
-          зупинки».
-        </p>
-        <div className="schedule-grid">
-          <SelectField
-            label="Повторення"
-            value={value.repeat}
-            onChange={(event) =>
-              onChange({
-                ...value,
-                repeat: event.target.value as ScheduleSpec["repeat"],
-                until_date: event.target.value === "once" ? value.start_date : value.until_date,
-                months:
-                  event.target.value === "once" ? Array.from({ length: 12 }, (_, index) => index + 1) : value.months,
-              })
-            }
-          >
-            {Object.entries(repeatLabels).map(([key, label]) => (
-              <option key={key} value={key}>
-                {label}
-              </option>
-            ))}
-          </SelectField>
-          {value.repeat !== "once" && (
-            <DateField
-              label="Діє до дати включно"
-              timezone={value.timezone}
-              min={value.start_date}
-              max="2199-12-31"
-              value={value.until_date}
-              onValueChange={(date) => change("until_date", date)}
-            />
-          )}
-          {value.repeat === "interval" && (
-            <TextField
-              label="Інтервал, днів"
-              type="number"
-              min={1}
-              max={366}
-              value={value.interval_days}
-              onChange={(event) => change("interval_days", Number(event.target.value))}
-            />
-          )}
-          {value.repeat === "monthly" && (
+        <div className="schedule-section-content">
+          <p className="help-copy">
+            Це повторення окремих запусків. Для роботи без зупинки протягом тижня оберіть «Через 7 днів» у полі «День
+            зупинки».
+          </p>
+          <div className="schedule-grid">
             <SelectField
-              label="День місяця"
-              value={value.month_day}
-              onChange={(event) => change("month_day", Number(event.target.value))}
+              label="Повторення"
+              value={value.repeat}
+              onChange={(event) =>
+                onChange({
+                  ...value,
+                  repeat: event.target.value as ScheduleSpec["repeat"],
+                  until_date: event.target.value === "once" ? value.start_date : value.until_date,
+                  months:
+                    event.target.value === "once" ? Array.from({ length: 12 }, (_, index) => index + 1) : value.months,
+                })
+              }
             >
-              <option value={-1}>Останній день місяця</option>
-              {Array.from({ length: 31 }, (_, index) => (
-                <option key={index} value={index + 1}>
-                  {index + 1}
+              {Object.entries(repeatLabels).map(([key, label]) => (
+                <option key={key} value={key}>
+                  {label}
                 </option>
               ))}
             </SelectField>
-          )}
-        </div>
-        {value.repeat === "weekly" && (
-          <fieldset className="schedule-options">
-            <legend>Дні тижня</legend>
-            {weekdays.map((label, day) => (
-              <label key={day}>
-                <input
-                  type="checkbox"
-                  checked={value.weekdays.includes(day)}
-                  onChange={() => change("weekdays", toggle(value.weekdays, day))}
-                />
-                {label}
-              </label>
-            ))}
-          </fieldset>
-        )}
-        {value.repeat === "yearly" && <p>Щороку в день і місяць дати початку. 29 лютого — лише у високосні роки.</p>}
-        {value.repeat === "monthly" && <p>Якщо обраного числа немає в місяці, запуск пропускається.</p>}
-        {value.repeat !== "once" && (
-          <fieldset className="schedule-options">
-            <legend>Місяці роботи</legend>
-            {months.map((label, index) => (
-              <label key={label}>
-                <input
-                  type="checkbox"
-                  checked={value.months.includes(index + 1)}
-                  onChange={() => change("months", toggle(value.months, index + 1))}
-                />
-                {label}
-              </label>
-            ))}
-          </fieldset>
-        )}
-      </details>
-      <details>
-        <summary>Зміна частоти протягом роботи</summary>
-        <p className="help-copy">
-          До 7 змін за місцевим часом, між початком і зупинкою. Переходи не пересувають час завершення.
-        </p>
-        {value.changes.map((item, index) => (
-          <fieldset className="program-step" key={index}>
-            <legend>Зміна {index + 1}</legend>
-            <div className="schedule-grid">
-              <TimeField
-                label={`Час зміни ${index + 1}`}
-                value={item.at}
-                onValueChange={(time) =>
-                  change(
-                    "changes",
-                    value.changes.map((row, i) => (i === index ? { ...row, at: time } : row)),
-                  )
-                }
+            {value.repeat !== "once" && (
+              <DateField
+                label="Діє до дати включно"
+                timezone={value.timezone}
+                min={value.start_date}
+                max="2199-12-31"
+                value={value.until_date}
+                onValueChange={(date) => change("until_date", date)}
               />
+            )}
+            {value.repeat === "interval" && (
+              <TextField
+                label="Інтервал, днів"
+                type="number"
+                min={1}
+                max={366}
+                value={value.interval_days}
+                onChange={(event) => change("interval_days", Number(event.target.value))}
+              />
+            )}
+            {value.repeat === "monthly" && (
               <SelectField
-                label={`День зміни ${index + 1}`}
-                value={item.day_offset}
-                onChange={(event) =>
-                  change(
-                    "changes",
-                    value.changes.map((row, i) =>
-                      i === index ? { ...row, day_offset: Number(event.target.value) } : row,
-                    ),
-                  )
-                }
+                label="День місяця"
+                value={value.month_day}
+                onChange={(event) => change("month_day", Number(event.target.value))}
               >
-                {scheduleDayLabels.map((label, offset) => (
-                  <option key={offset} value={offset}>
-                    {label}
+                <option value={-1}>Останній день місяця</option>
+                {Array.from({ length: 31 }, (_, index) => (
+                  <option key={index} value={index + 1}>
+                    {index + 1}
                   </option>
                 ))}
               </SelectField>
-              <TextField
-                label={`Нова частота ${index + 1}, Гц`}
-                required
-                type="number"
-                min={Math.max(0.01, limits?.min_hz ?? 0.01)}
-                max={limits?.max_hz ?? 100}
-                step="0.01"
-                value={item.frequency_hz || ""}
-                onChange={(event) =>
+            )}
+          </div>
+          {value.repeat === "weekly" && (
+            <fieldset className="schedule-options">
+              <legend>Дні тижня</legend>
+              {weekdays.map((label, day) => (
+                <label key={day}>
+                  <input
+                    type="checkbox"
+                    checked={value.weekdays.includes(day)}
+                    onChange={() => change("weekdays", toggle(value.weekdays, day))}
+                  />
+                  {label}
+                </label>
+              ))}
+            </fieldset>
+          )}
+          {value.repeat === "yearly" && <p>Щороку в день і місяць дати початку. 29 лютого — лише у високосні роки.</p>}
+          {value.repeat === "monthly" && <p>Якщо обраного числа немає в місяці, запуск пропускається.</p>}
+          {value.repeat !== "once" && (
+            <fieldset className="schedule-options">
+              <legend>Місяці роботи</legend>
+              {months.map((label, index) => (
+                <label key={label}>
+                  <input
+                    type="checkbox"
+                    checked={value.months.includes(index + 1)}
+                    onChange={() => change("months", toggle(value.months, index + 1))}
+                  />
+                  {label}
+                </label>
+              ))}
+            </fieldset>
+          )}
+        </div>
+      </details>
+      <details>
+        <summary>Зміна частоти протягом роботи</summary>
+        <div className="schedule-section-content">
+          <p className="help-copy">
+            До 7 змін за місцевим часом, у хронологічному порядку. Від запуску, між змінами та до зупинки — щонайменше 1
+            хв. Повторення розкладу не продовжує окремий запуск.
+          </p>
+          {value.changes.map((item, index) => (
+            <fieldset className="program-step" key={index}>
+              <legend>Зміна {index + 1}</legend>
+              <div className="schedule-grid">
+                <TimeField
+                  label={`Час зміни ${index + 1}`}
+                  value={item.at}
+                  validationMessage={timing.changes[index]}
+                  onValueChange={(time) =>
+                    change(
+                      "changes",
+                      value.changes.map((row, i) => (i === index ? { ...row, at: time } : row)),
+                    )
+                  }
+                />
+                <SelectField
+                  label={`День зміни ${index + 1}`}
+                  value={item.day_offset}
+                  onChange={(event) =>
+                    change(
+                      "changes",
+                      value.changes.map((row, i) =>
+                        i === index ? { ...row, day_offset: Number(event.target.value) } : row,
+                      ),
+                    )
+                  }
+                >
+                  {scheduleDayLabels.map((label, offset) => (
+                    <option key={offset} value={offset}>
+                      {label}
+                    </option>
+                  ))}
+                </SelectField>
+                <TextField
+                  label={`Нова частота ${index + 1}, Гц`}
+                  required
+                  type="number"
+                  min={Math.max(0.01, limits?.min_hz ?? 0.01)}
+                  max={limits?.max_hz ?? 100}
+                  step="0.01"
+                  value={item.frequency_hz || ""}
+                  onChange={(event) =>
+                    change(
+                      "changes",
+                      value.changes.map((row, i) =>
+                        i === index ? { ...row, frequency_hz: Number(event.target.value) } : row,
+                      ),
+                    )
+                  }
+                />
+              </div>
+              <Button
+                variant="ghost"
+                onClick={() =>
                   change(
                     "changes",
-                    value.changes.map((row, i) =>
-                      i === index ? { ...row, frequency_hz: Number(event.target.value) } : row,
-                    ),
+                    value.changes.filter((_, i) => i !== index),
                   )
                 }
-              />
-            </div>
-            <Button
-              variant="ghost"
-              onClick={() =>
-                change(
-                  "changes",
-                  value.changes.filter((_, i) => i !== index),
-                )
-              }
-            >
-              Видалити зміну {index + 1}
-            </Button>
-          </fieldset>
-        ))}
-        <Button
-          disabled={disabled || value.changes.length >= 7}
-          onClick={() =>
-            change("changes", [...value.changes, { at: "", day_offset: 0, frequency_hz: value.frequency_hz }])
-          }
-        >
-          Додати зміну частоти
-        </Button>
+              >
+                Видалити зміну {index + 1}
+              </Button>
+            </fieldset>
+          ))}
+          <Button
+            disabled={disabled || value.changes.length >= 7}
+            onClick={() =>
+              change("changes", [...value.changes, { at: "", day_offset: 0, frequency_hz: value.frequency_hz }])
+            }
+          >
+            Додати зміну частоти
+          </Button>
+        </div>
       </details>
       <details>
         <summary>Дати без запуску</summary>
-        <p className="help-copy">Виняток стосується дати початку запуску, зокрема під час роботи через північ.</p>
-        {value.excluded_dates.map((day, index) => (
-          <div className="ui-row" key={index}>
-            <DateField
-              label={`Пропустити дату ${index + 1}`}
-              timezone={value.timezone}
-              value={day}
-              onValueChange={(date) =>
-                change(
-                  "excluded_dates",
-                  value.excluded_dates.map((item, i) => (i === index ? date : item)),
-                )
-              }
-            />
-            <Button
-              variant="ghost"
-              onClick={() =>
-                change(
-                  "excluded_dates",
-                  value.excluded_dates.filter((_, i) => i !== index),
-                )
-              }
-            >
-              Прибрати виняток {index + 1}
-            </Button>
-          </div>
-        ))}
-        <Button
-          disabled={disabled || value.excluded_dates.length >= 100}
-          onClick={() => change("excluded_dates", [...value.excluded_dates, value.start_date])}
-        >
-          Додати дату без запуску
-        </Button>
+        <div className="schedule-section-content">
+          <p className="help-copy">Виняток стосується дати початку запуску, зокрема під час роботи через північ.</p>
+          {value.excluded_dates.map((day, index) => (
+            <div className="schedule-exclusion" key={index}>
+              <DateField
+                label={`Пропустити дату ${index + 1}`}
+                timezone={value.timezone}
+                value={day}
+                onValueChange={(date) =>
+                  change(
+                    "excluded_dates",
+                    value.excluded_dates.map((item, i) => (i === index ? date : item)),
+                  )
+                }
+              />
+              <Button
+                variant="ghost"
+                onClick={() =>
+                  change(
+                    "excluded_dates",
+                    value.excluded_dates.filter((_, i) => i !== index),
+                  )
+                }
+              >
+                Прибрати виняток {index + 1}
+              </Button>
+            </div>
+          ))}
+          <Button
+            disabled={disabled || value.excluded_dates.length >= 100}
+            onClick={() => change("excluded_dates", [...value.excluded_dates, value.start_date])}
+          >
+            Додати дату без запуску
+          </Button>
+        </div>
       </details>
     </fieldset>
   );

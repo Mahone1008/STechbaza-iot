@@ -1,15 +1,18 @@
 "use client";
 import { TextField } from "./ui";
+import { normalizeTimeInput, timeInputError } from "@/lib/time-input";
 
 // Текстове поле не відкриває системний time-picker поза межами мобільного екрана.
 export function TimeField({
   label,
   value,
   onValueChange,
+  validationMessage = "",
 }: {
   label: string;
   value: string;
   onValueChange: (value: string) => void;
+  validationMessage?: string | undefined;
 }) {
   return (
     <TextField
@@ -18,12 +21,16 @@ export function TimeField({
       inputMode="numeric"
       required
       maxLength={5}
-      pattern="(?:[01][0-9]|2[0-3]):[0-5][0-9]"
+      pattern="(?:[0-9]{3,4}|[0-9]{1,2}:[0-9]{2})"
       placeholder="ГГ:ХХ"
-      title="Час від 00:00 до 23:59 у форматі ГГ:ХХ"
+      validationMessage={timeInputError(value) || validationMessage}
       autoComplete="off"
       value={value.slice(0, 5)}
-      onChange={(event) => onValueChange(event.target.value.replace(/^(\d{2})(\d{2})$/, "$1:$2"))}
+      onChange={(event) => onValueChange(normalizeTimeInput(event.target.value, false))}
+      onBlur={(event) => {
+        const normalized = normalizeTimeInput(event.target.value);
+        if (normalized !== event.target.value) onValueChange(normalized);
+      }}
     />
   );
 }

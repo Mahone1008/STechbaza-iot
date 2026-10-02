@@ -1,4 +1,5 @@
-import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, SelectHTMLAttributes } from "react";
+import type { ButtonHTMLAttributes, ReactNode, SelectHTMLAttributes } from "react";
+export { TextField } from "./text-field";
 
 function classNames(...values: Array<string | false | null | undefined>) {
   return values.filter(Boolean).join(" ");
@@ -41,20 +42,6 @@ export function StatusBadge({ children, tone = "neutral" }: { children: ReactNod
 }
 
 type FieldBaseProps = { label: string; hint?: string; error?: string };
-type TextFieldProps = FieldBaseProps & InputHTMLAttributes<HTMLInputElement>;
-
-export function TextField({ label, hint, error, id, className, ...props }: TextFieldProps) {
-  const fieldId = id ?? `field-${label.toLowerCase().replace(/[^a-z0-9а-яіїє]+/giu, "-")}`;
-  const descriptionId = error ? `${fieldId}-error` : hint ? `${fieldId}-hint` : undefined;
-  return (
-    <label className="field" htmlFor={fieldId}>
-      <span className="field-label" id={`${fieldId}-label`}>{label}</span>
-      <input className={classNames("input", className)} id={fieldId} aria-labelledby={`${fieldId}-label`} aria-invalid={Boolean(error)} aria-describedby={descriptionId} {...props} />
-      {error ? <span className="field-error" id={descriptionId}>{error}</span> : hint ? <span className="field-hint" id={descriptionId}>{hint}</span> : null}
-    </label>
-  );
-}
-
 type SelectFieldProps = FieldBaseProps & SelectHTMLAttributes<HTMLSelectElement>;
 export function SelectField({ label, hint, error, id, className, children, ...props }: SelectFieldProps) {
   const fieldId = id ?? `select-${label.toLowerCase().replace(/[^a-z0-9а-яіїє]+/giu, "-")}`;

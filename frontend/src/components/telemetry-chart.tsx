@@ -29,7 +29,11 @@ export function TelemetryChart({ series, timezone }: { series: Series; timezone:
       {segments.map((d, i) => <path key={i} d={d} fill="none" stroke="currentColor" strokeWidth="2" />)}
       <text x="65" y="250">Початок</text><text x="775" y="250" textAnchor="end">Кінець</text>
     </svg>}
-    <p className="help-copy">Лінія — середнє; вертикальні відрізки — мінімум–максимум. Помаранчеві точки — часткові дані. Пропуски не з’єднуються.</p>
+    <p className="help-copy">{series.sample_count === 0
+      ? series.message_count > 0
+        ? "Повідомлення надходили, але для цієї метрики значення були відсутні або некоректні. Це не нульові вимірювання; якість видно в таблиці нижче."
+        : "У вибраному періоді немає повідомлень із вимірюваннями. Оберіть інший період або оновіть історію після надходження даних."
+      : "Лінія — середнє; вертикальні відрізки — мінімум–максимум. Помаранчеві точки — часткові дані. Пропуски не з’єднуються."}</p>
     <p>{formatSeen(series.start, timezone)} — {formatSeen(series.end, timezone)} · {timezone}</p>
     <p>Валідних вимірювань: {series.sample_count}; повідомлень: {series.message_count}. Інтервал: {series.bucket_seconds} с.</p>
     <details><summary>Таблиця вимірювань</summary><div className="history-table" tabIndex={0} role="region" aria-label="Інтервали історії"><table>

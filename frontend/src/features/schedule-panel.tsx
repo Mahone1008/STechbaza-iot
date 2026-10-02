@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { Button, StatusBadge } from "@/components/ui";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { apiErrorDisplayMessage, apiQueryKeys, isApiError } from "@/lib/api";
@@ -27,6 +27,7 @@ import { useAuthSession } from "./auth-session";
 import { usePanelQuery } from "./use-panel-query";
 import { ScheduleForm } from "./schedule-form";
 import type { PollSeconds } from "@/lib/api/polling-policy";
+import { normalizeScheduleTimes } from "@/lib/schedule-validation";
 
 const errorText = (error: unknown) =>
   isApiError(error)
@@ -128,6 +129,8 @@ export function SchedulePanel({
 }) {
   const { authorizedRequest } = useAuthSession();
   const titleId = useId();
+  const heading = useRef<HTMLHeadingElement>(null);
+  const focusHeading = useRef(false);
   const device = context.activeDevice!;
   const timezone = context.activeSite?.timezone ?? "UTC";
   const canWrite = context.access.permissions.includes("command.execute");
@@ -152,6 +155,12 @@ export function SchedulePanel({
   const [busy, setBusy] = useState(false);
   const [history, setHistory] = useState<Schedule | null>(null);
   const pending = useRef<AbortController | null>(null);
+  useLayoutEffect(() => {
+    if (!focusHeading.current) return;
+    focusHeading.current = false;
+    heading.current?.focus({ preventScroll: true });
+    heading.current?.scrollIntoView({ block: "start", behavior: "instant" });
+  }, [draft]);
   useEffect(
     () => () => {
       pending.current?.abort();
@@ -160,6 +169,7 @@ export function SchedulePanel({
   );
 
   function edit(item?: Schedule) {
+    focusHeading.current = true;
     setNotice(null);
     setPreview(null);
     setHistory(null);
@@ -226,7 +236,7 @@ export function SchedulePanel({
   const actionDisabled = busy || !visible || !query.active || query.isError;
   return (
     <section className="schedule-panel" aria-labelledby={titleId}>
-      <h3 id={titleId}>
+      <h3 id={titleId} ref={heading} tabIndex={-1}>
         {draft ? (draft.expected_revision === 0 ? "Новий розклад" : "Редагування розкладу") : "Збережені розклади"}
       </h3>
       <p className="help-copy">Час об’єкта: {timezone}. Усі дати й години розкладу — за цим часовим поясом.</p>
@@ -329,7 +339,9 @@ export function SchedulePanel({
           aria-label="Редактор розкладу"
           onSubmit={(event) => {
             event.preventDefault();
-            void action("preview", draft);
+            const spec = normalizeScheduleTimes(draft.spec as ScheduleSpec);
+            change(spec);
+            void action("preview", { ...draft, spec });
           }}
         >
           <p className="help-copy">
@@ -337,7 +349,7 @@ export function SchedulePanel({
             запуститься автоматично у вибраний час.
           </p>
           <ScheduleForm value={draft.spec as ScheduleSpec} onChange={change} disabled={busy} limits={limits} />
-          <div className="ui-row">
+          <div className="ui-row schedule-editor-actions">
             <Button type="submit" disabled={actionDisabled}>
               Перевірити розклад
             </Button>
@@ -345,6 +357,7 @@ export function SchedulePanel({
               disabled={busy}
               variant="ghost"
               onClick={() => {
+                focusHeading.current = true;
                 setDraft(null);
                 setPreview(null);
                 setNotice(null);

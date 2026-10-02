@@ -71,7 +71,7 @@ function readValidationMessages(value: unknown): string[] {
   return value.flatMap((item) => {
     if (!item || typeof item !== "object") return [];
     const message = readString(Reflect.get(item, "msg"));
-    return message ? [message] : [];
+    return message ? [message.replace(/^Value error,\s*/u, "")] : [];
   });
 }
 

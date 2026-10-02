@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useId, useRef, useState } from "react";
+import { useId, useState } from "react";
 import {
   calendarDate,
   calendarInputError,
@@ -12,6 +12,7 @@ import {
 } from "@/lib/calendar-date";
 import { Button } from "./ui";
 import { DatePicker } from "./date-picker";
+import { useInputValidation } from "./use-input-validation";
 
 export function DateField({
   label,
@@ -31,18 +32,21 @@ export function DateField({
   required?: boolean;
 }) {
   const id = useId();
-  const input = useRef<HTMLInputElement>(null);
-  const [showError, setShowError] = useState(false);
   const [picker, setPicker] = useState<{ today: string; initialDate: string } | null>(null);
   const lower = isCalendarDate(min) ? clampCalendarDate(min, MIN_CALENDAR_DATE, MAX_CALENDAR_DATE) : MIN_CALENDAR_DATE;
   const upper = isCalendarDate(max) ? clampCalendarDate(max, lower, MAX_CALENDAR_DATE) : MAX_CALENDAR_DATE;
   const error = calendarInputError(value, lower, upper, required);
-  useEffect(() => {
-    input.current?.setCustomValidity(error);
-  }, [error]);
+  const {
+    inputRef,
+    error: validationError,
+    onInvalid: handleInvalid,
+    onBlur: handleBlur,
+    onChange: handleChange,
+    reset: resetValidation,
+  } = useInputValidation(error);
   const choose = (date: string) => {
     onValueChange(date);
-    setShowError(false);
+    resetValidation();
     setPicker(null);
   };
   return (
@@ -52,7 +56,7 @@ export function DateField({
       </label>
       <div className="date-input-control">
         <input
-          ref={input}
+          ref={inputRef}
           className="input"
           id={id}
           type="text"
@@ -63,11 +67,14 @@ export function DateField({
           placeholder="ДД.ММ.РРРР"
           pattern="[0-9]{2}\.[0-9]{2}\.[0-9]{4}"
           value={displayCalendarDate(value)}
-          aria-describedby={`${id}-hint${showError && error ? ` ${id}-error` : ""}`}
-          aria-invalid={showError && !!error}
-          onInvalid={() => setShowError(true)}
-          onBlur={() => setShowError(true)}
-          onChange={(event) => onValueChange(readCalendarInput(event.target.value))}
+          aria-describedby={`${id}-hint${validationError ? ` ${id}-error` : ""}`}
+          aria-invalid={!!validationError}
+          onInvalid={handleInvalid}
+          onBlur={(event) => handleBlur(event.currentTarget)}
+          onChange={(event) => {
+            handleChange();
+            onValueChange(readCalendarInput(event.target.value));
+          }}
         />
         <Button
           className="date-trigger"
@@ -96,9 +103,9 @@ export function DateField({
       <span className="field-hint" id={`${id}-hint`}>
         ДД.ММ.РРРР · можна ввести 8 цифр.
       </span>
-      {showError && error && (
+      {validationError && (
         <span className="field-error" id={`${id}-error`}>
-          {error}
+          {validationError}
         </span>
       )}
       {picker && (

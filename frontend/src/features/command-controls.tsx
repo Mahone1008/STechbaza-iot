@@ -333,7 +333,7 @@ export function CommandControls({
                 <SelectField
                   label="Режим роботи"
                   value={mode}
-                  hint={workModeDescriptions[mode]}
+                  hint={`${workModeLabels[mode]}: ${workModeDescriptions[mode]}`}
                   disabled={busy || !!uncertain}
                   onChange={(event) => {
                     setMode(event.target.value as WorkMode);
