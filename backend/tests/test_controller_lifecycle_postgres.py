@@ -30,6 +30,7 @@ from app.services.controller_broker import BrokerUnavailable
 from app.services.telemetry import TelemetryService
 from app.schemas.telemetry import TelemetryEnvelope
 from app.operations.recovery import harden_restored_database
+from app.services import controller_credentials
 
 
 @unittest.skipUnless(os.getenv("TECHBAZA_RUN_DB_TESTS") == "1", "Requires isolated PostgreSQL")
@@ -333,6 +334,26 @@ class ControllerLifecycleTests(unittest.TestCase):
         self.bootstrap(expected=401)
         with SessionLocal() as session:
             self.assertTrue(session.get(ControllerCredential, self.device_id).revoked)
+
+    def test_quarantine_during_broker_ack_cannot_be_undone_by_release(self):
+        self.bootstrap()
+        self.fresh()
+        synchronize = controller_credentials.synchronize
+
+        def quarantine_after_ack(device_id):
+            synchronize(device_id)
+            with SessionLocal.begin() as session:
+                controller = session.get(FactoryController, uuid.UUID(self.controller_id))
+                controller.status = "quarantined"
+                controller.bootstrap_hash = controller.activation_hash = None
+
+        with patch.object(controller_credentials, "synchronize", side_effect=quarantine_after_ack):
+            self.operation("release", expected=409)
+        with SessionLocal() as session:
+            controller = session.get(FactoryController, uuid.UUID(self.controller_id))
+            self.assertEqual(controller.status, "quarantined")
+            self.assertEqual(controller.generation, 1)
+            self.assertIsNone(controller.activation_hash)
 
     def test_factory_return_rekeys_bootstrap_and_archives_previous_device(self):
         self.bootstrap()

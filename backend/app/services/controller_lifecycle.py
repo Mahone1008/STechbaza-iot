@@ -253,6 +253,8 @@ def operate(session, current, controller_id, operation, payload):
         raise HTTPException(409, "Операцію вже завершено; оновіть сторінку")
     if operation != "release":
         return controller_status(session, current, controller_id)
+    if row.status != "releasing" or row.device_id != device.id:
+        raise HTTPException(409, "Стан змінився під час передачі; перечитайте реєстр")
     code = new_key()
     row.generation += 1
     row.device_id, row.status, row.claimed_at = None, "ready", None
