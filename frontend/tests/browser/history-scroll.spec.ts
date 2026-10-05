@@ -91,7 +91,7 @@ for (const viewport of [{ width: 1280, height: 720 }, { width: 390, height: 844 
         await expect(page.locator(".telemetry-chart")).toHaveCount(0);
         await stable(page, y);
         response.release();
-        await expect(page.getByRole("img", { name: /Історія vfd.frequency_hz, Hz/ })).toBeVisible();
+        await expect(page.getByRole("img", { name: /Історія Вихідна частота, Hz/ })).toBeVisible();
         await stable(page, y);
       } finally { response.release(); }
     }

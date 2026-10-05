@@ -19,7 +19,7 @@ async function ready(page: Page) {
 test.beforeEach(async ({ page }) => { await mockAuthenticatedWorkspace(page); });
 test("history shows units, disconnected gaps, counts and site timezone on a narrow screen", async ({ page }) => {
   await populated(page); await page.setViewportSize({ width: 390, height: 844 }); await ready(page);
-  await expect(page.getByRole("img", { name: /Історія pressure.bar/ })).toBeVisible();
+  await expect(page.getByRole("img", { name: /Історія Тиск/ })).toBeVisible();
   await expect(page.locator(".telemetry-chart path")).toHaveCount(2);
   await expect(page.getByText(/Вимірювань для графіка: 2; повідомлень: 3/)).toBeVisible();
   await page.getByText("Таблиця вимірювань", { exact: true }).click();

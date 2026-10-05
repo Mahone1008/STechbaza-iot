@@ -51,7 +51,7 @@ for (const width of [320, 393]) test(`history filters and their open pickers fit
   await metric.click();
   await metric.getByRole("option", { name: "Вихідна частота · Hz", exact: true }).click();
   await expect(metric).toHaveValue("vfd.frequency_hz");
-  await expect(page.getByRole("img", { name: /Історія vfd.frequency_hz, Hz/u })).toBeVisible();
+  await expect(page.getByRole("img", { name: /Історія Вихідна частота, Hz/u })).toBeVisible();
 
   const period = page.getByLabel("Період", { exact: true });
   await period.click();

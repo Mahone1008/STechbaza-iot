@@ -39,7 +39,7 @@ test("F5 restores metric, six-hour period and fifteen-minute interval before the
   requests.length = 0;
   await page.reload(); await ready(page);
   await selection(page, "vfd.frequency_hz", "21600", "900");
-  await expect(page.getByRole("img", { name: /Історія vfd.frequency_hz, Hz/ })).toBeVisible();
+  await expect(page.getByRole("img", { name: /Історія Вихідна частота, Hz/ })).toBeVisible();
   expect(requests).toHaveLength(1);
   const params = new URL(requests[0]!).searchParams;
   expect(params.get("metric")).toBe("vfd.frequency_hz");
