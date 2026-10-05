@@ -217,7 +217,7 @@ test("current with missing measurements has an explanation and no retained chart
   await page.getByLabel("Показник", { exact: true }).selectOption("vfd.current_a");
   for (const period of ["3600", "21600"]) {
     await page.getByLabel("Період", { exact: true }).selectOption(period);
-    await expect(page.getByText(/Повідомлення надходили, але для цієї метрики/)).toBeVisible();
+    await expect(page.getByText(/Для цього показника надходили неповні або некоректні дані/)).toBeVisible();
     await expect(page.getByText(/Вимірювань для графіка: 0; повідомлень: 648/)).toBeVisible();
     await expect(page.locator(".telemetry-chart")).toHaveCount(0);
     await expect(page.getByRole("table")).toBeHidden();

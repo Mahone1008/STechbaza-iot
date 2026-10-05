@@ -194,7 +194,7 @@ test("ambiguous logout failure hides tenant data and allows safe retry or return
   await openUserMenuAndLogout(page);
 
   await expect(page.getByRole("heading", { name: "Не вдалося завершити сесію" })).toBeVisible();
-  await expect(page.getByText(/server-side session ще не вважається відкликаною/u)).toBeVisible();
+  await expect(page.getByText(/Вихід ще не завершено\. Повторіть спробу/u)).toBeVisible();
   await expect(page.getByRole("heading", { name: "Пристрої" })).not.toBeVisible();
 
   await page.getByRole("button", { name: "Повернутися до кабінету" }).click();
