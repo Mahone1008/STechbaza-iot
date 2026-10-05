@@ -14,6 +14,7 @@ from auth_http_helpers import request
 from test_equipment import report_for
 from app.db import SessionLocal
 from app.models import (
+    Capability,
     ControllerCredential,
     Device,
     DeviceCapability,
@@ -41,6 +42,8 @@ class ControllerLifecycleTests(unittest.TestCase):
 
     def setUp(self):
         self.lifecycle_devices = []
+        with SessionLocal() as session:
+            self.initial_capabilities = set(session.scalars(select(Capability.id)))
         onboarding.OnboardingPostgresTests.setUp(self)
         self.broker = self.enterContext(
             patch("app.services.controller_credentials.ControllerBroker")
@@ -90,6 +93,8 @@ class ControllerLifecycleTests(unittest.TestCase):
                 delete(EquipmentModule).where(EquipmentModule.device_id.in_(self.lifecycle_devices))
             )
         onboarding.OnboardingPostgresTests.cleanup_data(self)
+        with SessionLocal.begin() as session:
+            session.execute(delete(Capability).where(Capability.id.not_in(self.initial_capabilities)))
 
     def bootstrap(self, key=None, expected=200):
         code, result, headers = request(
