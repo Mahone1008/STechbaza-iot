@@ -5,6 +5,7 @@ import {
   DEVICE_ID,
   SESSION_ID,
   SITE_ID,
+  corsHeaders,
   fulfillJson,
   fulfillPreflight,
   mockAuthenticatedWorkspace,
@@ -205,7 +206,7 @@ test("TOTP enrollment clears its secret, rotates recovery and revokes only the s
   await route(page, "auth/security/totp/confirm", async (request) => {
     expect(request.request().postDataJSON()).toEqual({ otp: "123456" });
     mfa = true;
-    await fulfillJson(request, 200, {});
+    await request.fulfill({ status: 204, headers: corsHeaders, body: "" });
   });
   await route(page, "auth/security/recovery", async (request) => {
     expect(request.request().postDataJSON()).toEqual({ password, otp: "654321" });
@@ -241,6 +242,81 @@ test("TOTP enrollment clears its secret, rotates recovery and revokes only the s
   expect(deleted).toBe(true);
   await noStoredSecrets(page, secret, password, recovery);
 });
+
+for (const failure of [
+  { status: 401, detail: "Код не підтверджено" },
+  { status: 503, detail: "Перевірка двоетапного входу тимчасово недоступна" },
+]) {
+  test(`TOTP confirmation ${failure.status} focuses an inline error and a fresh code opens the factory`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 740 });
+    await mockAuthenticatedWorkspace(page);
+    let mfa = false,
+      posts = 0;
+    let finishConfirmation = () => {};
+    const confirmation = new Promise<void>((resolve) => {
+      finishConfirmation = resolve;
+    });
+    const secret = "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ";
+    await read(page, "auth/security", () => ({
+      mfa_enabled: mfa,
+      privileged_mfa_required: true,
+      current_session_verified: mfa,
+      recovery_available: false,
+    }));
+    await read(page, "auth/sessions", () => []);
+    await route(page, "auth/security/totp/setup", (request) =>
+      fulfillJson(request, 200, { secret, uri: `otpauth://totp/test?secret=${secret}` }),
+    );
+    await route(page, "auth/security/totp/confirm", async (request) => {
+      posts++;
+      if (posts === 1) {
+        expect(request.request().postDataJSON()).toEqual({ otp: "000000" });
+        await fulfillJson(request, failure.status, { detail: failure.detail });
+        return;
+      }
+      expect(request.request().postDataJSON()).toEqual({ otp: "123456" });
+      await confirmation;
+      mfa = true;
+      await request.fulfill({ status: 204, headers: corsHeaders, body: "" });
+    });
+    await read(page, "factory/controllers?*", () => []);
+    await page.goto("/account/security");
+    const card = page
+      .locator(".card")
+      .filter({ has: page.getByRole("heading", { name: "Двоетапний вхід", exact: true }) });
+    await page.getByLabel("Поточний пароль для підтвердження", { exact: true }).fill(password);
+    await card.getByRole("button", { name: "Налаштувати двоетапний вхід", exact: true }).click();
+    await expect(card.getByRole("img", { name: "QR для застосунку автентифікації", exact: true })).toBeVisible();
+    const otp = page.getByLabel("Код із застосунку автентифікації", { exact: true });
+    await otp.fill("000000");
+    await card.getByRole("button", { name: "Підтвердити код і ввімкнути", exact: true }).click();
+    const error = card.getByRole("alert");
+    await expect(error).toHaveText(failure.detail);
+    await expect(error).toBeFocused();
+    await expect(error).toBeInViewport();
+    await expect(card.locator(".recovery-key")).toHaveText(secret);
+    await expect(
+      card.getByText("Увімкнено: при вході потрібні пароль і код із застосунку.", { exact: true }),
+    ).toHaveCount(0);
+    expect(posts).toBe(1);
+    await otp.fill("123456");
+    await card.getByRole("button", { name: "Підтвердити код і ввімкнути", exact: true }).click();
+    await expect(card.getByRole("button", { name: "Підтверджуємо код…", exact: true })).toBeDisabled();
+    finishConfirmation();
+    await expect(
+      card.getByText("Двоетапний вхід увімкнено. Поточну сесію підтверджено.", { exact: true }),
+    ).toBeVisible();
+    await expect(card.getByRole("alert")).toHaveCount(0);
+    await expect(card.locator(".recovery-key")).toHaveCount(0);
+    await expect(card.getByRole("img", { name: "QR для застосунку автентифікації", exact: true })).toHaveCount(0);
+    expect(posts).toBe(2);
+    await card.getByRole("link", { name: "Відкрити заводський реєстр", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Зареєструвати і видати ключі", exact: true })).toBeVisible();
+    await noStoredSecrets(page, secret, password);
+  });
+}
 
 test("factory denial hides issuance and shipment controls", async ({ page }) => {
   await mockAuthenticatedWorkspace(page);
