@@ -14,16 +14,16 @@ export function ControllerDiagnostics({ data, quality, previousSession, timezone
     {quality !== "fresh" && <p role="status">{previousSession ? "Діагностика попереднього запуску контролера; очікуємо нові дані." : "Остання відома діагностика; поточний стан не підтверджено."}</p>}
     <dl className="overview-details">
       <div><dt>Прошивка</dt><dd>{data.firmware_version}</dd></div>
-      <div><dt>Час роботи на момент зразка</dt><dd>{uptimeText(data.uptime_ms)}</dd></div>
+      <div><dt>Час роботи на момент вимірювання</dt><dd>{uptimeText(data.uptime_ms)}</dd></div>
       <div><dt>Причина запуску контролера</dt><dd>{resetReasonLabels[data.reset_reason]}</dd></div>
       <div><dt>Канал зв’язку</dt><dd>{transportLabels[data.connection.transport]}</dd></div>
       {(["wifi", "cellular"] as const).some((transport) => transport === data.connection.transport) && <div><dt>Радіосигнал</dt><dd>{signal ? `${signal.metric.toUpperCase()}: ${signal.dbm} dBm` : "Немає вимірювання"}</dd></div>}
       <div><dt>Останній запит зупинки в цьому запуску</dt><dd>{stop ? stopReasonLabels[stop.reason] : "Не зафіксовано"}</dd></div>
       {stop && <>
-        <div><dt>Час запиту зупинки</dt><dd>{stop.requested_at ? formatSeen(stop.requested_at, timezone) : "UTC на момент події був недоступний"}<div className="table-secondary">Від запуску: {uptimeText(stop.uptime_ms)}</div></dd></div>
+        <div><dt>Час запиту зупинки</dt><dd>{stop.requested_at ? formatSeen(stop.requested_at, timezone) : "Точний час події невідомий"}<div className="table-secondary">Від запуску: {uptimeText(stop.uptime_ms)}</div></dd></div>
         <div><dt>Результат цього запиту</dt><dd>{stop.confirmed ? "STOP і 0 Гц підтверджено читанням частотника" : "Зупинку ще не підтверджено"}</dd></div>
       </>}
     </dl>
-    <p className="help-copy">Запис описує останній запит контролера на зупинку; після нового пуску він залишається історичним. Поточний RUN показано окремо. Підтвердження за регістрами частотника не є незалежним вимірюванням обертання двигуна.</p>
+    <p className="help-copy">Запис описує останній запит контролера на зупинку; після нового пуску він залишається історичним. Поточний стан роботи показано на панелі пристрою. Підтвердження за регістрами частотника не є незалежним вимірюванням обертання двигуна.</p>
   </Card>;
 }

@@ -54,7 +54,7 @@ export function ProgramPlanSummary({ plan }: { plan: ProgramPlan }) {
       </ol>
       <p>
         Час на заданих частотах: {durationText(plan.steps.reduce((sum, step) => sum + step.duration_seconds, 0))}.
-        Перехід до кожної частоти — додатково, до 60 с. Наприкінці — STOP.
+        Перехід до кожної частоти може додатково тривати до 60 с. Наприкінці насос зупиняється.
       </p>
     </>
   );
@@ -121,7 +121,7 @@ export function ProgramSettings({
       )}
       <p className="help-copy">
         Робочі межі:{" "}
-        {limits ? `${limits.min_hz}–${limits.max_hz} Гц; частота має бути більшою за нуль.` : "профіль ще не задано."}{" "}
+        {limits ? `${limits.min_hz}-${limits.max_hz} Гц; частота має бути більшою за нуль.` : "профіль ще не задано."}{" "}
         Закриття вкладки не зупиняє роботу. Втрата зв’язку або перезапуск контролера переривають її без автоматичного
         відновлення.
       </p>

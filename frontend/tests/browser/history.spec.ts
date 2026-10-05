@@ -21,7 +21,7 @@ test("history shows units, disconnected gaps, counts and site timezone on a narr
   await populated(page); await page.setViewportSize({ width: 390, height: 844 }); await ready(page);
   await expect(page.getByRole("img", { name: /Історія pressure.bar/ })).toBeVisible();
   await expect(page.locator(".telemetry-chart path")).toHaveCount(2);
-  await expect(page.getByText(/Валідних вимірювань: 2; повідомлень: 3/)).toBeVisible();
+  await expect(page.getByText(/Вимірювань для графіка: 2; повідомлень: 3/)).toBeVisible();
   await page.getByText("Таблиця вимірювань", { exact: true }).click();
   await expect(page.getByRole("table")).toContainText("Europe/Kyiv");
   await expect(page.getByRole("table")).toContainText("Часткові дані");
@@ -29,7 +29,7 @@ test("history shows units, disconnected gaps, counts and site timezone on a narr
 });
 test("period and bucket controls produce bounded UTC requests and empty history", async ({ page }) => {
   await ready(page);
-  await expect(page.getByText("За цей період немає валідних вимірювань.")).toBeVisible();
+  await expect(page.getByText("За цей період немає вимірювань для графіка.")).toBeVisible();
   const response = page.waitForResponse((r) => r.request().method() === "GET" && r.url().includes("/telemetry/series?") && r.url().includes("bucket_seconds=3600"));
   await page.getByLabel("Період", { exact: true }).selectOption("604800");
   const url = new URL((await response).url());
@@ -37,7 +37,7 @@ test("period and bucket controls produce bounded UTC requests and empty history"
   expect(Date.parse(url.searchParams.get("end")!) - Date.parse(url.searchParams.get("start")!)).toBe(604800000);
   // Перевіряємо native option: toBeDisabled retargets вкладений label до select.
   await expect(page.getByLabel("Інтервал", { exact: true }).locator('option[value="60"]')).toHaveJSProperty("disabled", true);
-  await expect(page.getByLabel("Метрика", { exact: true }).locator("option")).toHaveCount(1);
+  await expect(page.getByLabel("Показник", { exact: true }).locator("option")).toHaveCount(1);
 });
 for (const status of [403, 409, 422, 503]) test(`history ${status} removes previous chart and permits explicit recovery`, async ({ page }) => {
   await populated(page); await ready(page); await expect(page.locator(".telemetry-chart")).toBeVisible();
@@ -53,7 +53,7 @@ test("foreign history is rejected and disabled module removes history controls",
   const data = overviewFixture(devicePayload()); data.modules = []; data.command_types = []; data.allowed_commands = []; data.capabilities = []; data.readings = []; data.state_readings = [];
   await page.route(`${API_ORIGIN}/api/v1/devices/${DEVICE_ID}/overview`, async (route) => { if (await fulfillPreflight(route)) return; await fulfillJson(route, 200, data); });
   await page.getByRole("button", { name: "Оновити панель" }).click();
-  await expect(page.getByText("Увімкнених каналів з підтримкою історії немає.")).toBeVisible(); await expect(page.getByLabel("Метрика", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("Увімкнених каналів з підтримкою історії немає.")).toBeVisible(); await expect(page.getByLabel("Показник", { exact: true })).toHaveCount(0);
 });
 test("charts poll history without polling the inactive panel, and manual mode pauses both", async ({ page }) => {
   await page.clock.install(); let overview = 0, series = 0;

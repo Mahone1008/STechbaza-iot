@@ -138,7 +138,7 @@ function FactoryRegister() {
               maxLength={500}
               type="url"
               onChange={(event) => setLabelUrl(event.target.value)}
-              hint="Для телефона потрібна доступна HTTPS-адреса вашого сайту, а не localhost."
+              hint="Для сканування телефоном вкажіть захищену адресу сайту, доступну з телефона."
             />
             <Button disabled={readyLabelUrl !== labelUrl} onClick={() => printLabel(false)}>
               Друкувати публічний QR
@@ -163,7 +163,7 @@ function FactoryRegister() {
                   Пароль налаштування: <code className="recovery-key">{secrets.setup_password}</code>
                 </p>
               </div>
-              <p>Картку передають покупцеві окремо. Bootstrap-ключ залишається тільки у виробника та контролері.</p>
+              <p>Картку передають покупцеві окремо. Заводський ключ залишається лише у виробника та в контролері.</p>
             </details>
             <Button onClick={downloadKit}>Завантажити заводський комплект</Button>
             <p>

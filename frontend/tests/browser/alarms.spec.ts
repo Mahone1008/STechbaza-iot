@@ -62,7 +62,7 @@ for (const status of [403, 404, 503]) test(`list ${status} hides previous data a
   let error = false, calls = 0;
   await page.route(`${listUrl}?*`, async (route) => { if (await fulfillPreflight(route)) return; calls++; await fulfillJson(route, error ? status : 200, error ? { detail: `Alarm error ${status}` } : [alarmFixture()]); });
   await page.goto(listPath); await expect(table(page)).toContainText("Низький тиск"); error = true;
-  await page.getByRole("button", { name: "Оновити аварії" }).click(); await expect(page.getByText(`Alarm error ${status}`, { exact: true })).toBeVisible(); await expect(table(page)).toHaveCount(0);
+  await page.getByRole("button", { name: "Оновити аварії" }).click(); await expect(page.getByRole("alert").filter({ has: page.getByRole("heading", { name: /Аварії недоступні|Не вдалося завантажити аварії/ }) })).toContainText(status === 403 ? "Недостатньо прав" : status === 404 ? "Дані не знайдено" : "Сервіс тимчасово недоступний"); await expect(table(page)).toHaveCount(0);
   expect(calls).toBe(2); error = false; await page.getByRole("button", { name: "Оновити аварії" }).click(); await expect(table(page)).toContainText("Низький тиск"); expect(calls).toBe(3);
 });
 
@@ -94,7 +94,7 @@ test("confirmation cancel and double click create one acknowledgement while inci
   let row = alarmFixture(), posts = 0; await mockGet(page, detailUrl, () => row);
   await mockPost(page, async (route) => { posts++; row = acknowledgedFixture(); await fulfillJson(route, 200, row); });
   await page.goto(path); await detail(page).getByRole("button", { name: "Підтвердити отримання", exact: true }).click();
-  await expect(page.getByRole("dialog")).toContainText("Активна аварія залишиться активною"); await page.getByRole("dialog").getByRole("button", { name: "Скасувати" }).click(); expect(posts).toBe(0);
+  await expect(page.getByRole("dialog")).toContainText("Аварія залишиться активною"); await page.getByRole("dialog").getByRole("button", { name: "Скасувати" }).click(); expect(posts).toBe(0);
   await detail(page).getByRole("button", { name: "Підтвердити отримання", exact: true }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Підтвердити отримання", exact: true }).evaluate((button: HTMLButtonElement) => { button.click(); button.click(); });
   await expect(detail(page)).toContainText("Оператор тесту"); await expect(detail(page).locator(".status-badge")).toContainText(["Попередження", "Активна", "Підтверджена оператором"]); expect(posts).toBe(1);
@@ -161,7 +161,7 @@ test("viewer mobile detail escapes content and has no acknowledgement control", 
   await mockGet(page, detailUrl, () => alarmFixture({ title: '<img src=x onerror="alert(1)">', description: "<script>alert(1)</script>", context: { text: "x".repeat(300) } }));
   await page.goto(path); await expect(detail(page)).toContainText('<img src=x onerror="alert(1)">'); await expect(detail(page).locator("img, script")).toHaveCount(0);
   await expect(detail(page).getByRole("button", { name: "Підтвердити отримання", exact: true })).toHaveCount(0);
-  await page.getByText("Технічні деталі інциденту", { exact: true }).click(); expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.getByText("Додаткові відомості", { exact: true }).click(); expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
 test("alarm permission blocks a deep link without fetching incident data", async ({ page }) => {

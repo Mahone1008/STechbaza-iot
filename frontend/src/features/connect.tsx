@@ -197,7 +197,7 @@ function ConnectWizard({ id }: { id: string }) {
         {data.state === "ready" ? (
           <form onSubmit={submitClaim}>
             <h2>1. Створіть об’єкт</h2>
-            <p>Об’єкт — це місце встановлення, наприклад свердловина чи насосна станція.</p>
+            <p>Об’єктом може бути свердловина, насосна станція або інше місце встановлення обладнання.</p>
             <SelectField
               label="Куди додати контролер"
               value={siteId}
@@ -308,7 +308,7 @@ function ConnectWizard({ id }: { id: string }) {
                 }}
               />
               <TextField
-                label="Апаратна ревізія, якщо зазначено"
+                label="Версія обладнання, якщо зазначено"
                 value={revision}
                 maxLength={80}
                 onChange={(event) => setRevision(event.target.value)}

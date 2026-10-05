@@ -145,20 +145,20 @@ export function LoginPanel() {
         <Brand />
         <div className="login-message">
           <p className="eyebrow">Промисловий контроль без зайвого шуму</p>
-          <h1>Обладнання, показники та аварії — в одному зрозумілому кабінеті.</h1>
+          <h1>Ваше обладнання під контролем.</h1>
           <p>
-            KERUMO поєднує модульні контролери, частотні перетворювачі та датчики, не змішуючи стан зв’язку з фактичним
-            результатом команди.
+            Стежте за роботою насосів, переглядайте показники та отримуйте повідомлення про аварії. Керуйте обладнанням
+            і плануйте його роботу в одному кабінеті.
           </p>
         </div>
         <div className="login-features">
           <div className="login-feature">
             <strong>Модульність</strong>
-            <span>Лише встановлені можливості</span>
+            <span>Контролери, частотники та датчики</span>
           </div>
           <div className="login-feature">
             <strong>Контроль</strong>
-            <span>ACK і Result показуються окремо</span>
+            <span>Стан обладнання та результати команд</span>
           </div>
           <div className="login-feature">
             <strong>Безпека</strong>
@@ -172,8 +172,8 @@ export function LoginPanel() {
           <Brand />
           <h2>Вхід до кабінету</h2>
           <p>
-            Для першої активації використайте заводські логін і пароль або QR на шильдику. Надалі входьте з постійним
-            паролем і кодом із застосунку.
+            Уперше тут? Використайте логін і пароль із комплекту або відкрийте QR на шильдику. Якщо пристрій уже
+            активовано, введіть свій постійний логін і пароль.
           </p>
 
           {loggedOutNotice && session.status === "anonymous" ? (
@@ -195,9 +195,7 @@ export function LoginPanel() {
           ) : session.status === "logout-failed" && !formError ? (
             <div className="login-alert login-alert-warning" role="alert">
               <strong>Вихід не підтверджено</strong>
-              <span>
-                {session.message} Поверніться до захищеного маршруту, щоб повторити вихід або відновити кабінет.
-              </span>
+              <span>{session.message} Поверніться до кабінету та повторіть вихід.</span>
             </div>
           ) : session.status === "unavailable" && !formError ? (
             <div className="login-alert login-alert-warning" role="status">
@@ -259,6 +257,7 @@ export function LoginPanel() {
               autoComplete="one-time-code"
               maxLength={6}
               value={otp}
+              hint="Якщо втратили запис у застосунку, скористайтеся ключем у розділі «Відновити доступ»."
               {...(fieldErrors.otp ? { error: fieldErrors.otp } : {})}
               onChange={(event) => {
                 setOtp(event.target.value);

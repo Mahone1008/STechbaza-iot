@@ -203,7 +203,7 @@ export function EquipmentActions({
               />
               <div className="equipment-form-grid">
                 <TextField
-                  label="Апаратна ревізія"
+                  label="Версія обладнання"
                   maxLength={80}
                   value={hardware}
                   onChange={(event) => setHardware(event.target.value)}

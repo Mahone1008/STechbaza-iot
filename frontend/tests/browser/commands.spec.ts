@@ -118,7 +118,7 @@ test("POST 429 respects Retry-After and never retries automatically", async ({ p
 
 for (const status of [401, 403, 409, 422]) test(`POST ${status} is shown without an automatic write retry`, async ({ page }) => {
   let posts = 0; await mockPost(page, async (route) => { posts++; await fulfillJson(route, status, { detail: `Command denied ${status}` }); });
-  await page.goto(path); await confirm(page); await expect(controls(page)).toContainText(`Command denied ${status}`); expect(posts).toBe(1);
+  await page.goto(path); await confirm(page); await expect(controls(page)).toContainText(status === 401 ? "Сесію не підтверджено" : status === 403 ? "Недостатньо прав" : status === 409 ? "Дані змінилися" : "Перевірте заповнені поля"); expect(posts).toBe(1);
   await expect(page.getByRole("button", { name: "Повторити той самий запит", exact: true })).toHaveCount(0);
 });
 
@@ -136,7 +136,7 @@ test("offline controller blocks Start/frequency but Stop has an explicit queued-
   await page.goto(path); await page.getByLabel("Задана частота, Гц").fill("45");
   await expect(controls(page).getByRole("button", { name: "Запустити", exact: true })).toBeDisabled();
   await expect(controls(page).getByRole("button", { name: "Задати частоту", exact: true })).toBeDisabled();
-  await controls(page).getByRole("button", { name: "Зупинити", exact: true }).click(); await expect(page.getByRole("dialog")).toContainText("Фізичну зупинку ще не підтверджено");
+  await controls(page).getByRole("button", { name: "Зупинити", exact: true }).click(); await expect(page.getByRole("dialog")).toContainText("Зупинку ще не підтверджено");
 });
 
 test("foreign POST receipt stays uncertain and cannot expose command detail", async ({ page }) => {
@@ -164,7 +164,7 @@ test("viewer has journal access without command controls, including mobile layou
   await page.getByRole("tab", { name: "Журнал", exact: true }).click();
   await page.getByRole("table", { name: "Журнал команд пристрою" }).getByRole("link", { name: "Переглянути команду Запустити", exact: true }).click();
   await expect(detail(page)).toContainText("У черзі");
-  await detail(page).getByText("Автор і технічні деталі команди", { exact: true }).click();
+  await detail(page).getByText("Автор та виконання", { exact: true }).click();
   await expect(detail(page)).toContainText("owner@example.com");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
@@ -228,21 +228,21 @@ for (const viewport of [{ width: 1280, height: 720 }, { width: 390, height: 844 
     await confirm(page);
     const card = detail(page);
     await expect(card.locator(".status-badge")).toHaveText("У черзі");
-    const summary = card.getByText("Автор і технічні деталі команди", { exact: true });
+    const summary = card.getByText("Автор та виконання", { exact: true });
     const height = () => card.evaluate((element) => element.getBoundingClientRect().height);
     const collapsedHeight = await height();
     for (const keyboard of [false, true]) {
       await summary.click();
-      await expect(card.locator(".command-json")).toBeVisible();
+      await expect(card.locator(".command-audit")).toBeVisible();
       await expect.poll(height).toBeGreaterThan(collapsedHeight + 100);
       if (keyboard) { await summary.focus(); await summary.press("Enter"); } else await summary.click();
-      await expect(card.locator(".command-json")).toBeHidden();
+      await expect(card.locator(".command-audit")).toBeHidden();
       await expect.poll(async () => Math.abs(await height() - collapsedHeight)).toBeLessThanOrEqual(2);
     }
     // Collapsed geometry is also the new reserve when a request fails.
     await page.route(detailUrl, async (route) => { if (await fulfillPreflight(route)) return; await fulfillJson(route, 503, { detail: "Command unavailable" }); });
     await card.getByRole("button", { name: "Оновити стан команди" }).click();
-    await expect(card.getByRole("alert")).toContainText("Command unavailable");
+    await expect(card.getByRole("alert")).toContainText("Сервіс тимчасово недоступний");
     await expect.poll(async () => Math.abs(await height() - collapsedHeight)).toBeLessThanOrEqual(2);
     await mockDetail(page);
     await card.getByRole("button", { name: "Оновити стан команди" }).click();
@@ -273,7 +273,7 @@ for (const stalled of [false, true]) test(`Stop remains available with ${stalled
     await expect.poll(() => posts.length).toBe(2);
     expect(posts[1]!.supersedes_request_id).toBe(posts[0]!.request_id);
     expect(posts[1]!.request_id).not.toBe(posts[0]!.request_id);
-    await expect(controls(page)).toContainText("Сервер прийняв команду");
+    await expect(controls(page)).toContainText("Команду прийнято");
     release();
     await expect(controls(page).getByRole("button", { name: "Зупинити", exact: true })).toBeEnabled();
     await expect(page.getByRole("heading", { name: "Прийом команди не підтверджено" })).toHaveCount(0);
@@ -321,5 +321,5 @@ test("repeated uncertain Stop preserves the original Start fence", async ({ page
   await expect.poll(() => posts.length).toBe(3);
   expect(posts[1]!.supersedes_request_id).toBe(posts[0]!.request_id);
   expect(posts[2]!.supersedes_request_id).toBe(posts[0]!.request_id);
-  await expect(controls(page)).toContainText("Сервер прийняв команду");
+  await expect(controls(page)).toContainText("Команду прийнято");
 });

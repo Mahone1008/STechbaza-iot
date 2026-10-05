@@ -58,8 +58,8 @@ function OverviewContent({
               : presence.online
                 ? presenceExpired
                   ? "Потрібно оновити зв’язок"
-                  : "Online"
-                : "Offline"}
+                  : "На зв’язку"
+                : "Немає зв’язку"}
           </StatusBadge>
           <StatusBadge tone={quality === "fresh" ? "success" : "warning"}>{qualityLabels[quality]}</StatusBadge>
         </div>
@@ -85,8 +85,8 @@ function OverviewContent({
           </div>
         </dl>
         <p className="help-copy">
-          Online означає наявність зв’язку. Стан обладнання визначається окремими показаннями. Частота автоматичного
-          оновлення задається вище; доступна кнопка «Оновити панель».
+          Зв’язок із контролером не підтверджує роботу двигуна. Стан обладнання визначається окремими показаннями.
+          Частота автоматичного оновлення задається вище; доступна кнопка «Оновити панель».
         </p>
       </Card>
       <ProgramStatus

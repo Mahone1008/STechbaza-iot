@@ -65,16 +65,16 @@ function Directory({ context, sites }: { context: DirectoryAccessSnapshot | Read
       });
       return sites
         ? parsePage(payload, (item) => parseSite(item, organizationId!)).map((site) => ({ id: site.id, name: site.name, description: `${site.code} · ${site.timezone}`, href: devicesHref(organizationId!, site.id) }))
-        : parsePage(payload, (item) => parseOrganization(item, "/api/v1/organizations")).map((organization) => ({ id: organization.id, name: organization.name, description: `${organization.slug}${organization.is_active ? "" : " · Неактивна"}`, href: organization.is_active ? sitesHref(organization.id) : null }));
+        : parsePage(payload, (item) => parseOrganization(item, "/api/v1/organizations")).map((organization) => ({ id: organization.id, name: organization.name, description: organization.is_active ? "Активна" : "Неактивна", href: organization.is_active ? sitesHref(organization.id) : null }));
     },
   });
   const rows = query.data?.slice(0, PAGE_SIZE) ?? [];
   const columns: TableColumn<DirectoryRow>[] = [
     { key: "name", header: sites ? "Об’єкт" : "Організація", render: (row) => row.href ? <Link className="table-primary" href={row.href}>{row.name}</Link> : <span>{row.name}</span> },
-    { key: "description", header: sites ? "Код · часовий пояс" : "Ідентифікатор", render: (row) => row.description },
+    { key: "description", header: sites ? "Код · часовий пояс" : "Стан", render: (row) => row.description },
   ];
   return <>
-    <PageHeader title={sites ? "Об’єкти" : "Організації"} description={sites ? "Оберіть об’єкт, щоб переглянути його пристрої." : "Організації, доступні поточному користувачу."} actions={<Button disabled={query.isFetching} onClick={() => void query.refetch()}>Оновити список</Button>} />
+    <PageHeader title={sites ? "Об’єкти" : "Організації"} description={sites ? "Оберіть об’єкт, щоб переглянути його пристрої." : "Оберіть організацію, щоб перейти до її об’єктів та обладнання."} actions={<Button disabled={query.isFetching} onClick={() => void query.refetch()}>Оновити список</Button>} />
     {query.isFetching ? <p role="status">Завантажуємо {sites ? "об’єкти" : "організації"}…</p> : query.isError ? <ErrorState error={query.error} retry={() => void query.refetch()} /> : <DataTable caption={sites ? "Список об’єктів" : "Список організацій"} rows={rows} columns={columns} emptyMessage={sites ? "У цій організації ще немає об’єктів." : "На цій сторінці немає доступних організацій."} />}
     <Pagination page={page} hasNext={!query.isError && (query.data?.length ?? 0) > PAGE_SIZE} busy={query.isFetching} onPage={setPage} />
   </>;
@@ -122,7 +122,7 @@ function PresenceTable({ devices, context, version }: { devices: Device[]; conte
     if (query.isFetching || !presence) return <StatusBadge tone="neutral">Перевіряємо зв’язок…</StatusBadge>;
     if (!presence.availability) return <span title={presence.error}><StatusBadge tone="warning">Стан невідомий</StatusBadge></span>;
     if (presence.availability.last_seen_at === null) return <StatusBadge tone="neutral">Ще не було зв’язку</StatusBadge>;
-    return <StatusBadge tone={presence.availability.online ? "success" : "neutral"}>{presence.availability.online ? "Online" : "Offline"}</StatusBadge>;
+    return <StatusBadge tone={presence.availability.online ? "success" : "neutral"}>{presence.availability.online ? "На зв’язку" : "Немає зв’язку"}</StatusBadge>;
   };
   const columns: TableColumn<Device>[] = [
     { key: "device", header: "Пристрій", render: (device) => <><Link className="table-primary" href={`/devices/${device.id}` as Route}>{device.name}</Link><div className="table-secondary">{device.uid}</div><div className="table-secondary">Тип: {device.device_type} · Життєвий цикл: {device.lifecycle_status}</div></> },
@@ -134,7 +134,7 @@ function PresenceTable({ devices, context, version }: { devices: Device[]; conte
   return <>
     <div className="toolbar"><span className="table-secondary">Показано: {devices.length}. Час об’єкта: {context.activeSite?.timezone ?? "UTC"}.</span><Button disabled={query.isFetching || devices.length === 0} onClick={() => void query.refetch()}>Оновити зв’язок</Button></div>
     <DataTable caption="Список пристроїв KERUMO" rows={devices} columns={columns} emptyMessage="На цій сторінці пристроїв немає." />
-    <p className="help-copy">Стан зв’язку — результат останньої перевірки, без фонового опитування. Online не підтверджує свіжість телеметрії або фізичний стан обладнання.</p>
+    <p className="help-copy">Зв’язок показано на час останньої перевірки. Для поточних показників і стану обладнання відкрийте панель пристрою.</p>
   </>;
 }
 
@@ -149,7 +149,7 @@ function DevicePageList({ context }: { context: ReadyAccessSnapshot }) {
   });
   return <>
     <PageHeader title="Пристрої" eyebrow={context.activeSite?.name ?? "Оберіть об’єкт"} description="Пристрої вибраного об’єкта. Життєвий цикл і стан зв’язку показані окремо." actions={<Button disabled={!siteId || query.isFetching} onClick={() => void query.refetch()}>Оновити список</Button>} />
-    {!siteId ? <Card title="Оберіть об’єкт"><p>Для поточного контексту об’єкт не вибрано або список об’єктів порожній.</p><Link className="button button-secondary" href={sitesHref(context.activeOrganization.id)}>Переглянути об’єкти</Link></Card>
+    {!siteId ? <Card title="Оберіть об’єкт"><p>Оберіть об’єкт, щоб переглянути його пристрої.</p><Link className="button button-secondary" href={sitesHref(context.activeOrganization.id)}>Переглянути об’єкти</Link></Card>
       : query.isFetching ? <p role="status">Завантажуємо пристрої…</p>
         : query.isError ? <ErrorState error={query.error} retry={() => void query.refetch()} />
           : query.data ? <PresenceTable key={`${page}:${query.dataUpdatedAt}`} devices={query.data.slice(0, PAGE_SIZE)} context={context} version={query.dataUpdatedAt} /> : null}

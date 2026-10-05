@@ -2,6 +2,8 @@ import { spawnSync } from "node:child_process";
 
 // Extend this gate as older modules are touched; avoid unrelated formatting churn.
 const files = [
+  "src/proxy.ts",
+  "src/app/not-found.tsx",
   "src/components/controller-qr.tsx",
   "src/components/controller-qr-code.tsx",
   "src/components/text-field.tsx",

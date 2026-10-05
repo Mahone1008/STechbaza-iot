@@ -1,21 +1,3 @@
-.prototype-note-auth {
-  border-color: #cce5d8;
-  background: var(--success-soft);
-  color: var(--success);
-}
-
-.prototype-note-restoring {
-  border-color: #c9dde7;
-  background: var(--info-soft);
-  color: var(--info);
-}
-
-.prototype-note-warning {
-  border-color: #efd8b2;
-  background: var(--warning-soft);
-  color: var(--warning);
-}
-
 .login-alert {
   display: grid;
   gap: 4px;

@@ -89,7 +89,7 @@ export function validateLoginForm(values: LoginFormValues): LoginValidationResul
 export function loginErrorPresentation(error: unknown): LoginErrorPresentation {
   if (!isApiError(error)) {
     return {
-      summary: "Сталася непередбачена помилка інтерфейсу входу.",
+      summary: "Не вдалося увійти. Спробуйте ще раз.",
       fieldErrors: {},
       retryAfterSeconds: 0,
       clearPassword: false,
@@ -122,7 +122,7 @@ export function loginErrorPresentation(error: unknown): LoginErrorPresentation {
 
   if (error.kind === "forbidden") {
     return {
-      summary: "Вхід заборонено. Обліковий запис може бути вимкнений або цей browser origin не дозволений.",
+      summary: "Вхід недоступний. Перевірте адресу сайту або зверніться до адміністратора.",
       fieldErrors: {},
       retryAfterSeconds: 0,
       clearPassword: true,
@@ -131,7 +131,7 @@ export function loginErrorPresentation(error: unknown): LoginErrorPresentation {
 
   if (error.kind === "validation") {
     return {
-      summary: "Backend відхилив дані входу. Перевірте логін і пароль.",
+      summary: "Перевірте логін, пароль і код із застосунку, якщо він потрібен.",
       fieldErrors: {},
       retryAfterSeconds: 0,
       clearPassword: true,
@@ -152,8 +152,8 @@ export function loginErrorPresentation(error: unknown): LoginErrorPresentation {
     return {
       summary:
         error.status === 503
-          ? "Сервіс входу тимчасово недоступний. Дані не були прийняті; повторіть пізніше."
-          : "Backend тимчасово не може виконати вхід.",
+          ? "Вхід тимчасово недоступний. Спробуйте пізніше."
+          : "Не вдалося увійти. Спробуйте пізніше.",
       fieldErrors: {},
       retryAfterSeconds: 0,
       clearPassword: false,
@@ -162,7 +162,7 @@ export function loginErrorPresentation(error: unknown): LoginErrorPresentation {
 
   if (error.kind === "invalid-response") {
     return {
-      summary: "Backend повернув некоректну відповідь входу. Сесію не створено.",
+      summary: "Не вдалося підтвердити вхід. Спробуйте ще раз.",
       fieldErrors: {},
       retryAfterSeconds: 0,
       clearPassword: false,

@@ -23,7 +23,7 @@ async function ready(page: Page, manual = true) {
   if (manual) await page.getByLabel("Автооновлення", { exact: true }).selectOption("0");
 }
 async function position(page: Page) {
-  await page.getByLabel("Метрика", { exact: true }).evaluate((el) => window.scrollTo(0, scrollY + el.getBoundingClientRect().top - 80));
+  await page.getByLabel("Показник", { exact: true }).evaluate((el) => window.scrollTo(0, scrollY + el.getBoundingClientRect().top - 80));
   const y = await page.evaluate(() => scrollY);
   expect(y).toBeGreaterThan(100);
   return y;
@@ -81,7 +81,7 @@ for (const width of [1280, 393]) test(`settled diagnostics release unused panel 
 for (const viewport of [{ width: 1280, height: 720 }, { width: 390, height: 844 }]) {
   test(`metric, period and interval retain scroll during and after loading at ${viewport.width}px`, async ({ page }) => {
     await page.setViewportSize(viewport); await ready(page);
-    for (const [label, value] of [["Метрика", "vfd.frequency_hz"], ["Період", "86400"], ["Інтервал", "3600"]]) {
+    for (const [label, value] of [["Показник", "vfd.frequency_hz"], ["Період", "86400"], ["Інтервал", "3600"]]) {
       const response = gate();
       await page.route(seriesUrl, async (route) => { if (await fulfillPreflight(route)) return; await response.promise; await fulfillJson(route, 200, series(route.request().url())).catch(() => {}); });
       try {
@@ -109,7 +109,7 @@ test("settled empty and failed history release unused space and hide failed data
   await position(page);
   await page.route(seriesUrl, async (route) => { if (await fulfillPreflight(route)) return; await fulfillJson(route, 200, series(route.request().url(), false)); });
   await refreshVisibleHistory(page);
-  await expect(page.getByText("За цей період немає валідних вимірювань.")).toBeVisible();
+  await expect(page.getByText("За цей період немає вимірювань для графіка.")).toBeVisible();
   await expect(page.locator(".telemetry-chart")).toHaveCount(0);
   await expect.poll(() => reservedHistorySpace(page)).toBeLessThanOrEqual(2);
   await page.route(seriesUrl, async (route) => { if (await fulfillPreflight(route)) return; await fulfillJson(route, 503, { detail: "Unavailable" }); });
@@ -171,7 +171,7 @@ test("collapsing the measurements table releases its space but keeps the collaps
 
 for (const width of [320, 1280]) test(`changing all three history filters releases an expanded table reserve at ${width}px`, async ({ page }) => {
   await page.setViewportSize({ width, height: 852 }); await ready(page);
-  for (const [label, value] of [["Метрика", "vfd.frequency_hz"], ["Період", "21600"], ["Інтервал", "900"]]) {
+  for (const [label, value] of [["Показник", "vfd.frequency_hz"], ["Період", "21600"], ["Інтервал", "900"]]) {
     await page.getByText("Таблиця вимірювань", { exact: true }).click();
     await expect(page.getByRole("table")).toBeVisible();
     const response = gate();
@@ -186,13 +186,13 @@ for (const width of [320, 1280]) test(`changing all three history filters releas
       await expect(page.getByRole("table")).toHaveCount(0);
       await expect(page.locator(".telemetry-chart")).toHaveCount(0);
       response.release();
-      await expect(page.getByText("За цей період немає валідних вимірювань.", { exact: true })).toBeVisible();
+      await expect(page.getByText("За цей період немає вимірювань для графіка.", { exact: true })).toBeVisible();
       await expect(page.getByRole("table")).toBeHidden();
       await expect.poll(() => reservedHistorySpace(page)).toBeLessThanOrEqual(2);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     } finally { response.release(); }
   }
-  await page.getByLabel("Метрика", { exact: true }).scrollIntoViewIfNeeded();
+  await page.getByLabel("Показник", { exact: true }).scrollIntoViewIfNeeded();
   await test.info().attach(`history-empty-${width}`, { body: await page.screenshot(), contentType: "image/png" });
 });
 
@@ -214,11 +214,11 @@ test("current with missing measurements has an explanation and no retained chart
     result.buckets[0] = { ...result.buckets[0]!, status: "missing", missing_count: 648 };
     await fulfillJson(route, 200, result);
   });
-  await page.getByLabel("Метрика", { exact: true }).selectOption("vfd.current_a");
+  await page.getByLabel("Показник", { exact: true }).selectOption("vfd.current_a");
   for (const period of ["3600", "21600"]) {
     await page.getByLabel("Період", { exact: true }).selectOption(period);
     await expect(page.getByText(/Повідомлення надходили, але для цієї метрики/)).toBeVisible();
-    await expect(page.getByText(/Валідних вимірювань: 0; повідомлень: 648/)).toBeVisible();
+    await expect(page.getByText(/Вимірювань для графіка: 0; повідомлень: 648/)).toBeVisible();
     await expect(page.locator(".telemetry-chart")).toHaveCount(0);
     await expect(page.getByRole("table")).toBeHidden();
     await expect.poll(() => reservedHistorySpace(page)).toBeLessThanOrEqual(2);

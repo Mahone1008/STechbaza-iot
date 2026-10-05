@@ -91,8 +91,8 @@ test("real organization and site selection shows API devices, presence and resto
     expect(command.command_type).toBe("vfd.stop"); expect(command.device_id).toBe(overview.device.id);
     const details = page.locator("section.card").filter({ has: page.getByRole("heading", { name: "Стан вибраної команди", exact: true }) });
     await expect(details.locator(".status-badge")).toHaveText("Контролер повідомив про виконання", { timeout: 20_000 });
-    await details.getByText("Автор і технічні деталі команди", { exact: true }).click();
-    await expect(details).toContainText(command.request_id); await expect(details).toContainText(email);
+    await details.getByText("Автор та виконання", { exact: true }).click();
+    await expect(details).not.toContainText(command.request_id); await expect(details).toContainText(email);
     await page.getByRole("tab", { name: "Журнал", exact: true }).click();
     await page.getByRole("button", { name: "Оновити журнал", exact: true }).click();
     await expect(page.getByRole("table", { name: "Журнал команд пристрою" })).toContainText("Контролер повідомив про виконання");
@@ -133,7 +133,7 @@ test("real organization and site selection shows API devices, presence and resto
   await expect(page.locator(".overview-modules").getByRole("heading", { exact: true, name: newOverview.capabilities[0]!.name })).toBeVisible();
   await expect(page.locator(".metric-card")).toHaveCount(1);
   await expect(page.locator(".metric-card")).toContainText("Немає даних");
-  await expect(page.locator(".metric-card strong")).toHaveText("—");
+  await expect(page.locator(".metric-card strong")).toHaveText("-");
   await expect(page.getByText("TB-DEMO-PUMP", { exact: true })).toHaveCount(0);
 
 });

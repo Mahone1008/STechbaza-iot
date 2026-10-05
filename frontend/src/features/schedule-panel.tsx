@@ -221,20 +221,20 @@ export function SchedulePanel({
       } else {
         const saved = parseSchedule(raw, device.id, context.activeOrganization.id);
         if (saved.id !== input.id || saved.revision !== input.expected_revision + 1 || saved.enabled !== input.enabled)
-          throw new Error("Сервер повернув іншу ревізію розкладу. Оновіть список.");
+          throw new Error("Не вдалося підтвердити збереження розкладу. Оновіть список.");
         setDraft(null);
         setPreview(null);
         query.refresh();
         setNotice(
           saved.enabled
-            ? "Розклад збережено й увімкнено. Контролер запуститься автоматично у вказаний час. Стан запуску — в історії."
+            ? "Розклад збережено й увімкнено. Контролер запуститься автоматично у вказаний час. Стан запуску можна переглянути в історії."
             : "Майбутні запуски призупинено. Уже прийнятий запуск зупиняється окремою кнопкою STOP.",
         );
       }
     } catch (error) {
       if (!controller.signal.aborted)
         setNotice(
-          `${errorText(error)}${kind !== "preview" ? " Оновіть список перед повтором: сервер міг виконати дію." : ""}`,
+          `${errorText(error)}${kind !== "preview" ? " Оновіть список перед повтором: зміни могли зберегтися." : ""}`,
         );
     } finally {
       if (pending.current === controller) {
@@ -250,7 +250,7 @@ export function SchedulePanel({
       <h3 id={titleId} ref={heading} tabIndex={-1}>
         {draft ? (draft.expected_revision === 0 ? "Новий розклад" : "Редагування розкладу") : "Збережені розклади"}
       </h3>
-      <p className="help-copy">Час об’єкта: {timezone}. Усі дати й години розкладу — за цим часовим поясом.</p>
+      <p className="help-copy">Час об’єкта: {timezone}. Дати й години розкладу відповідають цьому часовому поясу.</p>
       {query.data && (
         <p className="help-copy">
           Збережено {query.data.length} із {MAX_DEVICE_SCHEDULES} розкладів. Призупинені також займають місце.
@@ -417,8 +417,8 @@ export function SchedulePanel({
               <details>
                 <summary>Правила календаря</summary>
                 <p>
-                  Пропущена при переведенні годинника година не запускається; повторна — лише один раз. Перетини
-                  перевіряються на 366 днів.
+                  Під час переведення годинника пропущений час не виконується, а повторений виконується лише один раз.
+                  Перетини перевіряються на 366 днів.
                 </p>
               </details>
               <Button
@@ -480,7 +480,7 @@ export function SchedulePanel({
         </p>
         {confirmation && (
           <p>
-            {confirmation.spec.start_date} — {confirmation.spec.until_date} · {confirmation.spec.start_time.slice(0, 5)}{" "}
+            {confirmation.spec.start_date} / {confirmation.spec.until_date} · {confirmation.spec.start_time.slice(0, 5)}{" "}
             → {confirmation.spec.stop_time.slice(0, 5)}
             {` · ${scheduleDayLabels[confirmation.spec.stop_day_offset ?? 0]?.toLocaleLowerCase("uk-UA")}`} ·{" "}
             {confirmation.spec.frequency_hz} Гц

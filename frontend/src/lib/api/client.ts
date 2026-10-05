@@ -43,7 +43,7 @@ async function readResponseBody(response: Response, method: string, url: string)
   try {
     return JSON.parse(text) as unknown;
   } catch (cause) {
-    throw new ApiError("Backend повернув некоректний JSON.", {
+    throw new ApiError("Не вдалося отримати дані. Спробуйте ще раз.", {
       kind: "invalid-response",
       status: response.status,
       method,
@@ -133,7 +133,7 @@ export async function apiRequest<T>(options: ApiRequestOptions): Promise<T> {
     if (error instanceof ApiError) throw error;
 
     if (abort.didTimeout()) {
-      throw new ApiError("Час очікування відповіді API вичерпано.", {
+      throw new ApiError("Відповідь не надійшла вчасно. Спробуйте ще раз.", {
         kind: "timeout",
         status: null,
         method,
@@ -158,7 +158,7 @@ export async function apiRequest<T>(options: ApiRequestOptions): Promise<T> {
       });
     }
 
-    throw new ApiError("Не вдалося встановити зв’язок із backend.", {
+    throw new ApiError("Не вдалося підключитися. Перевірте з’єднання з інтернетом.", {
       kind: "network",
       status: null,
       method,

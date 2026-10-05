@@ -102,7 +102,7 @@ export function ScheduleForm({
         onChange={(event) => change("frequency_hz", Number(event.target.value))}
         hint={
           limits
-            ? `Робочі межі: ${limits.min_hz}–${limits.max_hz} Гц. Тривалість одного запуску — від 1 хв до 7 діб (168 год).`
+            ? `Робочі межі: ${limits.min_hz}-${limits.max_hz} Гц. Один запуск може тривати від 1 хв до 7 діб (168 год).`
             : "Спочатку налаштуйте допустимі межі частоти обладнання."
         }
       />
@@ -183,7 +183,7 @@ export function ScheduleForm({
               ))}
             </fieldset>
           )}
-          {value.repeat === "yearly" && <p>Щороку в день і місяць дати початку. 29 лютого — лише у високосні роки.</p>}
+          {value.repeat === "yearly" && <p>Щороку в день і місяць дати початку. Запуск 29 лютого виконується лише у високосні роки.</p>}
           {value.repeat === "monthly" && <p>Якщо обраного числа немає в місяці, запуск пропускається.</p>}
           {value.repeat !== "once" && (
             <fieldset className="schedule-options">
@@ -206,7 +206,7 @@ export function ScheduleForm({
         <summary>Зміна частоти протягом роботи</summary>
         <div className="schedule-section-content">
           <p className="help-copy">
-            До 7 змін за місцевим часом, у хронологічному порядку. Від запуску, між змінами та до зупинки — щонайменше 1
+            До 7 змін за місцевим часом, у хронологічному порядку. Від запуску, між змінами та до зупинки має минути щонайменше 1
             хв. Повторення розкладу не продовжує окремий запуск.
           </p>
           {value.changes.map((item, index) => (

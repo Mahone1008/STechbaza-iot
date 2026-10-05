@@ -28,7 +28,7 @@ for (const width of [320, 393]) test(`history filters and their open pickers fit
   await expect(page.locator(".telemetry-chart")).toBeVisible();
   await page.getByLabel("Автооновлення", { exact: true }).selectOption("0");
 
-  for (const label of ["Метрика", "Період", "Інтервал"]) {
+  for (const label of ["Показник", "Період", "Інтервал"]) {
     const select = page.getByLabel(label, { exact: true });
     await select.click();
     const options = select.getByRole("option");
@@ -47,7 +47,7 @@ for (const width of [320, 393]) test(`history filters and their open pickers fit
     await expect(select).toBeFocused();
   }
 
-  const metric = page.getByLabel("Метрика", { exact: true });
+  const metric = page.getByLabel("Показник", { exact: true });
   await metric.click();
   await metric.getByRole("option", { name: "Вихідна частота · Hz", exact: true }).click();
   await expect(metric).toHaveValue("vfd.frequency_hz");

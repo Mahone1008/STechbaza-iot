@@ -67,10 +67,10 @@ test("successful login resolves real profile, organization and permissions witho
   await page.getByRole("button", { name: "Увійти" }).click();
 
   await expect(page).toHaveURL(/\/devices$/u);
-  await expect(page.getByText("Сесія підтверджена")).toBeVisible();
+  await expect(page.locator(".app-shell")).toBeVisible();
   await expect(page.getByText("owner@example.com")).toBeVisible();
   await expect(page.getByText("DEMO: клієнт A").first()).toBeVisible();
-  await expect(page.getByText(/Owner · Власник/u)).toBeVisible();
+  await expect(page.getByText("Власник", { exact: true })).toBeVisible();
 
   expect(requestHeaders["x-techbaza-csrf"]).toBe("1");
   expect(requestHeaders.origin).toBe(FRONTEND_ORIGIN);
@@ -265,7 +265,7 @@ test("network failure is not rendered as invalid credentials or an empty state",
   await fillLogin(page);
   await page.getByRole("button", { name: "Увійти" }).click();
 
-  await expect(page.locator(".login-alert")).toContainText("Backend недоступний");
+  await expect(page.locator(".login-alert")).toContainText("Не вдалося підключитися");
   await expect(page.getByLabel("Пароль", { exact: true })).toHaveValue("valid-test-password");
 });
 
@@ -315,7 +315,7 @@ for (const source of ["login", "refresh"] as const) {
       await expect(page.getByRole("heading", { name: "Пристрої", exact: true })).toHaveCount(0);
       releaseNavigation();
       await expect(page.getByRole("heading", { name: "Пристрої", exact: true })).toBeVisible();
-      await expect(page.getByText("Online", { exact: true })).toBeVisible();
+      await expect(page.getByText("На зв’язку", { exact: true })).toBeVisible();
       expect(profilePaths).toEqual(["/devices"]);
       expect(profileFailures).toEqual([]);
     } finally {

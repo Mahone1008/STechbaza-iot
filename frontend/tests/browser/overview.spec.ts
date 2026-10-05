@@ -21,7 +21,7 @@ test("diagnostics distinguish a requested stop from readback and transport-speci
   await expect(page.getByText("Просідання живлення", { exact: true })).toBeVisible();
   await expect(page.getByText("1 д 1 год 1 хв 1 с", { exact: true })).toBeVisible();
   await expect(page.getByText("Зупинку ще не підтверджено", { exact: true })).toBeVisible();
-  await expect(page.getByText("UTC на момент події був недоступний")).toBeVisible();
+  await expect(page.getByText("Точний час події невідомий")).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   data.diagnostics.connection = { transport: "cellular", signal: { metric: "rsrp", dbm: -105 } };
   data.diagnostics.last_stop!.confirmed = true;
@@ -50,7 +50,7 @@ test("assigned numeric/state widgets preserve zero and false, with unsupported a
   await expect(page.getByRole("heading", { name: "Показники обладнання", exact: true })).toBeVisible();
   const pressure = page.locator(".metric-card").filter({ hasText: "Тиск" });
   await expect(pressure.locator("strong")).toHaveText("0"); await expect(pressure).toContainText("bar");
-  await expect(page.locator(".metric-card").filter({ hasText: "Стан RUN частотника" }).locator("strong")).toHaveText("Ні");
+  await expect(page.locator(".metric-card").filter({ hasText: "Стан роботи частотника" }).locator("strong")).toHaveText("Ні");
   await expect(page.locator(".metric-card").filter({ hasText: "Код помилки" }).locator("strong")).toHaveText("0");
   await expect(page.getByText("Цей модуль ще не підтримує відображення даних.")).toHaveCount(0);
   await expect(page.getByText(/Модуль керування без вимірювальних каналів/)).toHaveCount(0);
@@ -63,10 +63,10 @@ test("online and stale telemetry remain separate; missing and invalid never beco
   data.state_readings[0] = { ...data.state_readings[0]!, value: null, status: "missing" };
   data.state_readings[1] = { ...data.state_readings[1]!, value: null, status: "invalid" };
   await mockOverview(page, () => data); await page.goto(path);
-  await expect(page.getByText("Online", { exact: true })).toBeVisible();
-  await expect(page.getByText(/Контролер змінив сесію/)).toBeVisible();
+  await expect(page.getByText("На зв’язку", { exact: true })).toBeVisible();
+  await expect(page.getByText(/Очікуємо дані після перезапуску контролера/)).toBeVisible();
   await expect(page.locator(".metric-card").filter({ hasText: "Тиск" })).toContainText("Останнє відоме значення");
-  await expect(page.locator(".metric-card").filter({ hasText: "Стан RUN частотника" }).locator("strong")).toHaveText("—");
+  await expect(page.locator(".metric-card").filter({ hasText: "Стан роботи частотника" }).locator("strong")).toHaveText("-");
   await expect(page.locator(".metric-card").filter({ hasText: "Код помилки" })).toContainText("Некоректні дані");
 });
 

@@ -10,7 +10,8 @@ import { StableRegion } from "@/components/stable-region";
 import { useAuthSession } from "./auth-session";
 import type { ReadyAccessSnapshot } from "./access-context";
 import { usePanelQuery } from "./use-panel-query";
-import { apiErrorDisplayMessage, apiQueryKeys } from "@/lib/api";
+import { apiErrorDisplayMessage, apiQueryKeys, organizationRoleLabel } from "@/lib/api";
+import type { OrganizationRole } from "@/lib/api/access";
 import { formatSeen } from "@/lib/api/inventory";
 import { commandCursor, commandLabel, commandPending, parseCommand, parseCommandPage, statusLabels, type Command, type CommandCursor } from "@/lib/api/commands";
 
@@ -49,14 +50,12 @@ export function CommandDetail({ context, id, poll }: { context: ReadyAccessSnaps
         {command.result_timed_out_at && <p>Результат став невідомим: {time(command.result_timed_out_at)}.</p>}
         {program && typeof command.result.steps_completed === "number" && <p>Завершених етапів: {command.result.steps_completed} з {program.steps.length}. Зупинка: {command.result.stop_confirmed === true ? "підтверджена контролером" : "не підтверджена"}.</p>}
         {command.error_message && <p role="alert">{command.error_code === "program_cancelled" ? "Програму перервано запитом оператора; наступні етапи скасовано." : command.error_code === "program_transition_timeout" ? "Частотник не досяг заданої частоти за 60 с. Перевірте налаштування розгону та результат зупинки." : command.error_code === "program_invalid" ? "Програма не відповідає можливостям або локальному режиму контролера." : command.error_code === "not_armed" ? "Локальний дозвіл керування вимкнено. Перевірте причину зупинки та відновіть дозвіл на контролері." : command.error_message}</p>}
-        <details><summary>Автор і технічні деталі команди</summary><dl className="overview-details">
+        <details><summary>Автор та виконання</summary><dl className="overview-details command-audit">
           <div><dt>Автор</dt><dd>{command.actor_display_name ?? "Невідомий"} · {command.actor_email ?? "Email не збережено"}</dd></div>
-          <div><dt>Роль під час запиту</dt><dd>{command.actor_organization_role ?? command.actor_platform_role ?? "Невідома"}</dd></div>
-          <div><dt>ID команди</dt><dd>{command.id}</dd></div><div><dt>request_id</dt><dd>{command.request_id}</dd></div>
-          <div><dt>Спроби публікації</dt><dd>{command.publish_attempts}</dd></div><div><dt>Остання спроба</dt><dd>{time(command.last_publish_attempt_at)}</dd></div>
-          <div><dt>Помилка публікації</dt><dd>{command.last_publish_error ?? "Немає"}</dd></div><div><dt>Код помилки</dt><dd>{command.error_code ?? "Немає"}</dd></div>
-          <div><dt>Оновлено сервером</dt><dd>{time(command.updated_at)}</dd></div>
-        </dl><pre className="command-json">{JSON.stringify({ payload: command.payload, result: command.result }, null, 2)}</pre></details>
+          <div><dt>Роль під час запиту</dt><dd>{organizationRoleLabel(command.actor_organization_role as OrganizationRole | null, command.actor_platform_role ?? "user")}</dd></div>
+          <div><dt>Спроби доставки</dt><dd>{command.publish_attempts}</dd></div><div><dt>Остання спроба</dt><dd>{time(command.last_publish_attempt_at)}</dd></div>
+          <div><dt>Останнє оновлення</dt><dd>{time(command.updated_at)}</dd></div>
+        </dl></details>
         <p className="help-copy">{poll > 0 && commandPending(command) ? `Один вибраний запис перевіряється кожні ${poll} с, до 10 хвилин; після помилок інтервал збільшується.` : "Стан можна перевірити вручну."}</p>
       </>}
     </StableRegion>

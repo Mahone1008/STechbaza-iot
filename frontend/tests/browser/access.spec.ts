@@ -55,7 +55,7 @@ test("viewer can read devices but command controls stay disabled by backend perm
   await page.goto("/ui-kit/device-demo");
 
   await expect(page.getByRole("heading", { name: "Насосна станція №1" })).toBeVisible();
-  await expect(page.getByText(/Owner · Спостерігач/u)).toBeVisible();
+  await expect(page.getByText("Спостерігач", { exact: true })).toBeVisible();
   await expect(page.getByText(/не має permission command\.execute/u)).toBeVisible();
   await expect(page.getByRole("button", { name: "Запустити" })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Зупинити" })).toBeDisabled();

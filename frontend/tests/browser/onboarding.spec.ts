@@ -86,7 +86,7 @@ test("QR activation uses the label password without registration and resumes its
     posts++;
     expect(request.request().postDataJSON()).toEqual({ controller_id: id, password });
     if (posts === 1) {
-      await fulfillJson(request, 401, { detail: "Wrong label password" });
+      await fulfillJson(request, 401, { detail: "Невірний логін або пароль." });
       return;
     }
     await mockAuthenticatedWorkspace(page);
@@ -105,7 +105,7 @@ test("QR activation uses the label password without registration and resumes its
   await expect(page.getByRole("link", { name: "Створити обліковий запис", exact: true })).toHaveCount(0);
   await page.getByLabel("Пароль з етикетки", { exact: true }).fill(password);
   await page.getByRole("button", { name: "Активувати контролер", exact: true }).click();
-  await expect(page.getByRole("main").getByRole("alert")).toContainText("Wrong label password");
+  await expect(page.getByRole("main").getByRole("alert")).toContainText("Невірний логін або пароль.");
   expect(posts).toBe(1);
   await page.getByRole("button", { name: "Активувати контролер", exact: true }).click();
   await expect(page.getByLabel("Назва об’єкта", { exact: true })).toBeVisible();
@@ -396,7 +396,7 @@ for (const failure of [
     await otp.fill("000000");
     await card.getByRole("button", { name: "Підтвердити код і ввімкнути", exact: true }).click();
     const error = card.getByRole("alert");
-    await expect(error).toHaveText(failure.detail);
+    await expect(error).toHaveText(failure.status === 503 ? "Сервіс тимчасово недоступний. Спробуйте пізніше." : failure.detail);
     await expect(error).toBeFocused();
     await expect(error).toBeInViewport();
     await expect(card.locator(".recovery-key")).toHaveText(secret);

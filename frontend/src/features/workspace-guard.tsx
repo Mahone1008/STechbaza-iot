@@ -24,7 +24,6 @@ function firstAllowedRoute(permissions: readonly string[]): Route | null {
   if (permissions.includes("device.read")) return "/devices";
   if (permissions.includes("alarm.read")) return "/alarms";
   if (permissions.includes("notification.read")) return "/notifications" as Route;
-  if (permissions.includes("capability.read")) return "/ui-kit";
   return null;
 }
 
@@ -79,7 +78,7 @@ function LogoutFailureGate({
   return (
     <AccessGate
       title="Не вдалося завершити сесію"
-      description={`${message} Кабінет приховано, але server-side session ще не вважається відкликаною.`}
+      description={`${message} Вихід ще не завершено. Повторіть спробу, коли відновиться з’єднання.`}
       tone="warning"
     >
       <Button variant="danger" disabled={retrySeconds > 0} onClick={onRetry}>
@@ -105,7 +104,7 @@ function SessionRecoveryGate({ message, retryAt, onRetry }: Readonly<{
   return (
     <AccessGate
       title="Не вдалося перевірити сесію"
-      description={`${message} Дані кабінету не показуються, доки session не підтверджена.`}
+      description={`${message} Відновіть з’єднання та повторіть перевірку, щоб продовжити роботу.`}
       tone="warning"
     >
       <Button variant="secondary" disabled={seconds > 0} onClick={onRetry}>
@@ -142,7 +141,7 @@ export function WorkspaceGuard({ children }: Readonly<{ children: ReactNode }>) 
       <AccessGate
         title="Завершуємо сесію"
         busy
-        description="Відкликаємо HttpOnly session на backend, скасовуємо активні запити та очищуємо приватний cache."
+        description="Завершуємо вихід з облікового запису. Зачекайте кілька секунд."
       />
     );
   }
@@ -159,7 +158,7 @@ export function WorkspaceGuard({ children }: Readonly<{ children: ReactNode }>) 
   }
 
   if (session.status === "restoring") {
-    return <AccessGate title="Перевіряємо сесію" description="Безпечна HttpOnly session перевіряється через backend." busy />;
+    return <AccessGate title="Перевіряємо сесію" description="Перевіряємо ваш вхід, щоб відкрити кабінет." busy />;
   }
 
   if (session.status === "unavailable") {
@@ -177,14 +176,14 @@ export function WorkspaceGuard({ children }: Readonly<{ children: ReactNode }>) 
   }
 
   if (snapshot.status === "idle" || snapshot.status === "resolving") {
-    return <AccessGate title="Перевіряємо профіль і права" description="Завантажуємо /auth/me, доступні організації та актуальні permissions." busy />;
+    return <AccessGate title="Перевіряємо профіль і права" description="Завантажуємо ваші організації та доступне обладнання." busy />;
   }
 
   if (snapshot.status === "unavailable") {
     return (
       <AccessGate
         title="Не вдалося перевірити права"
-        description={`${snapshot.message} Кабінет не показує tenant data без підтвердженого access context.`}
+        description={`${snapshot.message} Повторіть перевірку або оберіть іншу організацію.`}
         tone="warning"
       >
         <Link className="button button-secondary" href={"/account/security" as Route}>Безпека облікового запису</Link>
@@ -224,7 +223,7 @@ export function WorkspaceGuard({ children }: Readonly<{ children: ReactNode }>) 
     return (
       <AccessGate
         title="Недостатньо прав"
-        description={`${role} не має permission ${permission} в організації «${snapshot.activeOrganization.name}». Backend залишається остаточним authorization guard.`}
+        description={`Ваша роль «${role}» не дозволяє відкрити цей розділ в організації «${snapshot.activeOrganization.name}». Зверніться до адміністратора організації.`}
         tone="danger"
       >
         <Link className="button button-secondary" href={"/organizations" as Route}>Обрати організацію</Link>

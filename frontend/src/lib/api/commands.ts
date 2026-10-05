@@ -16,7 +16,7 @@ export function validFrequency(text: string): number | null {
   return Number.isFinite(value) && value >= 0 && value <= 100 ? value : null;
 }
 export function makeCommandInput(type: CommandType, frequency: string, ttl: number, requestId: string, program?: ProgramPlan | null): CommandInput {
-  if (!Number.isInteger(ttl) || ttl < 5 || ttl > 300) throw new Error("TTL має бути від 5 до 300 секунд.");
+  if (!Number.isInteger(ttl) || ttl < 5 || ttl > 300) throw new Error("Час на прийняття команди має бути від 5 до 300 секунд.");
   if (type === "vfd.program.start") {
     const plan = parseProgramPlan(program);
     if (!plan) throw new Error("Перевірте частоти та тривалість етапів програми.");

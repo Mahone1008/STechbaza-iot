@@ -466,7 +466,7 @@ test("required fields and frequency limits are checked before calendar preview",
   expect(previews).toBe(0);
   await page.getByLabel("Назва розкладу", { exact: true }).fill("Полив");
   const frequency = page.getByRole("spinbutton", { name: "Частота за розкладом, Гц", exact: true });
-  await expect(frequency).toHaveAccessibleDescription(/Робочі межі: 20–50 Гц/);
+  await expect(frequency).toHaveAccessibleDescription(/Робочі межі: 20-50 Гц/);
   await frequency.fill("60");
   await preview.click();
   await expect(frequency).toBeFocused();
