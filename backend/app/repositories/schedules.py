@@ -10,9 +10,11 @@ class ScheduleRepository:
         self.session = session
 
     def get(self, schedule_id, *, lock=False):
-        query = select(DeviceSchedule).where(DeviceSchedule.id == schedule_id)
+        # Delivery must observe deletion/pause from another transaction, even
+        # when this Session already loaded the rule (expire_on_commit=False).
+        query = select(DeviceSchedule).where(DeviceSchedule.id == schedule_id).execution_options(populate_existing=True)
         if lock:
-            query = query.with_for_update().execution_options(populate_existing=True)
+            query = query.with_for_update()
         return self.session.scalar(query)
 
     def for_device(self, device_id):

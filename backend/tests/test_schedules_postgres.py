@@ -142,6 +142,20 @@ class SchedulePostgresTests(unittest.TestCase):
             self.assertEqual(len(commands), 1)
             self.assertEqual(commands[0].id, command_id)
 
+    def test_delete_revokes_delivery_with_a_previously_loaded_schedule(self):
+        row, _ = self.save_rule()
+        self.assertEqual(self.process(row), "queued")
+        with SessionLocal() as session:
+            cached = ScheduleRepository(session).get(uuid.UUID(row["id"]))
+            session.commit()  # SessionLocal keeps its identity map after commit.
+            self.call(self.base + "/schedules/" + row["id"] + "?expected_revision=1", method="DELETE", expected=204)
+            self.assertIsNone(cached.deleted_at)
+            command = session.scalar(select(DeviceCommand).where(DeviceCommand.schedule_id == cached.id))
+            with patch("app.services.command_dispatch.publish_command_message", return_value=(True, "published")) as publish:
+                result = CommandDispatchService(session).dispatch(command.id, now=self.due)
+                self.assertEqual(result.reason, "command_access_revoked")
+                publish.assert_not_called()
+
     def test_concurrent_creation_cannot_exceed_eight(self):
         for _ in range(7):
             self.paused_rule()
