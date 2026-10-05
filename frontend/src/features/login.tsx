@@ -18,13 +18,13 @@ import {
 import { isApiError } from "@/lib/api";
 
 function focusFirstInvalidField(errors: LoginFieldErrors): void {
-  const id = errors.email ? "login-email" : errors.password ? "login-password" : null;
+  const id = errors.email ? "login-email" : errors.password ? "login-password" : errors.otp ? "login-otp" : null;
   if (!id) return;
   window.requestAnimationFrame(() => document.getElementById(id)?.focus());
 }
 
 function withoutFieldError(errors: LoginFieldErrors, field: keyof LoginFieldErrors): LoginFieldErrors {
-  const next: { email?: string; password?: string } = { ...errors };
+  const next: { email?: string; password?: string; otp?: string } = { ...errors };
   delete next[field];
   return next;
 }
@@ -59,6 +59,7 @@ export function LoginPanel() {
   const [password, setPassword] = useState("");
   const [fieldErrors, setFieldErrors] = useState<LoginFieldErrors>({});
   const [formError, setFormError] = useState("");
+  const [errorTone, setErrorTone] = useState<"info" | "danger">("danger");
   const [submitting, setSubmitting] = useState(false);
   const [blockedUntil, setBlockedUntil] = useState<number | null>(null);
   const [clock, setClock] = useState(() => Date.now());
@@ -105,11 +106,11 @@ export function LoginPanel() {
     event.preventDefault();
     if (submitting || sessionBusy || session.status === "authenticated" || retrySeconds > 0) return;
 
-    const validation = validateLoginForm({ email, password });
+    const validation = validateLoginForm({ email, password, otp });
     setFieldErrors(validation.errors);
     setFormError("");
 
-    if (validation.errors.email || validation.errors.password) {
+    if (validation.errors.email || validation.errors.password || validation.errors.otp) {
       focusFirstInvalidField(validation.errors);
       return;
     }
@@ -124,8 +125,7 @@ export function LoginPanel() {
         { email: validation.normalizedEmail, password, ...(otp ? { otp } : {}) },
         controller.signal,
       );
-      if (!params.get("returnTo") && response.onboarding_path)
-        onboardingTargetRef.current = safeLoginReturnTo(response.onboarding_path);
+      onboardingTargetRef.current = response.onboarding_path ? safeLoginReturnTo(response.onboarding_path) : null;
       setPassword("");
       // Єдиний перехід виконує effect після підтвердженого authenticated state.
     } catch (error) {
@@ -133,6 +133,7 @@ export function LoginPanel() {
 
       const presentation = loginErrorPresentation(error);
       setFormError(presentation.summary);
+      setErrorTone(presentation.tone ?? "danger");
       setFieldErrors(presentation.fieldErrors);
       if (presentation.clearPassword) setPassword("");
       if (presentation.retryAfterSeconds > 0) {
@@ -228,12 +229,12 @@ export function LoginPanel() {
 
           {formError ? (
             <div
-              className={`login-alert ${retrySeconds > 0 ? "login-alert-warning" : "login-alert-danger"}`}
+              className={`login-alert ${retrySeconds > 0 ? "login-alert-warning" : `login-alert-${errorTone}`}`}
               role="alert"
               tabIndex={-1}
               ref={alertRef}
             >
-              <strong>Не вдалося увійти</strong>
+              <strong>{errorTone === "info" ? "Підтвердьте двоетапний вхід" : "Не вдалося увійти"}</strong>
               <span>{retrySeconds > 0 ? `Забагато спроб. Повторіть через ${retrySeconds} с.` : formError}</span>
             </div>
           ) : null}
@@ -273,12 +274,17 @@ export function LoginPanel() {
               }}
             />
             <TextField
+              id="login-otp"
               label="Код двоетапного входу, якщо ввімкнено"
               inputMode="numeric"
               autoComplete="one-time-code"
               maxLength={6}
               value={otp}
-              onChange={(event) => setOtp(event.target.value)}
+              {...(fieldErrors.otp ? { error: fieldErrors.otp } : {})}
+              onChange={(event) => {
+                setOtp(event.target.value);
+                if (fieldErrors.otp) setFieldErrors((current) => withoutFieldError(current, "otp"));
+              }}
             />
             <Button
               type="submit"
@@ -297,7 +303,8 @@ export function LoginPanel() {
           </div>
           <div className="login-security">
             Зберігайте постійний пароль і ключ відновлення в надійному місці. Код із застосунку потрібен, якщо
-            двоетапний вхід увімкнено.
+            двоетапний вхід увімкнено. Якщо пароль вам передали разом із доступом, після входу замініть його у розділі
+            «Безпека облікового запису».
           </div>
         </div>
       </section>

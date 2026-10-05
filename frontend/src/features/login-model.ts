@@ -5,11 +5,13 @@ import { apiErrorDisplayMessage, isApiError } from "@/lib/api";
 export type LoginFormValues = Readonly<{
   email: string;
   password: string;
+  otp?: string;
 }>;
 
 export type LoginFieldErrors = Readonly<{
   email?: string;
   password?: string;
+  otp?: string;
 }>;
 
 export type LoginValidationResult = Readonly<{
@@ -22,6 +24,7 @@ export type LoginErrorPresentation = Readonly<{
   fieldErrors: LoginFieldErrors;
   retryAfterSeconds: number;
   clearPassword: boolean;
+  tone?: "info" | "danger";
 }>;
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/u;
@@ -60,7 +63,7 @@ export function safeLoginReturnTo(value: string | null | undefined): Route {
 
 export function validateLoginForm(values: LoginFormValues): LoginValidationResult {
   const normalizedEmail = values.email.trim().toLowerCase();
-  const errors: { email?: string; password?: string } = {};
+  const errors: { email?: string; password?: string; otp?: string } = {};
 
   if (!normalizedEmail) {
     errors.email = "Введіть логін.";
@@ -79,6 +82,7 @@ export function validateLoginForm(values: LoginFormValues): LoginValidationResul
     errors.password = `Пароль не може бути довшим за ${MAX_PASSWORD_LENGTH} символів.`;
   }
 
+  if (values.otp && !/^\d{6}$/u.test(values.otp)) errors.otp = "Введіть шестизначний код із застосунку.";
   return { normalizedEmail, errors };
 }
 
@@ -93,6 +97,21 @@ export function loginErrorPresentation(error: unknown): LoginErrorPresentation {
   }
 
   if (error.kind === "unauthorized") {
+    const detail = error.details && typeof error.details === "object" ? Reflect.get(error.details, "detail") : null;
+    const code = detail && typeof detail === "object" ? Reflect.get(detail, "code") : null;
+    if (code === "mfa_required" || code === "mfa_invalid") {
+      const summary =
+        code === "mfa_required"
+          ? "Для цього облікового запису ввімкнено двоетапний вхід. Введіть код із застосунку."
+          : "Код із застосунку не прийнято. Дочекайтеся нового коду й повторіть вхід.";
+      return {
+        summary,
+        fieldErrors: { otp: "Введіть свіжий шестизначний код із застосунку." },
+        retryAfterSeconds: 0,
+        clearPassword: false,
+        tone: code === "mfa_required" ? "info" : "danger",
+      };
+    }
     return {
       summary: "Невірний логін або пароль.",
       fieldErrors: { password: "Перевірте пароль і повторіть спробу." },

@@ -8,10 +8,54 @@ import { apiErrorDisplayMessage, type components } from "@/lib/api";
 import { parseRecovery } from "@/lib/api/onboarding";
 import { AccountGate } from "./account-gate";
 import { useAuthSession } from "./auth-session";
+import { useAccessContext } from "./access-context";
 import { usePanelQuery } from "./use-panel-query";
 
 type Schema = components["schemas"];
 type SecurityAction = "totp" | "password" | "recovery" | "session";
+type ActionProof = Readonly<{ password: string; otp: string }>;
+const EMPTY_PROOF: ActionProof = { password: "", otp: "" };
+
+function ConfirmationFields({
+  purpose,
+  proof,
+  onChange,
+  mfaEnabled,
+  disabled,
+}: {
+  purpose: string;
+  proof: ActionProof;
+  onChange: (value: ActionProof) => void;
+  mfaEnabled: boolean;
+  disabled: boolean;
+}) {
+  return (
+    <div className="connect-fields">
+      <TextField
+        label={`Поточний пароль для ${purpose}`}
+        type="password"
+        autoComplete="current-password"
+        maxLength={128}
+        value={proof.password}
+        disabled={disabled}
+        onChange={(event) => onChange({ ...proof, password: event.target.value })}
+      />
+      {mfaEnabled && (
+        <TextField
+          label={`Код із застосунку для ${purpose}`}
+          inputMode="numeric"
+          autoComplete="one-time-code"
+          maxLength={6}
+          pattern="[0-9]{6}"
+          value={proof.otp}
+          disabled={disabled}
+          onChange={(event) => onChange({ ...proof, otp: event.target.value })}
+          hint="Використайте свіжий код: попередній уже не можна повторювати."
+        />
+      )}
+    </div>
+  );
+}
 
 export function SecurityPage() {
   return (
@@ -25,7 +69,6 @@ export function SecurityPage() {
       </AccountGate>
       <div className="ui-row">
         <Link href="/devices">До пристроїв</Link>
-        <Link href="/factory">Реєстр виробника</Link>
       </div>
     </main>
   );
@@ -33,16 +76,21 @@ export function SecurityPage() {
 
 function SecuritySettings() {
   const { authorizedRequest, session, logout } = useAuthSession();
+  const { snapshot } = useAccessContext();
+  const profile = "profile" in snapshot ? snapshot.profile : null;
   const [password, setPassword] = useState("");
   const [otp, setOtp] = useState("");
+  const [passwordProof, setPasswordProof] = useState<ActionProof>(EMPTY_PROOF);
+  const [recoveryProof, setRecoveryProof] = useState<ActionProof>(EMPTY_PROOF);
   const [setup, setSetup] = useState<Schema["TotpSetupRead"] | null>(null);
   const [recovery, setRecovery] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");
   const [notice, setNotice] = useState("");
   const [activeAction, setActiveAction] = useState<SecurityAction | null>(null);
-  const [totpNotice, setTotpNotice] = useState("");
+  const [totpConfirmed, setTotpConfirmed] = useState(false);
   const errorRef = useRef<HTMLParagraphElement>(null);
+  const successRef = useRef<HTMLDivElement>(null);
   const key = session.status === "authenticated" ? [session.email, session.sessionExpiresAt] : null;
   const state = usePanelQuery({
     queryKey: ["account-security", key],
@@ -73,10 +121,15 @@ function SecuritySettings() {
   useEffect(() => {
     if (error) errorRef.current?.focus();
   }, [error, activeAction]);
+  useEffect(() => {
+    if (totpConfirmed) successRef.current?.focus();
+  }, [totpConfirmed]);
+  const mfaEnabled = Boolean(totpConfirmed || state.data?.mfa_enabled);
+  const securityReady = Boolean(state.data) && !state.isError;
   const startTotp = () =>
     void perform(async () => {
       setActiveAction("totp");
-      setTotpNotice("");
+      setTotpConfirmed(false);
       setSetup(
         await authorizedRequest<Schema["TotpSetupRead"]>({
           path: "/api/v1/auth/security/totp/setup",
@@ -85,12 +138,13 @@ function SecuritySettings() {
         }),
       );
       setPassword("");
+      setOtp("");
     });
 
   const confirmTotp = () =>
     void perform(async () => {
       setActiveAction("totp");
-      setTotpNotice("");
+      setTotpConfirmed(false);
       await authorizedRequest({
         path: "/api/v1/auth/security/totp/confirm",
         method: "POST",
@@ -98,7 +152,7 @@ function SecuritySettings() {
       });
       setSetup(null);
       setOtp("");
-      setTotpNotice("Двоетапний вхід увімкнено. Поточну сесію підтверджено.");
+      setTotpConfirmed(true);
     });
 
   const rotateRecovery = () =>
@@ -107,11 +161,10 @@ function SecuritySettings() {
       const result = await authorizedRequest<Schema["RecoveryRead"]>({
         path: "/api/v1/auth/security/recovery",
         method: "POST",
-        body: { password, otp: otp || null },
+        body: { password: recoveryProof.password, otp: recoveryProof.otp || null },
       });
       setRecovery(parseRecovery(result));
-      setPassword("");
-      setOtp("");
+      setRecoveryProof(EMPTY_PROOF);
     });
 
   const revokeSession = (item: Schema["SessionRead"]) =>
@@ -133,13 +186,13 @@ function SecuritySettings() {
         path: "/api/v1/auth/security/password",
         method: "POST",
         body: {
-          password,
-          otp: otp || null,
+          password: passwordProof.password,
+          otp: passwordProof.otp || null,
           new_password: newPassword,
         },
       });
-      setPassword("");
-      setOtp("");
+      setPasswordProof(EMPTY_PROOF);
+      setRecoveryProof(EMPTY_PROOF);
       setNewPassword("");
       setConfirmation("");
       setNotice("Пароль змінено. Інші сесії завершено; двоетапний захист збережено.");
@@ -159,20 +212,43 @@ function SecuritySettings() {
           <p role="alert">{apiErrorDisplayMessage(state.error)}</p>
         ) : !state.data ? (
           <p role="status">Завантаження…</p>
-        ) : (
+        ) : mfaEnabled ? (
           <>
+            <div className="notice notice-success" role="status" tabIndex={-1} ref={successRef}>
+              <span aria-hidden="true">✓</span>
+              <div className="notice-copy">
+                <strong>Двоетапний вхід увімкнено</strong>
+                <span>
+                  {totpConfirmed
+                    ? "Поточну сесію підтверджено. Налаштування завершено."
+                    : "Для входу використовуйте свій пароль і код із застосунку автентифікації."}
+                </span>
+              </div>
+            </div>
             <p>
-              {state.data.mfa_enabled
-                ? "Увімкнено: при вході потрібні пароль і код із застосунку."
-                : "Додайте другий рівень захисту через застосунок автентифікації. Для заводського реєстру він обов’язковий."}
+              Поля налаштування більше не потрібні. Для зміни пароля або ключа відновлення підтвердьте відповідну дію в
+              її розділі нижче.
             </p>
-            <TextField
-              label="Поточний пароль для підтвердження"
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-            />
+            <div className="ui-row">
+              <Link className="button button-secondary" href="/devices">
+                До пристроїв
+              </Link>
+              {profile?.platform_role === "superadmin" && (
+                <Link className="button button-primary" href="/factory">
+                  Відкрити заводський реєстр
+                </Link>
+              )}
+            </div>
+          </>
+        ) : setup ? (
+          <div className="connect-fields">
+            <p className="notice notice-info">
+              Пароль підтверджено. Залишилося підключити застосунок і підтвердити код.
+            </p>
+            <p>1. Відскануйте QR у застосунку автентифікації або додайте ключ вручну: TOTP, 6 цифр, 30 секунд.</p>
+            <ControllerQr url={setup.uri} label="QR для застосунку автентифікації" />
+            <code className="recovery-key">{setup.secret}</code>
+            <p>2. Введіть свіжий шестизначний код із цього запису та натисніть кнопку підтвердження.</p>
             <TextField
               label="Код із застосунку автентифікації"
               inputMode="numeric"
@@ -180,25 +256,31 @@ function SecuritySettings() {
               maxLength={6}
               pattern="[0-9]{6}"
               value={otp}
+              disabled={busy}
               onChange={(event) => setOtp(event.target.value)}
-              hint="Шість цифр; дочекайтеся нового коду після його використання."
+              hint="Дочекайтеся нового коду після його використання."
             />
-            {!state.data.mfa_enabled && !setup && (
-              <Button disabled={busy || !password} onClick={startTotp}>
-                {busy && activeAction === "totp" ? "Готуємо налаштування…" : "Налаштувати двоетапний вхід"}
-              </Button>
-            )}
-            {setup && (
-              <div className="connect-fields">
-                <p>1. Відскануйте QR у застосунку автентифікації або додайте ключ вручну: TOTP, 6 цифр, 30 секунд.</p>
-                <ControllerQr url={setup.uri} label="QR для застосунку автентифікації" />
-                <code className="recovery-key">{setup.secret}</code>
-                <p>2. Введіть свіжий шестизначний код у поле вище та натисніть кнопку підтвердження.</p>
-                <Button disabled={busy || !/^\d{6}$/.test(otp)} onClick={confirmTotp}>
-                  {busy && activeAction === "totp" ? "Підтверджуємо код…" : "Підтвердити код і ввімкнути"}
-                </Button>
-              </div>
-            )}
+            <Button disabled={busy || !/^\d{6}$/.test(otp)} onClick={confirmTotp}>
+              {busy && activeAction === "totp" ? "Підтверджуємо код…" : "Підтвердити код і ввімкнути"}
+            </Button>
+          </div>
+        ) : (
+          <>
+            <p>
+              Додайте захист через застосунок автентифікації. Спочатку підтвердьте поточний пароль, потім додайте
+              виданий QR або ключ у застосунок і введіть його код.
+            </p>
+            <TextField
+              label="Поточний пароль для підтвердження"
+              type="password"
+              autoComplete="current-password"
+              value={password}
+              disabled={busy}
+              onChange={(event) => setPassword(event.target.value)}
+            />
+            <Button disabled={busy || !password} onClick={startTotp}>
+              {busy && activeAction === "totp" ? "Готуємо налаштування…" : "Налаштувати двоетапний вхід"}
+            </Button>
           </>
         )}
         {actionError("totp")}
@@ -208,17 +290,15 @@ function SecuritySettings() {
             комп’ютері та дочекайтеся наступного коду.
           </p>
         )}
-        {totpNotice && (
-          <div className="connect-fields">
-            <p role="status">{totpNotice}</p>
-            <Link href="/factory">Відкрити заводський реєстр</Link>
-          </div>
-        )}
       </Card>
       <Card title="Постійний пароль" className="account-security-card">
         <p>
-          Підтвердьте зміну поточним паролем і свіжим кодом вище. Ваш застосунок автентифікації залишиться прив’язаним
-          до облікового запису.
+          Якщо пароль вам передала інша людина, замініть його на власний. Особистий пароль, згенерований під час
+          активації, можна залишити.
+        </p>
+        <p>
+          Введіть новий пароль двічі (від 12 символів) і підтвердьте зміну поточним паролем у цьому розділі. Якщо
+          ввімкнено двоетапний вхід, додайте свіжий код із застосунку. Двоетапний захист зберігається.
         </p>
         <TextField
           label="Новий пароль"
@@ -236,19 +316,31 @@ function SecuritySettings() {
           value={confirmation}
           onChange={(event) => setConfirmation(event.target.value)}
         />
+        <ConfirmationFields
+          purpose="зміни пароля"
+          proof={passwordProof}
+          onChange={setPasswordProof}
+          mfaEnabled={mfaEnabled}
+          disabled={busy || !securityReady}
+        />
         <Button
           onClick={changePassword}
           disabled={
             busy ||
-            !password ||
+            !securityReady ||
+            !passwordProof.password ||
             newPassword.length < 12 ||
             newPassword !== confirmation ||
-            (!!state.data?.mfa_enabled && !/^\d{6}$/.test(otp))
+            (mfaEnabled && !/^\d{6}$/.test(passwordProof.otp))
           }
         >
           Змінити пароль
         </Button>
-        {notice && <p role="status">{notice}</p>}
+        {notice && (
+          <p className="notice notice-success" role="status">
+            {notice}
+          </p>
+        )}
         {actionError("password")}
       </Card>
       <Card title="Ключ відновлення" className="account-security-card">
@@ -260,8 +352,17 @@ function SecuritySettings() {
           Створення нового ключа скасує попередній. Потрібен поточний пароль і, якщо ввімкнено двоетапний вхід, новий
           код.
         </p>
+        <ConfirmationFields
+          purpose="оновлення ключа"
+          proof={recoveryProof}
+          onChange={setRecoveryProof}
+          mfaEnabled={mfaEnabled}
+          disabled={busy || !securityReady}
+        />
         <Button
-          disabled={busy || !password || (!!state.data?.mfa_enabled && !/^\d{6}$/.test(otp))}
+          disabled={
+            busy || !securityReady || !recoveryProof.password || (mfaEnabled && !/^\d{6}$/.test(recoveryProof.otp))
+          }
           onClick={rotateRecovery}
         >
           Створити новий ключ відновлення
@@ -276,6 +377,10 @@ function SecuritySettings() {
         {actionError("recovery")}
       </Card>
       <Card title="Активні сесії" className="account-security-card">
+        <p>
+          Це входи до вашого облікового запису в браузерах. Завершіть непотрібний або незнайомий сеанс, щоб закрити
+          доступ із нього. Завершення поточної сесії означає вихід із цього браузера.
+        </p>
         {sessions.isError ? (
           <p role="alert">{apiErrorDisplayMessage(sessions.error)}</p>
         ) : (

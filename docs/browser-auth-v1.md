@@ -145,6 +145,16 @@ Atomic PostgreSQL upsert запобігає обходу паралельним�
 наступних auth-запитах; у період без запитів cleanup не виконується.
 Якщо сховище ліміту недоступне, повертається 503, вхід не обходить захист.
 
+Обидва login routes повертають загальне 401 для невідомого логіна або
+неправильного пароля. Лише після перевірки правильного пароля акаунта
+з увімкненим TOTP відповідь 401 має структуроване `detail`:
+`{code: "mfa_required", message: "…"}` без коду або
+`{code: "mfa_invalid", message: "…"}` для неприйнятого коду.
+Це описано в OpenAPI; frontend просить другий фактор і зберігає введений
+пароль. Жодна з цих відповідей не видає access token або refresh cookie
+й не створює часткову сесію. Повторне використання TOTP і ліміти входу
+перевіряються як раніше.
+
 Docker запускає Uvicorn з `--no-proxy-headers`: підставний X-Forwarded-For
 не змінює IP для ліміту. Перед reverse proxy потрібні окреме налаштування
 довірених proxy IP та перевірка реальної адреси клієнта. Інакше клієнти
@@ -157,7 +167,7 @@ JSON `/auth/login`, `/auth/refresh`, `/auth/logout` залишені для CLI 
 попередніх сценаріїв. Browser frontend використовує нові cookie routes.
 Активація з етикетки, TOTP MFA, recovery key, перелік/відкликання власних сесій та
 програмна частина B2B/QR onboarding уже реалізовані; [контракт і межі](buyer-onboarding-v1.md).
-Registration/recovery також вимагають exact Origin/CSRF. Публічні origins
+Активація/recovery також вимагають exact Origin/CSRF. Публічні origins
 вмикають MFA policy привілейованого доступу; factory API вимагає MFA і локально.
 Email verification/reset, фізичний onboarding та повне виявлення reuse
 token family ще не завершені. Ключі TOTP/recovery/заводу відокремлені від JWT;

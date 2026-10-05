@@ -12,6 +12,8 @@ import {
   mockIdentity,
   mockMissingBrowserSession,
   mockRefreshSuccess,
+  fulfillJson,
+  tokenPayload,
 } from "./auth-fixtures";
 
 async function mockBrowserLogin(
@@ -107,6 +109,43 @@ test("invalid credentials stay on login and do not disclose account existence", 
   await expect(page.getByLabel("Пароль", { exact: true })).toHaveValue("");
 });
 
+test("MFA login requests its code without erasing the verified password and then opens home", async ({ page }) => {
+  await mockIdentity(page);
+  let requests = 0;
+  await mockBrowserLogin(page, async (route) => {
+    requests += 1;
+    if (requests < 3) {
+      expect(route.request().postDataJSON()).toEqual({
+        email: "owner@example.com",
+        password: "valid-test-password",
+        ...(requests === 2 ? { otp: "000000" } : {}),
+      });
+      await fulfillJson(route, 401, {
+        detail: { code: requests === 1 ? "mfa_required" : "mfa_invalid", message: "MFA" },
+      });
+    } else {
+      expect(route.request().postDataJSON().otp).toBe("123456");
+      await fulfillJson(route, 200, tokenPayload("v"));
+    }
+  });
+  await page.goto("/login");
+  await fillLogin(page);
+  await page.getByRole("button", { name: "Увійти", exact: true }).click();
+  const code = page.getByLabel("Код двоетапного входу, якщо ввімкнено", { exact: true });
+  await expect(page.locator(".login-alert-info")).toContainText("Підтвердьте двоетапний вхід");
+  await expect(code).toBeFocused();
+  await expect(page.getByLabel("Пароль", { exact: true })).toHaveValue("valid-test-password");
+  expect(requests).toBe(1);
+  await code.fill("000000");
+  await page.getByRole("button", { name: "Увійти", exact: true }).click();
+  await expect(page.locator(".login-alert-danger")).toContainText("Код із застосунку не прийнято");
+  await expect(page.getByLabel("Пароль", { exact: true })).toHaveValue("valid-test-password");
+  await code.fill("123456");
+  await page.getByRole("button", { name: "Увійти", exact: true }).click();
+  await expect(page).toHaveURL(/\/devices$/u);
+  expect(requests).toBe(3);
+});
+
 for (const seconds of [3, 60])
   test(`rate limit expires its banner after ${seconds}s without replaying login`, async ({ page }) => {
     await page.clock.install();
@@ -166,6 +205,23 @@ test("password visibility is keyboard accessible and never submits the login for
   await expect(password).toHaveAttribute("type", "password");
   expect(requests).toBe(0);
 });
+
+for (const width of [320, 1440])
+  test(`password eye stays inside the input border while hovered at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 850 });
+    await page.goto("/login");
+    const field = page.getByLabel("Пароль", { exact: true });
+    const eye = page.getByRole("button", { name: "Показати пароль", exact: true });
+    await eye.hover();
+    const inputBox = (await field.boundingBox())!,
+      eyeBox = (await eye.boundingBox())!;
+    expect(eyeBox.x).toBeGreaterThan(inputBox.x);
+    expect(eyeBox.y).toBeGreaterThanOrEqual(inputBox.y + 2);
+    expect(eyeBox.x + eyeBox.width).toBeLessThanOrEqual(inputBox.x + inputBox.width - 2);
+    expect(eyeBox.y + eyeBox.height).toBeLessThanOrEqual(inputBox.y + inputBox.height - 2);
+    await eye.focus();
+    await page.screenshot({ path: test.info().outputPath(`password-eye-${width}.png`) });
+  });
 
 test("network failure is not rendered as invalid credentials or an empty state", async ({ page }) => {
   await mockBrowserLogin(page, async (route) => route.abort("failed"));

@@ -64,6 +64,7 @@ type OrganizationRole = "owner" | "admin" | "operator" | "viewer" | "service";
 type IdentityOptions = Readonly<{
   email?: string;
   displayName?: string;
+  platformRole?: "user" | "superadmin" | "service_admin";
   role?: OrganizationRole;
   permissions?: readonly string[];
   organizationName?: string;
@@ -91,7 +92,7 @@ export function currentUserPayload(options: IdentityOptions = {}) {
     id: USER_ID,
     email: options.email ?? "owner@example.com",
     display_name: options.displayName ?? "Owner",
-    platform_role: "user",
+    platform_role: options.platformRole ?? "user",
     is_active: true,
     auth_session_id: SESSION_ID,
     auth_session_expires_at: "2026-10-27T12:00:00Z",
@@ -114,7 +115,7 @@ export function accessPayload(options: IdentityOptions = {}) {
   const role = options.role ?? "owner";
   return {
     organization_id: ORGANIZATION_ID,
-    platform_role: "user",
+    platform_role: options.platformRole ?? "user",
     organization_role: role,
     permissions: options.permissions ?? (role === "viewer" ? viewerPermissions : ownerPermissions),
   };
