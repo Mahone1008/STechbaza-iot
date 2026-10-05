@@ -160,7 +160,9 @@ jobs:
         with:
           python-version: '3.13'
       - name: Create isolated demo credentials
-        run: python backend/app/demo/config.py --output .env.demo
+        run: |
+          mkdir -m 700 -p .local/mail
+          python backend/app/demo/config.py --output .env.demo
       - uses: actions/setup-node@v4
         with:
           node-version: '22.16.0'
