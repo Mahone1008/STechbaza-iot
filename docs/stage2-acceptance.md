@@ -120,6 +120,53 @@ stash не прибирає. Після успішного pull виконайт
 у `.local/demo-accounts`, не в документації. Для `/factory` потрібні
 superadmin і підтверджений TOTP навіть на localhost.
 
+Якщо `superadmin@kerumo-demo.example.com` відсутній у demo-базі, спочатку
+створіть тестові входи з кореня репозиторію:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\create-demo-accounts.ps1 -ShowPasswords
+```
+
+Використовуйте пароль із локального результату цієї команди. Сценарій
+зберігає реквізити в `.local/demo-accounts/accounts.json` і не скидає
+наявні акаунти. Старий пароль із переписки не доводить наявності акаунта.
+
+Для налаштування TOTP відкрийте `/account/security`, введіть поточний пароль
+і натисніть «Налаштувати двоетапний вхід». Відскануйте QR у застосунку
+автентифікації або додайте виданий ключ вручну (TOTP, SHA-1, 6 цифр, 30 секунд).
+Потім введіть свіжий код на сайті й натисніть «Підтвердити код і ввімкнути».
+Саме додавання ключа в застосунок не вмикає захист на сервері.
+Після успіху ключ/QR зникають, з'являється підтвердження й посилання на `/factory`.
+Якщо реєстр уже відкрито зі старою помилкою, натисніть «Перевірити доступ».
+
+Помилка підтвердження показується в тому самому блоці; фокус переходить
+до неї. «Код не підтверджено» означає, що код не збігся з поточним ключем
+і часом сервера. Перевірте автоматичну синхронізацію часу телефона/ПК
+та використання останнього виданого ключа. Повторна підготовка після
+оновлення сторінки замінює незавершений ключ: оновіть запис у застосунку.
+Час усередині Docker Desktop також має відповідати часу ПК. Перевірка
+з кореня репозиторію, без читання секретів:
+
+```powershell
+& {
+    $ErrorActionPreference = 'Stop'
+    $pcSeconds = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
+    $serverSeconds = docker compose -p techbaza-demo --env-file .env.demo -f compose.demo.yml exec -T backend python -c "import time; print(int(time.time()))"
+    if ($LASTEXITCODE -ne 0) { throw 'Server time check failed' }
+    [PSCustomObject]@{
+        PC_UTC = [DateTimeOffset]::FromUnixTimeSeconds($pcSeconds).UtcDateTime
+        SERVER_UTC = [DateTimeOffset]::FromUnixTimeSeconds([long]$serverSeconds).UtcDateTime
+        DIFFERENCE_SECONDS = [long]$serverSeconds - $pcSeconds
+    }
+}
+```
+
+За розбіжності понад 30 секунд синхронізуйте час Windows; якщо Docker
+все ще відстає, після безпечної зупинки стенда перезапустіть Docker Desktop
+і повторіть перевірку. Якщо час збігається, створіть новий незавершений
+TOTP ключ і використайте код саме від нового запису. HTTP 503 про
+тимчасово недоступну перевірку — інший випадок; див. [account secret](account-key-operations-v1.md).
+
 ## 2. Шлюз і HTTPS для нового QR-підключення
 
 Потрібна стала приватна IPv4-адреса ПК, доступна телефону та ESP32.

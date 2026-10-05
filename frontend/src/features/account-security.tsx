@@ -1,7 +1,8 @@
 "use client";
 import { useAccountAction } from "./use-account-action";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { ControllerQr } from "@/components/controller-qr";
 import { Button, Card, PageHeader, TextField } from "@/components/ui";
 import { apiErrorDisplayMessage, type components } from "@/lib/api";
 import { parseRecovery } from "@/lib/api/onboarding";
@@ -10,6 +11,7 @@ import { useAuthSession } from "./auth-session";
 import { usePanelQuery } from "./use-panel-query";
 
 type Schema = components["schemas"];
+type SecurityAction = "totp" | "password" | "recovery" | "session";
 
 export function SecurityPage() {
   return (
@@ -38,6 +40,9 @@ function SecuritySettings() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");
   const [notice, setNotice] = useState("");
+  const [activeAction, setActiveAction] = useState<SecurityAction | null>(null);
+  const [totpNotice, setTotpNotice] = useState("");
+  const errorRef = useRef<HTMLParagraphElement>(null);
   const key = session.status === "authenticated" ? [session.email, session.sessionExpiresAt] : null;
   const state = usePanelQuery({
     queryKey: ["account-security", key],
@@ -65,8 +70,13 @@ function SecuritySettings() {
     state.refresh();
     sessions.refresh();
   });
+  useEffect(() => {
+    if (error) errorRef.current?.focus();
+  }, [error, activeAction]);
   const startTotp = () =>
     void perform(async () => {
+      setActiveAction("totp");
+      setTotpNotice("");
       setSetup(
         await authorizedRequest<Schema["TotpSetupRead"]>({
           path: "/api/v1/auth/security/totp/setup",
@@ -79,6 +89,8 @@ function SecuritySettings() {
 
   const confirmTotp = () =>
     void perform(async () => {
+      setActiveAction("totp");
+      setTotpNotice("");
       await authorizedRequest({
         path: "/api/v1/auth/security/totp/confirm",
         method: "POST",
@@ -86,10 +98,12 @@ function SecuritySettings() {
       });
       setSetup(null);
       setOtp("");
+      setTotpNotice("Двоетапний вхід увімкнено. Поточну сесію підтверджено.");
     });
 
   const rotateRecovery = () =>
     void perform(async () => {
+      setActiveAction("recovery");
       const result = await authorizedRequest<Schema["RecoveryRead"]>({
         path: "/api/v1/auth/security/recovery",
         method: "POST",
@@ -102,6 +116,7 @@ function SecuritySettings() {
 
   const revokeSession = (item: Schema["SessionRead"]) =>
     void perform(async () => {
+      setActiveAction("session");
       if (item.current) await logout();
       else
         await authorizedRequest({
@@ -112,6 +127,7 @@ function SecuritySettings() {
 
   const changePassword = () =>
     void perform(async () => {
+      setActiveAction("password");
       if (newPassword !== confirmation) throw new Error("Паролі мають збігатися.");
       await authorizedRequest({
         path: "/api/v1/auth/security/password",
@@ -128,6 +144,13 @@ function SecuritySettings() {
       setConfirmation("");
       setNotice("Пароль змінено. Інші сесії завершено; двоетапний захист збережено.");
     });
+
+  const actionError = (action: SecurityAction) =>
+    activeAction === action && error ? (
+      <p className="notice notice-warning" role="alert" tabIndex={-1} ref={errorRef}>
+        {error}
+      </p>
+    ) : null;
 
   return (
     <>
@@ -162,19 +185,34 @@ function SecuritySettings() {
             />
             {!state.data.mfa_enabled && !setup && (
               <Button disabled={busy || !password} onClick={startTotp}>
-                Налаштувати двоетапний вхід
+                {busy && activeAction === "totp" ? "Готуємо налаштування…" : "Налаштувати двоетапний вхід"}
               </Button>
             )}
             {setup && (
               <div className="connect-fields">
-                <p>Додайте обліковий запис у застосунок автентифікації вручну: TOTP, 6 цифр, 30 секунд.</p>
+                <p>1. Відскануйте QR у застосунку автентифікації або додайте ключ вручну: TOTP, 6 цифр, 30 секунд.</p>
+                <ControllerQr url={setup.uri} label="QR для застосунку автентифікації" />
                 <code className="recovery-key">{setup.secret}</code>
+                <p>2. Введіть свіжий шестизначний код у поле вище та натисніть кнопку підтвердження.</p>
                 <Button disabled={busy || !/^\d{6}$/.test(otp)} onClick={confirmTotp}>
-                  Підтвердити код і ввімкнути
+                  {busy && activeAction === "totp" ? "Підтверджуємо код…" : "Підтвердити код і ввімкнути"}
                 </Button>
               </div>
             )}
           </>
+        )}
+        {actionError("totp")}
+        {activeAction === "totp" && error === "Код не підтверджено" && (
+          <p>
+            Використайте код від останнього виданого ключа. Перевірте автоматичне налаштування часу на телефоні й
+            комп’ютері та дочекайтеся наступного коду.
+          </p>
+        )}
+        {totpNotice && (
+          <div className="connect-fields">
+            <p role="status">{totpNotice}</p>
+            <Link href="/factory">Відкрити заводський реєстр</Link>
+          </div>
         )}
       </Card>
       <Card title="Постійний пароль">
@@ -211,6 +249,7 @@ function SecuritySettings() {
           Змінити пароль
         </Button>
         {notice && <p role="status">{notice}</p>}
+        {actionError("password")}
       </Card>
       <Card title="Ключ відновлення">
         <p>
@@ -234,6 +273,7 @@ function SecuritySettings() {
             <Button onClick={() => setRecovery("")}>Я зберіг ключ</Button>
           </>
         )}
+        {actionError("recovery")}
       </Card>
       <Card title="Активні сесії">
         {sessions.isError ? (
@@ -251,8 +291,8 @@ function SecuritySettings() {
             ))}
           </ul>
         )}
+        {actionError("session")}
       </Card>
-      {error && <p role="alert">{error}</p>}
     </>
   );
 }
