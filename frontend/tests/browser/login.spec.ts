@@ -167,9 +167,18 @@ for (const seconds of [3, 60])
     await expect(page.getByRole("button", { name: /Спробуйте через/u })).toBeDisabled();
     await page.clock.fastForward(1_000);
     await expect(page.locator(".login-alert-warning")).toContainText(`Повторіть через ${seconds - 1} с.`);
+    await page.reload();
+    await expect(page.locator(".login-alert-warning")).toContainText(`Повторіть через ${seconds - 1} с.`);
+    await expect(page.getByRole("button", { name: /Спробуйте через/u })).toBeDisabled();
+    expect(requests).toBe(1);
+    const stored = await page.evaluate(() => Object.entries(localStorage));
+    expect(stored).toHaveLength(1);
+    expect(stored[0]?.[0]).toContain("kerumo.login-cooldown:");
+    expect(stored[0]?.[1]).toMatch(/^\d+$/);
     await page.clock.fastForward(seconds * 1_000);
     await expect(page.locator(".login-alert-warning, .login-alert-danger")).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Увійти", exact: true })).toBeEnabled();
+    expect(await page.evaluate(() => Object.entries(localStorage))).toEqual([]);
     expect(requests).toBe(1);
     await fillLogin(page);
     await page.getByRole("button", { name: "Увійти", exact: true }).click();
@@ -178,6 +187,32 @@ for (const seconds of [3, 60])
     await expect(page.locator(".login-alert-danger")).toBeVisible();
     expect(requests).toBe(2);
   });
+
+test("login cooldown is shared with another open tab and cleared there at expiry", async ({ page, context }) => {
+  const other = await context.newPage();
+  await mockMissingBrowserSession(other);
+  await page.clock.install();
+  let requests = 0;
+  await mockBrowserLogin(page, async (route) => {
+    requests += 1;
+    await route.fulfill({
+      status: 429,
+      headers: { ...corsHeaders, "content-type": "application/json", "retry-after": "60" },
+      body: JSON.stringify({ detail: "Забагато auth-спроб" }),
+    });
+  });
+  await page.goto("/login");
+  await other.goto("/login");
+  await fillLogin(page);
+  await page.getByRole("button", { name: "Увійти", exact: true }).click();
+  await expect(other.locator(".login-alert-warning")).toBeVisible();
+  await expect(other.getByRole("button", { name: /Спробуйте через/u })).toBeDisabled();
+  await page.clock.fastForward(61_000);
+  await expect(other.locator(".login-alert-warning")).toHaveCount(0);
+  await expect(other.getByRole("button", { name: "Увійти", exact: true })).toBeEnabled();
+  expect(requests).toBe(1);
+  await other.close();
+});
 
 test("password visibility is keyboard accessible and never submits the login form", async ({ page }) => {
   let requests = 0;

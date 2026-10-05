@@ -4,6 +4,7 @@ import { commandFixture, commandId, programOverview } from "../fixtures/commands
 import {
   API_ORIGIN,
   DEVICE_ID,
+  corsHeaders,
   fulfillJson,
   fulfillPreflight,
   mockAuthenticatedWorkspace,
@@ -20,6 +21,72 @@ const start = "2076-10-01T16:00:00Z",
 async function openSchedules(page: Page) {
   await page.getByRole("tab", { name: "Розклади", exact: true }).click();
 }
+
+test("eight paused schedules block creation; confirmed deletion frees a slot and survives reload", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 852 });
+  await mockAuthenticatedWorkspace(page);
+  const data = overview();
+  let saved: Schedule[] = Array.from({ length: 8 }, (_, index) => ({
+    id: `f7d6f82e-ea2f-4b91-8ee9-${String(index).padStart(12, "0")}`,
+    revision: 1,
+    device_id: DEVICE_ID,
+    organization_id: data.access.organization_id,
+    enabled: false,
+    spec: { ...newScheduleSpec("Europe/Kyiv", "2076-10-01"), name: `Розклад ${index + 1}`, frequency_hz: 40 },
+    next_start_at: null,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  }));
+  await page.route(`${base}/overview`, async (route) => {
+    if (!(await fulfillPreflight(route))) await fulfillJson(route, 200, data);
+  });
+  let deletes = 0;
+  await page.route(
+    (url) => url.href.startsWith(`${base}/schedules`),
+    async (route) => {
+      if (await fulfillPreflight(route)) return;
+      if (route.request().method() === "DELETE") {
+        deletes += 1;
+        expect(route.request().url()).toBe(`${base}/schedules/${saved[0]!.id}?expected_revision=1`);
+        expect(route.request().postData()).toBeNull();
+        saved = saved.slice(1);
+        return route.fulfill({
+          status: 204,
+          headers: corsHeaders,
+        });
+      }
+      await fulfillJson(route, 200, saved);
+    },
+  );
+  await page.goto(`/devices/${DEVICE_ID}`);
+  await openSchedules(page);
+  await expect(page.getByText(/Збережено 8 із 8/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Новий розклад", exact: true })).toBeDisabled();
+  await page.getByRole("button", { name: "Змінити", exact: true }).first().click();
+  await expect(page.getByRole("heading", { name: "Редагування розкладу" })).toBeVisible();
+  await page.getByRole("button", { name: "До списку розкладів", exact: true }).click();
+  await page.getByRole("button", { name: "Видалити", exact: true }).first().click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toContainText("Розклад 1");
+  await expect(dialog).toContainText("STOP");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await dialog.getByRole("button", { name: "Скасувати", exact: true }).click();
+  expect(deletes).toBe(0);
+  await expect(page.locator(".schedule-list > li")).toHaveCount(8);
+  await page.getByRole("button", { name: "Видалити", exact: true }).first().click();
+  await dialog.getByRole("button", { name: "Видалити розклад", exact: true }).evaluate((button: HTMLButtonElement) => {
+    button.click();
+    button.click();
+  });
+  await expect(page.getByText(/Збережено 7 із 8/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Новий розклад", exact: true })).toBeEnabled();
+  await expect(page.getByText(/Розклад видалено. Історію запусків збережено/)).toBeVisible();
+  expect(deletes).toBe(1);
+  await page.reload();
+  await openSchedules(page);
+  await expect(page.locator(".schedule-list > li")).toHaveCount(7);
+  await expect(page.locator(".schedule-list")).not.toContainText("Розклад 1");
+});
 
 for (const width of [320, 393, 1280])
   test(`mode descriptions, acceptance time and open mobile controls fit ${width}px`, async ({ page }) => {
@@ -233,12 +300,27 @@ test("viewer can inspect schedules without controls or mutations", async ({ page
     if (!(await fulfillPreflight(route))) await fulfillJson(route, 200, data);
   });
   await page.route(`${base}/schedules`, async (route) => {
-    if (!(await fulfillPreflight(route))) await fulfillJson(route, 200, []);
+    if (!(await fulfillPreflight(route)))
+      await fulfillJson(route, 200, [
+        {
+          id: conflictId,
+          revision: 1,
+          device_id: DEVICE_ID,
+          organization_id: data.access.organization_id,
+          enabled: false,
+          spec: { ...newScheduleSpec("Europe/Kyiv", "2076-10-01"), name: "Доступний читачу", frequency_hz: 40 },
+          next_start_at: null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+      ]);
   });
   await page.goto(`/devices/${DEVICE_ID}`);
   await openSchedules(page);
-  await expect(page.getByText("Розкладів ще немає.", { exact: true })).toBeVisible();
+  await expect(page.locator(".schedule-list")).toContainText("Доступний читачу");
   await expect(page.getByRole("button", { name: "Новий розклад", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /^(Змінити|Видалити|Увімкнути)$/ })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Історія запусків", exact: true })).toBeVisible();
 });
 
 test("unavailable capability does not fetch schedules", async ({ page }) => {
@@ -259,11 +341,15 @@ test("unavailable capability does not fetch schedules", async ({ page }) => {
 test("schedule tab preserves its draft and suspends every hidden request", async ({ page }) => {
   await page.clock.install();
   await mockAuthenticatedWorkspace(page);
-  await page.route(`${base}/overview`, async (route) => { if (!(await fulfillPreflight(route))) await fulfillJson(route, 200, overview()); });
-  let reads = 0, writes = 0;
+  await page.route(`${base}/overview`, async (route) => {
+    if (!(await fulfillPreflight(route))) await fulfillJson(route, 200, overview());
+  });
+  let reads = 0,
+    writes = 0;
   await page.route(`${base}/schedules`, async (route) => {
     if (await fulfillPreflight(route)) return;
-    if (route.request().method() === "GET") reads++; else writes++;
+    if (route.request().method() === "GET") reads++;
+    else writes++;
     await fulfillJson(route, 200, []);
   });
   await page.goto(`/devices/${DEVICE_ID}`);
@@ -479,7 +565,9 @@ test("manual and minute refresh apply to schedules, run history and command reco
   await page.clock.fastForward(61_000);
   expect(counts).toEqual(beforeManual);
   for (const [label, key] of [
-    ["Оновити розклади", "lists"], ["Оновити історію запусків", "histories"], ["Оновити панель", "overview"],
+    ["Оновити розклади", "lists"],
+    ["Оновити історію запусків", "histories"],
+    ["Оновити панель", "overview"],
   ] as const) {
     await page.getByRole("button", { name: label, exact: true }).click();
     await expect.poll(() => counts[key]).toBe(beforeManual[key] + 1);
@@ -487,7 +575,10 @@ test("manual and minute refresh apply to schedules, run history and command reco
   await page.getByRole("tab", { name: "Журнал", exact: true }).click();
   await expect(page.getByRole("button", { name: "Оновити стан команди", exact: true })).toBeEnabled();
   const beforeJournal = { ...counts };
-  for (const [label, key] of [["Оновити журнал", "journal"], ["Оновити стан команди", "detail"]] as const) {
+  for (const [label, key] of [
+    ["Оновити журнал", "journal"],
+    ["Оновити стан команди", "detail"],
+  ] as const) {
     await page.getByRole("button", { name: label, exact: true }).click();
     await expect.poll(() => counts[key]).toBe(beforeJournal[key] + 1);
   }
@@ -498,9 +589,13 @@ test("manual and minute refresh apply to schedules, run history and command reco
   await page.clock.fastForward(31_000);
   expect(counts).toEqual(beforeMinute);
   await page.clock.fastForward(30_000);
-  await expect.poll(() => counts).toEqual({
-    ...beforeMinute, journal: beforeMinute.journal + 1, detail: beforeMinute.detail + 1,
-  });
+  await expect
+    .poll(() => counts)
+    .toEqual({
+      ...beforeMinute,
+      journal: beforeMinute.journal + 1,
+      detail: beforeMinute.detail + 1,
+    });
 });
 
 test("week-long rule previews, confirms and keeps all day offsets after reload", async ({ page }) => {

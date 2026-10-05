@@ -90,8 +90,8 @@ Demo run --rm -T backend python -m app.demo.seed
 Demo up -d --no-build --force-recreate --wait --wait-timeout 90 backend simulator
 
 $health = Invoke-RestMethod 'http://127.0.0.1:8001/health' -TimeoutSec 10
-if ($health.status -ne 'ok' -or $health.version -ne '0.47.0') {
-    throw 'Expected demo backend 0.47.0 on http://127.0.0.1:8001.'
+if ($health.status -ne 'ok' -or $health.version -ne '0.48.0') {
+    throw 'Expected demo backend 0.48.0 on http://127.0.0.1:8001.'
 }
 
 $demoEmail = 'owner@techbaza-demo.example.com'

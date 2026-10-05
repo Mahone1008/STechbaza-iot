@@ -4,6 +4,7 @@ import unittest
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
+from threading import Barrier
 from unittest.mock import patch
 
 from sqlalchemy import select, func
@@ -24,6 +25,7 @@ from app.schemas.schedule import ScheduleSpec
 from app.services.command_dispatch import CommandDispatchService
 from app.services.schedule_worker import process_schedule
 from app.services.schedules import refresh_next
+from auth_http_helpers import request
 
 
 @unittest.skipUnless(os.getenv("TECHBAZA_RUN_DB_TESTS") == "1", "Requires isolated PostgreSQL")
@@ -73,6 +75,116 @@ class SchedulePostgresTests(unittest.TestCase):
 
     def history(self, row):
         return self.call(self.base + "/schedules/" + row["id"] + "/runs")
+
+    def paused_rule(self):
+        data = {"id": str(uuid.uuid4()), "expected_revision": 0, "enabled": False, "spec": self.rule}
+        return self.call(self.base + "/schedules/" + data["id"], method="PUT", body=data), data
+
+    def test_delete_preserves_history_revokes_queue_and_cannot_be_resurrected(self):
+        row, data = self.save_rule()
+        self.assertEqual(self.process(row), "queued")
+        history = self.history(row)
+        path = self.base + "/schedules/" + row["id"] + "?expected_revision=1"
+        self.call(path, method="DELETE", who="viewer", expected=403)
+        self.call(path, method="DELETE", who="other", expected=404)
+        self.call(path.replace("revision=1", "revision=2"), method="DELETE", expected=409)
+        self.assertEqual(len(self.call(self.base + "/schedules")), 1)
+        self.call(path, method="DELETE", expected=204)
+        self.call(path, method="DELETE", expected=204)
+        self.assertEqual(self.call(self.base + "/schedules"), [])
+        self.assertEqual(self.history(row), history)
+        self.call(self.base + "/schedules/" + row["id"], method="PUT", body=data, expected=404)
+        self.assertEqual(self.process(row), "removed")
+        with SessionLocal() as session:
+            item = session.get(DeviceSchedule, uuid.UUID(row["id"]))
+            self.assertIsNotNone(item.deleted_at)
+            self.assertFalse(item.enabled)
+            self.assertIsNone(item.next_start_at)
+            self.assertIsNone(item.next_check_at)
+            self.assertNotIn(item.id, ScheduleRepository(session).due_ids(self.due))
+            revisions = list(session.scalars(select(ScheduleRevision).where(
+                ScheduleRevision.schedule_id == item.id).order_by(ScheduleRevision.revision)))
+            self.assertEqual(len(revisions), 2)
+            self.assertIsNone(revisions[0].deleted_at)
+            self.assertEqual(revisions[1].deleted_at, item.deleted_at)
+            self.assertEqual(revisions[1].actor_user_id, self.contexts["operator"].user.id)
+            command = session.get(DeviceCommand, uuid.UUID(history[0]["command_id"]))
+            with patch("app.services.command_dispatch.publish_command_message") as publish:
+                result = CommandDispatchService(session).dispatch(command.id, now=self.due)
+                self.assertEqual(result.reason, "command_access_revoked")
+                publish.assert_not_called()
+
+    def test_limit_counts_paused_rules_and_delete_frees_a_slot(self):
+        rows = [self.paused_rule() for _ in range(8)]
+        row, data = rows[0]
+        ninth = {**data, "id": str(uuid.uuid4())}
+        self.call(self.base + "/schedules/" + ninth["id"], method="PUT", body=ninth, expected=409)
+        data = {**data, "expected_revision": 1, "spec": {**data["spec"], "name": "Edited at limit"}}
+        updated = self.call(self.base + "/schedules/" + row["id"], method="PUT", body=data)
+        self.assertEqual(updated["revision"], 2)
+        self.call(self.base + "/schedules/" + row["id"] + "?expected_revision=2", method="DELETE", expected=204)
+        self.call(self.base + "/schedules/" + ninth["id"], method="PUT", body=ninth)
+        self.assertEqual(len(self.call(self.base + "/schedules")), 8)
+
+    def test_delete_does_not_send_stop_or_erase_an_already_published_command(self):
+        row, _ = self.save_rule()
+        self.assertEqual(self.process(row), "queued")
+        with SessionLocal() as session:
+            command = session.scalar(select(DeviceCommand).where(DeviceCommand.schedule_id == uuid.UUID(row["id"])))
+            command_id = command.id
+            with patch("app.services.command_dispatch.publish_command_message", return_value=(True, "published")):
+                self.assertTrue(CommandDispatchService(session).dispatch(command.id, now=self.due).published)
+        self.call(self.base + "/schedules/" + row["id"] + "?expected_revision=1", method="DELETE", expected=204)
+        self.assertEqual(self.history(row)[0]["command_id"], str(command_id))
+        self.assertEqual(self.history(row)[0]["status"], "published")
+        with SessionLocal() as session:
+            commands = list(session.scalars(select(DeviceCommand).where(DeviceCommand.device_id == self.devices[0])))
+            self.assertEqual(len(commands), 1)
+            self.assertEqual(commands[0].id, command_id)
+
+    def test_delete_revokes_delivery_with_a_previously_loaded_schedule(self):
+        row, _ = self.save_rule()
+        self.assertEqual(self.process(row), "queued")
+        with SessionLocal() as session:
+            cached = ScheduleRepository(session).get(uuid.UUID(row["id"]))
+            session.commit()  # SessionLocal keeps its identity map after commit.
+            self.call(self.base + "/schedules/" + row["id"] + "?expected_revision=1", method="DELETE", expected=204)
+            self.assertIsNone(cached.deleted_at)
+            command = session.scalar(select(DeviceCommand).where(DeviceCommand.schedule_id == cached.id))
+            with patch("app.services.command_dispatch.publish_command_message", return_value=(True, "published")) as publish:
+                result = CommandDispatchService(session).dispatch(command.id, now=self.due)
+                self.assertEqual(result.reason, "command_access_revoked")
+                publish.assert_not_called()
+
+    def test_concurrent_creation_cannot_exceed_eight(self):
+        for _ in range(7):
+            self.paused_rule()
+        barrier = Barrier(2)
+
+        def create(_):
+            data = {"id": str(uuid.uuid4()), "expected_revision": 0, "enabled": False, "spec": self.rule}
+            barrier.wait(timeout=10)
+            return request("PUT", self.base + "/schedules/" + data["id"], body=data,
+                headers={"authorization": f"Bearer {self.tokens['operator']}"})[0]
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            self.assertEqual(sorted(pool.map(create, range(2))), [200, 409])
+        self.assertEqual(len(self.call(self.base + "/schedules")), 8)
+
+    def test_legacy_rules_over_limit_remain_visible_and_editable(self):
+        rows = [self.paused_rule() for _ in range(8)]
+        with SessionLocal() as session:
+            session.add(DeviceSchedule(id=uuid.uuid4(), device_id=self.devices[0], organization_id=self.orgs[0],
+                author_user_id=self.contexts["operator"].user.id, revision=1, enabled=False,
+                spec=rows[0][0]["spec"], created_at=self.now, updated_at=self.now))
+            session.commit()
+        self.assertEqual(len(self.call(self.base + "/schedules")), 9)
+        row, data = rows[0]
+        data = {**data, "expected_revision": 1, "spec": {**data["spec"], "name": "Legacy edit"}}
+        self.call(self.base + "/schedules/" + row["id"], method="PUT", body=data)
+        self.call(self.base + "/schedules/" + row["id"] + "?expected_revision=2", method="DELETE", expected=204)
+        data = {"id": str(uuid.uuid4()), "expected_revision": 0, "enabled": False, "spec": self.rule}
+        self.call(self.base + "/schedules/" + data["id"], method="PUT", body=data, expected=409)
 
     def test_idempotent_write_revision_and_cross_tenant_guards(self):
         row, data = self.save_rule()

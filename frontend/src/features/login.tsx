@@ -9,6 +9,7 @@ import { useEffect, useRef, useState, useSyncExternalStore, type FormEvent } fro
 import { Brand } from "@/components/app-shell";
 import { Button, TextField } from "@/components/ui";
 import { useAuthSession } from "@/features/auth-session";
+import { useLoginCooldown } from "@/features/login-cooldown";
 import {
   loginErrorPresentation,
   safeLoginReturnTo,
@@ -61,8 +62,7 @@ export function LoginPanel() {
   const [formError, setFormError] = useState("");
   const [errorTone, setErrorTone] = useState<"info" | "danger">("danger");
   const [submitting, setSubmitting] = useState(false);
-  const [blockedUntil, setBlockedUntil] = useState<number | null>(null);
-  const [clock, setClock] = useState(() => Date.now());
+  const { retrySeconds, block } = useLoginCooldown();
   const loggedOutNotice = useSyncExternalStore(subscribeToLocationChange, loggedOutLocationSnapshot, () => false);
   const sessionBusy = session.status === "restoring" || session.status === "logging-out";
 
@@ -80,27 +80,8 @@ export function LoginPanel() {
   }, [router, session.status]);
 
   useEffect(() => {
-    if (blockedUntil === null) return;
-
-    const updateClock = () => {
-      const now = Date.now();
-      setClock(now);
-      if (now >= blockedUntil) {
-        setBlockedUntil(null);
-        setFormError("");
-      }
-    };
-
-    updateClock();
-    const interval = window.setInterval(updateClock, 250);
-    return () => window.clearInterval(interval);
-  }, [blockedUntil]);
-
-  useEffect(() => {
     if (formError) alertRef.current?.focus();
   }, [formError]);
-
-  const retrySeconds = blockedUntil === null ? 0 : Math.max(1, Math.ceil((blockedUntil - clock) / 1_000));
 
   const submitLogin = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -132,14 +113,12 @@ export function LoginPanel() {
       if (isApiError(error) && error.kind === "aborted") return;
 
       const presentation = loginErrorPresentation(error);
-      setFormError(presentation.summary);
+      setFormError(presentation.retryAfterSeconds > 0 ? "" : presentation.summary);
       setErrorTone(presentation.tone ?? "danger");
       setFieldErrors(presentation.fieldErrors);
       if (presentation.clearPassword) setPassword("");
       if (presentation.retryAfterSeconds > 0) {
-        const now = Date.now();
-        setClock(now);
-        setBlockedUntil(now + presentation.retryAfterSeconds * 1_000);
+        block(presentation.retryAfterSeconds);
       }
       focusFirstInvalidField(presentation.fieldErrors);
     } finally {
@@ -227,7 +206,7 @@ export function LoginPanel() {
             </div>
           ) : null}
 
-          {formError ? (
+          {formError || retrySeconds > 0 ? (
             <div
               className={`login-alert ${retrySeconds > 0 ? "login-alert-warning" : `login-alert-${errorTone}`}`}
               role="alert"

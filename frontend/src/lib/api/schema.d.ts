@@ -787,7 +787,8 @@ export interface paths {
         /** Write Schedule */
         put: operations["write_schedule_api_v1_devices__device_id__schedules__schedule_id__put"];
         post?: never;
-        delete?: never;
+        /** Delete Schedule */
+        delete: operations["delete_schedule_api_v1_devices__device_id__schedules__schedule_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -5359,6 +5360,38 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ScheduleRead"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_schedule_api_v1_devices__device_id__schedules__schedule_id__delete: {
+        parameters: {
+            query: {
+                expected_revision: number;
+            };
+            header?: never;
+            path: {
+                device_id: string;
+                schedule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

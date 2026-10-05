@@ -1,7 +1,8 @@
 """HTTP-доступ до календаря через чинні tenant/RBAC guards."""
 import uuid
+from typing import Annotated
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query, Response
 
 from app.api.v1.commands import CurrentUser, DbSession
 from app.repositories.schedules import ScheduleRepository
@@ -31,6 +32,14 @@ def write_schedule(device_id: uuid.UUID, schedule_id: uuid.UUID, payload: Schedu
     if payload.id != schedule_id:
         raise HTTPException(422, "Ідентифікатор у шляху та запиті має збігатися")
     return ScheduleService(session).write(device_id, payload, current, access)
+
+
+@router.delete("/devices/{device_id}/schedules/{schedule_id}", status_code=204)
+def delete_schedule(device_id: uuid.UUID, schedule_id: uuid.UUID,
+        expected_revision: Annotated[int, Query(ge=1)], session: DbSession, current: CurrentUser):
+    access = AccessControl(session, current).require_device_context(device_id, Permission.COMMAND_EXECUTE)
+    ScheduleService(session).delete(device_id, schedule_id, expected_revision, current, access)
+    return Response(status_code=204)
 
 
 @router.get("/devices/{device_id}/schedules/{schedule_id}/runs", response_model=list[ScheduleOccurrenceRead])

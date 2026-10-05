@@ -22,12 +22,12 @@ logger = logging.getLogger(__name__)
 def process_schedule(session, schedule_id, *, now=None):
     repo = ScheduleRepository(session)
     item = repo.get(schedule_id)
-    if item is None:
+    if item is None or item.deleted_at is not None:
         return "removed"
     device = DeviceRepository(session).get_for_update(item.device_id)
     item = repo.get(schedule_id, lock=True)
     now = now or datetime.now(timezone.utc)
-    if item is None or not item.enabled or item.next_check_at is None or item.next_check_at > now:
+    if item is None or item.deleted_at is not None or not item.enabled or item.next_check_at is None or item.next_check_at > now:
         return "not_due"
     spec = ScheduleSpec.model_validate(item.spec)
     if item.next_start_at is None or item.next_start_at > now:

@@ -35,7 +35,7 @@ def dispatch_rejection(session: Session, command: DeviceCommand, now: datetime) 
         schedule = ScheduleRepository(session).get(command.schedule_id) if command.schedule_id else None
         occurrence = session.scalar(select(ScheduleOccurrence).where(ScheduleOccurrence.command_id == command.id))
         actor = schedule_actor(session, schedule) if schedule else None
-        if (not schedule or not schedule.enabled or not occurrence
+        if (not schedule or schedule.deleted_at is not None or not schedule.enabled or not occurrence
                 or occurrence.revision != schedule.revision or not actor
                 or actor.user_id != command.actor_user_id
                 or actor.organization_id != command.actor_organization_id

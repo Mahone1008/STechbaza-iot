@@ -8,6 +8,7 @@ import { statusLabels } from "@/lib/api/commands";
 import { ScheduleRunSummary } from "./schedule-summary";
 import {
   calendarDate,
+  MAX_DEVICE_SCHEDULES,
   formatScheduleTime,
   newScheduleSpec,
   parseSchedule,
@@ -152,6 +153,7 @@ export function SchedulePanel({
   const [draft, setDraft] = useState<ScheduleWrite | null>(null);
   const [preview, setPreview] = useState<SchedulePreview | null>(null);
   const [confirmation, setConfirmation] = useState<ScheduleWrite | null>(null);
+  const [deletion, setDeletion] = useState<Schedule | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [history, setHistory] = useState<Schedule | null>(null);
@@ -170,6 +172,7 @@ export function SchedulePanel({
   );
 
   function edit(item?: Schedule) {
+    if (!item && (!query.data || query.data.length >= MAX_DEVICE_SCHEDULES)) return;
     focusHeading.current = true;
     setNotice(null);
     setPreview(null);
@@ -192,7 +195,7 @@ export function SchedulePanel({
       setNotice(null);
     }
   }
-  async function action(kind: "preview" | "save", input: ScheduleWrite) {
+  async function action(kind: "preview" | "save" | "delete", input: ScheduleWrite) {
     if (pending.current || !canWrite || !visible || !query.active || query.isError || !navigator.onLine) return;
     const controller = new AbortController();
     pending.current = controller;
@@ -201,15 +204,21 @@ export function SchedulePanel({
     if (kind === "preview") setPreview(null);
     try {
       const raw = await authorizedRequest<unknown>({
-        path: kind === "preview" ? `${base}/preview` : `${base}/${input.id}`,
-        method: kind === "preview" ? "POST" : "PUT",
-        body: input,
+        path:
+          kind === "preview"
+            ? `${base}/preview`
+            : `${base}/${input.id}${kind === "delete" ? `?expected_revision=${input.expected_revision}` : ""}`,
+        method: kind === "preview" ? "POST" : kind === "delete" ? "DELETE" : "PUT",
+        ...(kind === "delete" ? {} : { body: input }),
         signal: controller.signal,
         retryOnUnauthorized: false,
       });
       if (controller.signal.aborted) return;
       if (kind === "preview") setPreview(parseSchedulePreview(raw));
-      else {
+      else if (kind === "delete") {
+        query.refresh();
+        setNotice("Розклад видалено. Історію запусків збережено. Для вже прийнятого запуску використайте STOP.");
+      } else {
         const saved = parseSchedule(raw, device.id, context.activeOrganization.id);
         if (saved.id !== input.id || saved.revision !== input.expected_revision + 1 || saved.enabled !== input.enabled)
           throw new Error("Сервер повернув іншу ревізію розкладу. Оновіть список.");
@@ -225,7 +234,7 @@ export function SchedulePanel({
     } catch (error) {
       if (!controller.signal.aborted)
         setNotice(
-          `${errorText(error)}${kind === "save" ? " Оновіть список перед повтором: сервер міг зберегти зміну." : ""}`,
+          `${errorText(error)}${kind !== "preview" ? " Оновіть список перед повтором: сервер міг виконати дію." : ""}`,
         );
     } finally {
       if (pending.current === controller) {
@@ -235,12 +244,19 @@ export function SchedulePanel({
     }
   }
   const actionDisabled = busy || !visible || !query.active || query.isError;
+  const atLimit = (query.data?.length ?? 0) >= MAX_DEVICE_SCHEDULES;
   return (
     <section className="schedule-panel" aria-labelledby={titleId}>
       <h3 id={titleId} ref={heading} tabIndex={-1}>
         {draft ? (draft.expected_revision === 0 ? "Новий розклад" : "Редагування розкладу") : "Збережені розклади"}
       </h3>
       <p className="help-copy">Час об’єкта: {timezone}. Усі дати й години розкладу — за цим часовим поясом.</p>
+      {query.data && (
+        <p className="help-copy">
+          Збережено {query.data.length} із {MAX_DEVICE_SCHEDULES} розкладів. Призупинені також займають місце.
+          {atLimit ? " Щоб створити новий, видаліть один із наявних. Змінювати збережені розклади можна." : ""}
+        </p>
+      )}
       {!supported && (
         <p role="status">
           Збережений розклад потребує сумісної прошивки з підтримкою календарних запусків. До оновлення контролер не
@@ -263,7 +279,7 @@ export function SchedulePanel({
         <>
           <div className="ui-row">
             {canWrite && (
-              <Button disabled={actionDisabled} onClick={() => edit()}>
+              <Button disabled={actionDisabled || !query.data || atLimit} onClick={() => edit()}>
                 Новий розклад
               </Button>
             )}
@@ -315,6 +331,9 @@ export function SchedulePanel({
                           }
                         >
                           {item.enabled ? "Призупинити" : "Увімкнути"}
+                        </Button>
+                        <Button variant="danger" disabled={actionDisabled} onClick={() => setDeletion(item)}>
+                          Видалити
                         </Button>
                       </>
                     )}
@@ -415,6 +434,31 @@ export function SchedulePanel({
       )}
       {busy && <p role="status">Обробляємо розклад…</p>}
       {notice && <p role="status">{notice}</p>}
+      <ConfirmDialog
+        open={visible && !!deletion}
+        title="Видалити розклад?"
+        description={device.name}
+        confirmLabel="Видалити розклад"
+        confirmVariant="danger"
+        confirmDisabled={actionDisabled}
+        onConfirm={() => {
+          if (deletion)
+            void action("delete", {
+              id: deletion.id,
+              expected_revision: deletion.revision,
+              spec: deletion.spec,
+              enabled: deletion.enabled,
+            });
+        }}
+        onClose={() => setDeletion(null)}
+      >
+        <p>
+          <strong>{deletion?.spec.name}</strong>
+        </p>
+        <p>
+          Майбутні запуски припиняться, а історія залишиться збереженою. Для вже прийнятого запуску використайте STOP.
+        </p>
+      </ConfirmDialog>
       <ConfirmDialog
         open={visible && !!confirmation}
         title={confirmation?.enabled ? "Увімкнути розклад?" : "Призупинити розклад?"}
