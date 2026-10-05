@@ -24,21 +24,43 @@ DISARM, вимкнені розклади. Збережіть локальні �
 [перенесення account secret](account-key-operations-v1.md); наявні паролі
 не генеруються повторно. Запущений frontend зупиніть через Ctrl+C.
 
+Вставляйте наступний блок **цілком, разом із `& { ... }`**. Він припиняє
+весь ланцюжок при помилці Git, конфігурації, build або міграції. Окремий
+`throw` у рядку інтерактивного PowerShell не забороняє виконати наступні
+вставлені команди — так можна повторно зібрати стару версію після невдалого pull.
+
 ```powershell
-git pull --ff-only origin main
-if ($LASTEXITCODE -ne 0) { throw 'Оновлення Git не виконано' }
-$dc = @('compose', '-p', 'techbaza-demo', '--env-file', '.env.demo', '-f', 'compose.demo.yml')
-docker @dc up -d --wait postgres mosquitto
-if ($LASTEXITCODE -ne 0) { throw 'PostgreSQL/MQTT не запустилися' }
-docker @dc stop backend simulator
-docker @dc build backend
-if ($LASTEXITCODE -ne 0) { throw 'Backend build failed' }
-docker @dc run --rm -T --no-deps backend alembic upgrade head
-if ($LASTEXITCODE -ne 0) { throw 'Migration failed' }
-docker @dc up -d --no-build --wait --wait-timeout 90 backend simulator
-if ($LASTEXITCODE -ne 0) { throw 'Backend failed to start' }
-Invoke-RestMethod http://127.0.0.1:8001/health
-docker @dc exec -T backend alembic current
+& {
+    $ErrorActionPreference = 'Stop'
+    git switch main
+    if ($LASTEXITCODE -ne 0) { throw 'Git switch failed' }
+    git pull --ff-only origin main
+    if ($LASTEXITCODE -ne 0) { throw 'Git update failed; Docker has not been changed' }
+
+    $dc = @('compose', '-p', 'techbaza-demo', '--env-file', '.env.demo', '-f', 'compose.demo.yml')
+    foreach ($overlay in @('v3', 'controllers')) {
+        if (Test-Path ".env.$overlay") {
+            $dc += @('--env-file', ".env.$overlay", '-f', "compose.$overlay.yml")
+        }
+    }
+    docker @dc config --quiet
+    if ($LASTEXITCODE -ne 0) { throw 'Compose config failed; check the account-key migration and existing env files' }
+    docker @dc build backend
+    if ($LASTEXITCODE -ne 0) { throw 'Backend build failed; running services have not been stopped' }
+    docker @dc up -d --wait postgres mosquitto
+    if ($LASTEXITCODE -ne 0) { throw 'PostgreSQL/MQTT startup failed' }
+    docker @dc stop backend simulator
+    if ($LASTEXITCODE -ne 0) { throw 'Stop failed; migration has not been started' }
+    docker @dc run --rm -T --no-deps backend alembic upgrade head
+    if ($LASTEXITCODE -ne 0) { throw 'Migration failed; do not start an older backend against this database' }
+    docker @dc up -d --no-build --wait --wait-timeout 90 backend simulator
+    if ($LASTEXITCODE -ne 0) { throw 'Backend startup failed' }
+    $health = Invoke-RestMethod http://127.0.0.1:8001/health
+    $health
+    if ($health.version -ne '0.46.0') { throw 'Unexpected backend version; update is not complete' }
+    docker @dc exec -T backend alembic current
+    if ($LASTEXITCODE -ne 0) { throw 'Migration version check failed' }
+}
 ```
 
 Очікування: `0.46.0`, `20261005_0023 (head)`. Ця процедура не змінює
@@ -46,14 +68,49 @@ docker @dc exec -T backend alembic current
 спочатку [створіть demo](demo-stand-v1.md); seed потрібен тільки для
 відсутніх demo-даних. `down -v` до робочого проєкту не застосовувати.
 
+Якщо Git пише `Your local changes ... would be overwritten by merge`,
+оновлення **не відбулося**. Наприклад, `frontend/next-env.d.ts` і
+`frontend/src/lib/api/schema.d.ts` можуть мати локальні згенеровані зміни.
+Для саме цих двох файлів збережіть окремий stash і повторіть pull:
+
+```powershell
+& {
+    $ErrorActionPreference = 'Stop'
+    $label = 'before-stage2-update-' + (Get-Date -Format 'yyyyMMdd-HHmmss')
+    git stash push -m $label -- frontend/next-env.d.ts frontend/src/lib/api/schema.d.ts
+    if ($LASTEXITCODE -ne 0) { throw 'Stash failed; update stopped' }
+    git switch main
+    if ($LASTEXITCODE -ne 0) { throw 'Git switch failed' }
+    git pull --ff-only origin main
+    if ($LASTEXITCODE -ne 0) { throw 'Git update failed; inspect the remaining conflicting files' }
+    git log -1 --oneline
+}
+```
+
+Копія локальних змін залишається у `git stash list`; автоматично застосовувати
+старий API contract поверх нового не потрібно. Інші локальні файли цей
+stash не прибирає. Після успішного pull виконайте основний блок оновлення
+вище: вже з новим кодом. Для переходу з 0.44.0 перевірте `.env.demo`:
+якщо `DEMO_ACCOUNT_KEY_SECRET` відсутній, додайте його зі **старим значенням
+`DEMO_JWT_SECRET`**, за [процедурою перенесення](account-key-operations-v1.md).
+Наявний account secret зберігається. Не публікуйте вміст env-файла.
+
+`Found orphan containers (...v3-gateway...)` означає, що gateway не описаний
+у вибраних Compose-файлах; це не причина помилки Git. Основний блок включає
+наявні `.env.v3`/`compose.v3.yml` та `.env.controllers`/`compose.controllers.yml`.
+`--remove-orphans` для робочого шлюзу не застосовувати.
+
 Окремий термінал для сайта на цьому ПК:
 
 ```powershell
-Set-Location frontend
-npm.cmd ci
-if ($LASTEXITCODE -ne 0) { throw 'npm ci failed' }
-$env:NEXT_PUBLIC_API_BASE_URL = 'http://127.0.0.1:8001'
-npm.cmd run dev
+& {
+    $ErrorActionPreference = 'Stop'
+    Set-Location frontend
+    npm.cmd ci
+    if ($LASTEXITCODE -ne 0) { throw 'npm ci failed' }
+    $env:NEXT_PUBLIC_API_BASE_URL = 'http://127.0.0.1:8001'
+    npm.cmd run dev
+}
 ```
 
 Відкрити `http://127.0.0.1:3000`. [Тестові облікові записи](demo-review-accounts-v1.md)
