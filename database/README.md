@@ -2,6 +2,8 @@
 
 PostgreSQL зберігає організації/об'єкти/пристрої, capabilities, користувачів,
 ролі та сесії, телеметрію/snapshot, команди, події, аварії й повідомлення.
+Поточна схема також містить календарні правила/запуски, паспорти модулів
+і revision конфігурацій, account security та factory/claim audit.
 Реалізація моделей — [backend/app/models](../backend/app/models),
 версійовані зміни — [backend/alembic/versions](../backend/alembic/versions).
 

@@ -40,6 +40,13 @@ notifications та `alarm.acknowledge`. Owner/admin мають однакови�
 
 Permission перевіряється централізовано через `AccessControl`, а не окремими role-if у кожному endpoint.
 
+Schema 0022 додає `site_ids` та `expires_at` membership. Прострочений
+доступ не чинний; чужий scope повертає 404. Обмежене за Site membership
+не дає site.create/membership.read/membership.manage. Owner не може мати
+scope або expiry. [Правила create/PATCH](membership-management-v1.md).
+Привілейований доступ додатково перевіряє MFA policy, а заводські secrets
+вимагають MFA завжди; [точні умови](buyer-onboarding-v1.md).
+
 ## Platform roles
 
 ```text
@@ -65,13 +72,17 @@ service_admin
 superadmin
 ```
 
-Створення нового Organization наразі дозволено лише:
+Пряме створення через `POST /organizations` дозволено лише:
 
 ```text
 superadmin
 ```
 
 ## Resource inheritance
+
+Окремий buyer claim може атомарно створити персональну організацію, owner
+і новий об'єкт після перевірки activation code та MFA policy. Це не надає
+покупцю права довільного `POST /organizations`; [onboarding](buyer-onboarding-v1.md).
 
 Tenant ownership визначається по ланцюжку:
 

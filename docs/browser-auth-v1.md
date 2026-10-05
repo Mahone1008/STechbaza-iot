@@ -3,7 +3,7 @@
 Чинний browser contract. [Поточні версії](generated-code-reference.md).
 Початкове приймання 26.09.2026 на backend 0.33.0 / migration 0016:
 54 тести та Chromium PASS; це історичні числа з [Етапу 8](stage-8-test-backend.md).
-Frontend session coordinator реалізовано в Етапі 10; [поточні перевірки](audit-2026-09-30.md).
+Frontend session coordinator реалізовано в Етапі 10; [поточні перевірки](audit-2026-10-05-documentation.md).
 
 ## Навіщо ця операція
 
@@ -35,7 +35,7 @@ HttpOnly не усуває XSS: frontend має CSP та security regressions, �
 
 | Метод і path | Вхід | Успішна відповідь |
 |---|---|---|
-| POST /auth/browser/login | JSON email/password | 200, access JSON та Set-Cookie refresh |
+| POST /auth/browser/login | JSON email/password, `otp` при ввімкненому TOTP | 200, access JSON та Set-Cookie refresh |
 | POST /auth/browser/refresh | Cookie; body не потрібний | 200, новий access та нова refresh cookie |
 | POST /auth/browser/logout | Cookie; body не потрібний | 204, відкликання сесії та видалення cookie |
 | GET /auth/me | Authorization: Bearer access | Identity, поточна session та memberships |
@@ -155,8 +155,13 @@ Docker запускає Uvicorn з `--no-proxy-headers`: підставний X-
 
 JSON `/auth/login`, `/auth/refresh`, `/auth/logout` залишені для CLI та
 попередніх сценаріїв. Browser frontend використовує нові cookie routes.
-MFA, password recovery, email verification, B2B/QR onboarding,
-каталог усіх сесій і повне виявлення reuse token family — окремі майбутні роботи.
+Реєстрація, TOTP MFA, recovery key, перелік/відкликання власних сесій та
+програмна частина B2B/QR onboarding уже реалізовані; [контракт і межі](buyer-onboarding-v1.md).
+Registration/recovery також вимагають exact Origin/CSRF. Публічні origins
+вмикають MFA policy привілейованого доступу; factory API вимагає MFA і локально.
+Email verification/reset, фізичний onboarding та повне виявлення reuse
+token family ще не завершені. Ключі TOTP/recovery/заводу відокремлені від JWT;
+[міграція наявної установки](account-key-operations-v1.md) обов'язкова.
 Повторне використання старого refresh зараз дає 401; автоматичного
 відкликання всієї сім'ї через reuse немає. Рольові перевірки не послаблено.
 
@@ -168,7 +173,7 @@ origins/CORS/CSRF, cookie flags, валідація без secrets, недост
 disabled/expired sessions, legacy compatibility, account/IP limits,
 expiry ліміту, паралельні входи та refresh.
 На початковому прийманні загальний unittest набір мав **54 тести**.
-Поточний набір і commit — у [звіті аудиту](audit-2026-09-30.md).
+Поточний набір і commit — у [звіті аудиту](audit-2026-10-05-documentation.md).
 
 Окремий CI-крок запускає справжній Chromium: login, збереження cookie,
 недоступність для document.cookie, refresh після reload, rotation,

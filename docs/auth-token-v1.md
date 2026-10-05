@@ -2,7 +2,11 @@
 
 ## Мета
 
-Операція 2 Етапу 6 додає password security та token authentication.
+Базовий token contract запроваджено в операції 2 Етапу 6.
+Поточний login також приймає `otp`, обов'язковий для користувача з увімкненим
+TOTP. Реєстрацію, recovery та сесії описано в [onboarding contract](buyer-onboarding-v1.md).
+Browser frontend використовує [окремий cookie flow](browser-auth-v1.md);
+JSON refresh нижче призначений для CLI.
 
 ## Password storage
 
@@ -85,7 +89,9 @@ nbf
 exp
 ```
 
-Role навмисно не є джерелом істини всередині JWT. На authorization layer роль та membership будуть читатися з server-side state, щоб зміна прав не чекала завершення довгого token lifetime.
+Role навмисно не є джерелом істини всередині JWT. Authorization layer читає
+роль, membership та активність сесії з server-side state на кожному запиті,
+тому зміна прав не чекає завершення token lifetime.
 
 ## Refresh token
 

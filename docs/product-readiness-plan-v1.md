@@ -13,18 +13,19 @@ frontend — `d51841d`. Backend **0.38.0**, PostgreSQL **16**, 17 migrations.
 експлуатувати, оновити, відновити після збою та передати на обслуговування.
 Готовність доводиться протоколами перевірок конкретної конфігурації.
 
-## 1. Що вже є, а що належить зробити
+## 1. Що вже є, а що належить зробити — звірення 05.10.2026
 
 | Область | Перевірений стан | Наступна робота |
 |---|---|---|
-| База даних | PostgreSQL, SQLAlchemy, 18 Alembic migrations; organizations/sites/devices, users/roles/sessions, telemetry/snapshot, commands, alarms, notifications | Модель фізичних модулів, ownership/replacement, production retention, backup/PITR і capacity |
-| Backend | Версія застосунку 0.39.0; command v2, sequence/Stop ordering, TTL, пізні ACK/Result, повторна перевірка прав/профілю перед dispatch | Production settings, lifecycle identities, масштабування runtime |
-| Frontend | Етапи 9–14 реалізовано; Windows 29.09: gate 14.3–14.4 PASS, SHA checkout не показаний; поточний CI у [аудиті](audit-2026-09-30.md) | Завершення manual acceptance, UX реального обладнання й configuration/provisioning flows |
-| Прошивка | Tracked Arduino V3 0.2.1, portable core, native tests та CI compile ESP32-S3; NVS ledger/sequence | Повний hardware fault/soak, modular runtime, OTA; ESP-IDF ще не прийнятий як міграція |
+| База даних | PostgreSQL, SQLAlchemy, 22 Alembic migrations; доменні дані, schedules, equipment modules/binding, account security та factory/claim audit | Повний ownership/replacement lifecycle, instance channels, production retention, backup/PITR і capacity |
+| Backend | 0.45.0; command v2/v3, sequence/Stop/TTL, програми й календар, пізні ACK/Result, guards при dispatch; account/onboarding API | Production settings, lifecycle identities, масштабування runtime |
+| Frontend | Етапи 9–14, п'ять розділів пристрою, account/factory/claim; [поточне звірення](audit-2026-10-05-documentation.md). Windows baseline 29.09 лишається історичним | Завершення manual acceptance, UX реального обладнання й configuration/provisioning flows |
+| Прошивка | Arduino V3 0.6.0, SU600 driver, portable core, NVS/Modbus adapters, native tests і ESP32 builds; programs/schedules та managed binding | Фізичне приймання 0.6.0, phone Wi-Fi/bootstrap, hardware fault/soak, production runtime, OTA |
 | MQTT | Mosquitto/QoS 1; V3 LAN gateway TLS, device password/ACL, bridge; внутрішній local/demo broker anonymous | Production credentials lifecycle, rotation/revocation, backend transport identity та fleet isolation |
 | Модульність | Одна capability кожного типу на Device; фіксовані v1 channel keys | Для двох однотипних датчиків потрібен instance/channel contract через усю систему |
 | Runtime | API lifespan запускає MQTT та два фонові workers; MQTT client ID фіксований | Розділити ролі процесів до горизонтального масштабування, перевірити ownership workers |
 | Backup | Є перевірене ізольоване demo backup/restore з recovery policy | Production storage, WAL/PITR, захист ключів, виміряні RPO/RTO, restore drill |
+| Buyer onboarding | Реєстрація/recovery/TOTP/сесії, заводський реєстр/постачання, claim та паспорт | QR-друк, firmware enrollment, передача/повернення/reset і наскрізне фізичне приймання; [етап 2](buyer-onboarding-v1.md) |
 | Обладнання | V3 ESP32-S3 N16R8 / SU600: читання, моторне керування й три зупинки прийняті 30.09 у конкретних циклах | Повний BOM/схема захисту, решта fault matrix, незалежні вимірювання й польовий пілот; V4 очікує 4G |
 
 Докази: [Етап 14](dossier-v3.5-stage-14-frontend-test-baseline.md),
@@ -35,15 +36,15 @@ frontend — `d51841d`. Backend **0.38.0**, PostgreSQL **16**, 17 migrations.
 корисний backlog, але кожен його пункт треба повторно перевіряти: частину
 frontend/command змін уже виконано після дати того огляду.
 
-### Звірення P0–P9 на 30.09.2026
+### Звірення P0–P9 на 05.10.2026
 
 | Пункт | Що вже виконано | Що залишається для закриття |
 |---|---|---|
 | P0.1 | Windows baseline 29.09; CI та defect audit 30.09 | Точний Windows SHA, решта manual/multi-role/mobile сценаріїв |
 | P0.2 | V3 source, N16R8, SU600 profile/pins, показані шильдики двигуна/VFD | Повний BOM/схема захисту та modem revision після доставки |
 | P0.3–P0.4 | TTL/Stop/replay правила, три фізичні зупинки | Повна погоджена safety/fault matrix, ADR та межі продукту |
-| P1 | Command v2/0018, поточний registry | Instances/channel identity, retention/rollups, compatibility нового config contract |
-| P2.1–P2.2 | Ідемпотентна реєстрація V3, TLS/device ACL на gateway | Production enrollment, ротація/відкликання, backend identity; P2.3–P2.4 відкриті |
+| P1 | Command v2/v3, паспорти повторних модулів і desired/applied config; schema 0022 | Instance-aware telemetry, retention/rollups, фізичне приймання config lifecycle |
+| P2.1–P2.2 | V3 TLS/device ACL; заводський реєстр, bootstrap key, одноразовий buyer claim | Firmware enrollment, ротація/відкликання, backend identity; передача/reset ще відкриті |
 | P3.1–P3.2 | Arduino build/CI та SU600 read-only перевірені | Повний board acceptance і рішення щодо production framework |
 | P3.3–P3.4 | V3 telemetry через Wi-Fi доходить до UI | Додаткові сенсори, повний storage/quality/fault acceptance |
 | P4.1–P4.2 | START/STOP/frequency, повторний RUN, NVS ledger; gateway/DISARM/ESP power stop | Вся interlock/fault matrix, точні затримки, фактичне Wi-Fi/RS485 fault injection |
@@ -53,8 +54,9 @@ frontend/command змін уже виконано після дати того �
 
 Жоден великий етап P0–P9 не закрито лише за ознакою наявності прототипу.
 [Фізичні докази](dossier-v3-su600-control-bench.md), [реєстр відкритих питань](project-status.md).
-Таймери/програми частоти, повний редактор F-параметрів і синхронний
-LOCAL/REMOTE hardware switch + сайт залишаються вимогами до майбутньої функціональності.
+Таймери, ступінчасті програми й календар уже реалізовані; PROGRAM-01 та
+SCHEDULE-01 мають незавершене фізичне приймання. Повний редактор F-параметрів,
+плавні ramp-профілі та синхронний LOCAL/REMOTE hardware switch + сайт ще відкриті.
 
 ## 2. Цільова архітектура та межі відповідальності
 
@@ -389,7 +391,8 @@ headers; private API/DB ports не відкриваються напряму в 
 доступний лише з потрібною authentication. Backend/frontend працюють з
 least-privilege/non-root profiles і resource limits. Secure cookies,
 CORS/CSRF/CSP, certificates renewal і адміністративний доступ перевіряються
-на цільовому домені. Для адміністративних accounts планується MFA.
+на цільовому домені. TOTP MFA для привілейованого доступу вже реалізовано;
+налаштування/відновлення та policy треба прийняти на цільовому deployment.
 
 Deploy workflow: build/test/scan → staging → smoke/HIL → migration rehearsal
 → backup checkpoint → контрольований deploy → readiness → canary checks

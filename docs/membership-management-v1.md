@@ -34,6 +34,19 @@ service  → deny
 
 ## Owner protection
 
+Починаючи зі schema 0022, create/update/read також підтримують `site_ids`
+і `expires_at`. `site_ids: null` означає всю організацію; непорожній список
+містить 1–100 UUID об'єктів саме цієї організації. `expires_at: null` — без
+строку; нове значення має бути timezone-aware і в майбутньому. PATCH без
+поля зберігає попереднє значення, явний null знімає відповідне обмеження.
+
+Expired membership не дає доступу. Membership з обмеженням об'єктів не
+може створювати нові Site або читати/керувати memberships навіть із роллю
+admin. Scope перевіряється для Site/Device і фільтрує доступні списки.
+Owner завжди має постійний доступ до всієї організації: scope/expiry
+для нього відхиляються з 422. MFA policy привілейованого доступу описано
+в [account contract](buyer-onboarding-v1.md).
+
 Щоб admin не міг підвищити себе до owner або прибрати owner:
 
 ```text
@@ -79,6 +92,8 @@ user email
 user display name
 role
 is_active
+site_ids
+expires_at
 created_at
 updated_at
 ```

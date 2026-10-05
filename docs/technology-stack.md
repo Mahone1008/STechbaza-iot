@@ -1,17 +1,17 @@
 # Технологічний стек TechBaza / KERUMO
 
-Документ описує реалізацію станом на 30.09.2026.
+Документ описує реалізацію станом на 05.10.2026.
 [Точні версії та registry з коду](generated-code-reference.md),
 [поточний статус](project-status.md), [майбутня архітектура](product-readiness-plan-v1.md).
 
 | Рівень | Реалізовано | Ще не прийнято / заплановано |
 |---|---|---|
 | V3 | ESP32-S3 N16R8, C++, Arduino IDE/CLI, Wi-Fi, Modbus RTU/RS485, профіль SU600 | Інші VFD profiles, повна fault/soak матриця |
-| Firmware | Portable control core, NVS ledger/sequence, local ARM/DISARM, read-only та EXTENDED | OTA, fleet provisioning, production runtime; ESP-IDF — пропозиція плану |
+| Firmware | Portable control core, SU600 driver, окремі NVS/Modbus adapters, ledger/sequence, local ARM/DISARM, read-only та EXTENDED | OTA, Wi-Fi setup з телефона, factory bootstrap, production runtime; ESP-IDF — пропозиція плану |
 | MQTT | Mosquitto, QoS 1, telemetry/heartbeat, commands/ACK/Result; V3 gateway TLS + device password/ACL | Production lifecycle credentials, rotation/revocation, fleet isolation |
 | Backend | Python/FastAPI, Pydantic, SQLAlchemy, psycopg, Alembic, paho-mqtt | Розділення API/ingestion/workers для масштабування |
-| БД | PostgreSQL 16, доменні дані, snapshots/history, commands/audit, sessions/roles, alarms/notifications | Multiple-instance channels, retention, PITR, capacity acceptance |
-| Frontend | Next.js/React, TypeScript strict, TanStack Query, REST із bounded polling | SSE/WebSocket не реалізовані; configuration/provisioning UI — план |
+| БД | PostgreSQL 16, 22 міграції; snapshots/history, commands/audit, schedules, equipment/binding, account security і factory registry | Instance-aware telemetry channels, retention, PITR, capacity acceptance |
+| Frontend | Next.js/React, TypeScript strict, TanStack Query, bounded polling; п'ять розділів пристрою, реєстрація/TOTP/recovery, factory/claim UI | SSE/WebSocket, повний provisioning/configuration/service UI ще не реалізовані |
 | Simulator | Python, MQTT, SQLite state/ledger/outbox; синтетичні пристрої та faults | Не є моделлю фізики насоса або hardware acceptance |
 | Локальна інфраструктура | Docker Compose dev/demo, окремий V3 gateway | Production HTTPS/reverse proxy, monitoring, deployment/restore drills |
 | V4 | Очікування 4G-модуля | LTE transport, modem fault/recovery, польове приймання |
@@ -25,6 +25,13 @@ Modbus є локальним зв'язком ESP32 ↔ VFD; однакова RS4
 однакові регістри й правила для всіх SUSWE/інших частотників.
 Capabilities описують логічні можливості, а не автоматично виявлені плати.
 Один key кожного типу на Device — поточне обмеження v1.
+Паспорти вже допускають декілька модулів одного типу, але це не додає
+автоматично кілька однойменних telemetry channels. [Контракт обладнання](equipment-foundation-v1.md).
+
+Перевірки: Python runtime/dev locks із хешами, Ruff, поступовий mypy;
+frontend ESLint/TypeScript/цільовий Prettier, unit/browser/live tests та
+повний npm audit; firmware native sanitizers і п'ять compile variants.
+Точний обсяг і заміна dev-залежності — у [стандартах](development-standards.md).
 
 Права перевіряє backend: platform roles `user`, `service_admin`, `superadmin`;
 organization roles `owner`, `admin`, `operator`, `viewer`, `service`.

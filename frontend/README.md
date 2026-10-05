@@ -3,6 +3,8 @@
 Next.js/React, TypeScript strict, TanStack Query, generated OpenAPI types,
 Vitest та Playwright. Реальні API: browser auth, organizations/sites/devices,
 телеметрія/історія, команди/журнал, аварії й notifications.
+Також реалізовано реєстрацію/recovery/MFA, заводський реєстр і частину
+[buyer onboarding](../docs/buyer-onboarding-v1.md); фізичне підключення з телефона ще відкрите.
 `/ui-kit` та `/ui-kit/device-demo` залишаються позначеними демонстраційними екранами.
 
 [Поточний стан](../docs/project-status.md), [версії з package.json](../docs/generated-code-reference.md),
@@ -38,6 +40,8 @@ V3 gateway запускається за [окремою інструкцією]
 Docker Desktop/Linux containers. Створіть demo за інструкцією, виконайте
 `npm.cmd ci` в `frontend`, скопіюйте `.env.example` у `.env.local`, якщо його немає.
 Після зміни backend необхідні його rebuild/міграції; просте `up -d` старий image не оновлює.
+Для старого `.env.demo` перед оновленням потрібне
+[перенесення account key](../docs/account-key-operations-v1.md).
 
 ## Конфігурація й перевірки
 
@@ -67,18 +71,24 @@ Gate оновлює demo, виконує cumulative tests/build/budgets/dependen
 npm.cmd run api:verify
 npm.cmd run typecheck
 npm.cmd run lint
+npm.cmd run format:check
 npm.cmd run test:unit
 npm.cmd run build
 npm.cmd run check:budget
 npm.cmd run test:browser
+npm.cmd audit --audit-level=high
 ```
 
 Live suite потребує налаштованого demo. Opt-in сценарії команд/аварій працюють
 із guarded simulator fixtures; вони не призначені для physical SU600.
-Результати з точними commit наведені в [аудиті](../docs/audit-2026-09-30.md).
+Результати з точними commit наведені в [звіті](../docs/audit-2026-10-05-documentation.md).
 
 ## Контракти та поведінка
 
+- Картка пристрою має «Панель», «Графіки», «Розклади», «Журнал» та
+  «Обладнання». Вибір розділу зберігається в URL; невидимі розділи
+  призупиняють polling. Паспорт і технічна діагностика — в «Обладнанні».
+  Чернетки живуть при переходах у межах картки, F5 їх не зберігає.
 - Панель типово оновлюється кожні 5 с; варіанти 30/60 с або вручну.
   Перша сторінка журналу та вибрана незавершена команда враховують цей самий
   інтервал. Історія телеметрії — не частіше ніж 60 с, відкритий календар —
@@ -115,3 +125,6 @@ OpenAPI: `src/lib/api/openapi.json`, TypeScript: `src/lib/api/schema.d.ts`.
 Після зміни DTO виконайте з кореня `python scripts/export_openapi.py`
 (потрібні backend dependencies), потім у `frontend` — `npm.cmd run api:generate`.
 CI вимагає zero diff. Повний [API contract](../docs/frontend-api-contract-v1.md).
+
+`npm run test:unit` також перевіряє сумісність scoped заміни залежності Next
+ESLint, що прибирає вразливий `braces`. [Причина й правила оновлення override](../docs/development-standards.md).
