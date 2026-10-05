@@ -87,6 +87,8 @@ class FactoryRead(StrictModel):
     device_id: uuid.UUID | None
     claimed_at: datetime | None
     last_contact_at: datetime | None
+    credential_revision: int = 0
+    access_revoked: bool = False
 
 
 class FactorySecrets(StrictModel):
@@ -94,6 +96,7 @@ class FactorySecrets(StrictModel):
     qr_path: str
     activation_code: str
     bootstrap_key: str
+    setup_password: str
 
 
 class ShipmentRequest(StrictModel):
@@ -103,6 +106,12 @@ class ShipmentRequest(StrictModel):
 
 class FactoryQuarantine(StrictModel):
     reason: str = Field(min_length=5, max_length=240)
+
+
+class FactoryReset(FactoryQuarantine):
+    expected_generation: int = Field(ge=1)
+    test_reference: str = Field(min_length=1, max_length=160)
+    factory_test_passed: Literal[True]
 
 
 class NewSite(StrictModel):
@@ -154,3 +163,37 @@ class EquipmentSelection(StrictModel):
 
 class BootstrapContact(StrictModel):
     firmware_version: str = Field(min_length=1, max_length=32, pattern=r"^[a-zA-Z0-9._-]+$")
+
+
+class BootstrapConfiguration(StrictModel):
+    state: Literal["waiting", "configured", "revoked"]
+    device_uid: str | None = None
+    mqtt_host: str | None = None
+    mqtt_port: int | None = None
+    mqtt_password: str | None = None
+    credential_revision: int = 0
+    manifest: str | None = None
+    configuration_hash: str | None = None
+
+
+class ControllerOperation(SecurityProof):
+    expected_generation: int = Field(ge=1)
+    expected_credential_revision: int = Field(ge=0)
+    reason: str = Field(min_length=5, max_length=240)
+    stopped_and_isolated: Literal[True]
+
+
+class TransferRead(StrictModel):
+    controller_id: uuid.UUID
+    qr_path: str
+    activation_code: str
+    generation: int
+
+
+class ControllerStatus(StrictModel):
+    controller_id: uuid.UUID
+    generation: int
+    credential_revision: int
+    access_revoked: bool
+    last_contact_at: datetime | None
+    credential_state: Literal["not_issued", "pending", "active", "revoked"]

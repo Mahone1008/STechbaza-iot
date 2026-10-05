@@ -130,3 +130,5 @@
 - [Етап H — коригування backend перед frontend](stage-h-backend-corrections.md)
 - [Telemetry ingestion — локальна перевірка](telemetry-ingestion-local-test.md)
 - [Тестова збірка backend v1 — межі приймання](test-backend-release-v1.md)
+
+- [Етап 2: запуск, QR/Wi-Fi, заміна та передача](stage2-acceptance.md) — поточні команди й фізичний чекліст.

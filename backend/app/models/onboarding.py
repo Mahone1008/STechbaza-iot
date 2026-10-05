@@ -2,7 +2,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Integer, String
+from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -13,7 +13,7 @@ from app.models.mixins import TimestampMixin
 class FactoryController(TimestampMixin, Base):
     __tablename__ = "factory_controllers"
     __table_args__ = (
-        CheckConstraint("status IN ('ready','claimed','quarantined','retired')", name="ck_factory_controller_status"),
+        CheckConstraint("status IN ('ready','claimed','releasing','quarantined','retired')", name="ck_factory_controller_status"),
         CheckConstraint("generation > 0", name="ck_factory_controller_generation"),
     )
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -31,6 +31,18 @@ class FactoryController(TimestampMixin, Base):
     claimed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_contact_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     firmware_version: Mapped[str | None] = mapped_column(String(32))
+    credential_revision: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    access_revoked: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+
+
+class ControllerCredential(Base):
+    __tablename__ = "controller_credentials"
+    device_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("devices.id", ondelete="CASCADE"), primary_key=True)
+    controller_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("factory_controllers.id"), index=True)
+    secret: Mapped[str] = mapped_column(Text)
+    revision: Mapped[int] = mapped_column(Integer, nullable=False)
+    applied_revision: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    revoked: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
 
 
 class FactoryAudit(Base):

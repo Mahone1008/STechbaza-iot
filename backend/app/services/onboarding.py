@@ -75,6 +75,7 @@ def register_controller(
         qr_path=f"/connect/{row.id}",
         activation_code=activation,
         bootstrap_key=bootstrap,
+        setup_password=new_key()[:20],
     )
 
 

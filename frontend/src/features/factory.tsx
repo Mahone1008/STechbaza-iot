@@ -1,6 +1,8 @@
 "use client";
 import { useAccountAction } from "./use-account-action";
 import Link from "next/link";
+import { ControllerQr } from "@/components/controller-qr";
+import { FactoryControllerActions } from "./factory-controller-actions";
 import { useState, type FormEvent } from "react";
 import { Button, Card, PageHeader, TextField } from "@/components/ui";
 import { apiErrorDisplayMessage, type components } from "@/lib/api";
@@ -42,6 +44,7 @@ function FactoryRegister() {
   });
   const [passed, setPassed] = useState(false);
   const [secrets, setSecrets] = useState<Schema["FactorySecrets"] | null>(null);
+  const [labelUrl, setLabelUrl] = useState("");
   const [distributor, setDistributor] = useState("");
   const [reference, setReference] = useState("");
   const [offset, setOffset] = useState(0);
@@ -65,7 +68,7 @@ function FactoryRegister() {
           JSON.stringify(
             {
               ...secrets,
-              public_url: `${window.location.origin}${secrets.qr_path}`,
+              public_url: labelUrl,
             },
             null,
             2,
@@ -84,13 +87,13 @@ function FactoryRegister() {
   const registerController = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     void perform(async () => {
-      setSecrets(
-        await authorizedRequest<Schema["FactorySecrets"]>({
-          path: "/api/v1/factory/controllers",
-          method: "POST",
-          body: { ...values, factory_test_passed: passed },
-        }),
-      );
+      const created = await authorizedRequest<Schema["FactorySecrets"]>({
+        path: "/api/v1/factory/controllers",
+        method: "POST",
+        body: { ...values, factory_test_passed: passed },
+      });
+      setSecrets(created);
+      setLabelUrl(`${window.location.origin}${created.qr_path}`);
     });
   };
 
@@ -117,7 +120,31 @@ function FactoryRegister() {
         {secrets ? (
           <div className="connect-fields">
             <p>Контролер зареєстровано. Завантажте приватний заводський комплект: повторно ключі не показуються.</p>
-            <code className="recovery-key">{secrets.qr_path}</code>
+            <div className="factory-label">
+              <ControllerQr url={labelUrl} />
+              <strong>KERUMO · {secrets.controller.serial_number}</strong>
+              <p>{labelUrl}</p>
+            </div>
+            <TextField
+              label="Публічне посилання для QR"
+              value={labelUrl}
+              maxLength={500}
+              type="url"
+              onChange={(event) => setLabelUrl(event.target.value)}
+              hint="Для телефона потрібна доступна HTTPS-адреса вашого сайту, а не localhost."
+            />
+            <Button onClick={() => window.print()}>Друкувати публічний QR</Button>
+            <details>
+              <summary>Закрита картка покупця</summary>
+              <p>
+                Код активації: <code className="recovery-key">{secrets.activation_code}</code>
+              </p>
+              <p>Локальна мережа: KERUMO-{secrets.controller.id.slice(0, 8)}</p>
+              <p>
+                Пароль налаштування: <code className="recovery-key">{secrets.setup_password}</code>
+              </p>
+              <p>Картку передають покупцеві окремо. Bootstrap-ключ залишається тільки у виробника та контролері.</p>
+            </details>
             <Button onClick={downloadKit}>Завантажити заводський комплект</Button>
             <p>
               Комплект містить приватний ключ контролера. Публічний QR і захищений код активації потрібно друкувати
@@ -198,6 +225,14 @@ function FactoryRegister() {
                   Записати постачання
                 </Button>
               )}
+              <FactoryControllerActions
+                controller={item}
+                onChanged={query.refresh}
+                onKit={(kit) => {
+                  setSecrets(kit);
+                  setLabelUrl(`${window.location.origin}${kit.qr_path}`);
+                }}
+              />
             </li>
           ))}
         </ul>

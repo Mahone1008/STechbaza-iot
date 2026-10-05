@@ -1,6 +1,6 @@
 # Таймер і програми частоти v1
 
-Поточна реалізація: backend **0.45.0**, firmware V3 **0.6.0**, Alembic **0022**.
+Поточна реалізація: backend **0.46.0**, firmware V3 **0.6.0**, Alembic **0022**.
 MQTT command envelope v2 для legacy, v3 для [managed binding](equipment-foundation-v1.md).
 Таймер і етапи додано у 0.41.0/0.3.0. Міграція `20261001_0020` додає окремі
 [календарні розклади](control-schedules-v1.md); семантика витримок не змінилася.
@@ -180,7 +180,7 @@ npm.cmd run dev
 
 Процедура передбачає вже запущені PostgreSQL, Mosquitto та V3 TLS gateway
 попереднього стенда; gateway не потрібно перестворювати. `/health` має
-показати **0.45.0**, Alembic head — `20261002_0022`. Повторний seed додає
+показати **0.46.0**, Alembic head — `20261005_0023`. Повторний seed додає
 відсутню capability симулятора; команда bench додає/вмикає `vfd.program` та `vfd.schedule`
 для фізичного стенда, але не виконує ARM чи RUN. Змінений вручну профіль
 не перезаписується автоматично. `prepare-v3.ps1` для цього оновлення не
@@ -201,7 +201,7 @@ npm.cmd run dev
 Firmware 0.6.0 також обгортає NVS journal у hash і зберігає sequence;
 для managed manifest діють [правила commissioning](equipment-foundation-v1.md).
 
-Serial Monitor **115200**: версія **0.6.0**, `storage=OK`, MQTT/TLS.
+Serial Monitor **115200**: версія **0.7.0**, `storage=OK`, MQTT/TLS.
 Після перевірки зупинки й чинної підготовки стенда ввести
 **`ARM SU600 TEST`** у рядок Serial Monitor і надіслати з newline.
 Короткий `ARM SU600` не дозволяє програми. Після ARM дочекатися свіжої

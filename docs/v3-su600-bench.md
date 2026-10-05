@@ -1,6 +1,6 @@
 # V3 — перший фізичний стенд SU600 і сайт KERUMO
 
-Чинні версії: backend **0.45.0**, БД **0022**, firmware **0.6.0**.
+Чинні версії: backend **0.46.0**, БД **0022**, firmware **0.6.0**.
 Для наявної установки використовуйте [процедуру оновлення](control-programs-v1.md)
 та [перенесення account key](account-key-operations-v1.md); нижче — підготовка стенда.
 Firmware 0.2.2 додала [діагностику контролера](controller-diagnostics-v1.md).

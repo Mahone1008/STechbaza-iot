@@ -55,6 +55,7 @@ export function parseEquipmentPassport(value: unknown, device: Device): Equipmen
   const data = record(value);
   matchingId(requiredUuid(data, "device_id", path), device.id, path);
   matchingId(requiredString(data, "controller_uid", path), device.uid, path);
+  if (data.controller_id != null) requiredUuid(data, "controller_id", path);
   equipmentState(data.configuration_state);
   if (data.firmware_version !== null) requiredString(data, "firmware_version", path);
   if (!Array.isArray(data.installations) || data.installations.length > 100 || !Array.isArray(data.modules) || data.modules.length > 32) invalidResponse(path, "bounded equipment list");
@@ -67,6 +68,7 @@ export function parseEquipmentPassport(value: unknown, device: Device): Equipmen
   const modules = new Set(data.modules.map((raw) => {
     const item = record(raw);
     matchingId(requiredUuid(item, "device_id", path), device.id, path);
+    if (item.retired_at != null) requiredDateTime(item, "retired_at", path);
     if (!installations.has(requiredUuid(item, "installation_id", path))) invalidResponse(path, "module installation");
     for (const key of ["slot", "name", "manufacturer", "series", "model"]) requiredString(item, key, path);
     for (const key of ["serial_number", "hardware_revision", "software_revision"]) if (item[key] !== null) requiredString(item, key, path);

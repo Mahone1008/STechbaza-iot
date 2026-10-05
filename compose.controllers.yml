@@ -1,0 +1,37 @@
+# Окремий додаток до compose.demo.yml; не змінює legacy v3-gateway.
+services:
+  backend:
+    environment:
+      CONTROLLER_BROKER_ADMIN_HOST: controller-gateway
+      CONTROLLER_BROKER_ADMIN_PORT: '1884'
+      CONTROLLER_BROKER_ADMIN_PASSWORD: ${CONTROLLER_BROKER_ADMIN_PASSWORD:?Prepare controller gateway}
+      CONTROLLER_MQTT_PUBLIC_HOST: ${CONTROLLER_HOST:?Prepare controller gateway}
+      CONTROLLER_MQTT_PUBLIC_PORT: '8884'
+      AUTH_BROWSER_ORIGINS: http://localhost:3000,http://127.0.0.1:3000,https://${CONTROLLER_HOST}:8443
+      AUTH_COOKIE_SECURE: 'true'
+  controller-gateway:
+    image: kerumo-v3-gateway:local
+    build:
+      context: ./infrastructure/v3
+    restart: unless-stopped
+    ports:
+      - "${CONTROLLER_HOST}:8884:8883"
+    volumes:
+      - ./.local/controllers:/work:rw
+    command: ["mosquitto", "-c", "/work/controllers.conf"]
+    depends_on:
+      mosquitto:
+        condition: service_started
+  controller-https:
+    image: nginx:1.28-alpine
+    restart: unless-stopped
+    ports:
+      - "${CONTROLLER_HOST}:8443:8443"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./.local/controllers/https.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./.local/controllers:/work:ro
+    depends_on:
+      backend:
+        condition: service_healthy

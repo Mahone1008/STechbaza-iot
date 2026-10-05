@@ -1,9 +1,9 @@
-# Покупець, заводський реєстр і QR: реалізована частина етапу 2
+# Покупець, заводський реєстр і QR: контракт етапу 2
 
-Звірено з кодом 05.10.2026: backend 0.45.0, міграція `20261002_0022`,
-frontend із реальними API. Це часткова реалізація
-[погодженого етапу 2](next-stage-plan-vfd-service-qr.md), а не завершене
-підключення фізичного контролера з телефона.
+Звірено з кодом 05.10.2026: backend 0.46.0, міграція `20261005_0023`,
+frontend із реальними API, firmware 0.7.0. Програмний цикл
+[погодженого етапу 2](next-stage-plan-vfd-service-qr.md) реалізовано.
+Фізичне приймання ESP32/SU600 із телефоном лишається окремим кроком.
 
 ## Обліковий запис
 
@@ -47,7 +47,9 @@ activation code і приватний bootstrap key. UI дозволяє зав�
 заводський JSON-комплект. Секрети повторно не показуються; повтор serial
 дає 409 без заміни ключів. **Публічний URL не містить ключів.** Код активації
 має передаватися покупцеві окремо; bootstrap key лишається приватним.
-Генератор QR-зображення та готовий процес друку/запису ключа в firmware ще відсутні.
+UI генерує QR-зображення та окремий public print; factory JSON також містить
+унікальний setup password. `app.tools.factory_config` створює приватний
+`factory_config.local.h` із HTTPS origin і CA без перезапису чинного файлу.
 
 Передача оптовику — запис отримувача/документа для неприв'язаного
 контролера. Вона не надає роль або доступ до даних покупця. Аудит реєстрації,
@@ -81,16 +83,51 @@ activation code і приватний bootstrap key. UI дозволяє зав�
 Це окремий device secret, не JWT користувача. Відповідь не видає MQTT
 credentials, не застосовує equipment manifest і не запускає мотор.
 
-Поточна firmware 0.6.0 цього HTTP flow ще не викликає. Вона отримує Wi-Fi
-та MQTT/TLS parameters через локальний `config.local.h`; підготовка — за
-[V3 runbook](v3-su600-bench.md). SoftAP/BLE/captive portal для початкового
-Wi-Fi з телефона ще не реалізовано. Напис про локальне введення Wi-Fi в UI
-не є доказом готовності цього сценарію.
+Firmware **0.7.0** у factory build використовує окремий endpoint
+`POST /bootstrap/{id}/configuration`: bootstrap bearer, firmware version;
+response — `waiting|configured|revoked`, UID, MQTT host/port/password,
+credential revision та точні canonical manifest bytes/hash. Відповіді
+`no-store`; не використовується browser JWT. Legacy `/contact` збережено
+для сумісності, але він сам не видає credentials.
 
-Окремо залишаються firmware bootstrap/MQTT enrollment, rotation/revocation
-ключів контролера, повернення/перепродаж/reset/заміна без витоку tenant
-history, commissioning readback та фізичне приймання QR → мережа → керування.
-LTE залежить від одержання й приймання конкретного 4G-модуля.
+Setup: WPA2 SoftAP з унікальним паролем, BOOT 3 секунди після локального
+STOP, ручна адреса `http://192.168.4.1`, таймаут 10 хвилин, Host/Origin/CSRF
+перевірки; Wi-Fi password лишається в NVS. До вибору сумісного manifest
+factory build не виконує VFD I/O. Новий hash/UID потребує локального
+підтвердження, читання STOP/0 Гц і згоди на binding. Немає RUN endpoint.
+
+## Credentials, заміна й передача
+
+- Mosquitto Dynamic Security: TLS, credentials/client ID окремого Device,
+  точні MQTT ACL. Encrypted secret з окремим encryption purpose під
+  ACCOUNT_KEY_SECRET. Durable desired/applied revision повторюється worker
+  після збою; API не оголошує broker revoke завершеним до ACK.
+- Owner/admin/service із capability.manage можуть керувати MQTT-доступом
+  у дозволеному Site, з повторним password/TOTP proof. Відкликання дозволене
+  offline; це не підтвердження зупинки. Ротація розриває стару активну сесію.
+- `equipment/replacement`: expected module/revision, причина та явне
+  підтвердження. Свіжі STOP/0 Гц/DISARM, без enabled schedules і pending
+  commands. Старий модуль архівний, новий має інший ID; керування заблоковане
+  до нового manifest, локального binding і commissioning.
+- Початковий manifest і manifest після вже зафіксованої безпечної заміни
+  дозволено підготувати без нової телеметрії. Це не надає RUN: потрібні
+  readback того самого hash, свіжий STOP та явний режим використання.
+- `equipment/commission`: read_only за замовчуванням; стендовий режим без
+  двигуна або explicit extended test. Extended потребує паспорта двигуна;
+  локальний ARM і hardware guards ніколи не обходяться.
+- Release — тільки owner або superadmin: proof, свіжий STOP, відсутність
+  активних розкладів/команд, відгук MQTT до ACK, потім новий activation code.
+  Старий Device retired; наступний claim створює нові UID/Device, без history.
+  Втрата одноразового response потребує factory reissue, а не відкритого GET ключа.
+- Factory quarantine відкликає bootstrap/activation/MQTT. Після фізичного
+  повторного тесту factory reset видає новий комплект для перепрошивки;
+  мережевий кеш старого покупця очищується, safety journal переприв'язується
+  тільки після локального STOP. Старі tenant-дані не видаляються.
+
+Точні Windows команди, backup шлюзу та фізичне приймання:
+[stage2-acceptance](stage2-acceptance.md). Програмний цикл реалізовано;
+повне hardware acceptance 0.7.0, LTE, production certificate lifecycle,
+secure boot/flash encryption та масштабування залишаються окремими роботами.
 
 ## Навігація пристрою
 

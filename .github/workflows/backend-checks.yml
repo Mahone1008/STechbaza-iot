@@ -18,6 +18,7 @@ on:
       - 'scripts/check-stage-h-final.ps1'
       - 'scripts/create-demo-accounts.ps1'
       - 'compose.acceptance.yml'
+      - 'scripts/check-stage2.ps1'
   workflow_dispatch:
 
 permissions:
@@ -106,6 +107,9 @@ jobs:
           docker compose -p techbaza-demo --env-file .env.demo -f compose.demo.yml up -d --wait --wait-timeout 90 backend simulator
       - name: Verify real HTTP and MQTT demo scenarios
         run: docker compose -p techbaza-demo --env-file .env.demo -f compose.demo.yml exec -T backend python -m app.demo.check
+      - name: Verify the isolated Stage 2 PowerShell launcher
+        shell: pwsh
+        run: ./scripts/check-stage2.ps1
       - name: Verify durable simulator restart
         run: |
           docker compose -p techbaza-demo --env-file .env.demo -f compose.demo.yml exec -T simulator python -m app.demo.simulator checkpoint

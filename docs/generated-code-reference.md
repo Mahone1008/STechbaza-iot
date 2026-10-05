@@ -8,14 +8,14 @@ CI звіряє його з tracked code. Це перелік реалізаці
 
 | Компонент | Значення з коду |
 |---|---|
-| Backend / OpenAPI / health | 0.45.0 |
-| Alembic head | `20261002_0022`; 22 міграцій |
+| Backend / OpenAPI / health | 0.46.0 |
+| Alembic head | `20261005_0023`; 23 міграцій |
 | Frontend package | 0.1.0 |
 | Node engine | `>=20.9.0` |
 | Package manager | `npm@10.9.2` |
 | Next.js / React | 16.3.6 / 19.2.8 |
-| Firmware V3 | 0.6.0 |
-| OpenAPI paths | 73 |
+| Firmware V3 | 0.7.0 |
+| OpenAPI paths | 80 |
 
 ## Канали телеметрії
 
@@ -101,13 +101,16 @@ ACK/Result лишаються v1. Дозвіл API не замінює лока�
 | `/api/v1/auth/security/totp/setup` | POST |
 | `/api/v1/auth/sessions` | GET |
 | `/api/v1/auth/sessions/{session_id}` | DELETE |
+| `/api/v1/bootstrap/{controller_id}/configuration` | POST |
 | `/api/v1/bootstrap/{controller_id}/contact` | POST |
 | `/api/v1/capabilities` | GET, POST |
 | `/api/v1/commands/{command_id}` | GET |
 | `/api/v1/connect/sites` | GET |
 | `/api/v1/connect/{controller_id}` | GET |
+| `/api/v1/connect/{controller_id}/access/{operation}` | POST |
 | `/api/v1/connect/{controller_id}/claim` | POST |
 | `/api/v1/connect/{controller_id}/equipment` | PUT |
+| `/api/v1/connect/{controller_id}/status` | GET |
 | `/api/v1/devices/{device_id}` | GET |
 | `/api/v1/devices/{device_id}/alarms` | GET |
 | `/api/v1/devices/{device_id}/availability` | GET |
@@ -115,9 +118,11 @@ ACK/Result лишаються v1. Дозвіл API не замінює лока�
 | `/api/v1/devices/{device_id}/capabilities/{capability_id}` | PATCH, POST |
 | `/api/v1/devices/{device_id}/commands` | GET, POST |
 | `/api/v1/devices/{device_id}/equipment` | GET |
+| `/api/v1/devices/{device_id}/equipment/commission` | POST |
 | `/api/v1/devices/{device_id}/equipment/configurations` | POST |
 | `/api/v1/devices/{device_id}/equipment/manifest` | GET |
 | `/api/v1/devices/{device_id}/equipment/modules` | POST |
+| `/api/v1/devices/{device_id}/equipment/replacement` | POST |
 | `/api/v1/devices/{device_id}/events` | GET |
 | `/api/v1/devices/{device_id}/overview` | GET |
 | `/api/v1/devices/{device_id}/schedules` | GET |
@@ -131,6 +136,8 @@ ACK/Result лишаються v1. Дозвіл API не замінює лока�
 | `/api/v1/events/{event_id}` | GET |
 | `/api/v1/factory/controllers` | GET, POST |
 | `/api/v1/factory/controllers/{controller_id}/audit` | GET |
+| `/api/v1/factory/controllers/{controller_id}/quarantine` | POST |
+| `/api/v1/factory/controllers/{controller_id}/reset` | POST |
 | `/api/v1/factory/controllers/{controller_id}/shipments` | POST |
 | `/api/v1/notifications/{notification_id}` | GET |
 | `/api/v1/notifications/{notification_id}/read` | POST |

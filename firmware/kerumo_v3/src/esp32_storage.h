@@ -57,15 +57,20 @@ public:
     const ScopedJournal scoped = wrapJournal(value, managed_ ? equipment_.hash : "");
     return opened && prefs.putBytes("journal", &scoped, sizeof(scoped)) == sizeof(scoped);
   }
-  bool bindStoppedEquipment(const char *uid) {
+  bool bindStoppedEquipment(const char *uid, bool allowOwnershipChange = false) {
     if (!opened || !managed_ || !needsBinding || !validScope(previous) ||
-        std::strcmp(previous.journal.uid, uid) != 0)
+        (!allowOwnershipChange && std::strcmp(previous.journal.uid, uid) != 0))
       return false;
     // Archive before atomic replacement; power loss leaves either the old locked or the new stopped journal.
     if (prefs.putBytes("previous", &previous, sizeof(previous)) != sizeof(previous))
       return false;
-    if (!save(journalForNewBinding(previous.journal)))
-      return false;
+    Journal next = journalForNewBinding(previous.journal);
+    if (std::strcmp(previous.journal.uid, uid) != 0) {
+      next = Journal{};
+      std::strncpy(next.uid, uid, sizeof(next.uid)-1);
+      next.checksum = checksum(next);
+    }
+    if (!save(next)) return false;
     needsBinding = false;
     return true;
   }

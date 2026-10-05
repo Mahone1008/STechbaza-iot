@@ -20,6 +20,7 @@ build/
 .platformio/
 firmware/**/config.local.h
 firmware/**/equipment_config.local.h
+firmware/**/factory_config.local.h
 /.local/
 
 # Logs and runtime files

@@ -2,7 +2,7 @@ name: V3 SU600 bench
 on:
   push:
     branches: [main, "codex/**"]
-    paths: ['firmware/**', 'infrastructure/v3/**', 'backend/**', 'scripts/prepare-v3.ps1', 'compose.v3.yml', '.github/workflows/v3-bench.yml']
+    paths: ['firmware/**', 'infrastructure/v3/**', 'backend/**', 'scripts/prepare-v3.ps1', 'scripts/prepare-controllers.ps1', 'compose.controllers.yml', 'compose.v3.yml', '.github/workflows/v3-bench.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -49,11 +49,23 @@ jobs:
           Path('firmware/kerumo_v3/equipment_config.local.h').write_text('#define KERUMO_EQUIPMENT_JSON ' + json.dumps(manifest) + '\n')
           PY
           arduino-cli compile --warnings all --fqbn esp32:esp32:esp32s3:CDCOnBoot=cdc,FlashSize=16M,PSRAM=opi,PartitionScheme=app3M_fat9M_16MB firmware/kerumo_v3
+      - name: Compile factory enrollment and local Wi-Fi setup
+        run: |
+          rm -f firmware/kerumo_v3/equipment_config.local.h
+          cat > firmware/kerumo_v3/factory_config.local.h <<'EOF'
+          #define KERUMO_FACTORY_CONTROLLER_ID "11111111-1111-4111-8111-111111111111"
+          #define KERUMO_BOOTSTRAP_KEY "ci-software-test-only-not-real-key-1234567890"
+          #define KERUMO_API_URL "https://192.168.1.10:8443"
+          #define KERUMO_SETUP_PASSWORD "ci-software-test-only-password"
+          EOF
+          arduino-cli compile --warnings all --fqbn esp32:esp32:esp32s3:CDCOnBoot=default,FlashSize=16M,PSRAM=opi,PartitionScheme=app3M_fat9M_16MB firmware/kerumo_v3
       - name: Parse Windows preparation script
         shell: pwsh
         run: |
           $parseErrors = $null
           [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $PWD 'scripts/prepare-v3.ps1'), [ref]$null, [ref]$parseErrors) | Out-Null
+          if ($parseErrors) { throw ($parseErrors | Out-String) }
+          [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $PWD 'scripts/prepare-controllers.ps1'), [ref]$null, [ref]$parseErrors) | Out-Null
           if ($parseErrors) { throw ($parseErrors | Out-String) }
   gateway:
     runs-on: ubuntu-latest
@@ -92,3 +104,44 @@ jobs:
       - name: Cleanup isolated CI services
         if: always()
         run: docker compose -p techbaza-v3-ci --env-file .env.demo --env-file .env.v3 -f compose.demo.yml -f compose.v3.yml down -v
+
+  controller-gateway:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install locked backend transport dependencies
+        run: python -m pip install --require-hashes -r backend/requirements.lock
+      - name: Prepare isolated Dynamic Security gateway
+        run: |
+          docker build -t kerumo-controller-check:local infrastructure/v3
+          mkdir -p .local/controllers
+          host_ip=$(hostname -I | awk '{print $1}')
+          docker run --rm --network none -v "$PWD/.local/controllers:/work" --entrypoint python3 kerumo-controller-check:local /opt/kerumo/controllers.py --host "$host_ip"
+          docker run --rm --network none -v "$PWD/.local/controllers:/work" --entrypoint python3 kerumo-controller-check:local /opt/kerumo/controllers.py --host "$host_ip"
+          docker run --rm -v "$PWD/.local/controllers:/work:ro" --entrypoint cat kerumo-controller-check:local /work/controllers.env > .env.controllers
+          docker run --rm -v "$PWD/.local/controllers:/work:ro" --entrypoint cat kerumo-controller-check:local /work/ca.crt > .local/controllers-ca.crt
+          docker network create controller-check
+          docker run -d --name controller-mqtt --network controller-check --network-alias mosquitto -v "$PWD/infrastructure/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro" eclipse-mosquitto:2
+          docker run -d --name controller-gateway --network controller-check -p 127.0.0.1:1884:1884 -p "$host_ip:8883:8883" -v "$PWD/.local/controllers:/work" kerumo-controller-check:local mosquitto -c /work/controllers.conf
+      - name: Verify TLS, ACL, rotation and active-session revocation
+        env:
+          TECHBAZA_CONTROLLER_GATEWAY_TEST: '1'
+          CONTROLLER_BROKER_ADMIN_HOST: 127.0.0.1
+          CONTROLLER_BROKER_ADMIN_PORT: '1884'
+        run: |
+          set -a
+          source .env.controllers
+          set +a
+          export CONTROLLER_MQTT_PUBLIC_HOST="$CONTROLLER_HOST"
+          export CONTROLLER_TEST_CA="$PWD/.local/controllers-ca.crt"
+          cd backend
+          python -m app.tools.controller_gateway_check
+      - name: Cleanup
+        if: always()
+        run: |
+          docker rm -f controller-gateway controller-mqtt || true
+          docker network rm controller-check || true

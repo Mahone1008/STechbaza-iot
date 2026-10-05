@@ -319,6 +319,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/bootstrap/{controller_id}/configuration": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Bootstrap Configuration */
+        post: operations["bootstrap_configuration_api_v1_bootstrap__controller_id__configuration_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/bootstrap/{controller_id}/contact": {
         parameters: {
             query?: never;
@@ -388,6 +405,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/connect/{controller_id}/access/{operation}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Controller Operation */
+        post: operations["controller_operation_api_v1_connect__controller_id__access__operation__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/connect/{controller_id}/claim": {
         parameters: {
             query?: never;
@@ -415,6 +449,23 @@ export interface paths {
         get?: never;
         /** Equipment Selection */
         put: operations["equipment_selection_api_v1_connect__controller_id__equipment_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/connect/{controller_id}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lifecycle Status */
+        get: operations["lifecycle_status_api_v1_connect__controller_id__status_get"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -566,6 +617,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/devices/{device_id}/equipment/commission": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Commission Equipment */
+        post: operations["commission_equipment_api_v1_devices__device_id__equipment_commission_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/devices/{device_id}/equipment/configurations": {
         parameters: {
             query?: never;
@@ -611,6 +679,23 @@ export interface paths {
         put?: never;
         /** Create Module */
         post: operations["create_module_api_v1_devices__device_id__equipment_modules_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/devices/{device_id}/equipment/replacement": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Replace Equipment */
+        post: operations["replace_equipment_api_v1_devices__device_id__equipment_replacement_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -845,6 +930,40 @@ export interface paths {
         get: operations["factory_audit_api_v1_factory_controllers__controller_id__audit_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/factory/controllers/{controller_id}/quarantine": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Quarantine Controller */
+        post: operations["quarantine_controller_api_v1_factory_controllers__controller_id__quarantine_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/factory/controllers/{controller_id}/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reset Controller */
+        post: operations["reset_controller_api_v1_factory_controllers__controller_id__reset_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1399,6 +1518,31 @@ export interface components {
              */
             transition_type: "raised" | "repeated" | "acknowledged" | "resolved" | "reopened" | "severity_changed";
         };
+        /** BootstrapConfiguration */
+        BootstrapConfiguration: {
+            /** Configuration Hash */
+            configuration_hash?: string | null;
+            /**
+             * Credential Revision
+             * @default 0
+             */
+            credential_revision: number;
+            /** Device Uid */
+            device_uid?: string | null;
+            /** Manifest */
+            manifest?: string | null;
+            /** Mqtt Host */
+            mqtt_host?: string | null;
+            /** Mqtt Password */
+            mqtt_password?: string | null;
+            /** Mqtt Port */
+            mqtt_port?: number | null;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "waiting" | "configured" | "revoked";
+        };
         /** BootstrapContact */
         BootstrapContact: {
             /** Firmware Version */
@@ -1500,6 +1644,22 @@ export interface components {
             /** Site Id */
             site_id?: string | null;
         };
+        /** CommissionRequest */
+        CommissionRequest: {
+            /**
+             * Control Mode
+             * @default read_only
+             * @enum {string}
+             */
+            control_mode: "read_only" | "bench_without_motor" | "extended_test";
+            /** Expected Revision */
+            expected_revision: number;
+            /**
+             * Installation Checked
+             * @constant
+             */
+            installation_checked: true;
+        };
         /** ConfigurationCreate */
         ConfigurationCreate: {
             bus: components["schemas"]["BusSettings"];
@@ -1511,6 +1671,7 @@ export interface components {
              * Format: uuid
              */
             module_id: string;
+            motor?: components["schemas"]["MotorNameplate"] | null;
             /** Profile Id */
             profile_id: string;
             /** Profile Version */
@@ -1586,6 +1747,45 @@ export interface components {
              * @constant
              */
             version: 1;
+        };
+        /** ControllerOperation */
+        ControllerOperation: {
+            /** Expected Credential Revision */
+            expected_credential_revision: number;
+            /** Expected Generation */
+            expected_generation: number;
+            /** Otp */
+            otp?: string | null;
+            /** Password */
+            password: string;
+            /** Reason */
+            reason: string;
+            /**
+             * Stopped And Isolated
+             * @constant
+             */
+            stopped_and_isolated: true;
+        };
+        /** ControllerStatus */
+        ControllerStatus: {
+            /** Access Revoked */
+            access_revoked: boolean;
+            /**
+             * Controller Id
+             * Format: uuid
+             */
+            controller_id: string;
+            /** Credential Revision */
+            credential_revision: number;
+            /**
+             * Credential State
+             * @enum {string}
+             */
+            credential_state: "not_issued" | "pending" | "active" | "revoked";
+            /** Generation */
+            generation: number;
+            /** Last Contact At */
+            last_contact_at: string | null;
         };
         /** CurrentUserMembershipRead */
         CurrentUserMembershipRead: {
@@ -2182,6 +2382,8 @@ export interface components {
              * @enum {string}
              */
             configuration_state: "legacy" | "awaiting" | "mismatch" | "stale" | "incompatible" | "verified";
+            /** Controller Id */
+            controller_id?: string | null;
             /** Controller Uid */
             controller_uid: string;
             desired: components["schemas"]["ConfigurationRead"] | null;
@@ -2282,12 +2484,27 @@ export interface components {
             /** Test Reference */
             test_reference: string;
         };
+        /** FactoryQuarantine */
+        FactoryQuarantine: {
+            /** Reason */
+            reason: string;
+        };
         /** FactoryRead */
         FactoryRead: {
+            /**
+             * Access Revoked
+             * @default false
+             */
+            access_revoked: boolean;
             /** Batch */
             batch: string;
             /** Claimed At */
             claimed_at: string | null;
+            /**
+             * Credential Revision
+             * @default 0
+             */
+            credential_revision: number;
             /** Device Id */
             device_id: string | null;
             /** Distributor */
@@ -2310,6 +2527,20 @@ export interface components {
             /** Status */
             status: string;
         };
+        /** FactoryReset */
+        FactoryReset: {
+            /** Expected Generation */
+            expected_generation: number;
+            /**
+             * Factory Test Passed
+             * @constant
+             */
+            factory_test_passed: true;
+            /** Reason */
+            reason: string;
+            /** Test Reference */
+            test_reference: string;
+        };
         /** FactorySecrets */
         FactorySecrets: {
             /** Activation Code */
@@ -2319,6 +2550,8 @@ export interface components {
             controller: components["schemas"]["FactoryRead"];
             /** Qr Path */
             qr_path: string;
+            /** Setup Password */
+            setup_password: string;
         };
         /** FrequencyChange */
         FrequencyChange: {
@@ -2537,6 +2770,8 @@ export interface components {
             motor?: components["schemas"]["MotorNameplate"] | null;
             /** Name */
             name: string;
+            /** Retired At */
+            retired_at?: string | null;
             /** Serial Number */
             serial_number?: string | null;
             /** Series */
@@ -2764,6 +2999,24 @@ export interface components {
             email: string;
             /** Password */
             password: string;
+        };
+        /** ReplacementCreate */
+        ReplacementCreate: {
+            /**
+             * Expected Module Id
+             * Format: uuid
+             */
+            expected_module_id: string;
+            /** Expected Revision */
+            expected_revision: number;
+            /** Reason */
+            reason: string;
+            replacement: components["schemas"]["ModuleCreate"];
+            /**
+             * Stopped And Isolated
+             * @constant
+             */
+            stopped_and_isolated: true;
         };
         /** ScheduleOccurrenceRead */
         ScheduleOccurrenceRead: {
@@ -3274,6 +3527,20 @@ export interface components {
             secret: string;
             /** Uri */
             uri: string;
+        };
+        /** TransferRead */
+        TransferRead: {
+            /** Activation Code */
+            activation_code: string;
+            /**
+             * Controller Id
+             * Format: uuid
+             */
+            controller_id: string;
+            /** Generation */
+            generation: number;
+            /** Qr Path */
+            qr_path: string;
         };
         /** ValidationError */
         ValidationError: {
@@ -4005,6 +4272,43 @@ export interface operations {
             };
         };
     };
+    bootstrap_configuration_api_v1_bootstrap__controller_id__configuration_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                controller_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BootstrapContact"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BootstrapConfiguration"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     bootstrap_contact_api_v1_bootstrap__controller_id__contact_post: {
         parameters: {
             query?: never;
@@ -4169,6 +4473,42 @@ export interface operations {
             };
         };
     };
+    controller_operation_api_v1_connect__controller_id__access__operation__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                controller_id: string;
+                operation: "rotate" | "revoke" | "release";
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ControllerOperation"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ControllerStatus"] | components["schemas"]["TransferRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     claim_controller_api_v1_connect__controller_id__claim_post: {
         parameters: {
             query?: never;
@@ -4226,6 +4566,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ModuleRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    lifecycle_status_api_v1_connect__controller_id__status_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                controller_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ControllerStatus"];
                 };
             };
             /** @description Validation Error */
@@ -4575,6 +4946,41 @@ export interface operations {
             };
         };
     };
+    commission_equipment_api_v1_devices__device_id__equipment_commission_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                device_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommissionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EquipmentPassport"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     configure_equipment_api_v1_devices__device_id__equipment_configurations_post: {
         parameters: {
             query?: never;
@@ -4651,6 +5057,41 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["ModuleCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModuleRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    replace_equipment_api_v1_devices__device_id__equipment_replacement_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                device_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReplacementCreate"];
             };
         };
         responses: {
@@ -5190,6 +5631,76 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    quarantine_controller_api_v1_factory_controllers__controller_id__quarantine_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                controller_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FactoryQuarantine"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FactoryRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reset_controller_api_v1_factory_controllers__controller_id__reset_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                controller_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FactoryReset"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FactorySecrets"];
                 };
             };
             /** @description Validation Error */

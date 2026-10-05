@@ -15,6 +15,8 @@ from app.security.browser_config import AUTH_BROWSER_ORIGINS, CSRF_HEADER
 from app.security.browser_auth import AuthNoStoreMiddleware
 from app.security.account_keys import AccountKeyUnavailableError
 from app.services.account_security import AccountSecurityConflict, InvalidAccountProof
+from app.services.controller_broker import BrokerUnavailable
+from app.services.controller_credentials import start_controller_credentials, stop_controller_credentials
 from app.mqtt_client import (
     last_command_ack_result,
     last_command_publish_result,
@@ -43,7 +45,9 @@ async def lifespan(app: FastAPI):
     start_mqtt()
     start_command_reliability_worker()
     start_system_alarm_worker()
+    start_controller_credentials()
     yield
+    stop_controller_credentials()
     stop_system_alarm_worker()
     stop_command_reliability_worker()
     stop_mqtt()
@@ -51,7 +55,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="TechBaza Backend",
-    version="0.45.0",
+    version="0.46.0",
     description="Backend API платформи TechBaza IoT Pump Control",
     lifespan=lifespan,
 )
@@ -68,6 +72,11 @@ app.add_middleware(AuthNoStoreMiddleware)
 @app.exception_handler(AccountSecurityConflict)
 async def account_security_conflict(request: Request, exc: AccountSecurityConflict):
     return JSONResponse({"detail": str(exc)}, status_code=409, headers={"Cache-Control": "no-store"})
+
+
+@app.exception_handler(BrokerUnavailable)
+async def controller_broker_unavailable(request: Request, exc: BrokerUnavailable):
+    return JSONResponse({"detail": str(exc)}, status_code=503, headers={"Cache-Control": "no-store"})
 
 
 @app.exception_handler(InvalidAccountProof)
@@ -95,7 +104,7 @@ def health() -> dict[str, str]:
     return {
         "status": "ok",
         "service": "techbaza-backend",
-        "version": "0.45.0",
+        "version": "0.46.0",
     }
 
 

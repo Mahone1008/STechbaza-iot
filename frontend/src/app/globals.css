@@ -673,3 +673,17 @@ h1, h2, h3 { letter-spacing: -0.02em; }
 .recovery-key { overflow-wrap: anywhere; user-select: all; padding: 1rem; background: #eff5f3; border-radius: .65rem; }
 .device-tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: thin; overscroll-behavior-x: contain; }
 .device-tabs [role="tab"] { flex: 0 0 auto; padding: .7rem .9rem; }
+
+/* Послідовні дії з паспортом та доступом контролера. */
+.equipment-actions { margin-top: 1.5rem; padding-top: 1.25rem; border-top: 1px solid var(--border, #d6dee5); }
+.equipment-action-form { margin-top: 1rem; padding: 1.25rem; border: 1px solid var(--border, #d6dee5); border-radius: 14px; display: grid; gap: .85rem; }
+.equipment-action-form h4 { margin: 0; font-size: 1.05rem; }
+.equipment-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.controller-qr { display: block; max-width: 100%; height: auto; background: white; border-radius: 10px; }
+.factory-label { display: grid; justify-items: center; gap: .6rem; width: fit-content; padding: 1rem; color: #102b40; background: white; border: 1px solid #d6dee5; border-radius: 14px; overflow-wrap: anywhere; }
+@media (max-width: 600px) { .equipment-form-grid { grid-template-columns: 1fr; } .equipment-action-form { padding: 1rem; } }
+@media print {
+  body:has(.factory-label) * { visibility: hidden; }
+  body:has(.factory-label) .factory-label, body:has(.factory-label) .factory-label * { visibility: visible; }
+  body:has(.factory-label) .factory-label { position: absolute; left: 0; top: 0; border: 0; }
+}

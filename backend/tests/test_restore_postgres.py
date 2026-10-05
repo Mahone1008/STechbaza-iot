@@ -81,7 +81,7 @@ class RestorePostgresTests(unittest.TestCase):
             self.assertEqual(self.session.get(DeviceCommand, self.ids[status]).status, status)
         count = len(list(self.session.scalars(select(AlarmNotification).where(AlarmNotification.device_id == self.device))))
         self.assertEqual(harden_restored_database(self.session, now=self.now),
-                         {"revoked_sessions": 0, "cancelled_delivery": 0, "unknown_results": 0, "cleared_rate_limits": 0, "paused_schedules": 0})
+                         {"revoked_sessions": 0, "cancelled_delivery": 0, "unknown_results": 0, "cleared_rate_limits": 0, "paused_schedules": 0, "revoked_controller_keys": 0})
         self.session.commit()
         self.assertEqual(len(list(self.session.scalars(select(AlarmNotification).where(AlarmNotification.device_id == self.device)))), count)
 
