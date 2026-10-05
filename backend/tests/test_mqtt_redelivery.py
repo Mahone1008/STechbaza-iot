@@ -11,7 +11,7 @@ from unittest.mock import patch
 
 import paho.mqtt.client as paho
 
-from app import mqtt_client
+from app import mqtt_client, mqtt_ingress
 
 
 def read_exact(connection, size):
@@ -85,7 +85,7 @@ class RedeliveryTest(unittest.TestCase):
             with patch.object(mqtt_client, "client", client), \
                  patch.object(mqtt_client, "MQTT_HOST", "127.0.0.1"), \
                  patch.object(mqtt_client, "MQTT_PORT", listener.getsockname()[1]), \
-                 patch.object(mqtt_client, "_handle_telemetry", side_effect=[False, True]) as handler:
+                 patch.object(mqtt_ingress, "handle_telemetry", side_effect=[False, True]) as handler:
                 try:
                     with self.assertLogs("app.mqtt_client", level="ERROR"):
                         mqtt_client.start_mqtt()

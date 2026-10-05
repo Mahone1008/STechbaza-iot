@@ -18,7 +18,7 @@ if ($engine.Trim() -ne 'linux') { throw 'Linux containers are required' }
 if (-not (Test-Path -LiteralPath '.env.demo')) {
     $rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
     try {
-        $lines = foreach ($key in @('DEMO_DB_PASSWORD', 'DEMO_JWT_SECRET', 'DEMO_OWNER_PASSWORD', 'DEMO_OPERATOR_PASSWORD', 'DEMO_VIEWER_PASSWORD', 'DEMO_OTHER_PASSWORD')) {
+        $lines = foreach ($key in @('DEMO_DB_PASSWORD', 'DEMO_JWT_SECRET', 'DEMO_ACCOUNT_KEY_SECRET', 'DEMO_OWNER_PASSWORD', 'DEMO_OPERATOR_PASSWORD', 'DEMO_VIEWER_PASSWORD', 'DEMO_OTHER_PASSWORD')) {
             $bytes = New-Object byte[] 32
             $rng.GetBytes($bytes)
             $value = [BitConverter]::ToString($bytes).Replace('-', '').ToLowerInvariant()

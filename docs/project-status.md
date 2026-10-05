@@ -1,5 +1,13 @@
 # Поточний стан KERUMO
 
+Аудит якості 05.10.2026: розділено MQTT transport/ingress/diagnostics, account
+security API/service та browser session runtime; виправлено фільтрацію прав
+перед пагінацією connect/sites, старіння діагностики та поведінку форм. Додано
+backend lock/static gates та browser перевірки onboarding/MFA/factory. Перед
+оновленням потрібне [перенесення account secret](account-key-operations-v1.md).
+Повний npm audit має [відкритий dev-dependency блокер](development-standards.md).
+Це виправлення якості коду; незавершені функції етапу 2 залишаються відкритими.
+
 Оновлено **02.10.2026**: додано основу паспортів, профілів і прив’язки обладнання.
 Поточний код: backend 0.45.0, firmware 0.6.0, міграція 0022;
 назва режиму програми — «За етапами».

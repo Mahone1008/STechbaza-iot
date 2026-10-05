@@ -13,6 +13,8 @@ from app.db import check_database
 from app.security.diagnostics import require_diagnostics_access
 from app.security.browser_config import AUTH_BROWSER_ORIGINS, CSRF_HEADER
 from app.security.browser_auth import AuthNoStoreMiddleware
+from app.security.account_keys import AccountKeyUnavailableError
+from app.services.account_security import AccountSecurityConflict, InvalidAccountProof
 from app.mqtt_client import (
     last_command_ack_result,
     last_command_publish_result,
@@ -61,6 +63,22 @@ app.add_middleware(CORSMiddleware, allow_origins=list(AUTH_BROWSER_ORIGINS),
                    allow_headers=["Authorization", "Content-Type", CSRF_HEADER],
                    expose_headers=["Retry-After"])
 app.add_middleware(AuthNoStoreMiddleware)
+
+
+@app.exception_handler(AccountSecurityConflict)
+async def account_security_conflict(request: Request, exc: AccountSecurityConflict):
+    return JSONResponse({"detail": str(exc)}, status_code=409, headers={"Cache-Control": "no-store"})
+
+
+@app.exception_handler(InvalidAccountProof)
+async def account_security_invalid_proof(request: Request, exc: InvalidAccountProof):
+    return JSONResponse({"detail": str(exc)}, status_code=401, headers={"Cache-Control": "no-store"})
+
+
+@app.exception_handler(AccountKeyUnavailableError)
+async def account_key_unavailable(request: Request, exc: AccountKeyUnavailableError):
+    return JSONResponse({"detail": "Перевірка двоетапного входу тимчасово недоступна"},
+                        status_code=503, headers={"Cache-Control": "no-store"})
 
 
 @app.exception_handler(RequestValidationError)

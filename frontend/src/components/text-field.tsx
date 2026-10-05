@@ -53,7 +53,7 @@ export function TextField({
           onInvalid?.(event);
         }}
         onBlur={(event) => {
-          handleBlur(event.currentTarget);
+          handleBlur(event.currentTarget, event.relatedTarget);
           onBlur?.(event);
         }}
         onChange={(event) => {

@@ -1,0 +1,24 @@
+[tool.ruff]
+target-version = "py313"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E9", "F"]
+
+[tool.mypy]
+python_version = "3.13"
+check_untyped_defs = true
+no_implicit_optional = true
+warn_unused_ignores = true
+follow_imports = "silent"
+ignore_missing_imports = true
+# The first gate covers the account/key boundary and the repositories changed
+# by this audit. Extend it as older modules gain complete annotations.
+files = [
+  "backend/app/security/account_keys.py",
+  "backend/app/security/account_key_config.py",
+  "backend/app/services/account_security.py",
+  "backend/app/repositories/factory.py",
+  "backend/app/repositories/sites.py",
+  "backend/app/api/auth_throttle.py",
+]

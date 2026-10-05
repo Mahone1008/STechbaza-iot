@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from app.security.tokens import utc_now
 
-from sqlalchemy import or_, func, select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.models.organization import Organization

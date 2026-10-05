@@ -158,14 +158,14 @@ test("F5 restores every saved stage without issuing commands and leaves STOP ava
     if (request.method() === "POST" && request.url().endsWith("/commands")) posts++;
   });
   await page.goto(`/devices/${DEVICE_ID}`);
-  await expect(page.locator("#selected-command .program-summary li")).toHaveText([
+  await expect(page.locator("#device-section-panel .program-summary li")).toHaveText([
     "20 Гц · 1 хв",
     "40 Гц · 1 год",
     "50 Гц · 30 с",
   ]);
   data.diagnostics!.program!.remaining_seconds = 3580;
   await page.reload();
-  await expect(page.locator("#selected-command .program-summary li")).toHaveText([
+  await expect(page.locator("#device-section-panel .program-summary li")).toHaveText([
     "20 Гц · 1 хв",
     "40 Гц · 1 год",
     "50 Гц · 30 с",
@@ -197,7 +197,7 @@ test("F5 restores every saved stage without issuing commands and leaves STOP ava
   });
   await page.getByRole("button", { name: "Зупинити", exact: true }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Надіслати команду", exact: true }).click();
-  await expect(page.locator("#selected-command")).toContainText("Контролер повідомив про виконання");
+  await expect(page.locator("#device-section-panel")).toContainText("Контролер повідомив про виконання");
   await page.getByRole("link", { name: "Переглянути етапи роботи", exact: true }).click();
   await expect(page.locator("#selected-command .program-summary li")).toHaveText([
     "20 Гц · 1 хв",
@@ -244,12 +244,12 @@ for (const canReadCommands of [true, false])
     await page.goto(`/devices/${DEVICE_ID}`);
     await expect(page.getByText("Етап 1 з 1 · 20 Гц.", { exact: true })).toBeVisible();
     if (canReadCommands) {
-      await expect(page.locator("#selected-command .program-summary li")).toHaveText(["20 Гц · 1 хв"]);
+      await expect(page.locator("#device-section-panel .program-summary li")).toHaveText(["20 Гц · 1 хв"]);
       await expect(page.getByRole("link", { name: "Переглянути етапи роботи", exact: true })).toBeVisible();
       expect(reads).toBeGreaterThan(0);
     } else {
       await expect(page.getByRole("link", { name: "Переглянути етапи роботи", exact: true })).toHaveCount(0);
-      await expect(page.locator("#selected-command")).toBeEmpty();
+      await expect(page.locator("#device-section-panel .program-summary")).toHaveCount(0);
       expect(reads).toBe(0);
     }
     await expect(page.getByRole("button", { name: "Запустити", exact: true })).toHaveCount(0);

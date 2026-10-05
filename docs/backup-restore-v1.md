@@ -17,6 +17,8 @@ H-03 preflight перед promotion, без повторного seed наявн
 Пізніша міграція 0018 і правила command v2 враховані в recovery policy нижче.
 [Актуальний CI та його commit](audit-2026-09-30.md); числа 109/158 — історичні прогони.
 
+Оновлення ключів і відновлення старих backup: [account-key-operations-v1](account-key-operations-v1.md).
+
 ## 1. Що доводить перевірка
 
 Збірка з tracked source запускається на порожніх volumes. Резервна копія
@@ -90,7 +92,7 @@ H-03 preflight перед promotion, без повторного seed наявн
 |---|---|
 | postgres.dump | PostgreSQL custom archive: схема і дані однієї demo БД |
 | simulator.sqlite3 | Узгоджена SQLite копія, включно з committed WAL, device state, command ledger і pending replies |
-| environment.env | Існуючі demo credentials і JWT secret |
+| environment.env | Існуючі demo credentials, JWT secret та account keys |
 | source.tar | Tracked source перевіреного Git commit |
 | source.json | Кількість і SHA-256 усіх рядків кожної public table, fingerprint структури |
 | manifest.json | Format version, backend/migration/PostgreSQL version, Git SHA, розміри й хеші п'яти файлів bundle |

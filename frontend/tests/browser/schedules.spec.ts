@@ -18,7 +18,6 @@ const conflictId = "f7d6f82e-ea2f-4b91-8ee9-003b19c183d5";
 const start = "2076-10-01T16:00:00Z",
   stop = "2076-10-01T23:00:00Z";
 async function openSchedules(page: Page) {
-  await page.getByText("Додаткові налаштування команди", { exact: true }).click();
   await page.getByRole("tab", { name: "Розклади", exact: true }).click();
 }
 
@@ -283,6 +282,7 @@ test("schedule tab preserves its draft and suspends every hidden request", async
   await page.getByRole("tab", { name: "Розклади", exact: true }).click();
   await expect(page.getByLabel("Назва розкладу", { exact: true })).toHaveValue("Незбережений полив");
   await page.getByRole("tab", { name: "Панель", exact: true }).click();
+  await page.getByText("Додаткові налаштування команди", { exact: true }).click();
   await page.getByRole("combobox", { name: "Режим роботи", exact: true }).selectOption("timer");
   await expect(page.getByText("Робота за таймером", { exact: true })).toBeVisible();
   const switchedReads = reads;
@@ -314,12 +314,12 @@ test("a running plan still allows calendar inspection and STOP but not another p
   await expect(page.getByText("Розкладів ще немає.", { exact: true })).toBeVisible();
   await page.getByRole("tab", { name: "Панель", exact: true }).click();
   await expect(page.getByRole("button", { name: "Зупинити", exact: true })).toBeEnabled();
-  await expect(
-    page.getByRole("combobox", { name: "Режим роботи", exact: true }).locator('option[value="timer"]'),
-  ).toHaveJSProperty("disabled", true);
-  await expect(
-    page.getByRole("combobox", { name: "Режим роботи", exact: true }).locator('option[value="program"]'),
-  ).toHaveJSProperty("disabled", true);
+  await page.getByText("Додаткові налаштування команди", { exact: true }).click();
+  const mode = page.getByRole("combobox", { name: "Режим роботи", exact: true });
+  await expect(mode.locator('option[value="timer"]')).toHaveJSProperty("disabled", true);
+  await expect(mode.locator('option[value="program"]')).toHaveJSProperty("disabled", true);
+  await expect(page.getByRole("button", { name: "Запустити", exact: true })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Задати частоту", exact: true })).toBeDisabled();
 });
 
 test("preview is invalidated by edits and conflicts prevent saving", async ({ page }) => {
@@ -427,12 +427,12 @@ test("closing the calendar stops both list and selected history polling", async 
   await page.getByRole("button", { name: "Історія запусків", exact: true }).click();
   await expect(page.getByText("Запусків ще не було.", { exact: true })).toBeVisible();
   expect(histories).toBe(1);
-  await page.getByText("Додаткові налаштування команди", { exact: true }).click();
+  await page.getByRole("tab", { name: "Панель", exact: true }).click();
   await expect(page.locator(".schedule-panel")).not.toBeVisible();
   const counts = [lists, histories];
   await page.clock.fastForward(61_000);
   expect([lists, histories]).toEqual(counts);
-  await page.getByText("Додаткові налаштування команди", { exact: true }).click();
+  await page.getByRole("tab", { name: "Розклади", exact: true }).click();
   await expect(page.getByText("Запусків ще не було.", { exact: true })).toBeVisible();
   expect(histories).toBeGreaterThan(counts[1]!);
 });
@@ -467,6 +467,7 @@ test("manual and minute refresh apply to schedules, run history and command reco
     });
   }
   await page.goto(`/devices/${DEVICE_ID}`);
+  await page.getByRole("tab", { name: "Журнал", exact: true }).click();
   await page.getByRole("link", { name: "Переглянути команду Запустити", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Стан вибраної команди", exact: true })).toBeVisible();
   await openSchedules(page);
@@ -478,26 +479,28 @@ test("manual and minute refresh apply to schedules, run history and command reco
   await page.clock.fastForward(61_000);
   expect(counts).toEqual(beforeManual);
   for (const [label, key] of [
-    ["Оновити розклади", "lists"],
-    ["Оновити історію запусків", "histories"],
-    ["Оновити журнал", "journal"],
-    ["Оновити стан команди", "detail"],
-    ["Оновити панель", "overview"],
+    ["Оновити розклади", "lists"], ["Оновити історію запусків", "histories"], ["Оновити панель", "overview"],
   ] as const) {
     await page.getByRole("button", { name: label, exact: true }).click();
     await expect.poll(() => counts[key]).toBe(beforeManual[key] + 1);
   }
-  await refresh.selectOption("60");
-  // Увімкнення може негайно перевірити застарілі дані; рахуємо наступний повний інтервал.
-  await expect(page.getByRole("button", { name: "Оновити історію запусків", exact: true })).toBeEnabled();
+  await page.getByRole("tab", { name: "Журнал", exact: true }).click();
   await expect(page.getByRole("button", { name: "Оновити стан команди", exact: true })).toBeEnabled();
+  const beforeJournal = { ...counts };
+  for (const [label, key] of [["Оновити журнал", "journal"], ["Оновити стан команди", "detail"]] as const) {
+    await page.getByRole("button", { name: label, exact: true }).click();
+    await expect.poll(() => counts[key]).toBe(beforeJournal[key] + 1);
+  }
+  await refresh.selectOption("60");
+  await expect(page.getByRole("button", { name: "Оновити стан команди", exact: true })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Оновити журнал", exact: true })).toBeEnabled();
   const beforeMinute = { ...counts };
   await page.clock.fastForward(31_000);
   expect(counts).toEqual(beforeMinute);
   await page.clock.fastForward(30_000);
-  await expect
-    .poll(() => counts)
-    .toEqual(Object.fromEntries(Object.entries(beforeMinute).map(([key, value]) => [key, value + 1])));
+  await expect.poll(() => counts).toEqual({
+    ...beforeMinute, journal: beforeMinute.journal + 1, detail: beforeMinute.detail + 1,
+  });
 });
 
 test("week-long rule previews, confirms and keeps all day offsets after reload", async ({ page }) => {

@@ -5,6 +5,7 @@ import { stage14Workspace, tenants } from "../helpers/stage14-workspace";
 import { seriesFixture } from "../fixtures/series";
 
 async function settled(page: Page) {
+  await page.getByRole("tab", { name: "Графіки", exact: true }).click();
   await expect(page.locator(".telemetry-chart")).toBeVisible();
   await expect(page.getByRole("button", { name: "Оновити історію" })).toBeEnabled();
   await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));

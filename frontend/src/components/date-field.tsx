@@ -70,7 +70,7 @@ export function DateField({
           aria-describedby={`${id}-hint${validationError ? ` ${id}-error` : ""}`}
           aria-invalid={!!validationError}
           onInvalid={handleInvalid}
-          onBlur={(event) => handleBlur(event.currentTarget)}
+          onBlur={(event) => handleBlur(event.currentTarget, event.relatedTarget)}
           onChange={(event) => {
             handleChange();
             onValueChange(readCalendarInput(event.target.value));

@@ -7,7 +7,7 @@ from pydantic import ValidationError
 
 from app.schemas.program import ProgramPlan
 from app.schemas.schedule import ScheduleRun, ScheduleSpec
-from app.services.schedule_calendar import civil_utc, first_overlap, run_on_date, self_overlap, upcoming
+from app.services.schedule_calendar import first_overlap, run_on_date, self_overlap, upcoming
 
 
 def spec(**changes):

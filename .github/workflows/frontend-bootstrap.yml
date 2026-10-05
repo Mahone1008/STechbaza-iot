@@ -40,7 +40,7 @@ jobs:
         with:
           python-version: '3.13'
       - name: Install backend schema dependencies
-        run: python -m pip install -r backend/requirements.txt
+        run: python -m pip install --require-hashes -r backend/requirements.lock
       - name: Export backend OpenAPI snapshot
         run: python scripts/export_openapi.py
       - uses: actions/setup-node@v4
@@ -65,6 +65,9 @@ jobs:
       - name: Lint
         working-directory: frontend
         run: npm run lint
+      - name: Check formatting of audited modules
+        working-directory: frontend
+        run: npm run format:check
       - name: Unit and component tests
         working-directory: frontend
         run: npm run test:unit

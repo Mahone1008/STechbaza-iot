@@ -98,7 +98,7 @@ class CapabilityService:
         )
 
         try:
-            created = self._capabilities.add_assignment(assignment)
+            self._capabilities.add_assignment(assignment)
             self._session.commit()
         except IntegrityError as exc:
             self._session.rollback()

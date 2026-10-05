@@ -5,7 +5,6 @@ from pathlib import Path
 import queue
 import ssl
 import threading
-import time
 import uuid
 from datetime import datetime, timezone
 
