@@ -94,19 +94,14 @@ class AccountSecurityService:
             or row.totp_enabled_at
         ):
             raise AccountSecurityConflict("Налаштування доступне лише під час першої активації")
-        secret = base64.b32encode(secrets.token_bytes(20)).decode()
         recovery = new_key()
-        row.totp_secret = secret_box().encrypt(secret.encode()).decode()
-        row.totp_last_counter = None
+        row.totp_secret, row.totp_last_counter = None, None
         row.recovery_hash = digest("recovery", recovery)
         self._session.commit()
         login = permanent_login(current.user)
-        label = quote("KERUMO:" + login, safe="")
         return ActivationAccessRead(
             login=login,
-            secret=secret,
             recovery_key=recovery,
-            uri=f"otpauth://totp/{label}?secret={secret}&issuer=KERUMO&algorithm=SHA1&digits=6&period=30",
         )
 
     def prove(self, current: CurrentUserContext, proof: SecurityProof) -> None:
@@ -149,7 +144,7 @@ class AccountSecurityService:
         row = self._session.get(AccountSecurity, current.user.id)
         return SecurityRead(
             mfa_enabled=bool(row and row.totp_enabled_at),
-            privileged_mfa_required=privileged_mfa_required(),
+            privileged_mfa_required=privileged_mfa_required(current),
             current_session_verified=current.auth_session.mfa_verified_at is not None,
             recovery_available=bool(row and row.recovery_hash),
         )
@@ -217,6 +212,25 @@ class AccountSecurityService:
             )
             .values(revoked_at=utc_now())
         )
+        self._session.commit()
+
+    def disable_totp(self, current: CurrentUserContext, proof: SecurityProof) -> None:
+        row = self._prove(current, proof)
+        if privileged_mfa_required(current):
+            raise AccountSecurityConflict("Для адміністратора платформи двоетапний вхід обов’язковий")
+        if not row.totp_enabled_at:
+            raise AccountSecurityConflict("Двоетапний вхід уже вимкнено")
+        row.totp_secret, row.totp_enabled_at, row.totp_last_counter = None, None, None
+        self._session.execute(
+            update(AuthSession)
+            .where(
+                AuthSession.user_id == current.user.id,
+                AuthSession.id != current.auth_session.id,
+                AuthSession.revoked_at.is_(None),
+            )
+            .values(revoked_at=utc_now())
+        )
+        current.auth_session.mfa_verified_at = None
         self._session.commit()
 
     def list_sessions(self, current: CurrentUserContext) -> list[SessionRead]:

@@ -78,21 +78,30 @@ class LabelAccountPostgresTests(OnboardingFixtures, unittest.TestCase):
         }
         code, _, _ = request("POST", path + "/claim", body=body, headers=auth, ip=self.ip)
         self.assertEqual(code, 422)
+        code, _, _ = request(
+            "POST",
+            path + "/claim",
+            body={**body, "new_password": "Permanent-password-fixture-2026"},
+            headers=auth,
+            ip=self.ip,
+        )
+        self.assertEqual(code, 422)  # A recovery key must be issued before activation.
         code, access, headers = request("POST", path + "/security", headers=auth, ip=self.ip)
         self.assertEqual(code, 200, access)
         self.assertEqual(headers.get("cache-control"), "no-store")
         self.assertEqual(access["login"], ready["permanent_login"])
+        self.assertNotIn("secret", access)
+        self.assertNotIn("uri", access)
         code, _, _ = request(
             "POST",
             "/api/v1/auth/security/totp/confirm",
-            body={"otp": totp_code(access["secret"], int(time.time() // 30))},
+            body={"otp": "123456"},
             headers=auth,
             ip=self.ip,
         )
         self.assertEqual(code, 409)  # Cannot bind MFA to the temporary factory password.
         body.update(
             new_password="Permanent-password-fixture-2026",
-            otp=totp_code(access["secret"], int(time.time() // 30)),
         )
         code, _, _ = request(
             "POST",
@@ -102,9 +111,6 @@ class LabelAccountPostgresTests(OnboardingFixtures, unittest.TestCase):
             ip=self.ip,
         )
         self.assertEqual(code, 422)
-        bad = {**body, "otp": str((int(body["otp"]) + 9) % 1000000).zfill(6)}
-        code, _, _ = request("POST", path + "/claim", body=bad, headers=auth, ip=self.ip)
-        self.assertEqual(code, 422)
         code, claimed, _ = request("POST", path + "/claim", body=body, headers=auth, ip=self.ip)
         self.assertEqual(code, 200, claimed)
         code, repeated, _ = request("POST", path + "/claim", body=body, headers=auth, ip=self.ip)
@@ -112,7 +118,7 @@ class LabelAccountPostgresTests(OnboardingFixtures, unittest.TestCase):
         self.assertEqual(claimed["device_id"], repeated["device_id"])
         return auth, claimed, access, body["new_password"]
 
-    def test_qr_activation_exchanges_factory_access_for_password_and_mfa_atomically(self):
+    def test_qr_activation_exchanges_factory_access_for_password_without_mfa(self):
         factory = self.factory()
         prior, _ = self.label_login(factory)
         with patch.dict(os.environ, {"AUTH_REQUIRE_PRIVILEGED_MFA": "true"}):
@@ -136,14 +142,20 @@ class LabelAccountPostgresTests(OnboardingFixtures, unittest.TestCase):
         self.assertEqual(len(me["memberships"]), 1)
         login = {"email": access["login"], "password": password}
         code, _, _ = request("POST", "/api/v1/auth/login", body=login, ip=self.ip)
-        self.assertEqual(code, 401)
-        future = (int(time.time() // 30) + 2) * 30
-        with patch("app.security.account_keys.time.time", return_value=future):
-            login["otp"] = totp_code(access["secret"], int(future // 30))
-            code, _, _ = request("POST", "/api/v1/auth/login", body=login, ip=self.ip)
         self.assertEqual(code, 200)
-        code, _, _ = request("GET", "/api/v1/auth/security", headers=auth, ip=self.ip)
-        self.assertEqual(code, 200)
+        with patch.dict(os.environ, {"AUTH_REQUIRE_PRIVILEGED_MFA": "true"}):
+            code, security, _ = request("GET", "/api/v1/auth/security", headers=auth, ip=self.ip)
+            self.assertEqual(code, 200, security)
+            self.assertFalse(security["mfa_enabled"])
+            self.assertFalse(security["privileged_mfa_required"])
+            self.assertTrue(security["recovery_available"])
+            code, sites, _ = request("GET", "/api/v1/connect/sites", headers=auth, ip=self.ip)
+            self.assertEqual(code, 200, sites)
+            self.assertIn(claimed["site_id"], [site["id"] for site in sites])
+            code, _, _ = request(
+                "GET", f"/api/v1/devices/{claimed['device_id']}/equipment", headers=auth, ip=self.ip
+            )
+            self.assertEqual(code, 200)
 
     def test_factory_reset_invalidates_pending_login_and_sessions(self):
         factory = self.factory()
@@ -171,6 +183,22 @@ class LabelAccountPostgresTests(OnboardingFixtures, unittest.TestCase):
     def test_transfer_detaches_previous_mfa_and_keeps_each_owners_history_private(self):
         factory = self.factory()
         auth, claimed, access, password = self.activate(factory)
+        code, setup, _ = request(
+            "POST",
+            "/api/v1/auth/security/totp/setup",
+            body={"password": password},
+            headers=auth,
+            ip=self.ip,
+        )
+        self.assertEqual(code, 200, setup)
+        code, _, _ = request(
+            "POST",
+            "/api/v1/auth/security/totp/confirm",
+            body={"otp": totp_code(setup["secret"], int(time.time() // 30))},
+            headers=auth,
+            ip=self.ip,
+        )
+        self.assertEqual(code, 204)
         device_id = uuid.UUID(claimed["device_id"])
         with SessionLocal.begin() as session:
             device = session.get(Device, device_id)
@@ -193,7 +221,7 @@ class LabelAccountPostgresTests(OnboardingFixtures, unittest.TestCase):
                 ip=self.ip,
                 body={
                     "password": password,
-                    "otp": totp_code(access["secret"], int(future // 30)),
+                    "otp": totp_code(setup["secret"], int(future // 30)),
                     "expected_generation": 1,
                     "expected_credential_revision": 0,
                     "reason": "Sale to another buyer",
@@ -203,7 +231,6 @@ class LabelAccountPostgresTests(OnboardingFixtures, unittest.TestCase):
         self.assertEqual(code, 200, handover)
         next_kit = {**handover, "controller": {"id": handover["controller_id"]}}
         new_auth, new_claim, new_access, _ = self.activate(next_kit)
-        self.assertNotEqual(access["secret"], new_access["secret"])
         self.assertNotEqual(access["login"], new_access["login"])
         self.assertNotEqual(claimed["device_id"], new_claim["device_id"])
         for headers, device, expected in [
@@ -218,6 +245,8 @@ class LabelAccountPostgresTests(OnboardingFixtures, unittest.TestCase):
         with SessionLocal() as session:
             old_user = session.scalar(select(User).where(User.login_name == access["login"]))
             self.assertIsNotNone(session.get(AccountSecurity, old_user.id).totp_enabled_at)
+            new_user = session.scalar(select(User).where(User.login_name == new_access["login"]))
+            self.assertIsNone(session.get(AccountSecurity, new_user.id).totp_enabled_at)
 
     def test_existing_customer_claim_does_not_make_label_a_password_for_their_account(self):
         factory = self.factory()
@@ -227,7 +256,7 @@ class LabelAccountPostgresTests(OnboardingFixtures, unittest.TestCase):
         self.label_login(factory, qr=True, expected=401)
         self.call(path, who="other")
 
-    def test_registration_is_removed_and_auth_requires_browser_proof(self):
+    def test_legacy_registration_is_removed_and_auth_requires_browser_proof(self):
         factory = self.factory()
         code, _, _ = request("POST", "/api/v1/auth/register", body={}, ip=self.ip)
         self.assertEqual(code, 404)

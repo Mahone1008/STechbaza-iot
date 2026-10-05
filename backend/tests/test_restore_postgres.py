@@ -9,6 +9,7 @@ from unittest.mock import patch
 from sqlalchemy import select
 
 from app.models.auth_session import AuthSession
+from app.models.account_link import AccountLink
 from app.models.command import DeviceCommand
 from app.models.device import Device
 from app.models.event_alarm import DeviceAlarm
@@ -42,6 +43,8 @@ class RestorePostgresTests(unittest.TestCase):
         s.add(Device(id=self.device, site_id=self.site, uid=f"TB-RESTORE-{self.device.hex}", name="Test"))
         s.add(AuthSession(id=self.auth, user_id=self.user, refresh_token_hash=self.auth.hex*2,
                           expires_at=self.now + timedelta(days=1)))
+        self.link = uuid.uuid4()
+        s.add(AccountLink(id=self.link, purpose="registration", email=f"{self.user.hex}@example.com", token_hash="c"*64, expires_at=self.now + timedelta(hours=1)))
         s.flush()
         self.schedule = uuid.uuid4()
         s.add(DeviceSchedule(id=self.schedule, device_id=self.device, organization_id=self.org,
@@ -66,6 +69,8 @@ class RestorePostgresTests(unittest.TestCase):
         self.assertGreaterEqual(result["cancelled_delivery"], 1)
         self.assertGreaterEqual(result["unknown_results"], 2)
         self.assertGreaterEqual(result["paused_schedules"], 1)
+        self.assertGreaterEqual(result["revoked_account_links"], 1)
+        self.assertIsNotNone(self.session.get(AccountLink, self.link).revoked_at)
         self.assertFalse(self.session.get(DeviceSchedule, self.schedule).enabled)
         self.assertIsNone(self.session.get(DeviceSchedule, self.schedule).next_check_at)
         self.assertIsNotNone(self.session.get(AuthSession, self.auth).revoked_at)
@@ -81,7 +86,7 @@ class RestorePostgresTests(unittest.TestCase):
             self.assertEqual(self.session.get(DeviceCommand, self.ids[status]).status, status)
         count = len(list(self.session.scalars(select(AlarmNotification).where(AlarmNotification.device_id == self.device))))
         self.assertEqual(harden_restored_database(self.session, now=self.now),
-                         {"revoked_sessions": 0, "cancelled_delivery": 0, "unknown_results": 0, "cleared_rate_limits": 0, "paused_schedules": 0, "revoked_controller_keys": 0})
+                         {"revoked_sessions": 0, "cancelled_delivery": 0, "unknown_results": 0, "cleared_rate_limits": 0, "paused_schedules": 0, "revoked_controller_keys": 0, "revoked_account_links": 0})
         self.session.commit()
         self.assertEqual(len(list(self.session.scalars(select(AlarmNotification).where(AlarmNotification.device_id == self.device)))), count)
 

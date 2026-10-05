@@ -90,10 +90,7 @@ class AccessControl:
 
     @property
     def is_service_admin(self) -> bool:
-        return (
-            self._current.user.platform_role
-            == PlatformRole.SERVICE_ADMIN.value
-        )
+        return self._current.user.platform_role == PlatformRole.SERVICE_ADMIN.value
 
     def require_platform_role(
         self,
@@ -146,8 +143,12 @@ class AccessControl:
         if membership is None:
             raise _not_found()
 
-        require_privileged_mfa(self._current, membership.role)
-        if membership.site_ids is not None and permission in (Permission.SITE_CREATE, Permission.MEMBERSHIP_READ, Permission.MEMBERSHIP_MANAGE):
+        require_privileged_mfa(self._current)
+        if membership.site_ids is not None and permission in (
+            Permission.SITE_CREATE,
+            Permission.MEMBERSHIP_READ,
+            Permission.MEMBERSHIP_MANAGE,
+        ):
             raise _forbidden()
         if not role_has_permission(membership.role, permission):
             raise _forbidden()
@@ -173,16 +174,40 @@ class AccessControl:
         membership = self._memberships.get_active(self._current.user.id, organization_id)
         if membership is None:
             raise _not_found()
-        return [uuid.UUID(value) for value in membership.site_ids] if membership.site_ids is not None else None
+        return (
+            [uuid.UUID(value) for value in membership.site_ids]
+            if membership.site_ids is not None
+            else None
+        )
 
     def list_creatable_sites(self, *, limit: int, offset: int) -> list[Site]:
         from app.security.roles import OrganizationRole
 
-        # All roles with device.create are privileged; use the same MFA rule as claim.
-        require_privileged_mfa(self._current, "service")
-        roles = [role.value for role in OrganizationRole if role_has_permission(role, Permission.DEVICE_CREATE)]
+        require_privileged_mfa(self._current)
+        roles = [
+            role.value
+            for role in OrganizationRole
+            if role_has_permission(role, Permission.DEVICE_CREATE)
+        ]
         return self._sites.list_for_user_permission(
-            self._current.user.id, roles, superadmin=self.is_superadmin, limit=limit, offset=offset,
+            self._current.user.id,
+            roles,
+            superadmin=self.is_superadmin,
+            limit=limit,
+            offset=offset,
+        )
+
+    def list_creatable_organizations(self, *, limit: int, offset: int) -> list[Organization]:
+        from app.security.roles import OrganizationRole
+
+        require_privileged_mfa(self._current)
+        roles = [
+            role.value
+            for role in OrganizationRole
+            if role_has_permission(role, Permission.SITE_CREATE)
+        ]
+        return self._organizations.list_for_user_permission(
+            self._current.user.id, roles, superadmin=self.is_superadmin, limit=limit, offset=offset
         )
 
     def _require_site_scope(self, site: Site):
@@ -246,7 +271,6 @@ class AccessControl:
         self.require_device(command.device_id, permission)
         return command
 
-
     def require_event(
         self,
         event_id: uuid.UUID,
@@ -258,7 +282,6 @@ class AccessControl:
 
         self.require_device(event.device_id, permission)
         return event
-
 
     def require_alarm(
         self,
@@ -273,7 +296,9 @@ class AccessControl:
         return alarm
 
     def require_notification(
-        self, notification_id: uuid.UUID, permission: Permission,
+        self,
+        notification_id: uuid.UUID,
+        permission: Permission,
     ) -> AlarmNotification:
         item = NotificationRepository(self._session).get(notification_id)
         if item is None:

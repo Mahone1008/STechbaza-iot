@@ -85,8 +85,11 @@ export function OrganizationList() {
   return snapshot.status === "directory" ? <Directory key={`${snapshot.scope.userId}:${snapshot.scope.sessionId}`} context={snapshot} sites={false} /> : null;
 }
 export function SiteList() {
-  const { snapshot } = useAccessContext();
-  return snapshot.status === "ready" ? <Directory key={`${snapshot.scope.userId}:${snapshot.scope.sessionId}:${snapshot.activeOrganization.id}`} context={snapshot} sites /> : null;
+  const { snapshot, hasPermission } = useAccessContext();
+  return snapshot.status === "ready" ? <>
+    {hasPermission("membership.read") && <div className="ui-row"><Link className="button button-secondary" href={`/organizations/${snapshot.activeOrganization.id}/members` as Route}>Учасники організації</Link></div>}
+    <Directory key={`${snapshot.scope.userId}:${snapshot.scope.sessionId}:${snapshot.activeOrganization.id}`} context={snapshot} sites />
+  </> : null;
 }
 
 type Presence = Readonly<{ availability: Availability | null; error?: string; checkedAt: string }>;

@@ -27,6 +27,7 @@ from app.schemas.onboarding import (
     FactoryReset,
 )
 from app.schemas.site import SiteRead
+from app.schemas.organization import OrganizationRead
 from app.security.authorization import AccessControl
 from app.security.current_user import CurrentUserContext, get_current_user_context
 from app.security.roles import PlatformRole
@@ -117,6 +118,18 @@ def buyer_sites(
     if current.user.login_name and current.user.login_name.startswith("kr-"):
         return []
     return AccessControl(session, current).list_creatable_sites(limit=limit, offset=offset)
+
+
+@router.get("/connect/organizations", response_model=list[OrganizationRead])
+def buyer_organizations(
+    current: Current,
+    session: Db,
+    limit: Annotated[int, Query(ge=1, le=100)] = 100,
+    offset: Annotated[int, Query(ge=0)] = 0,
+):
+    if current.user.login_name and current.user.login_name.startswith("kr-"):
+        return []
+    return AccessControl(session, current).list_creatable_organizations(limit=limit, offset=offset)
 
 
 @router.get("/connect/{controller_id}", response_model=ConnectionRead)

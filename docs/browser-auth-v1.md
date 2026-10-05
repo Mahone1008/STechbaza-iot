@@ -176,8 +176,11 @@ JSON `/auth/login`, `/auth/refresh`, `/auth/logout` залишені для CLI 
 програмна частина B2B/QR onboarding уже реалізовані; [контракт і межі](buyer-onboarding-v1.md).
 Активація/recovery також вимагають exact Origin/CSRF. Публічні origins
 вмикають MFA policy привілейованого доступу; factory API вимагає MFA і локально.
-Email verification/reset, фізичний onboarding та повне виявлення reuse
-token family ще не завершені. Ключі TOTP/recovery/заводу відокремлені від JWT;
+Підтвердження пошти й email-запрошення реалізовано в 0.49.0:
+[особисті акаунти та SMTP](personal-accounts-v1.md). Authenticator клієнтів
+добровільний, platform admin не може вимкнути його. Email password reset,
+фізичний onboarding та повне виявлення reuse token family ще не завершені;
+чинне відновлення використовує персональний recovery key. Ключі TOTP/recovery/заводу відокремлені від JWT;
 [міграція наявної установки](account-key-operations-v1.md) обов'язкова.
 Повторне використання старого refresh зараз дає 401; автоматичного
 відкликання всієї сім'ї через reuse немає. Рольові перевірки не послаблено.

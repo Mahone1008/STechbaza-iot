@@ -179,7 +179,7 @@ Browser використовує [cookie flow](browser-auth-v1.md), JSON flow н
 
 ## User creation
 
-Public self-registration на цьому етапі навмисно не відкривається.
+З 0.49.0 доступна [реєстрація особистого акаунта з підтвердженням пошти](personal-accounts-v1.md). Старий `/auth/register` не відновлюється; актуальні browser routes описані в цьому контракті.
 
 Для development/bootstrap використовується CLI:
 

@@ -200,6 +200,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/registration/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Register Complete */
+        post: operations["register_complete_api_v1_auth_registration_complete_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/registration/inspect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Register Inspect */
+        post: operations["register_inspect_api_v1_auth_registration_inspect_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/registration/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Register Start */
+        post: operations["register_start_api_v1_auth_registration_start_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/security": {
         parameters: {
             query?: never;
@@ -262,6 +313,23 @@ export interface paths {
         put?: never;
         /** Confirm Totp */
         post: operations["confirm_totp_api_v1_auth_security_totp_confirm_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/security/totp/disable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Disable Totp */
+        post: operations["disable_totp_api_v1_auth_security_totp_disable_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -422,6 +490,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/connect/{controller_id}/account-registration": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Label Register Start */
+        post: operations["label_register_start_api_v1_connect__controller_id__account_registration_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/connect/{controller_id}/claim": {
         parameters: {
             query?: never;
@@ -482,6 +567,23 @@ export interface paths {
         };
         /** Lifecycle Status */
         get: operations["lifecycle_status_api_v1_connect__controller_id__status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/connect/organizations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Buyer Organizations */
+        get: operations["buyer_organizations_api_v1_connect_organizations_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1005,6 +1107,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/invitations/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Invitation Accept */
+        post: operations["invitation_accept_api_v1_invitations_accept_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/invitations/inspect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Invitation Inspect */
+        post: operations["invitation_inspect_api_v1_invitations_inspect_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/invitations/register": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Invitation Register */
+        post: operations["invitation_register_api_v1_invitations_register_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/notifications/{notification_id}": {
         parameters: {
             query?: never;
@@ -1089,6 +1242,41 @@ export interface paths {
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/organizations/{organization_id}/invitations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Invitation List */
+        get: operations["invitation_list_api_v1_organizations__organization_id__invitations_get"];
+        put?: never;
+        /** Invitation Create */
+        post: operations["invitation_create_api_v1_organizations__organization_id__invitations_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/organizations/{organization_id}/invitations/{invitation_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Invitation Revoke */
+        delete: operations["invitation_revoke_api_v1_organizations__organization_id__invitations__invitation_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1429,16 +1617,21 @@ export interface components {
             /** Detail */
             detail: string;
         };
+        /** AccountCreated */
+        AccountCreated: {
+            /** Controller Id */
+            controller_id?: string | null;
+            /** Email */
+            email: string;
+            /** Recovery Key */
+            recovery_key: string;
+        };
         /** ActivationAccessRead */
         ActivationAccessRead: {
             /** Login */
             login: string;
             /** Recovery Key */
             recovery_key: string;
-            /** Secret */
-            secret: string;
-            /** Uri */
-            uri: string;
         };
         /**
          * AlarmNotificationRead
@@ -1674,8 +1867,6 @@ export interface components {
             /** New Password */
             new_password?: string | null;
             new_site?: components["schemas"]["NewSite"] | null;
-            /** Otp */
-            otp?: string | null;
             /** Site Id */
             site_id?: string | null;
         };
@@ -2382,6 +2573,11 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        /** EmailLinkProof */
+        EmailLinkProof: {
+            /** Token */
+            token: string;
+        };
         /** EquipmentManifest */
         EquipmentManifest: {
             /** Binding Generation */
@@ -2648,6 +2844,60 @@ export interface components {
              */
             site_id: string;
         };
+        /** InvitationAccepted */
+        InvitationAccepted: {
+            /**
+             * Organization Id
+             * Format: uuid
+             */
+            organization_id: string;
+        };
+        /** InvitationCreate */
+        InvitationCreate: {
+            /**
+             * Email
+             * Format: email
+             */
+            email: string;
+            /** Expires At */
+            expires_at?: string | null;
+            /** @default viewer */
+            role: components["schemas"]["OrganizationRole"];
+            /** Site Ids */
+            site_ids?: string[] | null;
+        };
+        /** InvitationPreview */
+        InvitationPreview: {
+            /** Email */
+            email: string;
+            /** Organization Name */
+            organization_name: string;
+            role: components["schemas"]["OrganizationRole"];
+        };
+        /** InvitationRead */
+        InvitationRead: {
+            /** Access Expires At */
+            access_expires_at: string | null;
+            /** Email */
+            email: string;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Revoked At */
+            revoked_at: string | null;
+            role: components["schemas"]["OrganizationRole"];
+            /** Site Ids */
+            site_ids: string[] | null;
+            /** Used At */
+            used_at: string | null;
+        };
         /** LoginErrorResponse */
         LoginErrorResponse: {
             /** Detail */
@@ -2858,6 +3108,10 @@ export interface components {
         NewSite: {
             /** Name */
             name: string;
+            /** Organization Id */
+            organization_id?: string | null;
+            /** Organization Name */
+            organization_name?: string | null;
             /**
              * Timezone
              * @default Europe/Kyiv
@@ -3055,6 +3309,30 @@ export interface components {
         RefreshTokenRequest: {
             /** Refresh Token */
             refresh_token: string;
+        };
+        /** RegistrationComplete */
+        RegistrationComplete: {
+            /** Display Name */
+            display_name: string;
+            /** Password */
+            password: string;
+            /** Token */
+            token: string;
+        };
+        /** RegistrationPreview */
+        RegistrationPreview: {
+            /** Email */
+            email: string;
+        };
+        /** RegistrationStart */
+        RegistrationStart: {
+            /** Controller Id */
+            controller_id?: string | null;
+            /**
+             * Email
+             * Format: email
+             */
+            email: string;
         };
         /** ReplacementCreate */
         ReplacementCreate: {
@@ -4137,6 +4415,105 @@ export interface operations {
             };
         };
     };
+    register_complete_api_v1_auth_registration_complete_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RegistrationComplete"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountCreated"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    register_inspect_api_v1_auth_registration_inspect_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmailLinkProof"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RegistrationPreview"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    register_start_api_v1_auth_registration_start_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RegistrationStart"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     security_api_v1_auth_security_get: {
         parameters: {
             query?: never;
@@ -4231,6 +4608,37 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["TotpConfirm"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    disable_totp_api_v1_auth_security_totp_disable_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SecurityProof"];
             };
         };
         responses: {
@@ -4571,6 +4979,41 @@ export interface operations {
             };
         };
     };
+    label_register_start_api_v1_connect__controller_id__account_registration_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                controller_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RegistrationStart"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     claim_controller_api_v1_connect__controller_id__claim_post: {
         parameters: {
             query?: never;
@@ -4690,6 +5133,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ControllerStatus"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    buyer_organizations_api_v1_connect_organizations_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationRead"][];
                 };
             };
             /** @description Validation Error */
@@ -5874,6 +6349,105 @@ export interface operations {
             };
         };
     };
+    invitation_accept_api_v1_invitations_accept_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmailLinkProof"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvitationAccepted"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    invitation_inspect_api_v1_invitations_inspect_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmailLinkProof"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvitationPreview"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    invitation_register_api_v1_invitations_register_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RegistrationComplete"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountCreated"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_notification_api_v1_notifications__notification_id__get: {
         parameters: {
             query?: never;
@@ -6078,6 +6652,102 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["AccessErrorRead"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    invitation_list_api_v1_organizations__organization_id__invitations_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvitationRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    invitation_create_api_v1_organizations__organization_id__invitations_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InvitationCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvitationRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    invitation_revoke_api_v1_organizations__organization_id__invitations__invitation_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invitation_id: string;
+                organization_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

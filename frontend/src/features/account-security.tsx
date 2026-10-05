@@ -12,7 +12,7 @@ import { useAccessContext } from "./access-context";
 import { usePanelQuery } from "./use-panel-query";
 
 type Schema = components["schemas"];
-type SecurityAction = "totp" | "password" | "recovery" | "session";
+type SecurityAction = "totp" | "totp-disable" | "password" | "recovery" | "session";
 type ActionProof = Readonly<{ password: string; otp: string }>;
 const EMPTY_PROOF: ActionProof = { password: "", otp: "" };
 
@@ -82,13 +82,15 @@ function SecuritySettings() {
   const [otp, setOtp] = useState("");
   const [passwordProof, setPasswordProof] = useState<ActionProof>(EMPTY_PROOF);
   const [recoveryProof, setRecoveryProof] = useState<ActionProof>(EMPTY_PROOF);
+  const [disableProof, setDisableProof] = useState<ActionProof>(EMPTY_PROOF);
+  const [disabling, setDisabling] = useState(false);
   const [setup, setSetup] = useState<Schema["TotpSetupRead"] | null>(null);
   const [recovery, setRecovery] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");
   const [notice, setNotice] = useState("");
   const [activeAction, setActiveAction] = useState<SecurityAction | null>(null);
-  const [totpConfirmed, setTotpConfirmed] = useState(false);
+  const [mfaChanged, setMfaChanged] = useState<boolean | null>(null);
   const errorRef = useRef<HTMLParagraphElement>(null);
   const successRef = useRef<HTMLDivElement>(null);
   const key = session.status === "authenticated" ? [session.email, session.sessionExpiresAt] : null;
@@ -122,14 +124,13 @@ function SecuritySettings() {
     if (error) errorRef.current?.focus();
   }, [error, activeAction]);
   useEffect(() => {
-    if (totpConfirmed) successRef.current?.focus();
-  }, [totpConfirmed]);
-  const mfaEnabled = Boolean(totpConfirmed || state.data?.mfa_enabled);
+    if (mfaChanged !== null) successRef.current?.focus();
+  }, [mfaChanged]);
+  const mfaEnabled = mfaChanged ?? Boolean(state.data?.mfa_enabled);
   const securityReady = Boolean(state.data) && !state.isError;
   const startTotp = () =>
     void perform(async () => {
       setActiveAction("totp");
-      setTotpConfirmed(false);
       setSetup(
         await authorizedRequest<Schema["TotpSetupRead"]>({
           path: "/api/v1/auth/security/totp/setup",
@@ -144,7 +145,6 @@ function SecuritySettings() {
   const confirmTotp = () =>
     void perform(async () => {
       setActiveAction("totp");
-      setTotpConfirmed(false);
       await authorizedRequest({
         path: "/api/v1/auth/security/totp/confirm",
         method: "POST",
@@ -152,7 +152,22 @@ function SecuritySettings() {
       });
       setSetup(null);
       setOtp("");
-      setTotpConfirmed(true);
+      setMfaChanged(true);
+    });
+
+  const disableTotp = () =>
+    void perform(async () => {
+      setActiveAction("totp-disable");
+      await authorizedRequest({
+        path: "/api/v1/auth/security/totp/disable",
+        method: "POST",
+        body: { password: disableProof.password, otp: disableProof.otp },
+      });
+      setDisableProof(EMPTY_PROOF);
+      setPasswordProof(EMPTY_PROOF);
+      setRecoveryProof(EMPTY_PROOF);
+      setDisabling(false);
+      setMfaChanged(false);
     });
 
   const rotateRecovery = () =>
@@ -219,7 +234,7 @@ function SecuritySettings() {
               <div className="notice-copy">
                 <strong>Двоетапний вхід увімкнено</strong>
                 <span>
-                  {totpConfirmed
+                  {mfaChanged === true
                     ? "Поточну сесію підтверджено. Налаштування завершено."
                     : "Для входу використовуйте свій пароль і код із застосунку автентифікації."}
                 </span>
@@ -237,6 +252,42 @@ function SecuritySettings() {
                   <a href="#recovery-key-section">Перейти до створення ключа</a>
                 </div>
               </div>
+            )}
+            {state.data.privileged_mfa_required ? (
+              <p>Для адміністратора платформи цей захист обов’язковий.</p>
+            ) : disabling ? (
+              <div className="connect-fields">
+                <p>Після вимкнення для входу буде достатньо пароля. Інші відкриті сесії завершаться.</p>
+                <ConfirmationFields
+                  purpose="вимкнення двоетапного входу"
+                  proof={disableProof}
+                  onChange={setDisableProof}
+                  mfaEnabled
+                  disabled={busy}
+                />
+                <div className="ui-row">
+                  <Button
+                    disabled={busy || !disableProof.password || !/^\d{6}$/.test(disableProof.otp)}
+                    onClick={disableTotp}
+                  >
+                    Підтвердити й вимкнути
+                  </Button>
+                  <Button
+                    disabled={busy}
+                    onClick={() => {
+                      setDisableProof(EMPTY_PROOF);
+                      setDisabling(false);
+                    }}
+                  >
+                    Скасувати
+                  </Button>
+                </div>
+                {actionError("totp-disable")}
+              </div>
+            ) : (
+              <Button disabled={busy} onClick={() => setDisabling(true)}>
+                Вимкнути двоетапний вхід
+              </Button>
             )}
             <div className="ui-row">
               <Link className="button button-secondary" href="/devices">
@@ -275,9 +326,22 @@ function SecuritySettings() {
           </div>
         ) : (
           <>
+            {mfaChanged === false && (
+              <div className="notice notice-success" role="status" tabIndex={-1} ref={successRef}>
+                <div className="notice-copy">
+                  <strong>Двоетапний вхід вимкнено</strong>
+                  <span>Надалі входьте з логіном і паролем. Інші сесії завершено.</span>
+                </div>
+              </div>
+            )}
             <p>
-              Додайте захист через застосунок автентифікації. Спочатку підтвердьте поточний пароль, потім додайте
-              виданий QR або ключ у застосунок і введіть його код.
+              {state.data.privileged_mfa_required
+                ? "Для адміністратора платформи двоетапний вхід обов’язковий."
+                : "Двоетапний вхід необов’язковий. Ви можете користуватися кабінетом із логіном і паролем."}
+            </p>
+            <p>
+              Щоб додати захист через застосунок, підтвердьте поточний пароль. Потім відскануйте виданий QR або додайте
+              ключ у застосунок і введіть його код.
             </p>
             <TextField
               label="Поточний пароль для підтвердження"

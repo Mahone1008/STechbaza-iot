@@ -3,7 +3,8 @@
 Next.js/React, TypeScript strict, TanStack Query, generated OpenAPI types,
 Vitest та Playwright. Реальні API: browser auth, organizations/sites/devices,
 телеметрія/історія, команди/журнал, аварії й notifications.
-Також реалізовано активацію з етикетки, постійний пароль, recovery/MFA, заводський реєстр і частину
+Також реалізовано [особисті акаунти, підтвердження пошти та запрошення](../docs/personal-accounts-v1.md),
+добровільний MFA клієнтів, активацію з етикетки, recovery, заводський реєстр і частину
 [buyer onboarding](../docs/buyer-onboarding-v1.md); фізичне підключення з телефона ще відкрите.
 `/ui-kit` та `/ui-kit/device-demo` є внутрішніми екранами для розробки.
 Вони відсутні в навігації та за замовчуванням повертають 404.

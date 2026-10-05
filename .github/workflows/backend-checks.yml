@@ -1,6 +1,15 @@
 name: Backend checks
 
 on:
+  pull_request:
+    paths:
+      - 'backend/**'
+      - 'pyproject.toml'
+      - 'infrastructure/mosquitto/**'
+      - '.github/workflows/backend-checks.yml'
+      - 'compose.demo.yml'
+      - 'compose.acceptance.yml'
+      - 'scripts/reset-demo-review.ps1'
   push:
     branches: [main, "codex/**"]
     paths:
@@ -17,6 +26,7 @@ on:
       - 'scripts/check-stage-h-op3.ps1'
       - 'scripts/check-stage-h-final.ps1'
       - 'scripts/create-demo-accounts.ps1'
+      - 'scripts/reset-demo-review.ps1'
       - 'compose.acceptance.yml'
       - 'scripts/check-stage2.ps1'
   workflow_dispatch:
@@ -95,7 +105,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Create ephemeral demo credentials
-        run: python3 backend/app/demo/config.py --output .env.demo
+        run: |
+          mkdir -m 700 -p .local/mail
+          python3 backend/app/demo/config.py --output .env.demo
       - name: Build and prepare isolated demo
         run: |
           docker compose -p techbaza-demo --env-file .env.demo -f compose.demo.yml build backend
@@ -131,6 +143,29 @@ jobs:
       - name: H-04 and H-05 final user acceptance
         shell: pwsh
         run: ./scripts/check-stage-h-final.ps1
+      - name: Demo logs on failure
+        if: failure()
+        run: docker compose -p techbaza-demo --env-file .env.demo -f compose.demo.yml logs --tail 120 backend simulator
+      - name: Stop isolated CI demo
+        if: always()
+        run: docker compose -p techbaza-demo --env-file .env.demo -f compose.demo.yml down
+
+  review-reset:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare private host directories and ephemeral credentials
+        run: |
+          mkdir -m 700 -p .local/mail .local/demo-accounts .local/demo-reset
+          python3 backend/app/demo/config.py --output .env.demo
+      - name: Prepare isolated review database and backend
+        run: |
+          docker compose -p techbaza-demo --env-file .env.demo -f compose.demo.yml build backend
+          docker compose -p techbaza-demo --env-file .env.demo -f compose.demo.yml up -d --wait --wait-timeout 90 postgres mosquitto
+          docker compose -p techbaza-demo --env-file .env.demo -f compose.demo.yml run --rm -T --no-deps backend alembic upgrade head
+          docker compose -p techbaza-demo --env-file .env.demo -f compose.demo.yml run --rm -T --no-deps backend python -m app.demo.seed
+          docker compose -p techbaza-demo --env-file .env.demo -f compose.demo.yml up -d --no-build --wait --wait-timeout 90 backend simulator
       - name: Provision review accounts twice and verify HTTP role boundaries
         shell: pwsh
         run: |
@@ -138,6 +173,12 @@ jobs:
           ./scripts/create-demo-accounts.ps1
           docker compose -p techbaza-demo --env-file .env.demo -f compose.demo.yml run --rm -T --no-deps -v "${PWD}/.local/demo-accounts:/private" backend python -m app.demo.review_accounts_check --credentials /private/accounts.json
           if ($LASTEXITCODE -ne 0) { throw 'Review account HTTP checks failed.' }
+      - name: Verify guarded review reset, backup and repeatability
+        shell: pwsh
+        run: |
+          ./scripts/reset-demo-review.ps1
+          ./scripts/reset-demo-review.ps1 -Apply
+          ./scripts/reset-demo-review.ps1 -Apply
       - name: Demo logs on failure
         if: failure()
         run: docker compose -p techbaza-demo --env-file .env.demo -f compose.demo.yml logs --tail 120 backend simulator
