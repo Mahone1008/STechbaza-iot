@@ -1,6 +1,8 @@
 import { invalidResponse, isRecord, requiredDateTime, requiredString, requiredUuid } from "./access";
 import { MAX_SCHEDULE_DAYS, MAX_SCHEDULE_SECONDS, parseProgramPlan } from "./programs";
 import type { components } from "./schema";
+
+export const MAX_DEVICE_SCHEDULES = 8;
 export { calendarDate } from "../calendar-date";
 
 export type Schedule = components["schemas"]["ScheduleRead"];

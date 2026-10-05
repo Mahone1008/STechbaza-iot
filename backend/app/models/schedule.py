@@ -15,7 +15,8 @@ class DeviceSchedule(TimestampMixin, Base):
     __tablename__ = "device_schedules"
     __table_args__ = (
         CheckConstraint("revision > 0", name="ck_device_schedules_revision"),
-        Index("ix_device_schedules_due", "next_check_at", postgresql_where=text("enabled = true")),
+        Index("ix_device_schedules_due", "next_check_at", postgresql_where=text("enabled = true AND deleted_at IS NULL")),
+        CheckConstraint("deleted_at IS NULL OR (NOT enabled AND next_start_at IS NULL AND next_check_at IS NULL)", name="ck_device_schedules_deleted"),
     )
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
     device_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("devices.id", ondelete="CASCADE"), index=True)
@@ -26,6 +27,7 @@ class DeviceSchedule(TimestampMixin, Base):
     spec: Mapped[dict[str, Any]] = mapped_column(JSONB)
     next_start_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     next_check_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class ScheduleRevision(Base):
@@ -37,6 +39,7 @@ class ScheduleRevision(Base):
     spec: Mapped[dict[str, Any]] = mapped_column(JSONB)
     enabled: Mapped[bool] = mapped_column(Boolean)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class ScheduleOccurrence(Base):

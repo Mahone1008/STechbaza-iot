@@ -8,8 +8,8 @@ CI звіряє його з tracked code. Це перелік реалізаці
 
 | Компонент | Значення з коду |
 |---|---|
-| Backend / OpenAPI / health | 0.47.0 |
-| Alembic head | `20261005_0024`; 24 міграцій |
+| Backend / OpenAPI / health | 0.48.0 |
+| Alembic head | `20261005_0025`; 25 міграцій |
 | Frontend package | 0.1.0 |
 | Node engine | `>=20.9.0` |
 | Package manager | `npm@10.9.2` |
@@ -128,7 +128,7 @@ ACK/Result лишаються v1. Дозвіл API не замінює лока�
 | `/api/v1/devices/{device_id}/overview` | GET |
 | `/api/v1/devices/{device_id}/schedules` | GET |
 | `/api/v1/devices/{device_id}/schedules/preview` | POST |
-| `/api/v1/devices/{device_id}/schedules/{schedule_id}` | PUT |
+| `/api/v1/devices/{device_id}/schedules/{schedule_id}` | DELETE, PUT |
 | `/api/v1/devices/{device_id}/schedules/{schedule_id}/runs` | GET |
 | `/api/v1/devices/{device_id}/state` | GET |
 | `/api/v1/devices/{device_id}/telemetry` | GET |

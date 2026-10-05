@@ -6,6 +6,8 @@ const files = [
   "src/components/controller-qr-code.tsx",
   "src/components/text-field.tsx",
   "src/features/login.tsx",
+  "src/features/login-cooldown.ts",
+  "src/features/schedule-panel.tsx",
   "src/features/login-model.ts",
   "src/features/controller-lifecycle.tsx",
   "src/features/equipment-actions.tsx",

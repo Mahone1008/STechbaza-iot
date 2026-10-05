@@ -145,7 +145,13 @@ class BrowserAuthPostgresTests(unittest.TestCase):
             _, headers = self.login(expected=429)
             self.assertGreater(int(headers["retry-after"]), 0)
             with SessionLocal() as session:
+                deadline = session.get(AuthRateLimit, rate_key("login-account", self.email)).expires_at
+            # Fresh requests without cookies (as after F5) cannot bypass or extend the limit.
+            for _ in range(3):
+                self.login(expected=429)
+            with SessionLocal() as session:
                 row = session.get(AuthRateLimit, rate_key("login-account", self.email))
+                self.assertEqual(row.expires_at, deadline)
                 row.expires_at = utc_now() - timedelta(seconds=1)
                 session.commit()
             self.login()

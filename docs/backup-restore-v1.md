@@ -1,6 +1,6 @@
 # Чисте встановлення та backup/restore v1
 
-> Поточні backup manifests містять backend 0.47.0 / schema 0024;
+> Поточні backup manifests містять backend 0.48.0 / schema 0025;
 > перевірка попередніх підтримуваних manifests збережена. Перед оновленням
 > і відновленням старої установки виконайте [перенесення account key](account-key-operations-v1.md).
 > Fingerprint симулятора включає таблицю програм, якщо вона існує; backup

@@ -20,6 +20,8 @@ from app.services.commands import CommandActorSnapshot
 from app.services.program_policy import read_program_progress
 from app.services.schedule_calendar import first_overlap, self_overlap, upcoming
 
+MAX_DEVICE_SCHEDULES = 8
+
 
 def schedule_actor(session, schedule):
     user = session.get(User, schedule.author_user_id, populate_existing=True)
@@ -84,14 +86,16 @@ class ScheduleService:
         existing = self.repo.get(data.id, lock=True)
         if existing and (existing.device_id != device_id or existing.organization_id != access.organization_id):
             raise HTTPException(404, "Ресурс не знайдено")
+        if existing and existing.deleted_at is not None:
+            raise HTTPException(404, "Розклад видалено; створіть новий")
         spec = data.spec.model_dump(mode="json")
         # Повтор PUT після втрати відповіді не створює ревізію чи нове доручення.
         if existing and existing.revision == data.expected_revision + 1 and existing.author_user_id == current.user.id and existing.spec == spec and existing.enabled == data.enabled:
             return existing
         if (existing.revision if existing else 0) != data.expected_revision:
             raise HTTPException(409, "Розклад змінено іншим користувачем. Оновіть список")
-        if existing is None and len(self.repo.for_device(device_id)) >= 50:
-            raise HTTPException(409, "До 50 розкладів на пристрій; змініть наявний")
+        if existing is None and self.repo.count_for_device(device_id) >= MAX_DEVICE_SCHEDULES:
+            raise HTTPException(409, "До 8 розкладів на пристрій, включно з призупиненими. Видаліть один або змініть наявний")
         if data.enabled:
             preview = self.preview(device_id, data.spec, exclude_id=data.id, now=now)
             if not preview.runs:
@@ -111,3 +115,24 @@ class ScheduleService:
             actor_auth_session_id=current.auth_session.id, spec=spec, enabled=item.enabled, created_at=now))
         self.session.commit()
         return item
+
+    def delete(self, device_id, schedule_id, expected_revision, current, access, *, now=None):
+        DeviceRepository(self.session).get_for_update(device_id)
+        item = self.repo.get(schedule_id, lock=True)
+        if item is None or item.device_id != device_id or item.organization_id != access.organization_id:
+            raise HTTPException(404, "Ресурс не знайдено")
+        # Retrying a lost DELETE response cannot remove a different revision or rule.
+        if item.deleted_at is not None:
+            return
+        if item.revision != expected_revision:
+            raise HTTPException(409, "Розклад змінено іншим користувачем. Оновіть список")
+        now = now or datetime.now(timezone.utc)
+        item.deleted_at = now
+        item.enabled = False
+        item.next_start_at = None
+        item.next_check_at = None
+        item.revision += 1
+        item.updated_at = now
+        self.session.add(ScheduleRevision(schedule_id=item.id, revision=item.revision, actor_user_id=current.user.id,
+            actor_auth_session_id=current.auth_session.id, spec=item.spec, enabled=False, created_at=now, deleted_at=now))
+        self.session.commit()
