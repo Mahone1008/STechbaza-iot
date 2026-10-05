@@ -10,6 +10,8 @@ import {
   fulfillPreflight,
   mockAuthenticatedWorkspace,
   mockMissingBrowserSession,
+  fillLogin,
+  mockBrowserLoginSuccess,
 } from "./auth-fixtures";
 
 type Schema = components["schemas"];
@@ -112,30 +114,68 @@ test("QR activation uses the label password without registration and resumes its
   await noStoredSecrets(page, password);
 });
 
-test("printed login opens the pending controller wizard instead of an empty cabinet", async ({ page }) => {
-  await mockMissingBrowserSession(page);
-  const login = "kr-017ca46d342c4ab6bd1c89a602021951-g1";
-  await route(page, "auth/browser/login", async (request) => {
-    expect(request.request().postDataJSON()).toEqual({ email: login, password });
-    await mockAuthenticatedWorkspace(page);
-    await read(page, `connect/${id}`, () => ({ ...connection, activation_required: false }));
-    await read(page, "connect/sites", () => []);
-    await read(page, "equipment/profiles", () => [profile]);
-    await fulfillJson(request, 200, {
-      access_token: "label-login-access-token-only-for-browser-test",
-      token_type: "bearer",
-      expires_in: 300,
-      session_expires_in: 3600,
-      onboarding_path: `/connect/${id}`,
+for (const query of ["", "?returnTo=%2Faccount%2Fsecurity"])
+  test(`printed login opens its pending wizard with return query '${query}'`, async ({ page }) => {
+    await mockMissingBrowserSession(page);
+    const login = "kr-017ca46d342c4ab6bd1c89a602021951-g1";
+    await route(page, "auth/browser/login", async (request) => {
+      expect(request.request().postDataJSON()).toEqual({ email: login, password });
+      await mockAuthenticatedWorkspace(page);
+      await read(page, `connect/${id}`, () => ({ ...connection, activation_required: false }));
+      await read(page, "connect/sites", () => []);
+      await read(page, "equipment/profiles", () => [profile]);
+      await fulfillJson(request, 200, {
+        access_token: "label-login-access-token-only-for-browser-test",
+        token_type: "bearer",
+        expires_in: 300,
+        session_expires_in: 3600,
+        onboarding_path: `/connect/${id}`,
+      });
     });
+    await page.goto(`/login${query}`);
+    await page.getByLabel("Логін", { exact: true }).fill(login);
+    await page.getByLabel("Пароль", { exact: true }).fill(password);
+    await page.getByRole("button", { name: "Увійти", exact: true }).click();
+    await expect(page).toHaveURL(`/connect/${id}`);
+    await expect(page.getByLabel("Назва об’єкта", { exact: true })).toBeVisible();
+    await noStoredSecrets(page, password);
   });
-  await page.goto("/login");
-  await page.getByLabel("Логін", { exact: true }).fill(login);
-  await page.getByLabel("Пароль", { exact: true }).fill(password);
+
+test("ending the current security session returns a normal login to the device home", async ({ page }) => {
+  await mockAuthenticatedWorkspace(page);
+  await read(page, "auth/security", () => ({
+    mfa_enabled: true,
+    privileged_mfa_required: false,
+    current_session_verified: true,
+    recovery_available: true,
+  }));
+  await read(page, "auth/sessions", () => [
+    {
+      id: SESSION_ID,
+      current: true,
+      created_at: new Date().toISOString(),
+      expires_at: "2027-01-01T00:00:00Z",
+      last_used_at: null,
+    },
+  ]);
+  await route(page, "auth/browser/logout", async (request) =>
+    request.fulfill({ status: 204, headers: corsHeaders, body: "" }),
+  );
+  await mockBrowserLoginSuccess(page);
+  await page.goto("/account/security");
+  await expect(page.getByText("Двоетапний вхід увімкнено", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("Поточний пароль для підтвердження", { exact: true })).toHaveCount(0);
+  await expect(page.getByLabel("Код із застосунку автентифікації", { exact: true })).toHaveCount(0);
+  await page
+    .getByRole("listitem")
+    .filter({ hasText: "Поточна сесія" })
+    .getByRole("button", { name: "Завершити сесію", exact: true })
+    .click();
+  await expect(page).toHaveURL(/\/login\?loggedOut=1$/u);
+  await fillLogin(page);
   await page.getByRole("button", { name: "Увійти", exact: true }).click();
-  await expect(page).toHaveURL(`/connect/${id}`);
-  await expect(page.getByLabel("Назва об’єкта", { exact: true })).toBeVisible();
-  await noStoredSecrets(page, password);
+  await expect(page).toHaveURL(/\/devices$/u);
+  await expect(page.locator(".password-guidance")).toBeVisible();
 });
 
 test("registration route is removed", async ({ page }) => {
@@ -220,18 +260,24 @@ test("TOTP enrollment clears its secret, rotates recovery and revokes only the s
   await page.goto("/account/security");
   const proof = page.getByLabel("Поточний пароль для підтвердження", { exact: true });
   const otp = page.getByLabel("Код із застосунку автентифікації", { exact: true });
+  await expect(otp).toHaveCount(0);
   await proof.fill(password);
   await page.getByRole("button", { name: "Налаштувати двоетапний вхід", exact: true }).click();
   await expect(page.locator(".recovery-key")).toHaveText(secret);
-  await expect(proof).toHaveValue("");
+  await expect(proof).toHaveCount(0);
   await otp.fill("123456");
   await page.getByRole("button", { name: "Підтвердити код і ввімкнути", exact: true }).click();
-  await expect(
-    page.getByText("Увімкнено: при вході потрібні пароль і код із застосунку.", { exact: true }),
-  ).toBeVisible();
+  await expect(page.getByText("Двоетапний вхід увімкнено", { exact: true })).toBeVisible();
   await expect(page.locator(".recovery-key")).toHaveCount(0);
-  await proof.fill(password);
-  await otp.fill("654321");
+  await expect(otp).toHaveCount(0);
+  const totpCard = page
+    .locator(".account-security-card")
+    .filter({ has: page.getByRole("heading", { name: "Двоетапний вхід", exact: true }) });
+  await expect(totpCard.getByRole("textbox")).toHaveCount(0);
+  await page.setViewportSize({ width: 320, height: 900 });
+  await page.screenshot({ path: test.info().outputPath("mfa-enabled-mobile.png") });
+  await page.getByLabel("Поточний пароль для оновлення ключа", { exact: true }).fill(password);
+  await page.getByLabel("Код із застосунку для оновлення ключа", { exact: true }).fill("654321");
   await page.getByRole("button", { name: "Створити новий ключ відновлення", exact: true }).click();
   await expect(page.locator(".recovery-key")).toHaveText(recovery);
   await page.getByRole("button", { name: "Я зберіг ключ", exact: true }).click();
@@ -247,8 +293,9 @@ for (const width of [320, 1440])
   test(`password settings keep separate controls and readable spacing at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     await mockAuthenticatedWorkspace(page);
+    const mfaEnabled = width === 1440;
     await read(page, "auth/security", () => ({
-      mfa_enabled: false,
+      mfa_enabled: mfaEnabled,
       privileged_mfa_required: false,
       current_session_verified: false,
       recovery_available: true,
@@ -259,13 +306,16 @@ for (const width of [320, 1440])
       changes += 1;
       expect(request.request().postDataJSON()).toEqual({
         password,
-        otp: null,
+        otp: mfaEnabled ? "987654" : null,
         new_password: "new-browser-password-123",
       });
       await request.fulfill({ status: 204, headers: corsHeaders, body: "" });
     });
     await page.goto("/account/security");
-    await page.getByLabel("Поточний пароль для підтвердження", { exact: true }).fill(password);
+    await page.getByLabel("Поточний пароль для зміни пароля", { exact: true }).fill(password);
+    if (mfaEnabled) {
+      await page.getByLabel("Код із застосунку для зміни пароля", { exact: true }).fill("987654");
+    }
     const card = page
       .locator(".card")
       .filter({ has: page.getByRole("heading", { name: "Постійний пароль", exact: true }) });
@@ -288,6 +338,10 @@ for (const width of [320, 1440])
     expect(changes).toBe(0);
     await button.click();
     await expect(input).toHaveValue("");
+    await expect(card.getByLabel("Поточний пароль для зміни пароля", { exact: true })).toHaveValue("");
+    if (mfaEnabled) {
+      await expect(card.getByLabel("Код із застосунку для зміни пароля", { exact: true })).toHaveValue("");
+    }
     expect(changes).toBe(1);
   });
 
@@ -299,7 +353,7 @@ for (const failure of [
     page,
   }) => {
     await page.setViewportSize({ width: 390, height: 740 });
-    await mockAuthenticatedWorkspace(page);
+    await mockAuthenticatedWorkspace(page, { platformRole: "superadmin" });
     let mfa = false,
       posts = 0;
     let finishConfirmation = () => {};
@@ -345,17 +399,15 @@ for (const failure of [
     await expect(error).toBeFocused();
     await expect(error).toBeInViewport();
     await expect(card.locator(".recovery-key")).toHaveText(secret);
-    await expect(
-      card.getByText("Увімкнено: при вході потрібні пароль і код із застосунку.", { exact: true }),
-    ).toHaveCount(0);
+    await expect(card.getByText("Двоетапний вхід увімкнено", { exact: true })).toHaveCount(0);
     expect(posts).toBe(1);
     await otp.fill("123456");
     await card.getByRole("button", { name: "Підтвердити код і ввімкнути", exact: true }).click();
     await expect(card.getByRole("button", { name: "Підтверджуємо код…", exact: true })).toBeDisabled();
     finishConfirmation();
-    await expect(
-      card.getByText("Двоетапний вхід увімкнено. Поточну сесію підтверджено.", { exact: true }),
-    ).toBeVisible();
+    await expect(card.getByText("Двоетапний вхід увімкнено", { exact: true })).toBeVisible();
+    await expect(card.locator(".notice-success")).toBeFocused();
+    await expect(card.getByRole("textbox")).toHaveCount(0);
     await expect(card.getByRole("alert")).toHaveCount(0);
     await expect(card.locator(".recovery-key")).toHaveCount(0);
     await expect(card.getByRole("img", { name: "QR для застосунку автентифікації", exact: true })).toHaveCount(0);

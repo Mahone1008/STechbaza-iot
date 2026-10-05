@@ -2647,6 +2647,11 @@ export interface components {
              */
             site_id: string;
         };
+        /** LoginErrorResponse */
+        LoginErrorResponse: {
+            /** Detail */
+            detail: string | components["schemas"]["MfaLoginErrorDetail"];
+        };
         /**
          * LoginRequest
          * @description Credentials для створення authenticated session.
@@ -2754,6 +2759,16 @@ export interface components {
             unit: string;
             /** Value */
             value: number | null;
+        };
+        /** MfaLoginErrorDetail */
+        MfaLoginErrorDetail: {
+            /**
+             * Code
+             * @enum {string}
+             */
+            code: "mfa_required" | "mfa_invalid";
+            /** Message */
+            message: string;
         };
         /** ModuleCreate */
         ModuleCreate: {
@@ -3722,12 +3737,14 @@ export interface operations {
                     "application/json": components["schemas"]["BrowserTokenResponse"];
                 };
             };
-            /** @description Недійсна authentication session або credentials */
+            /** @description Неправильні дані входу або mfa_required / mfa_invalid після перевірки пароля */
             401: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["LoginErrorResponse"];
+                };
             };
             /** @description Account вимкнено або браузерний запит заборонено */
             403: {
@@ -3877,12 +3894,14 @@ export interface operations {
                     "application/json": components["schemas"]["TokenResponse"];
                 };
             };
-            /** @description Недійсна authentication session або credentials */
+            /** @description Неправильні дані входу або mfa_required / mfa_invalid після перевірки пароля */
             401: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["LoginErrorResponse"];
+                };
             };
             /** @description Account вимкнено або браузерний запит заборонено */
             403: {

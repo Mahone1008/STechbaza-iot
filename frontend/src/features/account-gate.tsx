@@ -2,11 +2,19 @@
 import type { ReactNode } from "react";
 import type { Route } from "next";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 import { Button, Card } from "@/components/ui";
 import { useAuthSession } from "./auth-session";
 
 export function AccountGate({ children, returnTo }: { children: ReactNode; returnTo: string }) {
   const { session, refreshSession, logout } = useAuthSession();
+  const router = useRouter();
+  const loggedOut = session.status === "anonymous" && session.reason === "logout";
+  useEffect(() => {
+    if (loggedOut) router.replace("/login?loggedOut=1");
+  }, [loggedOut, router]);
+  if (loggedOut) return <p role="status">Переходимо до форми входу…</p>;
   if (session.status === "restoring" || session.status === "logging-out")
     return <p role="status">Перевіряємо сесію…</p>;
   if (session.status === "anonymous")

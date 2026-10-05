@@ -32,6 +32,14 @@ class InvalidCredentialsError(Exception):
     """Email або password не пройшли authentication."""
 
 
+class MfaRequiredError(InvalidCredentialsError):
+    """Пароль перевірено; для завершення входу потрібен другий фактор."""
+
+
+class InvalidMfaCodeError(InvalidCredentialsError):
+    """Пароль перевірено, але код другого фактора не прийнято."""
+
+
 class InactiveUserError(Exception):
     """User існує, але account вимкнено."""
 
@@ -89,11 +97,13 @@ class AuthService:
         )
         mfa_verified = False
         if security and security.totp_enabled_at:
+            if not payload.otp:
+                raise MfaRequiredError
             counter, encrypted = verify_stored_totp(
-                security.totp_secret, payload.otp or "", security.totp_last_counter
+                security.totp_secret, payload.otp, security.totp_last_counter
             )
             if counter is None:
-                raise InvalidCredentialsError
+                raise InvalidMfaCodeError
             security.totp_last_counter, security.totp_secret = counter, encrypted
             mfa_verified = True
         now = utc_now()

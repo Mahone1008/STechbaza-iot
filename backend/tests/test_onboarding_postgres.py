@@ -243,6 +243,66 @@ class OnboardingPostgresTests(OnboardingFixtures, unittest.TestCase):
         )
         self.assertEqual(code, 401)
 
+    def test_login_requests_mfa_only_after_password_and_never_creates_partial_session(self):
+        context = self.contexts["operator"]
+        password = "mfa-login-integration-only-password"
+        secret = "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ"
+        counter = int(time.time() // 30)
+        codes = {totp_code(secret, value) for value in range(counter - 1, counter + 2)}
+        wrong_code = next(
+            str(value).zfill(6)
+            for value in range(10)
+            if str(value).zfill(6) not in codes
+        )
+        with SessionLocal.begin() as session:
+            session.get(User, context.user.id).password_hash = hash_password(password)
+            session.add(
+                AccountSecurity(
+                    user_id=context.user.id,
+                    totp_secret=secret_box().encrypt(secret.encode()).decode(),
+                    totp_enabled_at=utc_now(),
+                    totp_last_counter=counter - 2,
+                )
+            )
+        for path in ("/api/v1/auth/login", "/api/v1/auth/browser/login"):
+            for values, expected_code in (
+                ({"password": "incorrect-password"}, None),
+                ({"email": "unknown-mfa-test@example.com"}, None),
+                ({}, "mfa_required"),
+                ({"otp": wrong_code}, "mfa_invalid"),
+            ):
+                code, result, headers = request(
+                    "POST", path,
+                    body={"email": context.user.email, "password": password, **values},
+                    headers={"origin": AUTH_BROWSER_ORIGINS[0], "x-techbaza-csrf": "1"},
+                    ip=self.ip,
+                )
+                self.assertEqual(code, 401, result)
+                if expected_code:
+                    self.assertEqual(result["detail"]["code"], expected_code)
+                else:
+                    self.assertEqual(result["detail"], "Невірний логін або пароль")
+                self.assertNotIn("set-cookie", headers)
+                self.assertEqual(headers["cache-control"], "no-store")
+                self.assertNotIn("access_token", result)
+                with SessionLocal() as session:
+                    sessions = list(session.scalars(
+                        select(AuthSession).where(AuthSession.user_id == context.user.id)
+                    ))
+                    self.assertEqual(len(sessions), 1)
+        code, result, headers = request(
+            "POST", "/api/v1/auth/browser/login",
+            body={
+                "email": context.user.email,
+                "password": password,
+                "otp": totp_code(secret, int(time.time() // 30)),
+            },
+            headers={"origin": AUTH_BROWSER_ORIGINS[0], "x-techbaza-csrf": "1"},
+            ip=self.ip,
+        )
+        self.assertEqual(code, 200, result)
+        self.assertIn("HttpOnly", headers["set-cookie"])
+
     def test_http_mfa_enrollment_revokes_prior_sessions_and_preserves_current(self):
         import time
         from app.security.passwords import hash_password

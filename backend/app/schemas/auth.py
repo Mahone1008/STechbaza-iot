@@ -27,6 +27,15 @@ class RefreshTokenRequest(BaseModel):
     refresh_token: str = Field(min_length=32, max_length=512)
 
 
+class MfaLoginErrorDetail(BaseModel):
+    code: Literal["mfa_required", "mfa_invalid"]
+    message: str
+
+
+class LoginErrorResponse(BaseModel):
+    detail: str | MfaLoginErrorDetail
+
+
 class LogoutRequest(BaseModel):
     """Refresh token session, яку потрібно відкликати."""
 

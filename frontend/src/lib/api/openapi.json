@@ -3162,6 +3162,26 @@
         "title": "InstallationRead",
         "type": "object"
       },
+      "LoginErrorResponse": {
+        "properties": {
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "$ref": "#/components/schemas/MfaLoginErrorDetail"
+              }
+            ],
+            "title": "Detail"
+          }
+        },
+        "required": [
+          "detail"
+        ],
+        "title": "LoginErrorResponse",
+        "type": "object"
+      },
       "LoginRequest": {
         "additionalProperties": false,
         "description": "Credentials для створення authenticated session.",
@@ -3461,6 +3481,28 @@
           "status"
         ],
         "title": "MetricReadingRead",
+        "type": "object"
+      },
+      "MfaLoginErrorDetail": {
+        "properties": {
+          "code": {
+            "enum": [
+              "mfa_required",
+              "mfa_invalid"
+            ],
+            "title": "Code",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "MfaLoginErrorDetail",
         "type": "object"
       },
       "ModuleCreate": {
@@ -5803,7 +5845,14 @@
             "description": "Successful Response"
           },
           "401": {
-            "description": "Недійсна authentication session або credentials"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginErrorResponse"
+                }
+              }
+            },
+            "description": "Неправильні дані входу або mfa_required / mfa_invalid після перевірки пароля"
           },
           "403": {
             "description": "Account вимкнено або браузерний запит заборонено"
@@ -5915,7 +5964,14 @@
             "description": "Successful Response"
           },
           "401": {
-            "description": "Недійсна authentication session або credentials"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginErrorResponse"
+                }
+              }
+            },
+            "description": "Неправильні дані входу або mfa_required / mfa_invalid після перевірки пароля"
           },
           "403": {
             "description": "Account вимкнено або браузерний запит заборонено"

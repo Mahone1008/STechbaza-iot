@@ -17,6 +17,7 @@ from app.schemas.auth import (
     RefreshTokenRequest,
     TokenResponse,
     BrowserTokenResponse,
+    LoginErrorResponse,
 )
 from app.security.browser_auth import (
     require_browser_request,
@@ -33,6 +34,8 @@ from app.services.auth import (
     InactiveUserError,
     InvalidCredentialsError,
     InvalidRefreshTokenError,
+    MfaRequiredError,
+    InvalidMfaCodeError,
 )
 
 
@@ -53,6 +56,13 @@ CurrentUser = Annotated[
     Depends(get_current_user_context),
 ]
 
+LOGIN_RESPONSES = {
+    401: {
+        "model": LoginErrorResponse,
+        "description": "Неправильні дані входу або mfa_required / mfa_invalid після перевірки пароля",
+    }
+}
+
 
 def _token_response(pair) -> TokenResponse:
     return TokenResponse(
@@ -71,6 +81,20 @@ def _login_pair(
     throttle_auth(request, session, email=str(payload.email or payload.controller_id))
     try:
         pair = AuthService(session).login(payload)
+    except (MfaRequiredError, InvalidMfaCodeError) as exc:
+        required = isinstance(exc, MfaRequiredError)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={
+                "code": "mfa_required" if required else "mfa_invalid",
+                "message": (
+                    "Для цього облікового запису ввімкнено двоетапний вхід. Введіть код із застосунку."
+                    if required
+                    else "Код із застосунку не прийнято. Дочекайтеся нового коду й повторіть вхід."
+                ),
+            },
+            headers={"WWW-Authenticate": "Bearer"},
+        ) from exc
     except InvalidCredentialsError as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -86,7 +110,7 @@ def _login_pair(
     return pair
 
 
-@router.post("/login", response_model=TokenResponse)
+@router.post("/login", response_model=TokenResponse, responses=LOGIN_RESPONSES)
 def login(payload: LoginRequest, request: Request, session: DbSession) -> TokenResponse:
     return _token_response(_login_pair(payload, request, session))
 
@@ -138,6 +162,7 @@ def _browser_response(pair) -> BrowserTokenResponse:
 @router.post(
     "/browser/login",
     response_model=BrowserTokenResponse,
+    responses=LOGIN_RESPONSES,
     dependencies=[Depends(require_browser_request)],
 )
 def browser_login(payload: LoginRequest, request: Request, response: Response, session: DbSession):

@@ -324,7 +324,16 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
             </div>
           </div>
         </header>
-        <main className="workspace-content" id="main-content" tabIndex={-1}><InventoryBreadcrumbs />{children}</main>
+        <main className="workspace-content" id="main-content" tabIndex={-1}>
+          <InventoryBreadcrumbs />
+          {pathname === "/devices" && session.status === "authenticated" && session.source === "login" && !session.email?.startsWith("ku-") && (
+            <div className="notice notice-info password-guidance">
+              <span>Якщо пароль вам передали разом із доступом, замініть його на власний у налаштуваннях безпеки.</span>
+              <Link className="button button-secondary" href="/account/security">Змінити пароль</Link>
+            </div>
+          )}
+          {children}
+        </main>
       </section>
 
       <nav className="mobile-nav" aria-label="Мобільна навігація" style={mobileStyle}>

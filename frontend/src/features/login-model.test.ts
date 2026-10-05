@@ -7,6 +7,7 @@ function apiError(
   kind: ConstructorParameters<typeof ApiError>[1]["kind"],
   status: number | null,
   retryAfterSeconds: number | null = null,
+  details: unknown = null,
 ) {
   return new ApiError("backend detail", {
     kind,
@@ -15,7 +16,7 @@ function apiError(
     url: "http://127.0.0.1:8001/api/v1/auth/browser/login",
     retryAfterSeconds,
     requestId: null,
-    details: null,
+    details,
   });
 }
 
@@ -43,7 +44,9 @@ describe("login form model", () => {
   });
 
   it("accepts the permanent login", () => {
-    expect(validateLoginForm({ email: "ku-017ca46d342c4ab6bd1c89a602021951", password: "permanent" }).errors).toEqual({});
+    expect(validateLoginForm({ email: "ku-017ca46d342c4ab6bd1c89a602021951", password: "permanent" }).errors).toEqual(
+      {},
+    );
   });
 
   it("keeps invalid credentials generic", () => {
@@ -51,6 +54,32 @@ describe("login form model", () => {
     expect(presentation.summary).toBe("Невірний логін або пароль.");
     expect(presentation.clearPassword).toBe(true);
     expect(presentation.fieldErrors.password).toBeTruthy();
+  });
+
+  it("requests the second factor without treating a valid password as incorrect", () => {
+    const required = loginErrorPresentation(apiError("unauthorized", 401, null, { detail: { code: "mfa_required" } }));
+    expect(required.summary).toContain("двоетапний вхід");
+    expect(required.fieldErrors.otp).toBeTruthy();
+    expect(required.fieldErrors.password).toBeUndefined();
+    expect(required.clearPassword).toBe(false);
+    expect(required.tone).toBe("info");
+
+    const invalid = loginErrorPresentation(apiError("unauthorized", 401, null, { detail: { code: "mfa_invalid" } }));
+    expect(invalid.summary).toContain("Код із застосунку не прийнято");
+    expect(invalid.clearPassword).toBe(false);
+    expect(invalid.tone).toBe("danger");
+    expect(loginErrorPresentation(apiError("unauthorized", 401, null, { detail: { code: "unknown" } })).summary).toBe(
+      "Невірний логін або пароль.",
+    );
+  });
+
+  it("allows an absent second factor but rejects malformed codes before submission", () => {
+    const credentials = { email: "owner@example.com", password: "secret" };
+    expect(validateLoginForm({ ...credentials, otp: "" }).errors).toEqual({});
+    expect(validateLoginForm({ ...credentials, otp: "012345" }).errors).toEqual({});
+    for (const otp of ["12345", "1234567", "12345x"]) {
+      expect(validateLoginForm({ ...credentials, otp }).errors.otp).toBeTruthy();
+    }
   });
 
   it("preserves Retry-After and distinguishes network failure", () => {
