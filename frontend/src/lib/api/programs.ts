@@ -1,7 +1,7 @@
 import { invalidResponse, isRecord, requiredUuid } from "./access";
 import type { components } from "./schema";
 
-export type ProgramStep = Readonly<{ frequency_hz: number; duration_seconds: number }>;
+type ProgramStep = Readonly<{ frequency_hz: number; duration_seconds: number }>;
 export type ProgramPlan = Readonly<{ version: 1; steps: ProgramStep[] }>;
 export type ProgramProgress = components["schemas"]["ProgramProgress"];
 export const MAX_PROGRAM_STEPS = 8;

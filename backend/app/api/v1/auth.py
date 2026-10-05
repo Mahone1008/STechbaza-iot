@@ -19,7 +19,10 @@ from app.schemas.auth import (
     BrowserTokenResponse,
 )
 from app.security.browser_auth import (
-    require_browser_request, read_refresh_cookie, set_refresh_cookie, clear_refresh_cookie,
+    require_browser_request,
+    read_refresh_cookie,
+    set_refresh_cookie,
+    clear_refresh_cookie,
 )
 from app.security.current_user import (
     CurrentUserContext,
@@ -33,12 +36,16 @@ from app.services.auth import (
 )
 
 
-router = APIRouter(prefix="/auth", tags=["auth"], responses={
-    401: {"description": "Недійсна authentication session або credentials"},
-    403: {"description": "Account вимкнено або браузерний запит заборонено"},
-    429: {"description": "Забагато спроб; Retry-After містить секунди очікування"},
-    503: {"description": "Auth storage тимчасово недоступне"},
-})
+router = APIRouter(
+    prefix="/auth",
+    tags=["auth"],
+    responses={
+        401: {"description": "Недійсна authentication session або credentials"},
+        403: {"description": "Account вимкнено або браузерний запит заборонено"},
+        429: {"description": "Забагато спроб; Retry-After містить секунди очікування"},
+        503: {"description": "Auth storage тимчасово недоступне"},
+    },
+)
 
 DbSession = Annotated[Session, Depends(get_db_session)]
 CurrentUser = Annotated[
@@ -56,21 +63,18 @@ def _token_response(pair) -> TokenResponse:
     )
 
 
-
-
-
 def _login_pair(
     payload: LoginRequest,
     request: Request,
     session: DbSession,
 ):
-    throttle_auth(request, session, email=str(payload.email))
+    throttle_auth(request, session, email=str(payload.email or payload.controller_id))
     try:
         pair = AuthService(session).login(payload)
     except InvalidCredentialsError as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Невірний email, пароль або код двоетапного входу",
+            detail="Невірний логін або пароль",
             headers={"WWW-Authenticate": "Bearer"},
         ) from exc
     except InactiveUserError as exc:
@@ -123,12 +127,19 @@ def logout(
 
 
 def _browser_response(pair) -> BrowserTokenResponse:
-    return BrowserTokenResponse(access_token=pair.access_token, expires_in=pair.access_expires_in,
-                                session_expires_in=pair.refresh_expires_in)
+    return BrowserTokenResponse(
+        access_token=pair.access_token,
+        expires_in=pair.access_expires_in,
+        session_expires_in=pair.refresh_expires_in,
+        onboarding_path=pair.onboarding_path,
+    )
 
 
-@router.post("/browser/login", response_model=BrowserTokenResponse,
-             dependencies=[Depends(require_browser_request)])
+@router.post(
+    "/browser/login",
+    response_model=BrowserTokenResponse,
+    dependencies=[Depends(require_browser_request)],
+)
 def browser_login(payload: LoginRequest, request: Request, response: Response, session: DbSession):
     pair = _login_pair(payload, request, session)
     # Повторний вхід у тій самій вкладці не залишає попередню cookie-сесію активною.
@@ -139,8 +150,11 @@ def browser_login(payload: LoginRequest, request: Request, response: Response, s
     return _browser_response(pair)
 
 
-@router.post("/browser/refresh", response_model=BrowserTokenResponse,
-             dependencies=[Depends(require_browser_request)])
+@router.post(
+    "/browser/refresh",
+    response_model=BrowserTokenResponse,
+    dependencies=[Depends(require_browser_request)],
+)
 def browser_refresh(request: Request, response: Response, session: DbSession):
     throttle_auth(request, session)
     token = read_refresh_cookie(request)
@@ -152,13 +166,14 @@ def browser_refresh(request: Request, response: Response, session: DbSession):
         # Не видаляємо cookie на невдалий refresh: запізніла паралельна
         # відповідь не повинна стерти нову cookie успішного refresh.
         code = 403 if isinstance(exc, InactiveUserError) else 401
-        return JSONResponse({"detail": "Браузерна сесія недійсна або завершилася"}, status_code=code)
+        return JSONResponse(
+            {"detail": "Браузерна сесія недійсна або завершилася"}, status_code=code
+        )
     set_refresh_cookie(response, pair.refresh_token, pair.refresh_expires_in)
     return _browser_response(pair)
 
 
-@router.post("/browser/logout", status_code=204,
-             dependencies=[Depends(require_browser_request)])
+@router.post("/browser/logout", status_code=204, dependencies=[Depends(require_browser_request)])
 def browser_logout(request: Request, session: DbSession):
     throttle_auth(request, session)
     token = read_refresh_cookie(request)
@@ -174,13 +189,12 @@ def me(
     current: CurrentUser,
     session: DbSession,
 ) -> CurrentUserRead:
-    memberships = MembershipRepository(session).list_active_for_user(
-        current.user.id
-    )
+    memberships = MembershipRepository(session).list_active_for_user(current.user.id)
 
     return CurrentUserRead(
         id=current.user.id,
         email=current.user.email,
+        login_name=current.user.login_name,
         display_name=current.user.display_name,
         platform_role=current.user.platform_role,
         is_active=current.user.is_active,

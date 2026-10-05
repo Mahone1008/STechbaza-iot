@@ -1,14 +1,24 @@
 from typing import Literal
 
-from pydantic import BaseModel, EmailStr, Field
+import uuid
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class LoginRequest(BaseModel):
     """Credentials для створення authenticated session."""
 
+    model_config = ConfigDict(extra="forbid")
     otp: str | None = Field(default=None, pattern=r"^[0-9]{6}$")
-    email: EmailStr
+    # `email` remains the wire name for compatibility with existing clients.
+    email: str | None = Field(default=None, min_length=1, max_length=320)
+    controller_id: uuid.UUID | None = None
     password: str = Field(min_length=1, max_length=128)
+
+    @model_validator(mode="after")
+    def one_identity(self):
+        if (self.email is None) == (self.controller_id is None):
+            raise ValueError("Вкажіть логін або контролер із QR")
+        return self
 
 
 class RefreshTokenRequest(BaseModel):
@@ -40,3 +50,4 @@ class BrowserTokenResponse(BaseModel):
     token_type: Literal["bearer"] = "bearer"
     expires_in: int
     session_expires_in: int
+    onboarding_path: str | None = None

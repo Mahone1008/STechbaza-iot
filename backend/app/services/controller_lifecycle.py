@@ -34,6 +34,7 @@ from app.services.equipment import (
     require_stopped,
 )
 from app.services.onboarding import audit, locked_controller
+from app.services.label_accounts import renew_label
 
 
 def install_capabilities(session, device, limits, *, enabled, mode="read_only"):
@@ -258,6 +259,7 @@ def operate(session, current, controller_id, operation, payload):
     code = new_key()
     row.generation += 1
     row.device_id, row.status, row.claimed_at = None, "ready", None
+    renew_label(row)
     row.activation_hash, row.access_revoked = digest("activation", code), False
     row.last_contact_at = None
     audit(
@@ -274,6 +276,8 @@ def operate(session, current, controller_id, operation, payload):
         generation=row.generation,
         qr_path=f"/connect/{row.id}",
         activation_code=code,
+        login=row.buyer_login,
+        password=code,
     )
 
 
@@ -301,6 +305,7 @@ def factory_reset(session, current, controller_id, payload):
         raise HTTPException(409, "Реєстр уже змінився; перечитайте його")
     activation, bootstrap = new_key(), new_key()
     row.generation += 1
+    renew_label(row)
     row.device_id, row.claimed_at, row.last_contact_at = None, None, None
     row.status, row.access_revoked = "ready", False
     row.activation_hash, row.bootstrap_hash = (
@@ -325,4 +330,6 @@ def factory_reset(session, current, controller_id, payload):
         activation_code=activation,
         bootstrap_key=bootstrap,
         setup_password=new_key()[:20],
+        login=row.buyer_login,
+        password=activation,
     )

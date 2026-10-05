@@ -1,5 +1,5 @@
 export const AUTH_CHANNEL_NAME = "kerumo-auth-session-v1";
-export const AUTH_LOCK_NAME = "kerumo-auth-session-lock-v1";
+const AUTH_LOCK_NAME = "kerumo-auth-session-lock-v1";
 
 const AUTH_LOCK_STORAGE_KEY = "kerumo.auth.lock.v1";
 const AUTH_LOGOUT_STORAGE_KEY = "kerumo.auth.logout.v1";
@@ -11,9 +11,9 @@ const MIN_SNAPSHOT_TOKEN_LENGTH = 20;
 const MAX_SNAPSHOT_TOKEN_LENGTH = 8_192;
 const MAX_FUTURE_CLOCK_SKEW_MS = 60_000;
 
-export type AuthSessionOrigin = "login" | "refresh";
+type AuthSessionOrigin = "login" | "refresh";
 
-export type AuthSessionRequestMessage = Readonly<{
+type AuthSessionRequestMessage = Readonly<{
   version: 1;
   type: "session-request";
   sourceTab: string;
@@ -33,7 +33,7 @@ export type AuthSessionSnapshotMessage = Readonly<{
   sessionExpiresAt: number;
 }>;
 
-export type AuthSessionClearedMessage = Readonly<{
+type AuthSessionClearedMessage = Readonly<{
   version: 1;
   type: "session-cleared";
   sourceTab: string;
@@ -41,10 +41,7 @@ export type AuthSessionClearedMessage = Readonly<{
   reason: "expired" | "revoked" | "logout";
 }>;
 
-export type AuthChannelMessage =
-  | AuthSessionRequestMessage
-  | AuthSessionSnapshotMessage
-  | AuthSessionClearedMessage;
+export type AuthChannelMessage = AuthSessionRequestMessage | AuthSessionSnapshotMessage | AuthSessionClearedMessage;
 
 type StorageLease = Readonly<{
   owner: string;
@@ -115,15 +112,15 @@ export function parseAuthChannelMessage(value: unknown, nowMs = Date.now()): Aut
   const sessionExpiresAt = readInteger(value.sessionExpiresAt);
 
   if (
-    targetTab === null && targetTabRaw !== null
-    || (sessionOrigin !== "login" && sessionOrigin !== "refresh")
-    || email === undefined
-    || !accessToken
-    || accessToken.length < MIN_SNAPSHOT_TOKEN_LENGTH
-    || accessExpiresAt === null
-    || sessionExpiresAt === null
-    || accessExpiresAt <= issuedAt
-    || sessionExpiresAt <= issuedAt
+    (targetTab === null && targetTabRaw !== null) ||
+    (sessionOrigin !== "login" && sessionOrigin !== "refresh") ||
+    email === undefined ||
+    !accessToken ||
+    accessToken.length < MIN_SNAPSHOT_TOKEN_LENGTH ||
+    accessExpiresAt === null ||
+    sessionExpiresAt === null ||
+    accessExpiresAt <= issuedAt ||
+    sessionExpiresAt <= issuedAt
   ) {
     return null;
   }
@@ -147,8 +144,7 @@ export function isSnapshotUsable(
   nowMs = Date.now(),
   minimumValidityMs = 5_000,
 ): boolean {
-  return snapshot.accessExpiresAt - nowMs > minimumValidityMs
-    && snapshot.sessionExpiresAt - nowMs > minimumValidityMs;
+  return snapshot.accessExpiresAt - nowMs > minimumValidityMs && snapshot.sessionExpiresAt - nowMs > minimumValidityMs;
 }
 
 export function refreshDelayMs(accessExpiresAt: number, nowMs = Date.now()): number {
@@ -188,9 +184,7 @@ function parseLogoutMarker(value: string | null): LogoutMarker | null {
     const issuedAt = readInteger(parsed.issuedAt);
     const expiresAt = readInteger(parsed.expiresAt);
     const nonce = readString(parsed.nonce, 128);
-    return issuedAt !== null && expiresAt !== null && nonce
-      ? { issuedAt, expiresAt, nonce }
-      : null;
+    return issuedAt !== null && expiresAt !== null && nonce ? { issuedAt, expiresAt, nonce } : null;
   } catch {
     return null;
   }
@@ -238,11 +232,7 @@ export function clearLogoutMarker(): void {
 export function readRecentLogoutMarker(nowMs = Date.now()): number | null {
   if (!storageAvailable()) return null;
   const marker = parseLogoutMarker(window.localStorage.getItem(AUTH_LOGOUT_STORAGE_KEY));
-  if (
-    !marker
-    || marker.issuedAt > nowMs + MAX_FUTURE_CLOCK_SKEW_MS
-    || marker.expiresAt <= nowMs
-  ) {
+  if (!marker || marker.issuedAt > nowMs + MAX_FUTURE_CLOCK_SKEW_MS || marker.expiresAt <= nowMs) {
     clearLogoutMarker();
     return null;
   }
@@ -294,10 +284,7 @@ async function withStorageLease<T>(owner: string, operation: () => Promise<T>): 
   throw new Error("Не вдалося серіалізувати auth-операцію між вкладками.");
 }
 
-export async function withCrossTabAuthLock<T>(
-  owner: string,
-  operation: () => Promise<T>,
-): Promise<T> {
+export async function withCrossTabAuthLock<T>(owner: string, operation: () => Promise<T>): Promise<T> {
   if (typeof navigator !== "undefined" && navigator.locks) {
     return navigator.locks.request(AUTH_LOCK_NAME, { mode: "exclusive" }, operation);
   }

@@ -8,7 +8,7 @@ export type Quality = Schemas["MetricReadingRead"]["status"];
 export type Freshness = Schemas["TelemetryFreshnessRead"];
 export type Channel = Readonly<{ key: string; source: string; data_type: string; unit: string | null; supports_series?: boolean }>;
 export type Reading = Readonly<{ value: number | boolean | null; status: Quality }>;
-export type Module = Readonly<{ assignmentId: string; code: string; name: string; supported: boolean; channels: (Channel & Reading)[]; commands: string[]; allowedCommands: string[] }>;
+type Module = Readonly<{ assignmentId: string; code: string; name: string; supported: boolean; channels: (Channel & Reading)[]; commands: string[]; allowedCommands: string[] }>;
 export type Overview = Readonly<{ equipmentState?: EquipmentState; equipmentTarget?: EquipmentTarget | null; generatedAt: string; device: Device; availability: Schemas["DeviceAvailabilityRead"]; freshness: Freshness; diagnostics: ControllerDiagnostics | null; modules: Module[]; allowedCommands: string[]; frequencyLimits: { min_hz: number; max_hz: number } | null }>;
 const path = "/api/v1/devices/overview";
 const qualities = new Set(["fresh", "stale", "missing", "invalid"]);
@@ -18,7 +18,7 @@ function array(value: unknown): unknown[] { if (!Array.isArray(value)) invalidRe
 function strings(value: unknown): string[] { return array(value).map((item) => typeof item === "string" && item.length ? item : invalidResponse(path, "string[]")); }
 function unique(values: string[]) { if (new Set(values).size !== values.length) invalidResponse(path, "unique keys"); }
 function date(value: Record<string, unknown>, key: string): string | null { return value[key] === null ? null : requiredDateTime(value, key, path); }
-export function parseFreshness(value: unknown): Freshness {
+function parseFreshness(value: unknown): Freshness {
   const data = record(value);
   if (typeof data.status !== "string" || typeof data.reason !== "string" || !["fresh", "stale", "missing"].includes(data.status) || !reasons.has(data.reason)) invalidResponse(path, "freshness status/reason");
   const age = data.received_age_seconds;

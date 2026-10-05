@@ -151,7 +151,7 @@ function sessionPresentation(
   );
 
   return {
-    userName: ready.profile.email,
+    userName: ready.profile.login_name ?? ready.profile.email,
     userStatus: `${ready.profile.display_name} · ${role}`,
     note: restored ? "Сесія відновлена" : "Сесія підтверджена",
     noteClass: session.status === "authenticated" && session.refreshState === "degraded"
@@ -335,4 +335,4 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
   );
 }
 
-export { Brand, Icon };
+export { Brand };

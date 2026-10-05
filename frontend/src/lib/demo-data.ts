@@ -1,7 +1,6 @@
 export type AvailabilityState = "online" | "stale" | "offline" | "new";
-export type AlarmSeverity = "warning" | "critical" | "info";
 
-export type DeviceSummary = {
+type DeviceSummary = {
   id: string;
   name: string;
   site: string;
@@ -29,18 +28,7 @@ export type DeviceDetail = DeviceSummary & {
   modules: readonly string[];
 };
 
-export type AlarmItem = {
-  id: string;
-  title: string;
-  description: string;
-  device: string;
-  site: string;
-  severity: AlarmSeverity;
-  status: "Активна" | "Підтверджена" | "Вирішена";
-  createdAt: string;
-};
-
-export const devices: readonly DeviceSummary[] = [
+const devices: readonly DeviceSummary[] = [
   {
     id: "north-pump",
     name: "Насосна станція №1",
@@ -84,7 +72,7 @@ export const devices: readonly DeviceSummary[] = [
 ] as const;
 
 const fallbackDevice: DeviceDetail = {
-  ...(devices[0]!),
+  ...devices[0]!,
   running: true,
   dataQuality: "fresh",
   generatedAt: "27.09.2026, 14:52:08",
@@ -100,7 +88,7 @@ const fallbackDevice: DeviceDetail = {
 const deviceDetails: Record<string, DeviceDetail> = {
   "north-pump": fallbackDevice,
   "reservoir-pump": {
-    ...(devices[1]!),
+    ...devices[1]!,
     running: false,
     dataQuality: "stale",
     generatedAt: "27.09.2026, 14:44:12",
@@ -113,28 +101,49 @@ const deviceDetails: Record<string, DeviceDetail> = {
     modules: ["Керування VFD", "Стан VFD", "Тиск"],
   },
   "well-controller": {
-    ...(devices[2]!),
+    ...devices[2]!,
     running: false,
     dataQuality: "stale",
     generatedAt: "27.09.2026, 12:51:30",
     metrics: [
       { key: "frequency", label: "Частота", value: "0", unit: "Hz", meta: "Історичне значення", quality: "stale" },
       { key: "current", label: "Струм", value: "0", unit: "A", meta: "Історичне значення", quality: "stale" },
-      { key: "pressure", label: "Тиск", value: "—", unit: "bar", meta: "Немає достовірного значення", quality: "missing" },
+      {
+        key: "pressure",
+        label: "Тиск",
+        value: "—",
+        unit: "bar",
+        meta: "Немає достовірного значення",
+        quality: "missing",
+      },
       { key: "level", label: "Рівень води", value: "41", unit: "%", meta: "Історичне значення", quality: "stale" },
     ],
     modules: ["Стан VFD", "Рівень води"],
   },
   "fertigation-node": {
-    ...(devices[3]!),
+    ...devices[3]!,
     running: false,
     dataQuality: "missing",
     generatedAt: "—",
     metrics: [
       { key: "frequency", label: "Частота", value: "—", unit: "Hz", meta: "Модуль не встановлено", quality: "missing" },
       { key: "current", label: "Струм", value: "—", unit: "A", meta: "Модуль не встановлено", quality: "missing" },
-      { key: "pressure", label: "Тиск", value: "—", unit: "bar", meta: "Телеметрія ще не надходила", quality: "missing" },
-      { key: "level", label: "Рівень води", value: "—", unit: "%", meta: "Телеметрія ще не надходила", quality: "missing" },
+      {
+        key: "pressure",
+        label: "Тиск",
+        value: "—",
+        unit: "bar",
+        meta: "Телеметрія ще не надходила",
+        quality: "missing",
+      },
+      {
+        key: "level",
+        label: "Рівень води",
+        value: "—",
+        unit: "%",
+        meta: "Телеметрія ще не надходила",
+        quality: "missing",
+      },
     ],
     modules: ["Майбутній модуль дозування"],
   },
@@ -143,36 +152,3 @@ const deviceDetails: Record<string, DeviceDetail> = {
 export function getDevice(deviceId: string): DeviceDetail {
   return deviceDetails[deviceId] ?? fallbackDevice;
 }
-
-export const alarms: readonly AlarmItem[] = [
-  {
-    id: "alarm-low-pressure",
-    title: "Низький тиск у магістралі",
-    description: "Тиск 2.3 bar нижче встановленого порогу 2.5 bar протягом 45 секунд.",
-    device: "Насосна станція №1",
-    site: "Поле Північ",
-    severity: "warning",
-    status: "Активна",
-    createdAt: "сьогодні, 14:47",
-  },
-  {
-    id: "alarm-device-offline",
-    title: "Контролер не виходить на зв’язок",
-    description: "Heartbeat від пристрою не надходив більше 90 секунд.",
-    device: "Контролер свердловини",
-    site: "Свердловина №3",
-    severity: "critical",
-    status: "Підтверджена",
-    createdAt: "сьогодні, 12:52",
-  },
-  {
-    id: "alarm-recovered",
-    title: "Відновлено нормальний рівень води",
-    description: "Рівень повернувся до нормального діапазону після короткого зниження.",
-    device: "Насос резервуара",
-    site: "Центральний вузол",
-    severity: "info",
-    status: "Вирішена",
-    createdAt: "вчора, 18:10",
-  },
-] as const;

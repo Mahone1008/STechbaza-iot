@@ -6,7 +6,7 @@ export type Command = components["schemas"]["DeviceCommandRead"];
 export type CommandType = components["schemas"]["DeviceCommandCreate"]["command_type"];
 export type CommandInput = components["schemas"]["DeviceCommandCreate"];
 export type CommandCursor = Readonly<{ before_created_at: string; before_id: string }>;
-export const commandLabels: Record<CommandType, string> = { "vfd.start": "Запустити", "vfd.stop": "Зупинити", "vfd.frequency.set": "Задати частоту", "vfd.program.start": "Запустити за етапами", "vfd.schedule.start": "Запуск за розкладом" };
+const commandLabels: Record<CommandType, string> = { "vfd.start": "Запустити", "vfd.stop": "Зупинити", "vfd.frequency.set": "Задати частоту", "vfd.program.start": "Запустити за етапами", "vfd.schedule.start": "Запуск за розкладом" };
 export const statusLabels: Record<string, string> = { queued: "У черзі", published: "Розпочато доставку", acknowledged: "Контролер підтвердив прийом", succeeded: "Контролер повідомив про виконання", failed: "Помилка виконання", cancelled: "Доставку скасовано", expired: "Строк доставки минув", result_unknown: "Результат невідомий" };
 export function commandLabel(type: string) { return Object.hasOwn(commandLabels, type) ? commandLabels[type as CommandType] : type; }
 export function commandPending(command: Command) { return ["queued", "published", "acknowledged"].includes(command.status); }

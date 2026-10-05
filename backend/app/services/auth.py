@@ -1,11 +1,12 @@
 import uuid
 from dataclasses import dataclass
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 from app.models.user import User
-from app.models.onboarding import AccountSecurity
+from app.models.onboarding import AccountSecurity, FactoryController
 from app.security.account_keys import verify_stored_totp
+from app.services.label_accounts import create_label_account, label_session_valid
 
 from app.models.auth_session import AuthSession
 from app.repositories.auth_sessions import AuthSessionRepository
@@ -45,6 +46,7 @@ class TokenPair:
     access_expires_in: int
     refresh_token: str
     refresh_expires_in: int
+    onboarding_path: str | None = None
 
 
 class AuthService:
@@ -56,8 +58,18 @@ class AuthService:
         self._auth_sessions = AuthSessionRepository(session)
 
     def login(self, payload: LoginRequest) -> TokenPair:
-        email = str(payload.email).strip().lower()
-        user = self._session.scalar(select(User).where(User.email == email).with_for_update())
+        login = str(payload.email or "").strip().lower()
+        if payload.controller_id:
+            factory = self._session.get(FactoryController, payload.controller_id)
+            if factory is None or factory.status != "ready" or not factory.buyer_login:
+                verify_password(payload.password, _DUMMY_PASSWORD_HASH)
+                raise InvalidCredentialsError
+            login = factory.buyer_login
+        user = self._session.scalar(
+            select(User).where(or_(User.email == login, User.login_name == login)).with_for_update()
+        )
+        if user is None:
+            user = create_label_account(self._session, login, payload.password)
 
         if user is None:
             # Dummy verify зменшує timing-різницю між unknown email і bad password.
@@ -70,10 +82,16 @@ class AuthService:
         if not user.is_active:
             raise InactiveUserError
 
-        security = self._session.scalar(select(AccountSecurity).where(AccountSecurity.user_id == user.id).with_for_update())
+        if not label_session_valid(self._session, user):
+            raise InvalidCredentialsError
+        security = self._session.scalar(
+            select(AccountSecurity).where(AccountSecurity.user_id == user.id).with_for_update()
+        )
         mfa_verified = False
         if security and security.totp_enabled_at:
-            counter, encrypted = verify_stored_totp(security.totp_secret, payload.otp or "", security.totp_last_counter)
+            counter, encrypted = verify_stored_totp(
+                security.totp_secret, payload.otp or "", security.totp_last_counter
+            )
             if counter is None:
                 raise InvalidCredentialsError
             security.totp_last_counter, security.totp_secret = counter, encrypted
@@ -96,6 +114,14 @@ class AuthService:
         self._auth_sessions.add(auth_session)
         self._session.commit()
 
+        pending = None
+        if user.login_name and user.login_name.startswith("kr-"):
+            pending = self._session.scalar(
+                select(FactoryController.id)
+                .where(FactoryController.buyer_user_id == user.id, FactoryController.status == "ready")
+                .limit(1)
+            )
+
         access = create_access_token(
             user_id=user.id,
             auth_session_id=auth_session.id,
@@ -106,13 +132,12 @@ class AuthService:
             access_expires_in=access.expires_in,
             refresh_token=refresh.token,
             refresh_expires_in=refresh.expires_in,
+            onboarding_path=f"/connect/{pending}" if pending else None,
         )
 
     def refresh(self, refresh_token: str) -> TokenPair:
         token_hash = hash_refresh_token(refresh_token)
-        auth_session = self._auth_sessions.get_by_refresh_hash_for_update(
-            token_hash
-        )
+        auth_session = self._auth_sessions.get_by_refresh_hash_for_update(token_hash)
 
         if auth_session is None:
             self._session.rollback()
@@ -120,10 +145,7 @@ class AuthService:
 
         now = utc_now()
 
-        if (
-            auth_session.revoked_at is not None
-            or auth_session.expires_at <= now
-        ):
+        if auth_session.revoked_at is not None or auth_session.expires_at <= now:
             self._session.rollback()
             raise InvalidRefreshTokenError
 
@@ -137,10 +159,13 @@ class AuthService:
             self._session.commit()
             raise InactiveUserError
 
+        if not label_session_valid(self._session, user):
+            auth_session.revoked_at = now
+            self._session.commit()
+            raise InvalidRefreshTokenError
+
         # Refresh rotation: старий secret перестає працювати відразу після commit.
-        rotated_refresh = create_refresh_token(
-            expires_at=auth_session.expires_at
-        )
+        rotated_refresh = create_refresh_token(expires_at=auth_session.expires_at)
         auth_session.refresh_token_hash = rotated_refresh.token_hash
         auth_session.last_used_at = now
         self._session.commit()
@@ -159,9 +184,7 @@ class AuthService:
 
     def logout(self, refresh_token: str) -> None:
         token_hash = hash_refresh_token(refresh_token)
-        auth_session = self._auth_sessions.get_by_refresh_hash_for_update(
-            token_hash
-        )
+        auth_session = self._auth_sessions.get_by_refresh_hash_for_update(token_hash)
 
         # Logout навмисно idempotent: unknown token не розкриває session state.
         if auth_session is None:

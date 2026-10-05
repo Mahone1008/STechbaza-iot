@@ -1,5 +1,8 @@
 "use client";
 import { AccountGate } from "./account-gate";
+import { useAccessContext } from "./access-context";
+import { ControllerActivation } from "./controller-activation";
+import { PermanentAccessFields, type ActivationProof } from "./permanent-access";
 import { useAccountAction } from "./use-account-action";
 import type { Route } from "next";
 import Link from "next/link";
@@ -46,12 +49,17 @@ export function ConnectionEntry() {
 }
 
 export function ConnectPage({ id }: { id: string }) {
+  const { session } = useAuthSession();
   return (
     <main className="connect-page">
       <PageHeader title="Підключення контролера" description="Ваш об’єкт, обладнання та перевірка зв’язку." />
-      <AccountGate returnTo={`/connect/${id}`}>
-        <ConnectWizard id={id} />
-      </AccountGate>
+      {session.status === "anonymous" ? (
+        <ControllerActivation id={id} />
+      ) : (
+        <AccountGate returnTo={`/connect/${id}`}>
+          <ConnectWizard id={id} />
+        </AccountGate>
+      )}
       <div className="ui-row">
         <Link href="/devices">До пристроїв</Link>
         <Link href="/account/security">Безпека облікового запису</Link>
@@ -62,8 +70,10 @@ export function ConnectPage({ id }: { id: string }) {
 
 function ConnectWizard({ id }: { id: string }) {
   const { authorizedRequest, session } = useAuthSession();
+  const { retryAccess } = useAccessContext();
   const [connection, setConnection] = useState<Connection | null>(null);
   const [activation, setActivation] = useState("");
+  const [access, setAccess] = useState<ActivationProof>({ password: "", otp: "", saved: false });
   const [deviceName, setDeviceName] = useState("Контролер насоса");
   const [siteName, setSiteName] = useState("");
   const [timezone, setTimezone] = useState("Europe/Kyiv");
@@ -119,17 +129,22 @@ function ConnectWizard({ id }: { id: string }) {
   const submitClaim = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     void mutate(async () => {
+      if (data?.permanent_login && (!access.saved || !access.password || !/^\d{6}$/.test(access.otp)))
+        throw new Error("Збережіть постійні дані входу та введіть код із застосунку.");
       const result = await authorizedRequest<Connection>({
         path: `/api/v1/connect/${id}/claim`,
         method: "POST",
         body: {
-          activation_code: activation,
+          ...(data?.activation_required === false ? {} : { activation_code: activation }),
+          ...(data?.permanent_login ? { new_password: access.password, otp: access.otp } : {}),
           device_name: deviceName,
           ...(siteId ? { site_id: siteId } : { new_site: { name: siteName, timezone } }),
         },
       });
       setConnection(parseConnection(result, id));
       setActivation("");
+      setAccess({ password: "", otp: "", saved: false });
+      retryAccess();
     });
   };
 
@@ -226,19 +241,28 @@ function ConnectWizard({ id }: { id: string }) {
               value={deviceName}
               onChange={(event) => setDeviceName(event.target.value)}
             />
-            <TextField
-              required
-              type="password"
-              autoComplete="off"
-              minLength={32}
-              maxLength={100}
-              label="Код активації з комплекту"
-              value={activation}
-              onChange={(event) => setActivation(event.target.value.trim())}
-              hint="Окремий захищений код. Публічний QR не дає права прив’язати пристрій."
-            />
-            <Button variant="primary" type="submit" disabled={busy}>
-              {busy ? "Прив’язуємо…" : "Активувати та створити об’єкт"}
+            {data.activation_required !== false && (
+              <TextField
+                required
+                type="password"
+                autoComplete="off"
+                minLength={32}
+                maxLength={100}
+                label="Пароль активації з етикетки"
+                value={activation}
+                onChange={(event) => setActivation(event.target.value.trim())}
+                hint="Пароль із комплекту підтверджує право додати контролер. Сам QR цього права не дає."
+              />
+            )}
+            {data.permanent_login && (
+              <PermanentAccessFields id={id} login={data.permanent_login} onChange={setAccess} />
+            )}
+            <Button
+              variant="primary"
+              type="submit"
+              disabled={busy || (!!data.permanent_login && (!access.saved || !/^\d{6}$/.test(access.otp)))}
+            >
+              {busy ? "Прив’язуємо…" : "Підключити до об’єкта"}
             </Button>
           </form>
         ) : (
@@ -252,27 +276,7 @@ function ConnectWizard({ id }: { id: string }) {
       </Card>
       {data.state === "claimed" && (
         <>
-          <Card title="2. Підключіть до мережі">
-            <p>
-              Зупиніть двигун. Утримуйте BOOT на контролері 3 секунди та підключіться телефоном до його Wi-Fi. Назва
-              мережі й окремий пароль зазначені в комплекті.
-            </p>
-            <p>
-              Відкрийте <strong>http://192.168.4.1</strong> у браузері телефона. Локальна мережа закривається через 10
-              хвилин. Пароль домашнього Wi-Fi зберігається тільки в контролері.
-            </p>
-            <p>
-              Стан зв’язку:{" "}
-              {data.last_contact_at
-                ? `останнє повідомлення ${new Date(data.last_contact_at).toLocaleString("uk-UA")}`
-                : "контролер ще не підтвердив підключення"}
-              .
-            </p>
-            <Button disabled={query.isFetching || busy} onClick={checkConnection}>
-              Перевірити підключення
-            </Button>
-          </Card>
-          <Card title="3. Вкажіть частотний перетворювач">
+          <Card title="2. Вкажіть частотний перетворювач">
             <form onSubmit={submitEquipment}>
               <SelectField
                 required
@@ -346,6 +350,26 @@ function ConnectWizard({ id }: { id: string }) {
           {error}
         </p>
       )}
+      <Card title="3. Підключіть до мережі">
+        <p>
+          Зупиніть двигун. Утримуйте BOOT на контролері 3 секунди та підключіться телефоном до його Wi-Fi. Назва мережі
+          й окремий пароль зазначені в комплекті.
+        </p>
+        <p>
+          Відкрийте <strong>http://192.168.4.1</strong> у браузері телефона. Локальна мережа закривається через 10
+          хвилин. Пароль домашнього Wi-Fi зберігається тільки в контролері.
+        </p>
+        <p>
+          Стан зв’язку:{" "}
+          {data.last_contact_at
+            ? `останнє повідомлення ${new Date(data.last_contact_at).toLocaleString("uk-UA")}`
+            : "контролер ще не підтвердив підключення"}
+          .
+        </p>
+        <Button disabled={query.isFetching || busy} onClick={checkConnection}>
+          Перевірити підключення
+        </Button>
+      </Card>
     </>
   );
 }

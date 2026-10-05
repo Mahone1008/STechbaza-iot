@@ -53,7 +53,7 @@ export type SessionInvalidationReason = "expired" | "revoked";
 
 export type AuthSessionContextValue = Readonly<{
   session: AuthSessionSnapshot;
-  login: (payload: BrowserLoginRequest, signal?: AbortSignal) => Promise<void>;
+  login: (payload: BrowserLoginRequest, signal?: AbortSignal) => Promise<BrowserLoginResponse>;
   logout: () => Promise<boolean>;
   cancelLogout: () => void;
   refreshSession: (reason?: RefreshReason) => Promise<boolean>;
@@ -121,7 +121,7 @@ export function sessionOrigin(session: AuthenticatedSession): "login" | "refresh
   return session.source === "login" ? "login" : "refresh";
 }
 
-export function noAccessTokenError(path: string): ApiError {
+function noAccessTokenError(path: string): ApiError {
   return new ApiError("Сесію не вдалося підтвердити.", {
     kind: "unauthorized",
     status: 401,
@@ -133,7 +133,7 @@ export function noAccessTokenError(path: string): ApiError {
   });
 }
 
-export function logoutCancelledRequestError(path: string, method: string): ApiError {
+function logoutCancelledRequestError(path: string, method: string): ApiError {
   return new ApiError("Запит скасовано під час завершення сесії.", {
     kind: "aborted",
     status: null,
@@ -145,7 +145,7 @@ export function logoutCancelledRequestError(path: string, method: string): ApiEr
   });
 }
 
-export function createLinkedRequestController(externalSignal?: AbortSignal) {
+function createLinkedRequestController(externalSignal?: AbortSignal) {
   const controller = new AbortController();
   const abortFromExternal = () => controller.abort(externalSignal?.reason);
 

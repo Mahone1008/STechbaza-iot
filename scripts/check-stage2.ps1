@@ -13,7 +13,7 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Isolated test services failed' }
     & docker @compose run --rm -T --no-deps backend alembic upgrade head
     if ($LASTEXITCODE -ne 0) { throw 'Migration failed' }
-    foreach ($suite in @('test_equipment*.py', 'test_onboarding_postgres.py', 'test_controller_lifecycle_postgres.py')) {
+    foreach ($suite in @('test_equipment*.py', 'test_onboarding_postgres.py', 'test_label_accounts_postgres.py', 'test_controller_lifecycle_postgres.py')) {
         & docker @compose run --rm -T --no-deps -e TECHBAZA_RUN_DB_TESTS=1 backend python -m unittest discover -s tests -p $suite -v
         if ($LASTEXITCODE -ne 0) { throw "Stage 2 check failed: $suite" }
     }

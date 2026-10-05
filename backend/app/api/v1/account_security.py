@@ -1,4 +1,4 @@
-"""HTTP endpoints for registration, MFA, recovery and session management."""
+"""HTTP endpoints for passwords, MFA, recovery and session management."""
 
 import uuid
 from typing import Annotated
@@ -11,7 +11,7 @@ from app.db import get_db_session
 from app.schemas.onboarding import (
     RecoveryRead,
     RecoveryRequest,
-    RegisterRequest,
+    PasswordChange,
     SecurityProof,
     SecurityRead,
     SessionRead,
@@ -29,18 +29,6 @@ Current = Annotated[CurrentUserContext, Depends(get_current_user_context)]
 
 def no_store(response: Response) -> None:
     response.headers["Cache-Control"] = "no-store"
-
-
-@router.post(
-    "/register",
-    response_model=RecoveryRead,
-    status_code=201,
-    dependencies=[Depends(require_browser_request)],
-)
-def register(payload: RegisterRequest, request: Request, response: Response, session: Db):
-    throttle_auth(request, session, email=str(payload.email))
-    no_store(response)
-    return AccountSecurityService(session).register(payload)
 
 
 @router.post(
@@ -91,4 +79,11 @@ def sessions(current: Current, session: Db):
 @router.delete("/sessions/{session_id}", status_code=204)
 def revoke_session(session_id: uuid.UUID, current: Current, session: Db):
     AccountSecurityService(session).revoke_session(current, session_id)
+    return Response(status_code=204)
+
+
+@router.post("/security/password", status_code=204)
+def change_password(payload: PasswordChange, current: Current, request: Request, session: Db):
+    throttle_auth(request, session, email=current.user.email)
+    AccountSecurityService(session).change_password(current, payload)
     return Response(status_code=204)

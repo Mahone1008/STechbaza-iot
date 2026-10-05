@@ -20,7 +20,7 @@ test("real viewer profile drives navigation and blocks command controls", async 
   await page.goto("/ui-kit/device-demo");
   await expect(page).toHaveURL(/\/login\?returnTo=%2Fui-kit%2Fdevice-demo$/u);
 
-  await page.getByLabel("Email").fill(VIEWER_EMAIL);
+  await page.getByLabel("Логін").fill(VIEWER_EMAIL);
   await page.getByLabel("Пароль").fill(VIEWER_PASSWORD);
   await page.getByRole("button", { name: "Увійти" }).click();
 

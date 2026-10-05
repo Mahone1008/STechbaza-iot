@@ -17,6 +17,8 @@ export function parseConnection(value: unknown, controllerId: string): component
     site_id: claimed ? requiredUuid(value, "site_id", path) : null,
     last_contact_at: value.last_contact_at === null ? null : requiredDateTime(value, "last_contact_at", path),
     firmware_version: value.firmware_version === null ? null : requiredString(value, "firmware_version", path),
+    activation_required: value.activation_required === false ? false : true,
+    permanent_login: value.permanent_login == null ? null : requiredString(value, "permanent_login", path),
   };
 }
 export function parseRecovery(value: unknown): string {

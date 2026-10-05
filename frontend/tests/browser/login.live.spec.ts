@@ -15,7 +15,7 @@ async function captureJsonResponse(response: Response) {
 
 test("real browser login resolves /auth/me, organization access and an HttpOnly session", async ({ page, context }) => {
   await page.goto("/login");
-  await page.getByLabel("Email").fill(DEMO_EMAIL);
+  await page.getByLabel("Логін").fill(DEMO_EMAIL);
   await page.getByLabel("Пароль").fill(DEMO_PASSWORD);
 
   let profileRequests = 0;
@@ -92,7 +92,7 @@ test("real browser login resolves /auth/me, organization access and an HttpOnly 
 
 test("real backend rejects a wrong password with the generic login error", async ({ page }) => {
   await page.goto("/login");
-  await page.getByLabel("Email").fill(DEMO_EMAIL);
+  await page.getByLabel("Логін").fill(DEMO_EMAIL);
   await page.getByLabel("Пароль").fill(`${DEMO_PASSWORD}-wrong`);
 
   const loginResponsePromise = page.waitForResponse(
@@ -104,6 +104,6 @@ test("real backend rejects a wrong password with the generic login error", async
   expect(loginResponse.status()).toBe(401);
 
   await expect(page).toHaveURL(/\/login$/u);
-  await expect(page.locator(".login-alert")).toContainText("Невірний email або пароль");
+  await expect(page.locator(".login-alert")).toContainText("Невірний логін або пароль");
   await expect(page.getByLabel("Пароль")).toHaveValue("");
 });

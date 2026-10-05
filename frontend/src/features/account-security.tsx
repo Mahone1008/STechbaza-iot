@@ -35,6 +35,9 @@ function SecuritySettings() {
   const [otp, setOtp] = useState("");
   const [setup, setSetup] = useState<Schema["TotpSetupRead"] | null>(null);
   const [recovery, setRecovery] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmation, setConfirmation] = useState("");
+  const [notice, setNotice] = useState("");
   const key = session.status === "authenticated" ? [session.email, session.sessionExpiresAt] : null;
   const state = usePanelQuery({
     queryKey: ["account-security", key],
@@ -107,6 +110,25 @@ function SecuritySettings() {
         });
     });
 
+  const changePassword = () =>
+    void perform(async () => {
+      if (newPassword !== confirmation) throw new Error("Паролі мають збігатися.");
+      await authorizedRequest({
+        path: "/api/v1/auth/security/password",
+        method: "POST",
+        body: {
+          password,
+          otp: otp || null,
+          new_password: newPassword,
+        },
+      });
+      setPassword("");
+      setOtp("");
+      setNewPassword("");
+      setConfirmation("");
+      setNotice("Пароль змінено. Інші сесії завершено; двоетапний захист збережено.");
+    });
+
   return (
     <>
       <Card title="Двоетапний вхід">
@@ -155,7 +177,46 @@ function SecuritySettings() {
           </>
         )}
       </Card>
+      <Card title="Постійний пароль">
+        <p>
+          Підтвердьте зміну поточним паролем і свіжим кодом вище. Ваш застосунок автентифікації залишиться прив’язаним
+          до облікового запису.
+        </p>
+        <TextField
+          label="Новий пароль"
+          type="password"
+          autoComplete="new-password"
+          minLength={12}
+          maxLength={128}
+          value={newPassword}
+          onChange={(event) => setNewPassword(event.target.value)}
+        />
+        <TextField
+          label="Повторіть новий пароль"
+          type="password"
+          autoComplete="new-password"
+          value={confirmation}
+          onChange={(event) => setConfirmation(event.target.value)}
+        />
+        <Button
+          onClick={changePassword}
+          disabled={
+            busy ||
+            !password ||
+            newPassword.length < 12 ||
+            newPassword !== confirmation ||
+            (!!state.data?.mfa_enabled && !/^\d{6}$/.test(otp))
+          }
+        >
+          Змінити пароль
+        </Button>
+        {notice && <p role="status">{notice}</p>}
+      </Card>
       <Card title="Ключ відновлення">
+        <p>
+          Перший особистий ключ видається під час активації. Він дозволяє відновити доступ, якщо втратите постійний
+          пароль або телефон.
+        </p>
         <p>
           Створення нового ключа скасує попередній. Потрібен поточний пароль і, якщо ввімкнено двоетапний вхід, новий
           код.

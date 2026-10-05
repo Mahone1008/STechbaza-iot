@@ -31,18 +31,21 @@ function parseBrowserTokenResponse(
     const sessionExpiresIn = parsePositiveInteger(value.session_expires_in);
 
     if (
-      typeof accessToken === "string"
-      && accessToken.length >= 20
-      && accessToken.length <= 8_192
-      && tokenType === "bearer"
-      && expiresIn !== null
-      && sessionExpiresIn !== null
+      typeof accessToken === "string" &&
+      accessToken.length >= 20 &&
+      accessToken.length <= 8_192 &&
+      tokenType === "bearer" &&
+      expiresIn !== null &&
+      sessionExpiresIn !== null &&
+      (value.onboarding_path == null ||
+        (typeof value.onboarding_path === "string" && /^\/connect\/[0-9a-f-]{36}$/u.test(value.onboarding_path)))
     ) {
       return {
         access_token: accessToken,
         token_type: "bearer",
         expires_in: expiresIn,
         session_expires_in: sessionExpiresIn,
+        ...(typeof value.onboarding_path === "string" ? { onboarding_path: value.onboarding_path } : {}),
       };
     }
   }
@@ -66,10 +69,7 @@ export function getBackendHealth(signal?: AbortSignal): Promise<HealthResponse> 
   });
 }
 
-export async function browserLogin(
-  payload: BrowserLoginRequest,
-  signal?: AbortSignal,
-): Promise<BrowserLoginResponse> {
+export async function browserLogin(payload: BrowserLoginRequest, signal?: AbortSignal): Promise<BrowserLoginResponse> {
   const response = await apiRequest<unknown>({
     path: BROWSER_LOGIN_PATH,
     method: "POST",

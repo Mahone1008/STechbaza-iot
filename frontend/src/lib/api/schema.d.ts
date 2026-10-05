@@ -200,23 +200,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/auth/register": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Register */
-        post: operations["register_api_v1_auth_register_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/auth/security": {
         parameters: {
             query?: never;
@@ -228,6 +211,23 @@ export interface paths {
         get: operations["security_api_v1_auth_security_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/security/password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Change Password */
+        post: operations["change_password_api_v1_auth_security_password_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -450,6 +450,23 @@ export interface paths {
         /** Equipment Selection */
         put: operations["equipment_selection_api_v1_connect__controller_id__equipment_put"];
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/connect/{controller_id}/security": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Activation Security */
+        post: operations["activation_security_api_v1_connect__controller_id__security_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1411,6 +1428,17 @@ export interface components {
             /** Detail */
             detail: string;
         };
+        /** ActivationAccessRead */
+        ActivationAccessRead: {
+            /** Login */
+            login: string;
+            /** Recovery Key */
+            recovery_key: string;
+            /** Secret */
+            secret: string;
+            /** Uri */
+            uri: string;
+        };
         /**
          * AlarmNotificationRead
          * @description Snapshot повідомлення з персональним read_at поточного користувача.
@@ -1557,6 +1585,8 @@ export interface components {
             access_token: string;
             /** Expires In */
             expires_in: number;
+            /** Onboarding Path */
+            onboarding_path?: string | null;
             /** Session Expires In */
             session_expires_in: number;
             /**
@@ -1637,10 +1667,14 @@ export interface components {
         /** ClaimRequest */
         ClaimRequest: {
             /** Activation Code */
-            activation_code: string;
+            activation_code?: string | null;
             /** Device Name */
             device_name: string;
+            /** New Password */
+            new_password?: string | null;
             new_site?: components["schemas"]["NewSite"] | null;
+            /** Otp */
+            otp?: string | null;
             /** Site Id */
             site_id?: string | null;
         };
@@ -1705,6 +1739,11 @@ export interface components {
         /** ConnectionRead */
         ConnectionRead: {
             /**
+             * Activation Required
+             * @default true
+             */
+            activation_required: boolean;
+            /**
              * Controller Id
              * Format: uuid
              */
@@ -1717,6 +1756,8 @@ export interface components {
             hardware_model: string;
             /** Last Contact At */
             last_contact_at: string | null;
+            /** Permanent Login */
+            permanent_login?: string | null;
             /** Serial Number */
             serial_number: string;
             /** Site Id */
@@ -1823,6 +1864,8 @@ export interface components {
             id: string;
             /** Is Active */
             is_active: boolean;
+            /** Login Name */
+            login_name?: string | null;
             /** Memberships */
             memberships: components["schemas"]["CurrentUserMembershipRead"][];
             /** Platform Role */
@@ -2548,6 +2591,10 @@ export interface components {
             /** Bootstrap Key */
             bootstrap_key: string;
             controller: components["schemas"]["FactoryRead"];
+            /** Login */
+            login: string;
+            /** Password */
+            password: string;
             /** Qr Path */
             qr_path: string;
             /** Setup Password */
@@ -2605,11 +2652,10 @@ export interface components {
          * @description Credentials для створення authenticated session.
          */
         LoginRequest: {
-            /**
-             * Email
-             * Format: email
-             */
-            email: string;
+            /** Controller Id */
+            controller_id?: string | null;
+            /** Email */
+            email?: string | null;
             /** Otp */
             otp?: string | null;
             /** Password */
@@ -2878,6 +2924,15 @@ export interface components {
          * @enum {string}
          */
         OrganizationRole: "owner" | "admin" | "operator" | "viewer" | "service";
+        /** PasswordChange */
+        PasswordChange: {
+            /** New Password */
+            new_password: string;
+            /** Otp */
+            otp?: string | null;
+            /** Password */
+            password: string;
+        };
         /**
          * Permission
          * @description Атомарні tenant permissions, які не залежать від HTTP endpoint.
@@ -2901,11 +2956,11 @@ export interface components {
             /** Id */
             id: string;
             /** Manual */
-            manual: string;
+            manual: string | null;
             /** Manual Pages */
             manual_pages: number[];
             /** Manual Sha256 */
-            manual_sha256: string;
+            manual_sha256: string | null;
             /** Manufacturer */
             manufacturer: string;
             /** Notes */
@@ -2920,7 +2975,7 @@ export interface components {
              * Support
              * @enum {string}
              */
-            support: "documented" | "bench_limited";
+            support: "inventory_only" | "documented" | "bench_limited";
             /** Tested Model */
             tested_model: string | null;
             /** Version */
@@ -2970,10 +3025,7 @@ export interface components {
         };
         /** RecoveryRequest */
         RecoveryRequest: {
-            /**
-             * Email
-             * Format: email
-             */
+            /** Email */
             email: string;
             /** New Password */
             new_password: string;
@@ -2987,18 +3039,6 @@ export interface components {
         RefreshTokenRequest: {
             /** Refresh Token */
             refresh_token: string;
-        };
-        /** RegisterRequest */
-        RegisterRequest: {
-            /** Display Name */
-            display_name: string;
-            /**
-             * Email
-             * Format: email
-             */
-            email: string;
-            /** Password */
-            password: string;
         };
         /** ReplacementCreate */
         ReplacementCreate: {
@@ -3539,6 +3579,10 @@ export interface components {
             controller_id: string;
             /** Generation */
             generation: number;
+            /** Login */
+            login: string;
+            /** Password */
+            password: string;
             /** Qr Path */
             qr_path: string;
         };
@@ -4073,39 +4117,6 @@ export interface operations {
             };
         };
     };
-    register_api_v1_auth_register_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RegisterRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RecoveryRead"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     security_api_v1_auth_security_get: {
         parameters: {
             query?: never;
@@ -4122,6 +4133,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SecurityRead"];
+                };
+            };
+        };
+    };
+    change_password_api_v1_auth_security_password_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordChange"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -4566,6 +4608,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ModuleRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    activation_security_api_v1_connect__controller_id__security_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                controller_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActivationAccessRead"];
                 };
             };
             /** @description Validation Error */

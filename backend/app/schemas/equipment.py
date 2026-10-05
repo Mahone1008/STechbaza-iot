@@ -1,4 +1,5 @@
 """Паспорт окремих модулів та незмінна конфігурація контролера."""
+
 import uuid
 from datetime import datetime
 from typing import Annotated, Literal
@@ -9,7 +10,9 @@ from app.schemas.command_profile import FrequencyLimits
 
 Hash = Annotated[str, Field(pattern=r"^[0-9a-f]{64}$")]
 Revision = Annotated[int, Field(strict=True, ge=1, le=2147483647)]
-EquipmentConfigurationState = Literal["legacy", "awaiting", "mismatch", "stale", "incompatible", "verified"]
+EquipmentConfigurationState = Literal[
+    "legacy", "awaiting", "mismatch", "stale", "incompatible", "verified"
+]
 
 
 class EquipmentModel(BaseModel):
@@ -27,9 +30,15 @@ class InstallationRead(InstallationCreate):
 
 class MotorNameplate(EquipmentModel):
     rated_frequency_hz: float = Field(strict=True, gt=0, le=400, allow_inf_nan=False)
-    rated_current_a: float | None = Field(default=None, strict=True, gt=0, le=10000, allow_inf_nan=False)
-    rated_voltage_v: float | None = Field(default=None, strict=True, gt=0, le=10000, allow_inf_nan=False)
-    rated_power_kw: float | None = Field(default=None, strict=True, gt=0, le=10000, allow_inf_nan=False)
+    rated_current_a: float | None = Field(
+        default=None, strict=True, gt=0, le=10000, allow_inf_nan=False
+    )
+    rated_voltage_v: float | None = Field(
+        default=None, strict=True, gt=0, le=10000, allow_inf_nan=False
+    )
+    rated_power_kw: float | None = Field(
+        default=None, strict=True, gt=0, le=10000, allow_inf_nan=False
+    )
 
 
 class ModuleCreate(EquipmentModel):
@@ -133,6 +142,7 @@ class ConfigurationCreate(EquipmentModel):
     @model_validator(mode="after")
     def limit_precision(self):
         from decimal import Decimal
+
         for value in (self.frequency_limits.min_hz, self.frequency_limits.max_hz):
             if Decimal(str(value)) * 100 % 1:
                 raise ValueError("Межі частоти мають не більше двох знаків після коми")
@@ -159,13 +169,13 @@ class ProfileRead(EquipmentModel):
     manufacturer: str
     series: str
     parameter_family: str
-    support: Literal["documented", "bench_limited"]
+    support: Literal["inventory_only", "documented", "bench_limited"]
     driver_id: str | None
     driver_version: int | None
     command_protocol: int | None
     tested_model: str | None
-    manual: str
-    manual_sha256: Hash
+    manual: str | None
+    manual_sha256: Hash | None
     manual_pages: list[int]
     notes: list[str]
 

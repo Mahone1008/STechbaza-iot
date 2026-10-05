@@ -1,15 +1,10 @@
 import { apiConfig, buildApiUrl } from "./config";
-import {
-  ApiError,
-  apiErrorKindForStatus,
-  parseRetryAfter,
-  problemMessage,
-} from "./errors";
+import { ApiError, apiErrorKindForStatus, parseRetryAfter, problemMessage } from "./errors";
 
-export type ApiQueryPrimitive = string | number | boolean | null;
-export type ApiQueryValue = ApiQueryPrimitive | readonly ApiQueryPrimitive[] | undefined;
-export type ApiQuery = Readonly<Record<string, ApiQueryValue>>;
-export type ApiMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+type ApiQueryPrimitive = string | number | boolean | null;
+type ApiQueryValue = ApiQueryPrimitive | readonly ApiQueryPrimitive[] | undefined;
+type ApiQuery = Readonly<Record<string, ApiQueryValue>>;
+type ApiMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
 export type ApiRequestOptions = Readonly<{
   path: string;

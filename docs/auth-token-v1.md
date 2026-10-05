@@ -4,7 +4,7 @@
 
 Базовий token contract запроваджено в операції 2 Етапу 6.
 Поточний login також приймає `otp`, обов'язковий для користувача з увімкненим
-TOTP. Реєстрацію, recovery та сесії описано в [onboarding contract](buyer-onboarding-v1.md).
+TOTP. Активацію з етикетки, recovery та сесії описано в [onboarding contract](buyer-onboarding-v1.md).
 Browser frontend використовує [окремий cookie flow](browser-auth-v1.md);
 JSON refresh нижче призначений для CLI.
 

@@ -14,7 +14,7 @@ const NO_AUTOMATIC_RETRY = new Set([
   "invalid-response",
 ]);
 
-export function shouldRetryApiQuery(failureCount: number, error: unknown): boolean {
+function shouldRetryApiQuery(failureCount: number, error: unknown): boolean {
   if (failureCount >= 2) return false;
   if (isApiError(error) && NO_AUTOMATIC_RETRY.has(error.kind)) return false;
   return true;

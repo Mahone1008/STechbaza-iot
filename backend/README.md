@@ -44,7 +44,7 @@ python -m unittest discover -s tests -v
 - `device_contract.py` — спільний registry каналів і підтримуваних команд.
 - `mqtt_client.py` — MQTT transport; `mqtt_ingress.py` — обробка повідомлень;
   `mqtt_diagnostics.py` — діагностичний стан; `mqtt_topics.py` — topic helpers.
-- `services/account_security.py` — реєстрація, TOTP, recovery та сесії;
+- `services/account_security.py` — відновлення доступу, TOTP, recovery та сесії;
   `services/onboarding.py` — заводський реєстр і claim; `operations` — preflight/recovery.
 - `demo`, `tools`, `tests` — simulator, операційні перевірки та регресії.
 

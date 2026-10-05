@@ -165,5 +165,24 @@
       "Визначення моделі лише за успішним читанням Modbus не підтримується.",
       "Повний сервісний каталог F/P і hardware acceptance виконуються окремо."
     ]
+  },
+  {
+    "id": "sigma.inventory",
+    "version": 1,
+    "manufacturer": "SIGMA",
+    "series": "Модель за шильдиком",
+    "parameter_family": "Не підтверджено",
+    "support": "inventory_only",
+    "driver_id": null,
+    "driver_version": null,
+    "command_protocol": null,
+    "tested_model": null,
+    "manual": null,
+    "manual_sha256": null,
+    "manual_pages": [],
+    "notes": [
+      "Лише облік обладнання. Для керування потрібні документація конкретної моделі, реалізація драйвера та фізичне приймання.",
+      "Вибір виробника не дозволяє використовувати регістри або драйвер іншої серії."
+    ]
   }
 ]

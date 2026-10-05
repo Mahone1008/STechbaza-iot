@@ -12,7 +12,7 @@ schema 0022 та firmware 0.6.0 не змінено цією роботою.
 | Область | Виправлення |
 |---|---|
 | Поточний статус і плани | Етап 2 позначено частково виконаним; CODE-01 містить виконані зміни й залишок Python CVE gate; production/hardware acceptance не оголошено завершеним |
-| Buyer/factory/account | Додано чинний контракт реєстрації, recovery, TOTP, сесій, factory, claim, паспорта й bootstrap contact; перелічено незавершені фізичні кроки |
+| Buyer/factory/account | Додано контракт активації, recovery, TOTP, сесій, factory, claim, паспорта й bootstrap contact; перелічено незавершені фізичні кроки |
 | RBAC і demo accounts | Описано `site_ids`/`expires_at`, MFA policy та вимогу MFA для factory навіть локально |
 | UI і календар | Документи ведуть до п'яти розділів; календар — окрема вкладка, паспорт/діагностика — в «Обладнанні» |
 | Оновлення й backup | Звірено версії 0.45.0/0022/0.6.0, manifest backup і NVS; додано посилання на обов'язкове перенесення account key |

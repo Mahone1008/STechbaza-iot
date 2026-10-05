@@ -393,17 +393,18 @@ export function AuthSessionProvider({ children }: Readonly<{ children: ReactNode
 
   const login = useCallback(
     async (payload: BrowserLoginRequest, signal?: AbortSignal) => {
-      await withCrossTabAuthLock(DOCUMENT_TAB_ID, async () => {
+      return withCrossTabAuthLock(DOCUMENT_TAB_ID, async () => {
         logoutIntentRef.current = false;
         logoutFallbackRef.current = null;
         const response = await browserLogin(payload, signal);
         applyTokenResponse(response, {
-          email: normalizeEmail(String(payload.email)),
+          email: normalizeEmail(String(payload.email ?? payload.controller_id ?? "")),
           source: "login",
           issuedAt: Date.now(),
           broadcast: true,
           force: true,
         });
+        return response;
       });
     },
     [applyTokenResponse],

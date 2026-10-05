@@ -155,7 +155,7 @@ Docker запускає Uvicorn з `--no-proxy-headers`: підставний X-
 
 JSON `/auth/login`, `/auth/refresh`, `/auth/logout` залишені для CLI та
 попередніх сценаріїв. Browser frontend використовує нові cookie routes.
-Реєстрація, TOTP MFA, recovery key, перелік/відкликання власних сесій та
+Активація з етикетки, TOTP MFA, recovery key, перелік/відкликання власних сесій та
 програмна частина B2B/QR onboarding уже реалізовані; [контракт і межі](buyer-onboarding-v1.md).
 Registration/recovery також вимагають exact Origin/CSRF. Публічні origins
 вмикають MFA policy привілейованого доступу; factory API вимагає MFA і локально.

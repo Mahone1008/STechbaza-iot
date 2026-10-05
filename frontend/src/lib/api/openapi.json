@@ -14,6 +14,35 @@
         "title": "AccessErrorRead",
         "type": "object"
       },
+      "ActivationAccessRead": {
+        "additionalProperties": false,
+        "properties": {
+          "login": {
+            "title": "Login",
+            "type": "string"
+          },
+          "recovery_key": {
+            "title": "Recovery Key",
+            "type": "string"
+          },
+          "secret": {
+            "title": "Secret",
+            "type": "string"
+          },
+          "uri": {
+            "title": "Uri",
+            "type": "string"
+          }
+        },
+        "required": [
+          "secret",
+          "uri",
+          "login",
+          "recovery_key"
+        ],
+        "title": "ActivationAccessRead",
+        "type": "object"
+      },
       "AlarmNotificationRead": {
         "description": "Snapshot повідомлення з персональним read_at поточного користувача.",
         "properties": {
@@ -409,6 +438,17 @@
             "title": "Expires In",
             "type": "integer"
           },
+          "onboarding_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Onboarding Path"
+          },
           "session_expires_in": {
             "title": "Session Expires In",
             "type": "integer"
@@ -574,16 +614,36 @@
         "additionalProperties": false,
         "properties": {
           "activation_code": {
-            "maxLength": 100,
-            "minLength": 32,
-            "title": "Activation Code",
-            "type": "string"
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "minLength": 32,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activation Code"
           },
           "device_name": {
             "maxLength": 160,
             "minLength": 2,
             "title": "Device Name",
             "type": "string"
+          },
+          "new_password": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 12,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "New Password"
           },
           "new_site": {
             "anyOf": [
@@ -594,6 +654,18 @@
                 "type": "null"
               }
             ]
+          },
+          "otp": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9]{6}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Otp"
           },
           "site_id": {
             "anyOf": [
@@ -609,7 +681,6 @@
           }
         },
         "required": [
-          "activation_code",
           "device_name"
         ],
         "title": "ClaimRequest",
@@ -765,6 +836,11 @@
       "ConnectionRead": {
         "additionalProperties": false,
         "properties": {
+          "activation_required": {
+            "default": true,
+            "title": "Activation Required",
+            "type": "boolean"
+          },
           "controller_id": {
             "format": "uuid",
             "title": "Controller Id",
@@ -808,6 +884,17 @@
               }
             ],
             "title": "Last Contact At"
+          },
+          "permanent_login": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Permanent Login"
           },
           "serial_number": {
             "title": "Serial Number",
@@ -1084,6 +1171,17 @@
           "is_active": {
             "title": "Is Active",
             "type": "boolean"
+          },
+          "login_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Login Name"
           },
           "memberships": {
             "items": {
@@ -2924,6 +3022,14 @@
           "controller": {
             "$ref": "#/components/schemas/FactoryRead"
           },
+          "login": {
+            "title": "Login",
+            "type": "string"
+          },
+          "password": {
+            "title": "Password",
+            "type": "string"
+          },
           "qr_path": {
             "title": "Qr Path",
             "type": "string"
@@ -2938,7 +3044,9 @@
           "qr_path",
           "activation_code",
           "bootstrap_key",
-          "setup_password"
+          "setup_password",
+          "login",
+          "password"
         ],
         "title": "FactorySecrets",
         "type": "object"
@@ -3055,12 +3163,33 @@
         "type": "object"
       },
       "LoginRequest": {
+        "additionalProperties": false,
         "description": "Credentials для створення authenticated session.",
         "properties": {
+          "controller_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Controller Id"
+          },
           "email": {
-            "format": "email",
-            "title": "Email",
-            "type": "string"
+            "anyOf": [
+              {
+                "maxLength": 320,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
           },
           "otp": {
             "anyOf": [
@@ -3082,7 +3211,6 @@
           }
         },
         "required": [
-          "email",
           "password"
         ],
         "title": "LoginRequest",
@@ -3806,6 +3934,41 @@
         "title": "OrganizationRole",
         "type": "string"
       },
+      "PasswordChange": {
+        "additionalProperties": false,
+        "properties": {
+          "new_password": {
+            "maxLength": 128,
+            "minLength": 12,
+            "title": "New Password",
+            "type": "string"
+          },
+          "otp": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9]{6}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Otp"
+          },
+          "password": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "password",
+          "new_password"
+        ],
+        "title": "PasswordChange",
+        "type": "object"
+      },
       "Permission": {
         "description": "Атомарні tenant permissions, які не залежать від HTTP endpoint.",
         "enum": [
@@ -3880,8 +4043,15 @@
             "type": "string"
           },
           "manual": {
-            "title": "Manual",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Manual"
           },
           "manual_pages": {
             "items": {
@@ -3891,9 +4061,16 @@
             "type": "array"
           },
           "manual_sha256": {
-            "pattern": "^[0-9a-f]{64}$",
-            "title": "Manual Sha256",
-            "type": "string"
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Manual Sha256"
           },
           "manufacturer": {
             "title": "Manufacturer",
@@ -3921,6 +4098,7 @@
           },
           "support": {
             "enum": [
+              "inventory_only",
               "documented",
               "bench_limited"
             ],
@@ -4098,7 +4276,8 @@
         "additionalProperties": false,
         "properties": {
           "email": {
-            "format": "email",
+            "maxLength": 320,
+            "minLength": 1,
             "title": "Email",
             "type": "string"
           },
@@ -4137,35 +4316,6 @@
           "refresh_token"
         ],
         "title": "RefreshTokenRequest",
-        "type": "object"
-      },
-      "RegisterRequest": {
-        "additionalProperties": false,
-        "properties": {
-          "display_name": {
-            "maxLength": 160,
-            "minLength": 2,
-            "title": "Display Name",
-            "type": "string"
-          },
-          "email": {
-            "format": "email",
-            "title": "Email",
-            "type": "string"
-          },
-          "password": {
-            "maxLength": 128,
-            "minLength": 12,
-            "title": "Password",
-            "type": "string"
-          }
-        },
-        "required": [
-          "email",
-          "display_name",
-          "password"
-        ],
-        "title": "RegisterRequest",
         "type": "object"
       },
       "ReplacementCreate": {
@@ -5382,6 +5532,14 @@
             "title": "Generation",
             "type": "integer"
           },
+          "login": {
+            "title": "Login",
+            "type": "string"
+          },
+          "password": {
+            "title": "Password",
+            "type": "string"
+          },
           "qr_path": {
             "title": "Qr Path",
             "type": "string"
@@ -5391,7 +5549,9 @@
           "controller_id",
           "qr_path",
           "activation_code",
-          "generation"
+          "generation",
+          "login",
+          "password"
         ],
         "title": "TransferRead",
         "type": "object"
@@ -5440,7 +5600,7 @@
   "info": {
     "description": "Backend API платформи TechBaza IoT Pump Control",
     "title": "TechBaza Backend",
-    "version": "0.46.0"
+    "version": "0.47.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -5961,47 +6121,6 @@
         ]
       }
     },
-    "/api/v1/auth/register": {
-      "post": {
-        "operationId": "register_api_v1_auth_register_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RegisterRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RecoveryRead"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Register",
-        "tags": [
-          "account-security"
-        ]
-      }
-    },
     "/api/v1/auth/security": {
       "get": {
         "operationId": "security_api_v1_auth_security_get",
@@ -6023,6 +6142,45 @@
           }
         ],
         "summary": "Security",
+        "tags": [
+          "account-security"
+        ]
+      }
+    },
+    "/api/v1/auth/security/password": {
+      "post": {
+        "operationId": "change_password_api_v1_auth_security_password_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordChange"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Change Password",
         "tags": [
           "account-security"
         ]
@@ -6831,6 +6989,54 @@
           }
         ],
         "summary": "Equipment Selection",
+        "tags": [
+          "onboarding"
+        ]
+      }
+    },
+    "/api/v1/connect/{controller_id}/security": {
+      "post": {
+        "operationId": "activation_security_api_v1_connect__controller_id__security_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "controller_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Controller Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActivationAccessRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Activation Security",
         "tags": [
           "onboarding"
         ]

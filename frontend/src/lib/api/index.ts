@@ -7,34 +7,18 @@ export {
   getBackendHealth,
   type BrowserLoginRequest,
   type BrowserLoginResponse,
-  type HealthResponse,
 } from "./endpoints";
+export { ApiError, apiErrorDisplayMessage, isApiError } from "./errors";
 export {
-  ApiError,
-  apiErrorDisplayMessage,
-  isApiError,
-  type ApiErrorKind,
-} from "./errors";
-export {
-  isPermissionCode,
   organizationRoleLabel,
   parseCurrentUserResponse,
   parseOrganizationAccessResponse,
   parseOrganizationListResponse,
-  permissionCodes,
   type CurrentUserResponse,
   type OrganizationAccessResponse,
-  type OrganizationListResponse,
   type OrganizationResponse,
-  type OrganizationRole,
   type PermissionCode,
-  type PlatformRole,
 } from "./access";
 export { apiQueryKeys, type SessionScope } from "./query-keys";
-export {
-  clearAllSessionCaches,
-  clearSessionCache,
-  createKerumoQueryClient,
-  shouldRetryApiQuery,
-} from "./query-client";
-export type { paths, components, operations } from "./schema";
+export { clearAllSessionCaches, clearSessionCache, createKerumoQueryClient } from "./query-client";
+export type { components } from "./schema";

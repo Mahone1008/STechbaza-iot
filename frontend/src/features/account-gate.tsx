@@ -12,16 +12,13 @@ export function AccountGate({ children, returnTo }: { children: ReactNode; retur
   if (session.status === "anonymous")
     return (
       <Card title="Підключення до вашого облікового запису">
-        <p>Увійдіть або зареєструйтеся. Після входу продовжимо з цього місця.</p>
+        <p>Увійдіть за виданими логіном і паролем. Для першого підключення відкрийте QR контролера.</p>
         <div className="ui-row">
           <Link className="button button-primary" href={`/login?returnTo=${encodeURIComponent(returnTo)}` as Route}>
             Увійти
           </Link>
-          <Link
-            className="button button-secondary"
-            href={`/register?returnTo=${encodeURIComponent(returnTo)}` as Route}
-          >
-            Створити обліковий запис
+          <Link className="button button-secondary" href="/connect">
+            Активувати контролер за QR
           </Link>
         </div>
       </Card>

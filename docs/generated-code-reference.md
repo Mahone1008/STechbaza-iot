@@ -8,14 +8,14 @@ CI звіряє його з tracked code. Це перелік реалізаці
 
 | Компонент | Значення з коду |
 |---|---|
-| Backend / OpenAPI / health | 0.46.0 |
-| Alembic head | `20261005_0023`; 23 міграцій |
+| Backend / OpenAPI / health | 0.47.0 |
+| Alembic head | `20261005_0024`; 24 міграцій |
 | Frontend package | 0.1.0 |
 | Node engine | `>=20.9.0` |
 | Package manager | `npm@10.9.2` |
 | Next.js / React | 16.3.6 / 19.2.8 |
 | Firmware V3 | 0.7.0 |
-| OpenAPI paths | 80 |
+| OpenAPI paths | 81 |
 
 ## Канали телеметрії
 
@@ -94,8 +94,8 @@ ACK/Result лишаються v1. Дозвіл API не замінює лока�
 | `/api/v1/auth/me` | GET |
 | `/api/v1/auth/recover` | POST |
 | `/api/v1/auth/refresh` | POST |
-| `/api/v1/auth/register` | POST |
 | `/api/v1/auth/security` | GET |
+| `/api/v1/auth/security/password` | POST |
 | `/api/v1/auth/security/recovery` | POST |
 | `/api/v1/auth/security/totp/confirm` | POST |
 | `/api/v1/auth/security/totp/setup` | POST |
@@ -110,6 +110,7 @@ ACK/Result лишаються v1. Дозвіл API не замінює лока�
 | `/api/v1/connect/{controller_id}/access/{operation}` | POST |
 | `/api/v1/connect/{controller_id}/claim` | POST |
 | `/api/v1/connect/{controller_id}/equipment` | PUT |
+| `/api/v1/connect/{controller_id}/security` | POST |
 | `/api/v1/connect/{controller_id}/status` | GET |
 | `/api/v1/devices/{device_id}` | GET |
 | `/api/v1/devices/{device_id}/alarms` | GET |

@@ -9,7 +9,13 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from app.operations.backup import BUNDLE_FILES, create_manifest, sqlite_copy, sqlite_fingerprint, verify_bundle
+from app.operations.backup import (
+    BUNDLE_FILES,
+    create_manifest,
+    sqlite_copy,
+    sqlite_fingerprint,
+    verify_bundle,
+)
 
 
 class BackupTests(unittest.TestCase):
@@ -55,7 +61,8 @@ class BackupTests(unittest.TestCase):
 
     def test_patch_release_keeps_previous_backup_compatible(self):
         manifest = self.bundle()
-        self.assertEqual(manifest["backend"], "0.46.0")
+        self.assertEqual(manifest["backend"], "0.47.0")
+        self.assertEqual(manifest["migration"], "20261005_0024")
         for version in ("0.37.0", "0.37.1", "0.37.2", "0.37.3"):
             manifest["backend"] = version
             manifest["migration"] = "20260926_0017"
@@ -69,6 +76,10 @@ class BackupTests(unittest.TestCase):
         manifest["migration"] = "20261002_0022"
         (self.root / "manifest.json").write_text(json.dumps(manifest))
         self.assertEqual(verify_bundle(self.root)["backend"], "0.45.0")
+        manifest["backend"] = "0.46.0"
+        manifest["migration"] = "20261005_0023"
+        (self.root / "manifest.json").write_text(json.dumps(manifest))
+        self.assertEqual(verify_bundle(self.root)["backend"], "0.46.0")
         manifest["backend"] = "0.36.0"
         (self.root / "manifest.json").write_text(json.dumps(manifest))
         with self.assertRaises(ValueError):
@@ -79,7 +90,9 @@ class BackupTests(unittest.TestCase):
         connection = sqlite3.connect(source)
         self.addCleanup(connection.close)
         connection.execute("PRAGMA journal_mode=WAL")
-        connection.executescript("CREATE TABLE devices(id TEXT PRIMARY KEY, value INT); CREATE TABLE commands(id TEXT, pending INT);")
+        connection.executescript(
+            "CREATE TABLE devices(id TEXT PRIMARY KEY, value INT); CREATE TABLE commands(id TEXT, pending INT);"
+        )
         connection.execute("INSERT INTO devices VALUES ('pump', 33)")
         connection.execute("INSERT INTO commands VALUES ('command-1', 1)")
         connection.commit()
@@ -114,6 +127,7 @@ class BackupTests(unittest.TestCase):
 
     def test_restore_mutations_require_isolated_acceptance_mode(self):
         from app.demo.backup_check import require_target
+
         with patch.dict(os.environ, {"TECHBAZA_DEMO_MODE": "1", "TECHBAZA_ACCEPTANCE_MODE": "0"}):
             with self.assertRaises(RuntimeError):
                 require_target()

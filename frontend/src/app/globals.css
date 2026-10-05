@@ -686,4 +686,7 @@ h1, h2, h3 { letter-spacing: -0.02em; }
   body:has(.factory-label) * { visibility: hidden; }
   body:has(.factory-label) .factory-label, body:has(.factory-label) .factory-label * { visibility: visible; }
   body:has(.factory-label) .factory-label { position: absolute; left: 0; top: 0; border: 0; }
+  .factory-private-label { display: none; }
+  body:has([data-buyer-print="true"]) .factory-public-label { display: none; }
+  body:has([data-buyer-print="true"]) .factory-private-label { display: grid; }
 }

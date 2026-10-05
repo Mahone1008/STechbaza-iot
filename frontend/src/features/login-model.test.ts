@@ -3,7 +3,11 @@ import { describe, expect, it } from "vitest";
 import { loginErrorPresentation, safeLoginReturnTo, validateLoginForm } from "@/features/login-model";
 import { ApiError } from "@/lib/api";
 
-function apiError(kind: ConstructorParameters<typeof ApiError>[1]["kind"], status: number | null, retryAfterSeconds: number | null = null) {
+function apiError(
+  kind: ConstructorParameters<typeof ApiError>[1]["kind"],
+  status: number | null,
+  retryAfterSeconds: number | null = null,
+) {
   return new ApiError("backend detail", {
     kind,
     status,
@@ -24,15 +28,27 @@ describe("login form model", () => {
 
   it("rejects malformed email, missing password and an oversized password", () => {
     expect(validateLoginForm({ email: "owner", password: "" }).errors).toEqual({
-      email: expect.stringContaining("коректний email"),
+      email: expect.stringContaining("логін із комплекту"),
       password: "Введіть пароль.",
     });
-    expect(validateLoginForm({ email: "owner@example.com", password: "x".repeat(129) }).errors.password).toContain("128");
+    expect(validateLoginForm({ email: "owner@example.com", password: "x".repeat(129) }).errors.password).toContain(
+      "128",
+    );
+  });
+
+  it("accepts the printed controller login without an email address", () => {
+    expect(
+      validateLoginForm({ email: "  KR-017CA46D342C4AB6BD1C89A602021951-G1  ", password: "label-password" }).errors,
+    ).toEqual({});
+  });
+
+  it("accepts the permanent login", () => {
+    expect(validateLoginForm({ email: "ku-017ca46d342c4ab6bd1c89a602021951", password: "permanent" }).errors).toEqual({});
   });
 
   it("keeps invalid credentials generic", () => {
     const presentation = loginErrorPresentation(apiError("unauthorized", 401));
-    expect(presentation.summary).toBe("Невірний email або пароль.");
+    expect(presentation.summary).toBe("Невірний логін або пароль.");
     expect(presentation.clearPassword).toBe(true);
     expect(presentation.fieldErrors.password).toBeTruthy();
   });

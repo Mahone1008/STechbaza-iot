@@ -19,7 +19,7 @@
 | Екран або дія | Запити | Важлива поведінка |
 |---|---|---|
 | Вхід | `POST /auth/browser/login`, `GET /auth/me` | Browser flow 0.33.0: [cookie, refresh та CORS](browser-auth-v1.md); JWT перевіряється разом із server-side session |
-| Реєстрація / recovery / security | `/auth/register`, `/auth/recover`, `/auth/security*`, `/auth/sessions*` | [Account contract](buyer-onboarding-v1.md); секрети одноразові, сесії лише власні |
+| Активація / recovery / security | `/connect/{id}/security`, `/auth/recover`, `/auth/security*`, `/auth/sessions*` | [Account contract](buyer-onboarding-v1.md); секрети одноразові, сесії лише власні |
 | Підключення покупця / завод | `/connect/*`, `/factory/controllers*` | Окремий activation code; завод — superadmin + MFA; фізичний onboarding ще відкритий |
 | Вибір клієнта | `GET /organizations` | Лише доступні організації; superadmin має глобальний доступ |
 | Меню клієнта | `GET /organizations/{id}/access` | Поточні permissions, без копії таблиці ролей у UI |
