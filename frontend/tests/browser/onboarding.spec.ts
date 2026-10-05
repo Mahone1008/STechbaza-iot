@@ -27,6 +27,8 @@ const connection: Schema["ConnectionRead"] = {
   firmware_version: null,
 };
 const controller: Schema["FactoryRead"] = {
+  access_revoked: false,
+  credential_revision: 0,
   id,
   serial_number: connection.serial_number,
   hardware_model: connection.hardware_model,
@@ -220,6 +222,7 @@ test("factory requires a passed test, issues one kit and records a shipment", as
     qr_path: `/connect/${id}`,
     activation_code: activation,
     bootstrap_key: "b".repeat(43),
+    setup_password: "local-test-password-only",
   };
   await route(page, "factory/controllers*", async (request) => {
     if (request.request().method() === "POST") {

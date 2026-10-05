@@ -1,4 +1,4 @@
-from app.models.onboarding import FactoryController, FactoryAudit, PersonalWorkspace, AccountSecurity
+from app.models.onboarding import FactoryController, FactoryAudit, PersonalWorkspace, AccountSecurity, ControllerCredential
 from app.models.alarm_rule_state import DeviceAlarmRuleState
 from app.models.auth_session import AuthSession
 from app.models.auth_rate_limit import AuthRateLimit
@@ -17,7 +17,7 @@ from app.models.schedule import DeviceSchedule, ScheduleOccurrence, ScheduleRevi
 from app.models.equipment import PumpInstallation, EquipmentModule, EquipmentConfiguration
 
 __all__ = [
-    "FactoryController", "FactoryAudit", "PersonalWorkspace", "AccountSecurity",
+    "FactoryController", "FactoryAudit", "PersonalWorkspace", "AccountSecurity", "ControllerCredential",
     "PumpInstallation", "EquipmentModule", "EquipmentConfiguration",
     "AlarmNotification",
     "NotificationRead",

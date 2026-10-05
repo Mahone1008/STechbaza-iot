@@ -17,15 +17,15 @@ frontend — `d51841d`. Backend **0.38.0**, PostgreSQL **16**, 17 migrations.
 
 | Область | Перевірений стан | Наступна робота |
 |---|---|---|
-| База даних | PostgreSQL, SQLAlchemy, 22 Alembic migrations; доменні дані, schedules, equipment modules/binding, account security та factory/claim audit | Повний ownership/replacement lifecycle, instance channels, production retention, backup/PITR і capacity |
-| Backend | 0.45.0; command v2/v3, sequence/Stop/TTL, програми й календар, пізні ACK/Result, guards при dispatch; account/onboarding API | Production settings, lifecycle identities, масштабування runtime |
-| Frontend | Етапи 9–14, п'ять розділів пристрою, account/factory/claim; [поточне звірення](audit-2026-10-05-documentation.md). Windows baseline 29.09 лишається історичним | Завершення manual acceptance, UX реального обладнання й configuration/provisioning flows |
-| Прошивка | Arduino V3 0.6.0, SU600 driver, portable core, NVS/Modbus adapters, native tests і ESP32 builds; programs/schedules та managed binding | Фізичне приймання 0.6.0, phone Wi-Fi/bootstrap, hardware fault/soak, production runtime, OTA |
-| MQTT | Mosquitto/QoS 1; V3 LAN gateway TLS, device password/ACL, bridge; внутрішній local/demo broker anonymous | Production credentials lifecycle, rotation/revocation, backend transport identity та fleet isolation |
+| База даних | PostgreSQL, SQLAlchemy, 23 Alembic migrations; доменні дані, schedules, equipment modules/binding, account security та factory/claim audit | Фізичне приймання ownership/replacement lifecycle, instance channels, production retention, backup/PITR і capacity |
+| Backend | 0.46.0; command v2/v3, sequence/Stop/TTL, програми й календар, пізні ACK/Result, guards при dispatch; account/onboarding API | Production settings, приймання lifecycle identities, масштабування runtime |
+| Frontend | Етапи 9–14, п'ять розділів пристрою, account/factory/claim; [поточне звірення](audit-2026-10-05-documentation.md). Windows baseline 29.09 лишається історичним | Завершення manual acceptance, UX реального обладнання й приймання configuration/provisioning flows |
+| Прошивка | Arduino V3 0.7.0, SU600 driver, portable core, NVS/Modbus adapters, native tests і ESP32 builds; programs/schedules та managed binding | Фізичне приймання 0.7.0 і phone Wi-Fi/bootstrap, hardware fault/soak, production runtime, OTA |
+| MQTT | Mosquitto/QoS 1; V3 LAN gateway TLS, device password/ACL, bridge; внутрішній local/demo broker anonymous | Production rollout credentials lifecycle, backend transport identity та fleet isolation |
 | Модульність | Одна capability кожного типу на Device; фіксовані v1 channel keys | Для двох однотипних датчиків потрібен instance/channel contract через усю систему |
-| Runtime | API lifespan запускає MQTT та два фонові workers; MQTT client ID фіксований | Розділити ролі процесів до горизонтального масштабування, перевірити ownership workers |
+| Runtime | API lifespan запускає MQTT, command/system workers та optional credential reconciliation worker; MQTT client ID фіксований | Розділити ролі процесів до горизонтального масштабування, перевірити ownership workers |
 | Backup | Є перевірене ізольоване demo backup/restore з recovery policy | Production storage, WAL/PITR, захист ключів, виміряні RPO/RTO, restore drill |
-| Buyer onboarding | Реєстрація/recovery/TOTP/сесії, заводський реєстр/постачання, claim та паспорт | QR-друк, firmware enrollment, передача/повернення/reset і наскрізне фізичне приймання; [етап 2](buyer-onboarding-v1.md) |
+| Buyer onboarding | Реєстрація/recovery/TOTP/сесії, заводський реєстр/постачання, claim та паспорт | QR-друк, Wi-Fi/enrollment, заміна/передача/reset реалізовані; лишається фізичне приймання [етапу 2](stage2-acceptance.md) |
 | Обладнання | V3 ESP32-S3 N16R8 / SU600: читання, моторне керування й три зупинки прийняті 30.09 у конкретних циклах | Повний BOM/схема захисту, решта fault matrix, незалежні вимірювання й польовий пілот; V4 очікує 4G |
 
 Докази: [Етап 14](dossier-v3.5-stage-14-frontend-test-baseline.md),
@@ -43,8 +43,8 @@ frontend/command змін уже виконано після дати того �
 | P0.1 | Windows baseline 29.09; CI та defect audit 30.09 | Точний Windows SHA, решта manual/multi-role/mobile сценаріїв |
 | P0.2 | V3 source, N16R8, SU600 profile/pins, показані шильдики двигуна/VFD | Повний BOM/схема захисту та modem revision після доставки |
 | P0.3–P0.4 | TTL/Stop/replay правила, три фізичні зупинки | Повна погоджена safety/fault matrix, ADR та межі продукту |
-| P1 | Command v2/v3, паспорти повторних модулів і desired/applied config; schema 0022 | Instance-aware telemetry, retention/rollups, фізичне приймання config lifecycle |
-| P2.1–P2.2 | V3 TLS/device ACL; заводський реєстр, bootstrap key, одноразовий buyer claim | Firmware enrollment, ротація/відкликання, backend identity; передача/reset ще відкриті |
+| P1 | Command v2/v3, паспорти повторних модулів і desired/applied config; schema 0023 | Instance-aware telemetry, retention/rollups, фізичне приймання config lifecycle |
+| P2.1–P2.2 | V3 TLS/device ACL; заводський реєстр, bootstrap key, одноразовий buyer claim | Enrollment, MQTT rotation/revocation і передача/reset реалізовані; production identity rollout та фізичне приймання відкриті |
 | P3.1–P3.2 | Arduino build/CI та SU600 read-only перевірені | Повний board acceptance і рішення щодо production framework |
 | P3.3–P3.4 | V3 telemetry через Wi-Fi доходить до UI | Додаткові сенсори, повний storage/quality/fault acceptance |
 | P4.1–P4.2 | START/STOP/frequency, повторний RUN, NVS ledger; gateway/DISARM/ESP power stop | Вся interlock/fault matrix, точні затримки, фактичне Wi-Fi/RS485 fault injection |

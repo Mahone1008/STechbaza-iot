@@ -54,6 +54,15 @@ class ModuleCreate(EquipmentModel):
 class ModuleRead(ModuleCreate):
     id: uuid.UUID
     device_id: uuid.UUID
+    retired_at: datetime | None = None
+
+
+class ReplacementCreate(EquipmentModel):
+    expected_module_id: uuid.UUID
+    expected_revision: int = Field(strict=True, ge=0, le=2147483646)
+    replacement: ModuleCreate
+    stopped_and_isolated: Literal[True]
+    reason: str = Field(min_length=5, max_length=240)
 
 
 class BusSettings(EquipmentModel):
@@ -119,6 +128,7 @@ class ConfigurationCreate(EquipmentModel):
     profile_version: Revision
     bus: BusSettings
     frequency_limits: FrequencyLimits
+    motor: MotorNameplate | None = None
 
     @model_validator(mode="after")
     def limit_precision(self):
@@ -134,6 +144,12 @@ class ConfigurationRead(EquipmentModel):
     configuration_hash: Hash
     created_at: datetime
     actor_user_id: uuid.UUID
+
+
+class CommissionRequest(EquipmentModel):
+    expected_revision: Revision
+    installation_checked: Literal[True]
+    control_mode: Literal["read_only", "bench_without_motor", "extended_test"] = "read_only"
 
 
 class ProfileRead(EquipmentModel):
@@ -163,3 +179,4 @@ class EquipmentPassport(EquipmentModel):
     desired: ConfigurationRead | None
     reported: EquipmentReport | None
     configuration_state: EquipmentConfigurationState
+    controller_id: uuid.UUID | None = None

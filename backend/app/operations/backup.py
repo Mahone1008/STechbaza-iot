@@ -35,7 +35,7 @@ def create_manifest(directory, revision):
         if not path.is_file() or path.is_symlink() or path.stat().st_size == 0:
             raise ValueError("Неповний backup bundle: " + name)
         files[name] = {"sha256": file_hash(path), "bytes": path.stat().st_size}
-    value = {"format": 1, "backend": "0.45.0", "migration": "20261002_0022",
+    value = {"format": 1, "backend": "0.46.0", "migration": "20261005_0023",
              "postgres_major": 16, "git_revision": revision, "files": files}
     write_private_json(root / "manifest.json", value)
     return value
@@ -52,6 +52,7 @@ def verify_bundle(directory):
     versions["0.43.0"] = "20261001_0020"
     versions["0.44.0"] = "20261002_0021"
     versions["0.45.0"] = "20261002_0022"
+    versions["0.46.0"] = "20261005_0023"
     if (value.get("format") != 1 or value.get("backend") not in versions
             or value.get("migration") != versions.get(value.get("backend")) or value.get("postgres_major") != 16
             or set(value.get("files", {})) != BUNDLE_FILES):

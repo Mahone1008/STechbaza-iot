@@ -33,10 +33,10 @@ def new_key() -> str:
     return secrets.token_urlsafe(32)
 
 
-def secret_box() -> MultiFernet:
+def secret_box(purpose: str = "totp") -> MultiFernet:
     boxes = []
     for root in ACCOUNT_KEYS:
-        key = hmac.new(root.encode(), b"kerumo:totp:encryption:v1", hashlib.sha256).digest()
+        key = hmac.new(root.encode(), f"kerumo:{purpose}:encryption:v1".encode(), hashlib.sha256).digest()
         boxes.append(Fernet(base64.urlsafe_b64encode(key)))
     return MultiFernet(boxes)
 

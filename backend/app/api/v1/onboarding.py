@@ -1,11 +1,11 @@
 import uuid
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, Response
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.api.auth_throttle import throttle_auth
+from app.api.auth_throttle import throttle_auth, throttle_bootstrap
 from app.db import get_db_session
 from app.repositories.factory import FactoryRepository
 from app.schemas.equipment import ModuleRead
@@ -18,6 +18,7 @@ from app.schemas.onboarding import (
     FactoryRead,
     FactorySecrets,
     ShipmentRequest,
+    BootstrapConfiguration, ControllerOperation, ControllerStatus, TransferRead, FactoryQuarantine, FactoryReset,
 )
 from app.schemas.site import SiteRead
 from app.security.authorization import AccessControl
@@ -151,3 +152,58 @@ def bootstrap_contact(
     )
     response.headers["Cache-Control"] = "no-store"
     return contact_controller(session, controller_id, payload, token)
+
+
+@router.post("/bootstrap/{controller_id}/configuration", response_model=BootstrapConfiguration)
+def bootstrap_configuration(controller_id: uuid.UUID, payload: BootstrapContact, request: Request,
+                            response: Response, session: Db,
+                            authorization: Annotated[str | None, Header(max_length=128)] = None):
+    from app.services.controller_lifecycle import bootstrap_configuration as configure
+    throttle_bootstrap(request, session, controller_id)
+    response.headers["Cache-Control"] = "no-store"
+    token = authorization.removeprefix("Bearer ") if authorization and authorization.startswith("Bearer ") else ""
+    return configure(session, controller_id, payload, token)
+
+
+@router.get("/connect/{controller_id}/status", response_model=ControllerStatus)
+def lifecycle_status(controller_id: uuid.UUID, current: Current, session: Db, response: Response):
+    from app.services.controller_lifecycle import controller_status
+    response.headers["Cache-Control"] = "no-store"
+    return controller_status(session, current, controller_id)
+
+
+@router.post("/connect/{controller_id}/access/{operation}", response_model=ControllerStatus | TransferRead)
+def controller_operation(controller_id: uuid.UUID, operation: Literal["rotate", "revoke", "release"],
+                         payload: ControllerOperation, request: Request, response: Response, current: Current, session: Db):
+    from app.services.controller_lifecycle import operate
+    from app.services.equipment import EquipmentConflict
+    throttle_auth(request, session, email=f"controller-operation:{current.user.id}")
+    response.headers["Cache-Control"] = "no-store"
+    try:
+        return operate(session, current, controller_id, operation, payload)
+    except EquipmentConflict as exc:
+        raise HTTPException(409, str(exc)) from exc
+
+
+@router.post("/factory/controllers/{controller_id}/quarantine", response_model=FactoryRead)
+def quarantine_controller(controller_id: uuid.UUID, payload: FactoryQuarantine, current: Current, session: Db):
+    from app.services import controller_credentials as credentials
+    from app.services.onboarding import audit, locked_controller
+    manufacturer(session, current)
+    row = locked_controller(session, controller_id)
+    row.status, row.bootstrap_hash, row.activation_hash = "quarantined", None, None
+    if row.device_id:
+        credentials.revoke(session, row)
+    audit(session, row, current, "quarantined", reason=payload.reason)
+    session.commit()
+    if row.device_id:
+        credentials.synchronize(row.device_id)
+    return row
+
+
+@router.post("/factory/controllers/{controller_id}/reset", response_model=FactorySecrets)
+def reset_controller(controller_id: uuid.UUID, payload: FactoryReset, current: Current, session: Db, response: Response):
+    from app.services.controller_lifecycle import factory_reset
+    manufacturer(session, current)
+    response.headers["Cache-Control"] = "no-store"
+    return factory_reset(session, current, controller_id, payload)

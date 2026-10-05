@@ -10,7 +10,7 @@ from app.models.equipment import PumpInstallation
 from app.models.site import Site
 from app.schemas.equipment import (
     ConfigurationCreate, ConfigurationRead, EquipmentPassport, InstallationCreate,
-    InstallationRead, ModuleCreate, ModuleRead, ProfileRead,
+    InstallationRead, ModuleCreate, ModuleRead, ProfileRead, ReplacementCreate, CommissionRequest,
 )
 from app.security.authorization import AccessControl
 from app.security.current_user import CurrentUserContext, get_current_user_context
@@ -74,3 +74,21 @@ def equipment_manifest(device_id: uuid.UUID, session: DbSession, current: Curren
         raise HTTPException(404, "Конфігурацію ще не створено")
     return Response(row.canonical_manifest, media_type="application/json",
                     headers={"ETag": f'"{row.configuration_hash}"', "Cache-Control": "no-store"})
+
+
+@router.post("/devices/{device_id}/equipment/replacement", response_model=ModuleRead, status_code=201)
+def replace_equipment(device_id: uuid.UUID, payload: ReplacementCreate, session: DbSession, current: CurrentUser):
+    AccessControl(session, current).require_device(device_id, Permission.CAPABILITY_MANAGE)
+    try:
+        return EquipmentService(session).replace(device_id, payload, current)
+    except EquipmentConflict as exc:
+        raise HTTPException(409, str(exc)) from exc
+
+
+@router.post("/devices/{device_id}/equipment/commission", response_model=EquipmentPassport)
+def commission_equipment(device_id: uuid.UUID, payload: CommissionRequest, session: DbSession, current: CurrentUser):
+    from app.services.controller_lifecycle import commission
+    try:
+        return commission(session, current, device_id, payload)
+    except EquipmentConflict as exc:
+        raise HTTPException(409, str(exc)) from exc

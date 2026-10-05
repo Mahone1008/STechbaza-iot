@@ -34,6 +34,7 @@ class EquipmentModule(TimestampMixin, Base):
     hardware_revision: Mapped[str | None] = mapped_column(String(80))
     software_revision: Mapped[str | None] = mapped_column(String(80))
     motor: Mapped[dict[str, Any] | None] = mapped_column(JSONB(none_as_null=True))
+    retired_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class EquipmentConfiguration(Base):

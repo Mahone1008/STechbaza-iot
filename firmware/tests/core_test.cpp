@@ -520,7 +520,7 @@ void calendarWeekExecution() {
 
 #include "equipment_test.h"
 int main() {
-  driverIndependence(); equipmentBindingAndJournal();
+  driverIndependence(); equipmentBindingAndJournal(); provisioningIdentity();
   calendarExecution(); calendarParsingAndMigration(); calendarWeekExecution();
   programExecution(); programCancellationAndRecovery(); programBoundaries(); programParsingAndMigration();
   readOnlyAndConfiguration(); timingAndOrdering(); echoIsNotPhysicalResult(); duplicateAndRestart();

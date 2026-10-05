@@ -291,6 +291,96 @@
         "title": "AlarmTransitionRead",
         "type": "object"
       },
+      "BootstrapConfiguration": {
+        "additionalProperties": false,
+        "properties": {
+          "configuration_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Configuration Hash"
+          },
+          "credential_revision": {
+            "default": 0,
+            "title": "Credential Revision",
+            "type": "integer"
+          },
+          "device_uid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device Uid"
+          },
+          "manifest": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Manifest"
+          },
+          "mqtt_host": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mqtt Host"
+          },
+          "mqtt_password": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mqtt Password"
+          },
+          "mqtt_port": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mqtt Port"
+          },
+          "state": {
+            "enum": [
+              "waiting",
+              "configured",
+              "revoked"
+            ],
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "state"
+        ],
+        "title": "BootstrapConfiguration",
+        "type": "object"
+      },
       "BootstrapContact": {
         "additionalProperties": false,
         "properties": {
@@ -525,6 +615,38 @@
         "title": "ClaimRequest",
         "type": "object"
       },
+      "CommissionRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "control_mode": {
+            "default": "read_only",
+            "enum": [
+              "read_only",
+              "bench_without_motor",
+              "extended_test"
+            ],
+            "title": "Control Mode",
+            "type": "string"
+          },
+          "expected_revision": {
+            "maximum": 2147483647.0,
+            "minimum": 1.0,
+            "title": "Expected Revision",
+            "type": "integer"
+          },
+          "installation_checked": {
+            "const": true,
+            "title": "Installation Checked",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "expected_revision",
+          "installation_checked"
+        ],
+        "title": "CommissionRequest",
+        "type": "object"
+      },
       "ConfigurationCreate": {
         "additionalProperties": false,
         "properties": {
@@ -544,6 +666,16 @@
             "format": "uuid",
             "title": "Module Id",
             "type": "string"
+          },
+          "motor": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MotorNameplate"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "profile_id": {
             "maxLength": 96,
@@ -795,6 +927,113 @@
           "connection"
         ],
         "title": "ControllerDiagnostics",
+        "type": "object"
+      },
+      "ControllerOperation": {
+        "additionalProperties": false,
+        "properties": {
+          "expected_credential_revision": {
+            "minimum": 0.0,
+            "title": "Expected Credential Revision",
+            "type": "integer"
+          },
+          "expected_generation": {
+            "minimum": 1.0,
+            "title": "Expected Generation",
+            "type": "integer"
+          },
+          "otp": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9]{6}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Otp"
+          },
+          "password": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Password",
+            "type": "string"
+          },
+          "reason": {
+            "maxLength": 240,
+            "minLength": 5,
+            "title": "Reason",
+            "type": "string"
+          },
+          "stopped_and_isolated": {
+            "const": true,
+            "title": "Stopped And Isolated",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "password",
+          "expected_generation",
+          "expected_credential_revision",
+          "reason",
+          "stopped_and_isolated"
+        ],
+        "title": "ControllerOperation",
+        "type": "object"
+      },
+      "ControllerStatus": {
+        "additionalProperties": false,
+        "properties": {
+          "access_revoked": {
+            "title": "Access Revoked",
+            "type": "boolean"
+          },
+          "controller_id": {
+            "format": "uuid",
+            "title": "Controller Id",
+            "type": "string"
+          },
+          "credential_revision": {
+            "title": "Credential Revision",
+            "type": "integer"
+          },
+          "credential_state": {
+            "enum": [
+              "not_issued",
+              "pending",
+              "active",
+              "revoked"
+            ],
+            "title": "Credential State",
+            "type": "string"
+          },
+          "generation": {
+            "title": "Generation",
+            "type": "integer"
+          },
+          "last_contact_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Contact At"
+          }
+        },
+        "required": [
+          "controller_id",
+          "generation",
+          "credential_revision",
+          "access_revoked",
+          "last_contact_at",
+          "credential_state"
+        ],
+        "title": "ControllerStatus",
         "type": "object"
       },
       "CurrentUserMembershipRead": {
@@ -2209,6 +2448,18 @@
             "title": "Configuration State",
             "type": "string"
           },
+          "controller_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Controller Id"
+          },
           "controller_uid": {
             "title": "Controller Uid",
             "type": "string"
@@ -2502,9 +2753,30 @@
         "title": "FactoryCreate",
         "type": "object"
       },
+      "FactoryQuarantine": {
+        "additionalProperties": false,
+        "properties": {
+          "reason": {
+            "maxLength": 240,
+            "minLength": 5,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "FactoryQuarantine",
+        "type": "object"
+      },
       "FactoryRead": {
         "additionalProperties": false,
         "properties": {
+          "access_revoked": {
+            "default": false,
+            "title": "Access Revoked",
+            "type": "boolean"
+          },
           "batch": {
             "title": "Batch",
             "type": "string"
@@ -2520,6 +2792,11 @@
               }
             ],
             "title": "Claimed At"
+          },
+          "credential_revision": {
+            "default": 0,
+            "title": "Credential Revision",
+            "type": "integer"
           },
           "device_id": {
             "anyOf": [
@@ -2598,6 +2875,41 @@
         "title": "FactoryRead",
         "type": "object"
       },
+      "FactoryReset": {
+        "additionalProperties": false,
+        "properties": {
+          "expected_generation": {
+            "minimum": 1.0,
+            "title": "Expected Generation",
+            "type": "integer"
+          },
+          "factory_test_passed": {
+            "const": true,
+            "title": "Factory Test Passed",
+            "type": "boolean"
+          },
+          "reason": {
+            "maxLength": 240,
+            "minLength": 5,
+            "title": "Reason",
+            "type": "string"
+          },
+          "test_reference": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Test Reference",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason",
+          "expected_generation",
+          "test_reference",
+          "factory_test_passed"
+        ],
+        "title": "FactoryReset",
+        "type": "object"
+      },
       "FactorySecrets": {
         "additionalProperties": false,
         "properties": {
@@ -2615,13 +2927,18 @@
           "qr_path": {
             "title": "Qr Path",
             "type": "string"
+          },
+          "setup_password": {
+            "title": "Setup Password",
+            "type": "string"
           }
         },
         "required": [
           "controller",
           "qr_path",
           "activation_code",
-          "bootstrap_key"
+          "bootstrap_key",
+          "setup_password"
         ],
         "title": "FactorySecrets",
         "type": "object"
@@ -3197,6 +3514,18 @@
             "pattern": "\\S",
             "title": "Name",
             "type": "string"
+          },
+          "retired_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retired At"
           },
           "serial_number": {
             "anyOf": [
@@ -3837,6 +4166,45 @@
           "password"
         ],
         "title": "RegisterRequest",
+        "type": "object"
+      },
+      "ReplacementCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "expected_module_id": {
+            "format": "uuid",
+            "title": "Expected Module Id",
+            "type": "string"
+          },
+          "expected_revision": {
+            "maximum": 2147483646.0,
+            "minimum": 0.0,
+            "title": "Expected Revision",
+            "type": "integer"
+          },
+          "reason": {
+            "maxLength": 240,
+            "minLength": 5,
+            "title": "Reason",
+            "type": "string"
+          },
+          "replacement": {
+            "$ref": "#/components/schemas/ModuleCreate"
+          },
+          "stopped_and_isolated": {
+            "const": true,
+            "title": "Stopped And Isolated",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "expected_module_id",
+          "expected_revision",
+          "replacement",
+          "stopped_and_isolated",
+          "reason"
+        ],
+        "title": "ReplacementCreate",
         "type": "object"
       },
       "ScheduleOccurrenceRead": {
@@ -4998,6 +5366,36 @@
         "title": "TotpSetupRead",
         "type": "object"
       },
+      "TransferRead": {
+        "additionalProperties": false,
+        "properties": {
+          "activation_code": {
+            "title": "Activation Code",
+            "type": "string"
+          },
+          "controller_id": {
+            "format": "uuid",
+            "title": "Controller Id",
+            "type": "string"
+          },
+          "generation": {
+            "title": "Generation",
+            "type": "integer"
+          },
+          "qr_path": {
+            "title": "Qr Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "controller_id",
+          "qr_path",
+          "activation_code",
+          "generation"
+        ],
+        "title": "TransferRead",
+        "type": "object"
+      },
       "ValidationError": {
         "properties": {
           "loc": {
@@ -5042,7 +5440,7 @@
   "info": {
     "description": "Backend API платформи TechBaza IoT Pump Control",
     "title": "TechBaza Backend",
-    "version": "0.45.0"
+    "version": "0.46.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -5832,6 +6230,76 @@
         ]
       }
     },
+    "/api/v1/bootstrap/{controller_id}/configuration": {
+      "post": {
+        "operationId": "bootstrap_configuration_api_v1_bootstrap__controller_id__configuration_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "controller_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Controller Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BootstrapContact"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BootstrapConfiguration"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Bootstrap Configuration",
+        "tags": [
+          "onboarding"
+        ]
+      }
+    },
     "/api/v1/bootstrap/{controller_id}/contact": {
       "post": {
         "operationId": "bootstrap_contact_api_v1_bootstrap__controller_id__contact_post",
@@ -6172,6 +6640,86 @@
         ]
       }
     },
+    "/api/v1/connect/{controller_id}/access/{operation}": {
+      "post": {
+        "operationId": "controller_operation_api_v1_connect__controller_id__access__operation__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "controller_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Controller Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "operation",
+            "required": true,
+            "schema": {
+              "enum": [
+                "rotate",
+                "revoke",
+                "release"
+              ],
+              "title": "Operation",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ControllerOperation"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ControllerStatus"
+                    },
+                    {
+                      "$ref": "#/components/schemas/TransferRead"
+                    }
+                  ],
+                  "title": "Response Controller Operation Api V1 Connect  Controller Id  Access  Operation  Post"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Controller Operation",
+        "tags": [
+          "onboarding"
+        ]
+      }
+    },
     "/api/v1/connect/{controller_id}/claim": {
       "post": {
         "operationId": "claim_controller_api_v1_connect__controller_id__claim_post",
@@ -6283,6 +6831,54 @@
           }
         ],
         "summary": "Equipment Selection",
+        "tags": [
+          "onboarding"
+        ]
+      }
+    },
+    "/api/v1/connect/{controller_id}/status": {
+      "get": {
+        "operationId": "lifecycle_status_api_v1_connect__controller_id__status_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "controller_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Controller Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Lifecycle Status",
         "tags": [
           "onboarding"
         ]
@@ -6918,6 +7514,64 @@
         ]
       }
     },
+    "/api/v1/devices/{device_id}/equipment/commission": {
+      "post": {
+        "operationId": "commission_equipment_api_v1_devices__device_id__equipment_commission_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "device_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Device Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommissionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EquipmentPassport"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Commission Equipment",
+        "tags": [
+          "equipment"
+        ]
+      }
+    },
     "/api/v1/devices/{device_id}/equipment/configurations": {
       "post": {
         "operationId": "configure_equipment_api_v1_devices__device_id__equipment_configurations_post",
@@ -7070,6 +7724,64 @@
           }
         ],
         "summary": "Create Module",
+        "tags": [
+          "equipment"
+        ]
+      }
+    },
+    "/api/v1/devices/{device_id}/equipment/replacement": {
+      "post": {
+        "operationId": "replace_equipment_api_v1_devices__device_id__equipment_replacement_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "device_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Device Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReplacementCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModuleRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Replace Equipment",
         "tags": [
           "equipment"
         ]
@@ -8087,6 +8799,122 @@
           }
         ],
         "summary": "Factory Audit",
+        "tags": [
+          "onboarding"
+        ]
+      }
+    },
+    "/api/v1/factory/controllers/{controller_id}/quarantine": {
+      "post": {
+        "operationId": "quarantine_controller_api_v1_factory_controllers__controller_id__quarantine_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "controller_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Controller Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FactoryQuarantine"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FactoryRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Quarantine Controller",
+        "tags": [
+          "onboarding"
+        ]
+      }
+    },
+    "/api/v1/factory/controllers/{controller_id}/reset": {
+      "post": {
+        "operationId": "reset_controller_api_v1_factory_controllers__controller_id__reset_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "controller_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Controller Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FactoryReset"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FactorySecrets"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Reset Controller",
         "tags": [
           "onboarding"
         ]

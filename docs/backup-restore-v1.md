@@ -1,6 +1,6 @@
 # Чисте встановлення та backup/restore v1
 
-> Поточні backup manifests містять backend 0.45.0 / schema 0022;
+> Поточні backup manifests містять backend 0.46.0 / schema 0023;
 > перевірка попередніх підтримуваних manifests збережена. Перед оновленням
 > і відновленням старої установки виконайте [перенесення account key](account-key-operations-v1.md).
 > Fingerprint симулятора включає таблицю програм, якщо вона існує; backup
@@ -182,3 +182,13 @@ Retry-After; захист входу на звичайному demo не вим�
 [pg_dump](https://www.postgresql.org/docs/16/app-pgdump.html),
 [pg_restore](https://www.postgresql.org/docs/16/app-pgrestore.html),
 [SQLite Connection.backup](https://docs.python.org/3.13/library/sqlite3.html#sqlite3.Connection.backup).
+
+## Контролери етапу 2
+
+Для factory deployment додатково зберігайте приватні `.env.controllers`,
+factory JSON/header і весь `.local/controllers` із Dynamic Security/TLS.
+Ці файли не входять до старого п'ятифайлового demo bundle. Узгоджену пару
+БД/шлюзу копіюють із зупиненими backend і controller-gateway. Restore guard
+відкликає збережені MQTT identities; їх ACK виконує credential worker після
+підключення правильного шлюзу. Керування до повторного commissioning закрите.
+[Підготовка, запуск і фізична перевірка](stage2-acceptance.md).

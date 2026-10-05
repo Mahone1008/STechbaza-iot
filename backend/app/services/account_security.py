@@ -96,6 +96,9 @@ class AccountSecurityService:
             ) from exc
         return RecoveryRead(recovery_key=key)
 
+    def prove(self, current: CurrentUserContext, proof: SecurityProof) -> None:
+        self._prove(current, proof)
+
     def recover(self, payload: RecoveryRequest) -> RecoveryRead:
         user = self._session.scalar(
             select(User).where(User.email == str(payload.email).lower()).with_for_update()

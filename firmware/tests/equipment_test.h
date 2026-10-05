@@ -1,5 +1,6 @@
 #pragma once
 #include "../kerumo_v3/src/scoped_journal.h"
+#include "../kerumo_v3/src/provisioning.h"
 #include <fstream>
 #include <sstream>
 
@@ -91,4 +92,22 @@ void equipmentBindingAndJournal() {
   assert(!rejected.begin("test-device") && !rejected.arm());
   clock.ms+=70000; rejected.tick(false); rejected.sample();
   assert(bus.writes.empty()); // An old run latch cannot stop or start replacement equipment.
+}
+
+void provisioningIdentity() {
+  const char *id="11111111-1111-4111-8111-111111111111";
+  assert(factoryUid("FC-11111111111141118111111111111111-G1", id));
+  assert(factoryUid("FC-11111111111141118111111111111111-G2147483647", id));
+  assert(factoryGeneration("FC-11111111111141118111111111111111-G2147483647", id)==2147483647U);
+  for (const char *uid : {"", "FC-", "FC-11111111111141118111111111111111-G0",
+       "FC-11111111111141118111111111111111-G1-old", "FC-11111111111141118111111111111111-G2147483648",
+       "FC-21111111111141118111111111111111-G1"}) assert(!factoryUid(uid,id));
+  JsonDocument doc;
+  doc["device_uid"]="FC-11111111111141118111111111111111-G1";
+  doc["mqtt_host"]="192.168.1.10"; doc["mqtt_port"]=8884;
+  doc["mqtt_password"]="test-only-opaque-secret-at-least-32-characters"; doc["credential_revision"]=1;
+  assert(enrollmentFields(doc,id));
+  doc["mqtt_host"]="https://another.host/path"; assert(!enrollmentFields(doc,id));
+  doc["mqtt_host"]="gateway.example.com"; doc["mqtt_port"]=-1; assert(!enrollmentFields(doc,id));
+  doc["mqtt_port"]=8884; doc["credential_revision"]=0; assert(!enrollmentFields(doc,id));
 }
