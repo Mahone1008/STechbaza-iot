@@ -26,7 +26,7 @@ test("real viewer profile drives navigation and blocks command controls", async 
 
   await expect(page).toHaveURL(/\/ui-kit\/device-demo$/u);
   await expect(page.getByText(VIEWER_EMAIL)).toBeVisible();
-  await expect(page.getByText(/DEMO: viewer · Спостерігач/u)).toBeVisible();
+  await expect(page.getByText("Спостерігач", { exact: true })).toBeVisible();
   await expect(page.getByText("DEMO: клієнт A").first()).toBeVisible();
   await expect(page.getByText(/не має permission command\.execute/u)).toBeVisible();
   await expect(page.getByRole("button", { name: "Запустити" })).toBeDisabled();

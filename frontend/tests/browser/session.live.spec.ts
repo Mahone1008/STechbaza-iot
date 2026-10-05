@@ -51,7 +51,7 @@ test("real HttpOnly session restores profile, tenant and permissions after reloa
   await expect(page.locator(".app-shell")).toBeVisible();
   await expect(page.getByText(DEMO_EMAIL)).toBeVisible();
   await expect(page.getByText("DEMO: клієнт A").first()).toBeVisible();
-  await expect(page.getByText(/DEMO: owner · Власник/u)).toBeVisible();
+  await expect(page.getByText("Власник", { exact: true })).toBeVisible();
 
   const accessToken = String(payload.access_token);
   const mePayload = await meResponse.json() as { email?: unknown; is_active?: unknown };
