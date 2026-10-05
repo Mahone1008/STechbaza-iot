@@ -16,7 +16,7 @@ import {
 } from "@/lib/api/inventory";
 
 export function sitesHref(organizationId: string): Route { return `/organizations/${organizationId}/sites` as Route; }
-export function devicesHref(organizationId: string, siteId: string): Route { return `/organizations/${organizationId}/sites/${siteId}/devices` as Route; }
+function devicesHref(organizationId: string, siteId: string): Route { return `/organizations/${organizationId}/sites/${siteId}/devices` as Route; }
 
 export function InventoryBreadcrumbs() {
   const { snapshot } = useAccessContext();

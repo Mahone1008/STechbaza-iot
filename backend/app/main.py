@@ -16,7 +16,10 @@ from app.security.browser_auth import AuthNoStoreMiddleware
 from app.security.account_keys import AccountKeyUnavailableError
 from app.services.account_security import AccountSecurityConflict, InvalidAccountProof
 from app.services.controller_broker import BrokerUnavailable
-from app.services.controller_credentials import start_controller_credentials, stop_controller_credentials
+from app.services.controller_credentials import (
+    start_controller_credentials,
+    stop_controller_credentials,
+)
 from app.mqtt_client import (
     last_command_ack_result,
     last_command_publish_result,
@@ -55,44 +58,59 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="TechBaza Backend",
-    version="0.46.0",
+    version="0.47.0",
     description="Backend API платформи TechBaza IoT Pump Control",
     lifespan=lifespan,
 )
 
 app.include_router(api_v1_router, prefix="/api/v1")
 
-app.add_middleware(CORSMiddleware, allow_origins=list(AUTH_BROWSER_ORIGINS),
-                   allow_credentials=True, allow_methods=["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
-                   allow_headers=["Authorization", "Content-Type", CSRF_HEADER],
-                   expose_headers=["Retry-After"])
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=list(AUTH_BROWSER_ORIGINS),
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", CSRF_HEADER],
+    expose_headers=["Retry-After"],
+)
 app.add_middleware(AuthNoStoreMiddleware)
 
 
 @app.exception_handler(AccountSecurityConflict)
 async def account_security_conflict(request: Request, exc: AccountSecurityConflict):
-    return JSONResponse({"detail": str(exc)}, status_code=409, headers={"Cache-Control": "no-store"})
+    return JSONResponse(
+        {"detail": str(exc)}, status_code=409, headers={"Cache-Control": "no-store"}
+    )
 
 
 @app.exception_handler(BrokerUnavailable)
 async def controller_broker_unavailable(request: Request, exc: BrokerUnavailable):
-    return JSONResponse({"detail": str(exc)}, status_code=503, headers={"Cache-Control": "no-store"})
+    return JSONResponse(
+        {"detail": str(exc)}, status_code=503, headers={"Cache-Control": "no-store"}
+    )
 
 
 @app.exception_handler(InvalidAccountProof)
 async def account_security_invalid_proof(request: Request, exc: InvalidAccountProof):
-    return JSONResponse({"detail": str(exc)}, status_code=401, headers={"Cache-Control": "no-store"})
+    return JSONResponse(
+        {"detail": str(exc)}, status_code=401, headers={"Cache-Control": "no-store"}
+    )
 
 
 @app.exception_handler(AccountKeyUnavailableError)
 async def account_key_unavailable(request: Request, exc: AccountKeyUnavailableError):
-    return JSONResponse({"detail": "Перевірка двоетапного входу тимчасово недоступна"},
-                        status_code=503, headers={"Cache-Control": "no-store"})
+    return JSONResponse(
+        {"detail": "Перевірка двоетапного входу тимчасово недоступна"},
+        status_code=503,
+        headers={"Cache-Control": "no-store"},
+    )
 
 
 @app.exception_handler(RequestValidationError)
 async def validation_error(request: Request, exc: RequestValidationError):
-    if request.url.path.startswith(("/api/v1/auth/", "/api/v1/connect/", "/api/v1/bootstrap/", "/api/v1/factory/")):
+    if request.url.path.startswith(
+        ("/api/v1/auth/", "/api/v1/connect/", "/api/v1/bootstrap/", "/api/v1/factory/")
+    ):
         # Стандартна validation response містить input: password/refresh не
         # повинні повертатися клієнту чи потрапляти до журналів його помилок.
         return JSONResponse({"detail": "Некоректний формат захищеного запиту"}, status_code=422)
@@ -104,7 +122,7 @@ def health() -> dict[str, str]:
     return {
         "status": "ok",
         "service": "techbaza-backend",
-        "version": "0.46.0",
+        "version": "0.47.0",
     }
 
 

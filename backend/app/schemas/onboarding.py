@@ -3,7 +3,14 @@ from datetime import datetime
 from typing import Annotated, Literal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, StringConstraints, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    StringConstraints,
+    field_validator,
+    model_validator,
+)
 
 
 Password = Annotated[str, StringConstraints(strip_whitespace=False)]
@@ -13,22 +20,8 @@ class StrictModel(BaseModel):
     model_config = ConfigDict(extra="forbid", from_attributes=True, str_strip_whitespace=True)
 
 
-class RegisterRequest(StrictModel):
-    email: EmailStr
-    display_name: str = Field(min_length=2, max_length=160)
-    # Preserve intentional spaces in passwords; validate separately from display fields.
-    password: Password = Field(min_length=12, max_length=128)
-
-    @field_validator("password", mode="before")
-    @classmethod
-    def password_no_edge_spaces(cls, value):
-        if isinstance(value, str) and value != value.strip():
-            raise ValueError("Пароль не може починатися або закінчуватися пробілом")
-        return value
-
-
 class RecoveryRequest(StrictModel):
-    email: EmailStr
+    email: str = Field(min_length=1, max_length=320)
     recovery_key: str = Field(min_length=32, max_length=100)
     new_password: Password = Field(min_length=12, max_length=128)
 
@@ -38,8 +31,12 @@ class RecoveryRead(StrictModel):
 
 
 class SecurityProof(StrictModel):
-    password: Password = Field(min_length=1, max_length=128)
     otp: str | None = Field(default=None, pattern=r"^[0-9]{6}$")
+    password: Password = Field(min_length=1, max_length=128)
+
+
+class PasswordChange(SecurityProof):
+    new_password: Password = Field(min_length=12, max_length=128)
 
 
 class TotpConfirm(StrictModel):
@@ -56,6 +53,11 @@ class SecurityRead(StrictModel):
 class TotpSetupRead(StrictModel):
     secret: str
     uri: str
+
+
+class ActivationAccessRead(TotpSetupRead):
+    login: str
+    recovery_key: str
 
 
 class SessionRead(StrictModel):
@@ -97,6 +99,8 @@ class FactorySecrets(StrictModel):
     activation_code: str
     bootstrap_key: str
     setup_password: str
+    login: str
+    password: str
 
 
 class ShipmentRequest(StrictModel):
@@ -129,10 +133,12 @@ class NewSite(StrictModel):
 
 
 class ClaimRequest(StrictModel):
-    activation_code: str = Field(min_length=32, max_length=100)
+    activation_code: str | None = Field(default=None, min_length=32, max_length=100)
     device_name: str = Field(min_length=2, max_length=160)
     site_id: uuid.UUID | None = None
     new_site: NewSite | None = None
+    new_password: Password | None = Field(default=None, min_length=12, max_length=128)
+    otp: str | None = Field(default=None, pattern=r"^[0-9]{6}$")
 
     @model_validator(mode="after")
     def exactly_one_site(self):
@@ -150,6 +156,8 @@ class ConnectionRead(StrictModel):
     site_id: uuid.UUID | None
     last_contact_at: datetime | None
     firmware_version: str | None
+    activation_required: bool = True
+    permanent_login: str | None = None
 
 
 class EquipmentSelection(StrictModel):
@@ -188,6 +196,8 @@ class TransferRead(StrictModel):
     qr_path: str
     activation_code: str
     generation: int
+    login: str
+    password: str
 
 
 class ControllerStatus(StrictModel):

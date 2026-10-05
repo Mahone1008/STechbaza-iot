@@ -202,8 +202,16 @@ export function ControllerLifecycle({
               <h4>Контролер готовий до передачі</h4>
               <ControllerQr url={url} />
               <p>{url}</p>
-              <p>Код показано один раз. Новий власник використає його після входу до власного облікового запису.</p>
-              <code className="recovery-key">{transfer.activation_code}</code>
+              <p>
+                Новий власник активує пристрій цим паролем, отримає постійні дані входу та підключить власну 2FA. Ваш
+                особистий кабінет і його захист залишаться у вас. Дані показано один раз; збережіть комплект.
+              </p>
+              <p>
+                Логін: <code className="recovery-key">{transfer.login}</code>
+              </p>
+              <p>
+                Одноразовий пароль активації: <code className="recovery-key">{transfer.password}</code>
+              </p>
               <Button onClick={download}>Завантажити комплект передачі</Button>
               <p>
                 Передайте також закриту картку локального Wi-Fi. Новий власник має фізично підтвердити обладнання на

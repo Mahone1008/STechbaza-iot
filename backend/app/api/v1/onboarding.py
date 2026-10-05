@@ -12,13 +12,19 @@ from app.schemas.equipment import ModuleRead
 from app.schemas.onboarding import (
     BootstrapContact,
     ClaimRequest,
+    ActivationAccessRead,
     ConnectionRead,
     EquipmentSelection,
     FactoryCreate,
     FactoryRead,
     FactorySecrets,
     ShipmentRequest,
-    BootstrapConfiguration, ControllerOperation, ControllerStatus, TransferRead, FactoryQuarantine, FactoryReset,
+    BootstrapConfiguration,
+    ControllerOperation,
+    ControllerStatus,
+    TransferRead,
+    FactoryQuarantine,
+    FactoryReset,
 )
 from app.schemas.site import SiteRead
 from app.security.authorization import AccessControl
@@ -108,6 +114,8 @@ def buyer_sites(
     limit: Annotated[int, Query(ge=1, le=100)] = 100,
     offset: Annotated[int, Query(ge=0)] = 0,
 ):
+    if current.user.login_name and current.user.login_name.startswith("kr-"):
+        return []
     return AccessControl(session, current).list_creatable_sites(limit=limit, offset=offset)
 
 
@@ -126,6 +134,17 @@ def claim_controller(
 ):
     throttle_auth(request, session, email=f"claim:{current.user.id}:{controller_id}")
     return claim(session, current, controller_id, payload)
+
+
+@router.post("/connect/{controller_id}/security", response_model=ActivationAccessRead)
+def activation_security(
+    controller_id: uuid.UUID, request: Request, response: Response, current: Current, session: Db
+):
+    from app.services.account_security import AccountSecurityService
+
+    throttle_auth(request, session, email=f"activation-security:{current.user.id}")
+    response.headers["Cache-Control"] = "no-store"
+    return AccountSecurityService(session).prepare_activation(current, controller_id)
 
 
 @router.put("/connect/{controller_id}/equipment", response_model=ModuleRead)
@@ -155,28 +174,49 @@ def bootstrap_contact(
 
 
 @router.post("/bootstrap/{controller_id}/configuration", response_model=BootstrapConfiguration)
-def bootstrap_configuration(controller_id: uuid.UUID, payload: BootstrapContact, request: Request,
-                            response: Response, session: Db,
-                            authorization: Annotated[str | None, Header(max_length=128)] = None):
+def bootstrap_configuration(
+    controller_id: uuid.UUID,
+    payload: BootstrapContact,
+    request: Request,
+    response: Response,
+    session: Db,
+    authorization: Annotated[str | None, Header(max_length=128)] = None,
+):
     from app.services.controller_lifecycle import bootstrap_configuration as configure
+
     throttle_bootstrap(request, session, controller_id)
     response.headers["Cache-Control"] = "no-store"
-    token = authorization.removeprefix("Bearer ") if authorization and authorization.startswith("Bearer ") else ""
+    token = (
+        authorization.removeprefix("Bearer ")
+        if authorization and authorization.startswith("Bearer ")
+        else ""
+    )
     return configure(session, controller_id, payload, token)
 
 
 @router.get("/connect/{controller_id}/status", response_model=ControllerStatus)
 def lifecycle_status(controller_id: uuid.UUID, current: Current, session: Db, response: Response):
     from app.services.controller_lifecycle import controller_status
+
     response.headers["Cache-Control"] = "no-store"
     return controller_status(session, current, controller_id)
 
 
-@router.post("/connect/{controller_id}/access/{operation}", response_model=ControllerStatus | TransferRead)
-def controller_operation(controller_id: uuid.UUID, operation: Literal["rotate", "revoke", "release"],
-                         payload: ControllerOperation, request: Request, response: Response, current: Current, session: Db):
+@router.post(
+    "/connect/{controller_id}/access/{operation}", response_model=ControllerStatus | TransferRead
+)
+def controller_operation(
+    controller_id: uuid.UUID,
+    operation: Literal["rotate", "revoke", "release"],
+    payload: ControllerOperation,
+    request: Request,
+    response: Response,
+    current: Current,
+    session: Db,
+):
     from app.services.controller_lifecycle import operate
     from app.services.equipment import EquipmentConflict
+
     throttle_auth(request, session, email=f"controller-operation:{current.user.id}")
     response.headers["Cache-Control"] = "no-store"
     try:
@@ -186,9 +226,12 @@ def controller_operation(controller_id: uuid.UUID, operation: Literal["rotate", 
 
 
 @router.post("/factory/controllers/{controller_id}/quarantine", response_model=FactoryRead)
-def quarantine_controller(controller_id: uuid.UUID, payload: FactoryQuarantine, current: Current, session: Db):
+def quarantine_controller(
+    controller_id: uuid.UUID, payload: FactoryQuarantine, current: Current, session: Db
+):
     from app.services import controller_credentials as credentials
     from app.services.onboarding import audit, locked_controller
+
     manufacturer(session, current)
     row = locked_controller(session, controller_id)
     row.status, row.bootstrap_hash, row.activation_hash = "quarantined", None, None
@@ -202,8 +245,15 @@ def quarantine_controller(controller_id: uuid.UUID, payload: FactoryQuarantine, 
 
 
 @router.post("/factory/controllers/{controller_id}/reset", response_model=FactorySecrets)
-def reset_controller(controller_id: uuid.UUID, payload: FactoryReset, current: Current, session: Db, response: Response):
+def reset_controller(
+    controller_id: uuid.UUID,
+    payload: FactoryReset,
+    current: Current,
+    session: Db,
+    response: Response,
+):
     from app.services.controller_lifecycle import factory_reset
+
     manufacturer(session, current)
     response.headers["Cache-Control"] = "no-store"
     return factory_reset(session, current, controller_id, payload)

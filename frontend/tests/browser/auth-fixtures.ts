@@ -10,7 +10,7 @@ export const LOGOUT_URL = `${API_ORIGIN}/api/v1/auth/browser/logout`;
 export const ME_URL = `${API_ORIGIN}/api/v1/auth/me`;
 export const ORGANIZATIONS_URL = `${API_ORIGIN}/api/v1/organizations`;
 export const ORGANIZATION_ID = "670b979d-9e60-5207-a5d2-5d86ee70c71c";
-export const ACCESS_URL = `${API_ORIGIN}/api/v1/organizations/${ORGANIZATION_ID}/access`;
+const ACCESS_URL = `${API_ORIGIN}/api/v1/organizations/${ORGANIZATION_ID}/access`;
 export const SITE_ID = "739512a9-6ddb-4f8e-99e9-211c8553651e";
 export const DEVICE_ID = "a8f2f2d6-e380-492a-a9dc-d0b9ba792136";
 export const SITES_URL = `${ORGANIZATIONS_URL}/${ORGANIZATION_ID}/sites`;
@@ -281,6 +281,6 @@ export async function fillLogin(
   email = "owner@example.com",
   password = "valid-test-password",
 ): Promise<void> {
-  await page.getByLabel("Email").fill(email);
+  await page.getByLabel("Логін").fill(email);
   await page.getByLabel("Пароль").fill(password);
 }

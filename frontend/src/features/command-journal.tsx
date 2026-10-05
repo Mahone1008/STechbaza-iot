@@ -14,7 +14,7 @@ import { apiErrorDisplayMessage, apiQueryKeys } from "@/lib/api";
 import { formatSeen } from "@/lib/api/inventory";
 import { commandCursor, commandLabel, commandPending, parseCommand, parseCommandPage, statusLabels, type Command, type CommandCursor } from "@/lib/api/commands";
 
-export function CommandStatus({ command }: { command: Command }) {
+function CommandStatus({ command }: { command: Command }) {
   return <StatusBadge tone={command.status === "succeeded" ? "success" : command.status === "failed" ? "danger" : commandPending(command) ? "info" : "warning"}>{command.error_code === "program_cancelled" ? "Програму скасовано оператором" : command.command_type === "vfd.program.start" && command.status === "succeeded" ? "Програму завершено, STOP підтверджено" : statusLabels[command.status]}</StatusBadge>;
 }
 export function CommandDetail({ context, id, poll }: { context: ReadyAccessSnapshot; id: string; poll: PollSeconds }) {

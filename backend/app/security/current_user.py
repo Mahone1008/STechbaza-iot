@@ -13,6 +13,7 @@ from app.models.user import User
 from app.repositories.auth_sessions import AuthSessionRepository
 from app.repositories.users import UserRepository
 from app.security.tokens import decode_access_token, utc_now
+from app.services.label_accounts import label_session_valid
 
 
 _bearer_scheme = HTTPBearer(auto_error=False)
@@ -75,6 +76,8 @@ def get_current_user_context(
 
     user = UserRepository(session).get(user_id)
     if user is None:
+        raise _unauthorized()
+    if not label_session_valid(session, user):
         raise _unauthorized()
 
     if not user.is_active:

@@ -11,10 +11,10 @@
 | `/auth/browser/*` | Browser login/refresh/logout | Exact Origin, CSRF header, HttpOnly cookie; login credentials |
 | `/auth/login`, `/auth/refresh`, `/auth/logout` | JSON flow для CLI | Credentials/refresh secret, спільний rate limiter |
 | `/auth/me` | User/session/memberships | Bearer JWT та активна server-side session |
-| `/auth/register`, `/auth/recover` | Реєстрація й відновлення за recovery key | Exact Origin/CSRF, throttle; вхід не потрібний |
-| `/auth/security/*`, `/auth/security`, `/auth/sessions*` | TOTP/recovery/власні сесії | Bearer; зміни ключів із password/OTP proof |
+| `/auth/recover` | Відновлення за recovery key | Exact Origin/CSRF, throttle; вхід не потрібний |
+| `/auth/security/*`, `/auth/security`, `/auth/sessions*` | Постійний пароль/TOTP/recovery/власні сесії | Bearer; зміни ключів із password/OTP proof |
 | `/factory/controllers*` | Заводський реєстр, постачання, аудит | `superadmin` та MFA-verified session завжди |
-| `/connect/*` | Claim покупця, об'єкти й вибір обладнання | Bearer, окремий activation code для першого claim, tenant/scope guards |
+| `/connect/*` | Claim покупця, об'єкти й вибір обладнання | Bearer, заводський пароль, permanent password/TOTP при першій активації, tenant/scope guards |
 | `/bootstrap/{id}/contact` | Час контакту та версія контролера | Окремий bootstrap Bearer secret, throttle; не user JWT |
 | `/organizations`, `/organizations/{id}/access` | Доступні клієнти й permissions | Tenant membership; superadmin bypass |
 | Sites/devices | Каталог установок та контролерів | Відповідні read/create permissions |

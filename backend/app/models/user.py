@@ -36,6 +36,7 @@ class User(TimestampMixin, Base):
         nullable=False,
         unique=True,
     )
+    login_name: Mapped[str | None] = mapped_column(String(96), unique=True)
     display_name: Mapped[str] = mapped_column(
         String(160),
         nullable=False,

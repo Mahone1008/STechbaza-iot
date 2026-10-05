@@ -5,16 +5,16 @@ import secrets
 import uuid
 from urllib.parse import quote
 
-from sqlalchemy import select, update
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy import or_, select, update
 from sqlalchemy.orm import Session
 
 from app.models import AuthSession, User
-from app.models.onboarding import AccountSecurity
+from app.models.onboarding import AccountSecurity, FactoryController
 from app.schemas.onboarding import (
     RecoveryRead,
     RecoveryRequest,
-    RegisterRequest,
+    PasswordChange,
+    ActivationAccessRead,
     SecurityProof,
     SecurityRead,
     SessionRead,
@@ -25,6 +25,7 @@ from app.security.current_user import CurrentUserContext
 from app.security.mfa_policy import privileged_mfa_required
 from app.security.passwords import hash_password, verify_password
 from app.security.tokens import utc_now
+from app.services.label_accounts import permanent_login
 
 
 class AccountSecurityConflict(Exception):
@@ -60,6 +61,7 @@ class AccountSecurityService:
         if (
             user is None
             or not user.is_active
+            or (user.login_name and user.login_name.startswith("kr-"))
             or not verify_password(proof.password, user.password_hash)
         ):
             raise InvalidAccountProof("Не вдалося підтвердити облікові дані")
@@ -72,40 +74,64 @@ class AccountSecurityService:
             row.totp_last_counter, row.totp_secret = counter, encrypted
         return row
 
-    def register(self, payload: RegisterRequest) -> RecoveryRead:
-        key = new_key()
-        user = User(
-            id=uuid.uuid4(),
-            email=str(payload.email).lower(),
-            display_name=payload.display_name,
-            password_hash=hash_password(payload.password),
-            platform_role="user",
-            is_active=True,
-        )
-        self._session.add(user)
-        try:
-            self._session.flush()
-            self._session.add(
-                AccountSecurity(user_id=user.id, recovery_hash=digest("recovery", key))
+    def prepare_activation(
+        self, current: CurrentUserContext, controller_id: uuid.UUID
+    ) -> ActivationAccessRead:
+        row = self._locked_security(current.user.id)
+        factory = self._session.scalar(
+            select(FactoryController)
+            .where(
+                FactoryController.id == controller_id,
             )
-            self._session.commit()
-        except IntegrityError as exc:
-            self._session.rollback()
-            raise AccountSecurityConflict(
-                "Реєстрацію не виконано. Скористайтесь входом або відновленням доступу"
-            ) from exc
-        return RecoveryRead(recovery_key=key)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        if (
+            factory is None
+            or factory.status != "ready"
+            or factory.buyer_user_id != current.user.id
+            or current.user.login_name != factory.buyer_login
+            or row.totp_enabled_at
+        ):
+            raise AccountSecurityConflict("Налаштування доступне лише під час першої активації")
+        secret = base64.b32encode(secrets.token_bytes(20)).decode()
+        recovery = new_key()
+        row.totp_secret = secret_box().encrypt(secret.encode()).decode()
+        row.totp_last_counter = None
+        row.recovery_hash = digest("recovery", recovery)
+        self._session.commit()
+        login = permanent_login(current.user)
+        label = quote("KERUMO:" + login, safe="")
+        return ActivationAccessRead(
+            login=login,
+            secret=secret,
+            recovery_key=recovery,
+            uri=f"otpauth://totp/{label}?secret={secret}&issuer=KERUMO&algorithm=SHA1&digits=6&period=30",
+        )
 
     def prove(self, current: CurrentUserContext, proof: SecurityProof) -> None:
         self._prove(current, proof)
 
     def recover(self, payload: RecoveryRequest) -> RecoveryRead:
         user = self._session.scalar(
-            select(User).where(User.email == str(payload.email).lower()).with_for_update()
+            select(User)
+            .where(
+                or_(
+                    User.email == payload.email.strip().lower(),
+                    User.login_name == payload.email.strip().lower(),
+                )
+            )
+            .with_for_update()
         )
         row = self._locked_security(user.id) if user else None
         valid = verify_digest("recovery", payload.recovery_key, row.recovery_hash if row else None)
-        if user is None or not user.is_active or row is None or not valid:
+        if (
+            user is None
+            or not user.is_active
+            or row is None
+            or not valid
+            or (user.login_name and user.login_name.startswith("kr-"))
+        ):
             raise InvalidAccountProof("Не вдалося підтвердити ключ відновлення")
         key = new_key()
         user.password_hash = hash_password(payload.new_password)
@@ -143,7 +169,7 @@ class AccountSecurityService:
         row.totp_secret = secret_box().encrypt(secret.encode()).decode()
         row.totp_last_counter = None
         self._session.commit()
-        label = quote("KERUMO:" + current.user.email, safe="")
+        label = quote("KERUMO:" + (current.user.login_name or current.user.email), safe="")
         return TotpSetupRead(
             secret=secret,
             uri=(
@@ -153,6 +179,10 @@ class AccountSecurityService:
 
     def confirm_totp(self, current: CurrentUserContext, otp: str) -> None:
         row = self._locked_security(current.user.id)
+        if current.user.login_name and current.user.login_name.startswith("kr-"):
+            raise AccountSecurityConflict(
+                "Підтвердьте код у майстрі активації разом із постійним паролем"
+            )
         if not row.totp_secret or row.totp_enabled_at:
             raise AccountSecurityConflict("Почніть налаштування двоетапного входу")
         counter, encrypted = verify_stored_totp(row.totp_secret, otp, row.totp_last_counter)
@@ -170,6 +200,23 @@ class AccountSecurityService:
             .values(revoked_at=utc_now())
         )
         current.auth_session.mfa_verified_at = utc_now()
+        self._session.commit()
+
+    def change_password(self, current: CurrentUserContext, payload: PasswordChange) -> None:
+        self._prove(current, payload)
+        user = self._session.get(User, current.user.id)
+        if user is None:
+            raise InvalidAccountProof("Не вдалося підтвердити облікові дані")
+        user.password_hash = hash_password(payload.new_password)
+        self._session.execute(
+            update(AuthSession)
+            .where(
+                AuthSession.user_id == user.id,
+                AuthSession.id != current.auth_session.id,
+                AuthSession.revoked_at.is_(None),
+            )
+            .values(revoked_at=utc_now())
+        )
         self._session.commit()
 
     def list_sessions(self, current: CurrentUserContext) -> list[SessionRead]:

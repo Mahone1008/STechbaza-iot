@@ -1,109 +1,31 @@
 """Isolated real transactions: no broker publication or real controller access."""
 
 import os
+import time
 import threading
 import unittest
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 
-from sqlalchemy import delete, select
-import test_comprehensive_postgres as base
+from sqlalchemy import select
+from onboarding_helpers import OnboardingFixtures
 from auth_http_helpers import request
 from app.db import SessionLocal
-from app.models import AuthSession, Device, Organization, OrganizationMembership, Site, User
-from app.models.equipment import EquipmentModule
+from app.models import AuthSession, Device, OrganizationMembership, Site, User
 from app.models.onboarding import (
     AccountSecurity,
-    FactoryAudit,
     FactoryController,
     PersonalWorkspace,
 )
 from app.security.account_keys import secret_box, totp_code
 from app.security.browser_config import AUTH_BROWSER_ORIGINS
 from app.security.tokens import utc_now
+from app.security.passwords import hash_password
 
 
 @unittest.skipUnless(os.getenv("TECHBAZA_RUN_DB_TESTS") == "1", "Requires isolated PostgreSQL")
-class OnboardingPostgresTests(unittest.TestCase):
-    def setUp(self):
-        self.controllers = []
-        self.additional_users = []
-        base.ComprehensivePostgresTests.setUp(self)
-        self.ip = f"198.18.33.{1 + uuid.uuid4().int % 250}"
-        with SessionLocal.begin() as session:
-            session.get(User, self.contexts["owner"].user.id).platform_role = "superadmin"
-            session.get(
-                AuthSession, self.contexts["owner"].auth_session.id
-            ).mfa_verified_at = utc_now()
-
-    def cleanup_data(self):
-        with SessionLocal.begin() as session:
-            personal = list(
-                session.scalars(
-                    select(PersonalWorkspace.organization_id).where(
-                        PersonalWorkspace.user_id.in_([c.user.id for c in self.contexts.values()])
-                    )
-                )
-            )
-            controller_devices = list(
-                session.scalars(
-                    select(FactoryController.device_id).where(
-                        FactoryController.id.in_(self.controllers),
-                        FactoryController.device_id.is_not(None),
-                    )
-                )
-            )
-            session.execute(
-                delete(EquipmentModule).where(EquipmentModule.device_id.in_(controller_devices))
-            )
-            session.execute(
-                delete(FactoryAudit).where(FactoryAudit.controller_id.in_(self.controllers))
-            )
-            session.execute(
-                delete(FactoryController).where(FactoryController.id.in_(self.controllers))
-            )
-            session.execute(delete(Device).where(Device.id.in_(controller_devices)))
-            session.execute(delete(Organization).where(Organization.id.in_(personal)))
-            session.execute(delete(User).where(User.id.in_(self.additional_users)))
-        base.ComprehensivePostgresTests.cleanup_data(self)
-
-    def call(self, path, *, body=None, who="owner", method="GET", expected=200):
-        code, result, headers = request(
-            method,
-            path,
-            body=body,
-            headers={"authorization": f"Bearer {self.tokens[who]}"},
-            ip=self.ip,
-        )
-        self.assertEqual(code, expected, (path, result))
-        return result
-
-    def factory(self):
-        result = self.call(
-            "/api/v1/factory/controllers",
-            method="POST",
-            expected=201,
-            body=dict(
-                serial_number=f"TEST-{uuid.uuid4().hex}",
-                hardware_model="KERUMO V3",
-                hardware_revision="V3.1",
-                batch="integration-only",
-                test_reference="isolated test fixture",
-                factory_test_passed=True,
-            ),
-        )
-        self.controllers.append(uuid.UUID(result["controller"]["id"]))
-        return result
-
-    def claim_body(self, factory, **values):
-        return dict(
-            activation_code=factory["activation_code"],
-            device_name="My pump",
-            new_site={"name": "My well", "timezone": "Europe/Kyiv"},
-            **values,
-        )
-
+class OnboardingPostgresTests(OnboardingFixtures, unittest.TestCase):
     def test_claim_consumes_secret_and_rescanning_never_leaks_another_tenant(self):
         factory = self.factory()
         path = f"/api/v1/connect/{factory['controller']['id']}"
@@ -267,20 +189,29 @@ class OnboardingPostgresTests(unittest.TestCase):
         email = f"security-{uuid.uuid4().hex}@example.com"
         password = "integration-only-password-123"
         headers = {"origin": AUTH_BROWSER_ORIGINS[0], "x-techbaza-csrf": "1"}
-        code, registration, _ = request(
-            "POST",
-            "/api/v1/auth/register",
-            body=dict(email=email, display_name="New buyer", password=password),
-            headers=headers,
-            ip=self.ip,
-        )
-        self.assertEqual(code, 201, registration)
+        from app.security.passwords import hash_password
+        from app.security.account_keys import digest, new_key
+
+        key = new_key()
         with SessionLocal.begin() as session:
-            user = session.scalar(select(User).where(User.email == email))
+            user = User(
+                id=uuid.uuid4(),
+                email=email,
+                display_name="Existing buyer",
+                password_hash=hash_password(password),
+                is_active=True,
+            )
+            session.add(user)
+            session.flush()
             self.additional_users.append(user.id)
-            sec = session.get(AccountSecurity, user.id)
-            sec.totp_secret = secret_box().encrypt(b"GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ").decode()
-            sec.totp_enabled_at = utc_now()
+            sec = AccountSecurity(
+                user_id=user.id,
+                recovery_hash=digest("recovery", key),
+                totp_secret=secret_box().encrypt(b"GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ").decode(),
+                totp_enabled_at=utc_now(),
+            )
+            session.add(sec)
+        registration = {"recovery_key": key}
         login = dict(
             email=email,
             password=password,
@@ -321,31 +252,113 @@ class OnboardingPostgresTests(unittest.TestCase):
         with SessionLocal.begin() as session:
             session.get(User, context.user.id).password_hash = hash_password(password)
         code, previous, _ = request(
-            "POST", "/api/v1/auth/login",
-            body={"email": context.user.email, "password": password}, ip=self.ip,
+            "POST",
+            "/api/v1/auth/login",
+            body={"email": context.user.email, "password": password},
+            ip=self.ip,
         )
         self.assertEqual(code, 200, previous)
         setup = self.call(
-            "/api/v1/auth/security/totp/setup", method="POST", who="operator",
+            "/api/v1/auth/security/totp/setup",
+            method="POST",
+            who="operator",
             body={"password": password},
         )
         self.assertIn(setup["secret"], setup["uri"])
         self.assertFalse(self.call("/api/v1/auth/security", who="operator")["mfa_enabled"])
         code = totp_code(setup["secret"], int(time.time() // 30))
         self.call(
-            "/api/v1/auth/security/totp/confirm", method="POST", who="operator",
-            body={"otp": code}, expected=204,
+            "/api/v1/auth/security/totp/confirm",
+            method="POST",
+            who="operator",
+            body={"otp": code},
+            expected=204,
         )
         state = self.call("/api/v1/auth/security", who="operator")
         self.assertTrue(state["mfa_enabled"])
         self.assertTrue(state["current_session_verified"])
         status, _, _ = request(
-            "GET", "/api/v1/auth/me",
-            headers={"authorization": f"Bearer {previous['access_token']}"}, ip=self.ip,
+            "GET",
+            "/api/v1/auth/me",
+            headers={"authorization": f"Bearer {previous['access_token']}"},
+            ip=self.ip,
         )
         self.assertEqual(status, 401)
         self.assertEqual(len(self.call("/api/v1/auth/sessions", who="operator")), 1)
         self.call(
-            "/api/v1/auth/security/recovery", method="POST", who="operator",
-            body={"password": password, "otp": code}, expected=401,
+            "/api/v1/auth/security/recovery",
+            method="POST",
+            who="operator",
+            body={"password": password, "otp": code},
+            expected=401,
         )
+
+    def test_password_change_requires_mfa_keeps_factor_and_revokes_other_sessions(self):
+        password = "current-password-integration-only"
+        replacement = "replacement-password-integration-only"
+        secret = "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ"
+        who = "operator"
+        user_id = self.contexts[who].user.id
+        with SessionLocal.begin() as session:
+            session.get(User, user_id).password_hash = hash_password(password)
+            session.add(
+                AccountSecurity(
+                    user_id=user_id,
+                    totp_secret=secret_box().encrypt(secret.encode()).decode(),
+                    totp_enabled_at=utc_now(),
+                )
+            )
+        current_counter = int(time.time() // 30)
+        status, other, _ = request(
+            "POST",
+            "/api/v1/auth/login",
+            body={
+                "email": self.contexts[who].user.email,
+                "password": password,
+                "otp": totp_code(secret, current_counter),
+            },
+            ip=self.ip,
+        )
+        self.assertEqual(status, 200)
+        self.call(
+            "/api/v1/auth/security/password",
+            method="POST",
+            who=who,
+            body={"password": password, "new_password": replacement},
+            expected=401,
+        )
+        from unittest.mock import patch
+
+        with patch("app.security.account_keys.time.time", return_value=(current_counter + 2) * 30):
+            self.call(
+                "/api/v1/auth/security/password",
+                method="POST",
+                who=who,
+                body={
+                    "password": password,
+                    "new_password": replacement,
+                    "otp": totp_code(secret, current_counter + 2),
+                },
+                expected=204,
+            )
+        status, _, _ = request(
+            "GET",
+            "/api/v1/auth/me",
+            headers={"authorization": "Bearer " + other["access_token"]},
+            ip=self.ip,
+        )
+        self.assertEqual(status, 401)
+        self.assertTrue(self.call("/api/v1/auth/security", who=who)["mfa_enabled"])
+        with patch("app.security.account_keys.time.time", return_value=(current_counter + 4) * 30):
+            for candidate, expected in [(password, 401), (replacement, 200)]:
+                status, _, _ = request(
+                    "POST",
+                    "/api/v1/auth/login",
+                    body={
+                        "email": self.contexts[who].user.email,
+                        "password": candidate,
+                        "otp": totp_code(secret, current_counter + 4),
+                    },
+                    ip=self.ip,
+                )
+                self.assertEqual(status, expected)

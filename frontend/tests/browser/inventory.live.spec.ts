@@ -14,7 +14,7 @@ const otherDevice = "74bf39d6-2a73-58ff-8d98-23c40dc9e3bd";
 
 test.beforeEach(async ({ page }) => {
   await page.goto("/login");
-  await page.getByLabel("Email").fill(email);
+  await page.getByLabel("Логін").fill(email);
   await page.getByLabel("Пароль").fill(password);
   await page.getByRole("button", { name: "Увійти" }).click();
   await expect(page.getByRole("heading", { name: "Пристрої", exact: true })).toBeVisible();

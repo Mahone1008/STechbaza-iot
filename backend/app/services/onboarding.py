@@ -3,12 +3,17 @@
 import uuid
 
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
-from app.models import Device, Organization, OrganizationMembership, Site, User
+from app.models import AuthSession, Device, Organization, OrganizationMembership, Site, User
 from app.models.equipment import EquipmentModule, PumpInstallation
-from app.models.onboarding import FactoryAudit, FactoryController, PersonalWorkspace
+from app.models.onboarding import (
+    AccountSecurity,
+    FactoryAudit,
+    FactoryController,
+    PersonalWorkspace,
+)
 from app.schemas.onboarding import (
     BootstrapContact,
     ClaimRequest,
@@ -25,8 +30,11 @@ from app.security.authorization import AccessControl
 from app.security.current_user import CurrentUserContext
 from app.security.roles import Permission
 from app.security.tokens import utc_now
+from app.security.passwords import hash_password, verify_password
+from app.security.account_keys import verify_stored_totp
 from app.security.mfa_policy import require_privileged_mfa
 from app.services.equipment_profiles import get_profile
+from app.services.label_accounts import permanent_login, renew_label
 
 
 def locked_controller(session: Session, controller_id: uuid.UUID) -> FactoryController:
@@ -68,6 +76,7 @@ def register_controller(
     )
     session.add(row)
     session.flush()
+    renew_label(row)
     audit(session, row, current, "registered", test_reference=payload.test_reference)
     session.commit()
     return FactorySecrets(
@@ -76,6 +85,8 @@ def register_controller(
         activation_code=activation,
         bootstrap_key=bootstrap,
         setup_password=new_key()[:20],
+        login=row.buyer_login,
+        password=activation,
     )
 
 
@@ -98,6 +109,12 @@ def connection_read(
         site_id=device.site_id if device else None,
         last_contact_at=row.last_contact_at,
         firmware_version=row.firmware_version,
+        activation_required=row.buyer_user_id != current.user.id,
+        permanent_login=permanent_login(current.user)
+        if row.status == "ready"
+        and row.buyer_user_id == current.user.id
+        and current.user.login_name == row.buyer_login
+        else None,
     )
 
 
@@ -113,14 +130,46 @@ def claim(
     )
     if user is None or not user.is_active:
         raise HTTPException(401, "Сесію завершено")
+    security = session.scalar(
+        select(AccountSecurity)
+        .where(AccountSecurity.user_id == user.id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
     row = locked_controller(session, controller_id)
     if row.status == "claimed":
         # A repeated response can be recovered without recreating a site. Rights are rechecked.
         return connection_read(session, current, row)
-    if row.status != "ready" or not verify_digest(
-        "activation", payload.activation_code, row.activation_hash
+    if row.status != "ready" or not (
+        row.buyer_user_id == current.user.id
+        or verify_digest("activation", payload.activation_code or "", row.activation_hash)
     ):
         raise HTTPException(404, "Контролер або код активації недоступний")
+    label_buyer = row.buyer_user_id == user.id and user.login_name == row.buyer_login
+    if user.login_name and user.login_name.startswith("kr-") and not label_buyer:
+        raise HTTPException(403, "Спочатку завершіть активацію свого контролера")
+    if label_buyer and payload.new_password is None:
+        raise HTTPException(422, "Задайте постійний пароль і збережіть дані входу")
+    if label_buyer and verify_password(payload.new_password, user.password_hash):
+        raise HTTPException(422, "Постійний пароль має відрізнятися від заводського")
+    if not label_buyer and payload.new_password is not None:
+        raise HTTPException(422, "Пароль наявного кабінету змінюється в налаштуваннях безпеки")
+    if label_buyer:
+        if (
+            security is None
+            or not security.totp_secret
+            or not security.recovery_hash
+            or security.totp_enabled_at
+        ):
+            raise HTTPException(422, "Налаштуйте двоетапний вхід у майстрі активації")
+        counter, encrypted = verify_stored_totp(
+            security.totp_secret, payload.otp or "", security.totp_last_counter
+        )
+        if counter is None:
+            raise HTTPException(422, "Введіть чинний код із застосунку автентифікації")
+        security.totp_last_counter, security.totp_secret = counter, encrypted
+        security.totp_enabled_at = utc_now()
+        current.auth_session.mfa_verified_at = utc_now()
     if payload.site_id:
         site = AccessControl(session, current).require_site(
             payload.site_id, Permission.DEVICE_CREATE
@@ -181,6 +230,22 @@ def claim(
         utc_now(),
         None,
     )
+    # A logged-in customer can attach a new controller to their existing cabinet;
+    # its label must never become a second password for that customer's identity.
+    if row.buyer_user_id != current.user.id:
+        row.buyer_user_id = None
+    if label_buyer:
+        user.login_name = permanent_login(user)
+        user.password_hash = hash_password(payload.new_password)
+        session.execute(
+            update(AuthSession)
+            .where(
+                AuthSession.user_id == user.id,
+                AuthSession.id != current.auth_session.id,
+                AuthSession.revoked_at.is_(None),
+            )
+            .values(revoked_at=utc_now())
+        )
     audit(
         session,
         row,

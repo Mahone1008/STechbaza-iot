@@ -12,6 +12,7 @@ class CurrentUserMembershipRead(BaseModel):
 class CurrentUserRead(BaseModel):
     id: uuid.UUID
     email: EmailStr
+    login_name: str | None = None
     display_name: str
     platform_role: str
     is_active: bool

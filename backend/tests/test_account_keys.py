@@ -2,7 +2,7 @@ import unittest
 import os
 from unittest.mock import patch
 from app.security.account_keys import digest, secret_box, totp_code, verify_totp
-from app.schemas.onboarding import ClaimRequest, NewSite, RegisterRequest
+from app.schemas.onboarding import ClaimRequest, NewSite, RecoveryRequest
 from pydantic import ValidationError
 from app.security.account_key_config import load_account_keys
 from app.security.account_keys import verify_digest, verify_stored_totp
@@ -103,4 +103,4 @@ class AccountKeyTests(unittest.TestCase):
         with self.assertRaises(ValidationError):
             ClaimRequest(**base, new_site={"name": "Well", "timezone": "Europe/Invalid"})
         with self.assertRaises(ValidationError):
-            RegisterRequest(email="person@example.com", display_name="Person", password=" short ")
+            RecoveryRequest(email="person@example.com", recovery_key="r" * 43, new_password="short")

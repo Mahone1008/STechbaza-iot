@@ -17,7 +17,7 @@ const DEMO_PASSWORD: string = demoPassword;
 
 async function login(page: Page): Promise<string> {
   await page.goto("/login");
-  await page.getByLabel("Email").fill(DEMO_EMAIL);
+  await page.getByLabel("Логін").fill(DEMO_EMAIL);
   await page.getByLabel("Пароль").fill(DEMO_PASSWORD);
   const responsePromise = page.waitForResponse(
     (response) => response.url() === LOGIN_URL && response.request().method() === "POST",

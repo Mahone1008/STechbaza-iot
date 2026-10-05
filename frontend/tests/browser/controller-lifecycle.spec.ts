@@ -153,6 +153,8 @@ test("handover kit remains visible after passport refresh removes its old associ
       generation: 2,
       qr_path: `/connect/${controllerId}`,
       activation_code: "transfer-test-key-".repeat(3),
+      login: "kr-017ca46d342c4ab6bd1c89a602021951-g2",
+      password: "transfer-test-key-".repeat(3),
     });
   });
   await page.getByRole("button", { name: "Керувати доступом" }).click();

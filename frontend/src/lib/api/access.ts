@@ -3,11 +3,13 @@ import { ApiError } from "./errors";
 import type { paths } from "./schema";
 
 export type CurrentUserResponse = paths["/api/v1/auth/me"]["get"]["responses"][200]["content"]["application/json"];
-export type OrganizationListResponse = paths["/api/v1/organizations"]["get"]["responses"][200]["content"]["application/json"];
+export type OrganizationListResponse =
+  paths["/api/v1/organizations"]["get"]["responses"][200]["content"]["application/json"];
 export type OrganizationResponse = OrganizationListResponse[number];
-export type OrganizationAccessResponse = paths["/api/v1/organizations/{organization_id}/access"]["get"]["responses"][200]["content"]["application/json"];
+export type OrganizationAccessResponse =
+  paths["/api/v1/organizations/{organization_id}/access"]["get"]["responses"][200]["content"]["application/json"];
 
-export const permissionCodes = [
+const permissionCodes = [
   "organization.read",
   "site.read",
   "site.create",
@@ -28,7 +30,7 @@ export const permissionCodes = [
 
 export type PermissionCode = (typeof permissionCodes)[number];
 export type OrganizationRole = "owner" | "admin" | "operator" | "viewer" | "service";
-export type PlatformRole = "user" | "service_admin" | "superadmin";
+type PlatformRole = "user" | "service_admin" | "superadmin";
 
 const permissionSet = new Set<string>(permissionCodes);
 const organizationRoleSet = new Set<string>(["owner", "admin", "operator", "viewer", "service"]);
@@ -84,7 +86,7 @@ function parseOrganizationRole(value: unknown, path: string, nullable = false): 
   return value as OrganizationRole;
 }
 
-export function isPermissionCode(value: unknown): value is PermissionCode {
+function isPermissionCode(value: unknown): value is PermissionCode {
   return typeof value === "string" && permissionSet.has(value);
 }
 
@@ -107,6 +109,7 @@ export function parseCurrentUserResponse(value: unknown): CurrentUserResponse {
   return {
     id: requiredUuid(value, "id", path),
     email: requiredString(value, "email", path),
+    ...(value.login_name == null ? {} : { login_name: requiredString(value, "login_name", path) }),
     display_name: typeof value.display_name === "string" ? value.display_name : invalidResponse(path, "display_name"),
     platform_role: parsePlatformRole(value.platform_role, path),
     is_active: value.is_active,
@@ -136,10 +139,7 @@ export function parseOrganizationListResponse(value: unknown): OrganizationListR
   return value.map((item) => parseOrganization(item, path)) as OrganizationListResponse;
 }
 
-export function parseOrganizationAccessResponse(
-  value: unknown,
-  organizationId: string,
-): OrganizationAccessResponse {
+export function parseOrganizationAccessResponse(value: unknown, organizationId: string): OrganizationAccessResponse {
   const path = `/api/v1/organizations/${encodeURIComponent(organizationId)}/access`;
   if (!isRecord(value)) invalidResponse(path, "OrganizationAccessRead");
 
@@ -161,10 +161,7 @@ export function parseOrganizationAccessResponse(
   } as OrganizationAccessResponse;
 }
 
-export function organizationRoleLabel(
-  role: OrganizationRole | null,
-  platformRole: string = "user",
-): string {
+export function organizationRoleLabel(role: OrganizationRole | null, platformRole: string = "user"): string {
   if (role === "owner") return "Власник";
   if (role === "admin") return "Адміністратор";
   if (role === "operator") return "Оператор";

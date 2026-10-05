@@ -28,7 +28,16 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/u;
 const MAX_EMAIL_LENGTH = 254;
 const MAX_PASSWORD_LENGTH = 128;
 const DEFAULT_LOGIN_DESTINATION: Route = "/devices";
-const ALLOWED_RETURN_PATHS = ["/devices", "/organizations", "/alarms", "/notifications", "/ui-kit", "/connect", "/account", "/factory"] as const;
+const ALLOWED_RETURN_PATHS = [
+  "/devices",
+  "/organizations",
+  "/alarms",
+  "/notifications",
+  "/ui-kit",
+  "/connect",
+  "/account",
+  "/factory",
+] as const;
 
 export function safeLoginReturnTo(value: string | null | undefined): Route {
   if (!value || !value.startsWith("/") || value.startsWith("//") || value.includes("\\")) {
@@ -43,9 +52,7 @@ export function safeLoginReturnTo(value: string | null | undefined): Route {
     const allowed = ALLOWED_RETURN_PATHS.some(
       (prefix) => url.pathname === prefix || url.pathname.startsWith(`${prefix}/`),
     );
-    return allowed
-      ? `${url.pathname}${url.search}${url.hash}` as Route
-      : DEFAULT_LOGIN_DESTINATION;
+    return allowed ? (`${url.pathname}${url.search}${url.hash}` as Route) : DEFAULT_LOGIN_DESTINATION;
   } catch {
     return DEFAULT_LOGIN_DESTINATION;
   }
@@ -56,9 +63,14 @@ export function validateLoginForm(values: LoginFormValues): LoginValidationResul
   const errors: { email?: string; password?: string } = {};
 
   if (!normalizedEmail) {
-    errors.email = "Введіть email.";
-  } else if (normalizedEmail.length > MAX_EMAIL_LENGTH || !EMAIL_PATTERN.test(normalizedEmail)) {
-    errors.email = "Введіть коректний email, наприклад name@company.ua.";
+    errors.email = "Введіть логін.";
+  } else if (
+    normalizedEmail.length > MAX_EMAIL_LENGTH ||
+    !(normalizedEmail.includes("@")
+      ? EMAIL_PATTERN.test(normalizedEmail)
+      : /^(?:kr-[0-9a-f]{32}-g[1-9][0-9]*|ku-[0-9a-f]{32})$/u.test(normalizedEmail))
+  ) {
+    errors.email = "Введіть постійний логін, логін із комплекту або email наявного облікового запису.";
   }
 
   if (!values.password) {
@@ -82,7 +94,7 @@ export function loginErrorPresentation(error: unknown): LoginErrorPresentation {
 
   if (error.kind === "unauthorized") {
     return {
-      summary: "Невірний email або пароль.",
+      summary: "Невірний логін або пароль.",
       fieldErrors: { password: "Перевірте пароль і повторіть спробу." },
       retryAfterSeconds: 0,
       clearPassword: true,
@@ -100,7 +112,7 @@ export function loginErrorPresentation(error: unknown): LoginErrorPresentation {
 
   if (error.kind === "validation") {
     return {
-      summary: "Backend відхилив дані входу. Перевірте email і пароль.",
+      summary: "Backend відхилив дані входу. Перевірте логін і пароль.",
       fieldErrors: {},
       retryAfterSeconds: 0,
       clearPassword: true,
@@ -119,9 +131,10 @@ export function loginErrorPresentation(error: unknown): LoginErrorPresentation {
 
   if (error.kind === "server") {
     return {
-      summary: error.status === 503
-        ? "Сервіс входу тимчасово недоступний. Дані не були прийняті; повторіть пізніше."
-        : "Backend тимчасово не може виконати вхід.",
+      summary:
+        error.status === 503
+          ? "Сервіс входу тимчасово недоступний. Дані не були прийняті; повторіть пізніше."
+          : "Backend тимчасово не може виконати вхід.",
       fieldErrors: {},
       retryAfterSeconds: 0,
       clearPassword: false,

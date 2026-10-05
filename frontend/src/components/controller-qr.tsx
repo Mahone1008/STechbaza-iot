@@ -2,7 +2,7 @@
 import { useId, useMemo } from "react";
 import qrcode from "qrcode-generator";
 
-export function ControllerQr({ url }: { url: string }) {
+export function ControllerQr({ url, label = "QR для підключення контролера" }: { url: string; label?: string }) {
   const titleId = useId();
   const qr = useMemo(() => {
     const code = qrcode(0, "M");
@@ -24,7 +24,7 @@ export function ControllerQr({ url }: { url: string }) {
       height="220"
       shapeRendering="crispEdges"
     >
-      <title id={titleId}>QR для підключення контролера</title>
+      <title id={titleId}>{label}</title>
       <path fill="white" d={`M0 0h${qr.size}v${qr.size}H0z`} />
       <path fill="#102b40" d={qr.path} />
     </svg>

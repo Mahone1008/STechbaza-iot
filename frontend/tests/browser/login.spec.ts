@@ -14,7 +14,10 @@ import {
   mockRefreshSuccess,
 } from "./auth-fixtures";
 
-async function mockBrowserLogin(page: Parameters<typeof mockMissingBrowserSession>[0], handler: (route: Route) => Promise<void>) {
+async function mockBrowserLogin(
+  page: Parameters<typeof mockMissingBrowserSession>[0],
+  handler: (route: Route) => Promise<void>,
+) {
   await page.route(LOGIN_URL, async (route) => {
     if (await fulfillPreflight(route)) return;
     await handler(route);
@@ -34,12 +37,15 @@ test("client validation blocks malformed credentials before the API call", async
   await fillLogin(page, "not-an-email", "");
   await page.getByRole("button", { name: "Увійти" }).click();
 
-  await expect(page.getByText(/коректний email/)).toBeVisible();
+  await expect(page.getByText(/логін із комплекту/)).toBeVisible();
   await expect(page.getByText("Введіть пароль.")).toBeVisible();
   expect(postRequests).toBe(0);
 });
 
-test("successful login resolves real profile, organization and permissions without persisting tokens", async ({ page, context }) => {
+test("successful login resolves real profile, organization and permissions without persisting tokens", async ({
+  page,
+  context,
+}) => {
   let requestHeaders: Record<string, string> = {};
   let requestBody: unknown = null;
   const refreshToken = "r".repeat(64);
@@ -88,7 +94,7 @@ test("invalid credentials stay on login and do not disclose account existence", 
     await route.fulfill({
       status: 401,
       headers: { ...corsHeaders, "content-type": "application/json" },
-      body: JSON.stringify({ detail: "Невірний email або пароль" }),
+      body: JSON.stringify({ detail: "Невірний логін або пароль" }),
     });
   });
 
@@ -97,7 +103,7 @@ test("invalid credentials stay on login and do not disclose account existence", 
   await page.getByRole("button", { name: "Увійти" }).click();
 
   await expect(page).toHaveURL(/\/login$/u);
-  await expect(page.locator(".login-alert")).toContainText("Невірний email або пароль");
+  await expect(page.locator(".login-alert")).toContainText("Невірний логін або пароль");
   await expect(page.getByLabel("Пароль")).toHaveValue("");
 });
 
@@ -129,7 +135,6 @@ test("network failure is not rendered as invalid credentials or an empty state",
   await expect(page.getByLabel("Пароль")).toHaveValue("valid-test-password");
 });
 
-
 for (const source of ["login", "refresh"] as const) {
   test(`${source} waits for the workspace route before requesting profile and does not abort it`, async ({ page }) => {
     await mockIdentity(page);
@@ -143,14 +148,20 @@ for (const source of ["login", "refresh"] as const) {
       await route.fallback();
     });
     page.on("requestfailed", (request) => {
-      if (request.url() === ME_URL && request.method() === "GET") profileFailures.push(request.failure()?.errorText ?? "failed");
+      if (request.url() === ME_URL && request.method() === "GET")
+        profileFailures.push(request.failure()?.errorText ?? "failed");
     });
     let releaseNavigation = () => {};
-    const navigationGate = new Promise<void>((resolve) => { releaseNavigation = resolve; });
+    const navigationGate = new Promise<void>((resolve) => {
+      releaseNavigation = resolve;
+    });
     let destinationRequests = 0;
     // Повільна RSC-відповідь залишає authenticated користувача на /login.
     await page.route(`${FRONTEND_ORIGIN}/devices?*`, async (route) => {
-      if (route.request().headers().rsc !== "1") { await route.continue(); return; }
+      if (route.request().headers().rsc !== "1") {
+        await route.continue();
+        return;
+      }
       destinationRequests += 1;
       await navigationGate;
       await route.continue();
@@ -162,7 +173,9 @@ for (const source of ["login", "refresh"] as const) {
         await page.getByRole("button", { name: "Увійти" }).click();
       }
       await expect.poll(() => destinationRequests).toBeGreaterThan(0);
-      await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+      await page.evaluate(
+        () => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))),
+      );
       await expect(page).toHaveURL(/\/login$/u);
       expect(profilePaths).toEqual([]);
       await expect(page.getByRole("heading", { name: "Пристрої", exact: true })).toHaveCount(0);
@@ -171,6 +184,8 @@ for (const source of ["login", "refresh"] as const) {
       await expect(page.getByText("Online", { exact: true })).toBeVisible();
       expect(profilePaths).toEqual(["/devices"]);
       expect(profileFailures).toEqual([]);
-    } finally { releaseNavigation(); }
+    } finally {
+      releaseNavigation();
+    }
   });
 }

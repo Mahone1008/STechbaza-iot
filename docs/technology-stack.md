@@ -11,7 +11,7 @@
 | MQTT | Mosquitto, QoS 1, telemetry/heartbeat, commands/ACK/Result; V3 gateway TLS + device password/ACL | Production lifecycle credentials, rotation/revocation, fleet isolation |
 | Backend | Python/FastAPI, Pydantic, SQLAlchemy, psycopg, Alembic, paho-mqtt | Розділення API/ingestion/workers для масштабування |
 | БД | PostgreSQL 16, 22 міграції; snapshots/history, commands/audit, schedules, equipment/binding, account security і factory registry | Instance-aware telemetry channels, retention, PITR, capacity acceptance |
-| Frontend | Next.js/React, TypeScript strict, TanStack Query, bounded polling; п'ять розділів пристрою, реєстрація/TOTP/recovery, factory/claim UI | SSE/WebSocket, повний provisioning/configuration/service UI ще не реалізовані |
+| Frontend | Next.js/React, TypeScript strict, TanStack Query, bounded polling; п'ять розділів пристрою, активація/TOTP/recovery, factory/claim UI | SSE/WebSocket, повний provisioning/configuration/service UI ще не реалізовані |
 | Simulator | Python, MQTT, SQLite state/ledger/outbox; синтетичні пристрої та faults | Не є моделлю фізики насоса або hardware acceptance |
 | Локальна інфраструктура | Docker Compose dev/demo, окремий V3 gateway | Production HTTPS/reverse proxy, monitoring, deployment/restore drills |
 | V4 | Очікування 4G-модуля | LTE transport, modem fault/recovery, польове приймання |

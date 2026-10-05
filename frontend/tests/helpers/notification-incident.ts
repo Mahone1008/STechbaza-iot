@@ -64,7 +64,7 @@ export async function checkNotificationIncident(page: Page, browser: Browser) {
 
     const viewer = await viewerContext.newPage();
     await viewer.goto(`/login?returnTo=${encodeURIComponent(noticePath(raised.notification_id))}`);
-    await viewer.getByLabel("Email").fill(process.env.KERUMO_VIEWER_EMAIL!);
+    await viewer.getByLabel("Логін").fill(process.env.KERUMO_VIEWER_EMAIL!);
     await viewer.getByLabel("Пароль").fill(process.env.KERUMO_VIEWER_PASSWORD!);
     await viewer.getByRole("button", { name: "Увійти" }).click();
     await expect(detailCard(viewer)).toContainText("Не прочитано вами");

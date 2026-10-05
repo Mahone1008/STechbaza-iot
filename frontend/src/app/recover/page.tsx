@@ -1,2 +1,4 @@
-import { RegisterPage } from "@/features/register";
-export default function Page() { return <RegisterPage recovery />; }
+import { RecoveryPage } from "@/features/recover";
+export default function Page() {
+  return <RecoveryPage />;
+}

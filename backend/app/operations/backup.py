@@ -7,7 +7,9 @@ import os
 from pathlib import Path
 import sqlite3
 
-BUNDLE_FILES = frozenset({"postgres.dump", "simulator.sqlite3", "source.json", "environment.env", "source.tar"})
+BUNDLE_FILES = frozenset(
+    {"postgres.dump", "simulator.sqlite3", "source.json", "environment.env", "source.tar"}
+)
 
 
 def file_hash(path):
@@ -35,8 +37,14 @@ def create_manifest(directory, revision):
         if not path.is_file() or path.is_symlink() or path.stat().st_size == 0:
             raise ValueError("Неповний backup bundle: " + name)
         files[name] = {"sha256": file_hash(path), "bytes": path.stat().st_size}
-    value = {"format": 1, "backend": "0.46.0", "migration": "20261005_0023",
-             "postgres_major": 16, "git_revision": revision, "files": files}
+    value = {
+        "format": 1,
+        "backend": "0.47.0",
+        "migration": "20261005_0024",
+        "postgres_major": 16,
+        "git_revision": revision,
+        "files": files,
+    }
     write_private_json(root / "manifest.json", value)
     return value
 
@@ -53,15 +61,24 @@ def verify_bundle(directory):
     versions["0.44.0"] = "20261002_0021"
     versions["0.45.0"] = "20261002_0022"
     versions["0.46.0"] = "20261005_0023"
-    if (value.get("format") != 1 or value.get("backend") not in versions
-            or value.get("migration") != versions.get(value.get("backend")) or value.get("postgres_major") != 16
-            or set(value.get("files", {})) != BUNDLE_FILES):
+    versions["0.47.0"] = "20261005_0024"
+    if (
+        value.get("format") != 1
+        or value.get("backend") not in versions
+        or value.get("migration") != versions.get(value.get("backend"))
+        or value.get("postgres_major") != 16
+        or set(value.get("files", {})) != BUNDLE_FILES
+    ):
         raise ValueError("Непідтримуваний або неповний manifest")
     # Фіксований allowlist не дозволяє manifest читати довільні host paths.
     for name, expected in value["files"].items():
         path = root / name
-        if (not path.is_file() or path.is_symlink() or path.stat().st_size != expected["bytes"]
-                or file_hash(path) != expected["sha256"]):
+        if (
+            not path.is_file()
+            or path.is_symlink()
+            or path.stat().st_size != expected["bytes"]
+            or file_hash(path) != expected["sha256"]
+        ):
             raise ValueError("Backup checksum mismatch: " + name)
     return value
 
@@ -92,7 +109,10 @@ def sqlite_fingerprint(path):
         if connection.execute("PRAGMA integrity_check").fetchall() != [("ok",)]:
             raise ValueError("SQLite integrity_check failed")
         result = {}
-        existing = {row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+        existing = {
+            row[0]
+            for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")
+        }
         for table in ("devices", "commands", "programs"):
             if table == "programs" and table not in existing:
                 continue  # Backup зі старої версії симулятора залишається читабельним.

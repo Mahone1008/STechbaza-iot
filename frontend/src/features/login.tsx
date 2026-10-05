@@ -53,6 +53,7 @@ export function LoginPanel() {
   const { login, session } = useAuthSession();
   const abortControllerRef = useRef<AbortController | null>(null);
   const redirectTargetRef = useRef<Route | null>(null);
+  const onboardingTargetRef = useRef<Route | null>(null);
   const alertRef = useRef<HTMLDivElement | null>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -61,11 +62,7 @@ export function LoginPanel() {
   const [submitting, setSubmitting] = useState(false);
   const [blockedUntil, setBlockedUntil] = useState<number | null>(null);
   const [clock, setClock] = useState(() => Date.now());
-  const loggedOutNotice = useSyncExternalStore(
-    subscribeToLocationChange,
-    loggedOutLocationSnapshot,
-    () => false,
-  );
+  const loggedOutNotice = useSyncExternalStore(subscribeToLocationChange, loggedOutLocationSnapshot, () => false);
   const sessionBusy = session.status === "restoring" || session.status === "logging-out";
 
   useEffect(() => () => abortControllerRef.current?.abort(), []);
@@ -75,7 +72,7 @@ export function LoginPanel() {
       redirectTargetRef.current = null;
       return;
     }
-    const destination = currentLoginDestination();
+    const destination = onboardingTargetRef.current ?? currentLoginDestination();
     if (redirectTargetRef.current === destination) return;
     redirectTargetRef.current = destination;
     router.replace(destination);
@@ -99,9 +96,7 @@ export function LoginPanel() {
     if (formError) alertRef.current?.focus();
   }, [formError]);
 
-  const retrySeconds = blockedUntil === null
-    ? 0
-    : Math.max(1, Math.ceil((blockedUntil - clock) / 1_000));
+  const retrySeconds = blockedUntil === null ? 0 : Math.max(1, Math.ceil((blockedUntil - clock) / 1_000));
 
   const submitLogin = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -122,10 +117,12 @@ export function LoginPanel() {
     setSubmitting(true);
 
     try {
-      await login(
+      const response = await login(
         { email: validation.normalizedEmail, password, ...(otp ? { otp } : {}) },
         controller.signal,
       );
+      if (!params.get("returnTo") && response.onboarding_path)
+        onboardingTargetRef.current = safeLoginReturnTo(response.onboarding_path);
       setPassword("");
       // Єдиний перехід виконує effect після підтвердженого authenticated state.
     } catch (error) {
@@ -150,7 +147,9 @@ export function LoginPanel() {
   };
 
   const buttonLabel = sessionBusy
-    ? session.status === "logging-out" ? "Завершуємо сесію…" : "Відновлюємо сесію…"
+    ? session.status === "logging-out"
+      ? "Завершуємо сесію…"
+      : "Відновлюємо сесію…"
     : submitting
       ? "Перевіряємо…"
       : retrySeconds > 0
@@ -165,14 +164,23 @@ export function LoginPanel() {
           <p className="eyebrow">Промисловий контроль без зайвого шуму</p>
           <h1>Обладнання, показники та аварії — в одному зрозумілому кабінеті.</h1>
           <p>
-            KERUMO поєднує модульні контролери, частотні перетворювачі та датчики,
-            не змішуючи стан зв’язку з фактичним результатом команди.
+            KERUMO поєднує модульні контролери, частотні перетворювачі та датчики, не змішуючи стан зв’язку з фактичним
+            результатом команди.
           </p>
         </div>
         <div className="login-features">
-          <div className="login-feature"><strong>Модульність</strong><span>Лише встановлені можливості</span></div>
-          <div className="login-feature"><strong>Контроль</strong><span>ACK і Result показуються окремо</span></div>
-          <div className="login-feature"><strong>Безпека</strong><span>Права перевіряє backend</span></div>
+          <div className="login-feature">
+            <strong>Модульність</strong>
+            <span>Лише встановлені можливості</span>
+          </div>
+          <div className="login-feature">
+            <strong>Контроль</strong>
+            <span>ACK і Result показуються окремо</span>
+          </div>
+          <div className="login-feature">
+            <strong>Безпека</strong>
+            <span>Права перевіряє backend</span>
+          </div>
         </div>
       </section>
 
@@ -180,7 +188,10 @@ export function LoginPanel() {
         <div className="login-card">
           <Brand />
           <h2>Вхід до кабінету</h2>
-          <p>Увійдіть до свого облікового запису KERUMO.</p>
+          <p>
+            Для першої активації використайте заводські логін і пароль або QR на шильдику. Надалі входьте з постійним
+            паролем і кодом із застосунку.
+          </p>
 
           {loggedOutNotice && session.status === "anonymous" ? (
             <div className="login-alert login-alert-success" role="status">
@@ -201,7 +212,9 @@ export function LoginPanel() {
           ) : session.status === "logout-failed" && !formError ? (
             <div className="login-alert login-alert-warning" role="alert">
               <strong>Logout не підтверджено</strong>
-              <span>{session.message} Поверніться до захищеного маршруту, щоб повторити вихід або відновити кабінет.</span>
+              <span>
+                {session.message} Поверніться до захищеного маршруту, щоб повторити вихід або відновити кабінет.
+              </span>
             </div>
           ) : session.status === "unavailable" && !formError ? (
             <div className="login-alert login-alert-warning" role="status">
@@ -225,10 +238,9 @@ export function LoginPanel() {
           <form className="login-form" onSubmit={submitLogin} noValidate>
             <TextField
               id="login-email"
-              label="Email"
-              type="email"
-              inputMode="email"
-              placeholder="name@company.ua"
+              label="Логін"
+              type="text"
+              placeholder="Ваш логін"
               autoComplete="username"
               autoCapitalize="none"
               spellCheck={false}
@@ -257,7 +269,14 @@ export function LoginPanel() {
                 if (fieldErrors.password) setFieldErrors((current) => withoutFieldError(current, "password"));
               }}
             />
-            <TextField label="Код двоетапного входу, якщо ввімкнено" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={otp} onChange={(event) => setOtp(event.target.value)} />
+            <TextField
+              label="Код двоетапного входу, якщо ввімкнено"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={6}
+              value={otp}
+              onChange={(event) => setOtp(event.target.value)}
+            />
             <Button
               type="submit"
               variant="primary"
@@ -270,12 +289,12 @@ export function LoginPanel() {
           </form>
 
           <div className="login-support">
-            <Link href={`/register?returnTo=${encodeURIComponent(returnTo)}` as Route}>Створити обліковий запис</Link>
+            <Link href="/connect">Активувати контролер за QR</Link>
             <Link href={`/recover?returnTo=${encodeURIComponent(returnTo)}` as Route}>Відновити доступ</Link>
           </div>
           <div className="login-security">
-            Refresh token зберігається лише в HttpOnly cookie. Access token залишається
-            тільки в пам’яті вкладки й не записується у localStorage або URL.
+            Refresh token зберігається лише в HttpOnly cookie. Access token залишається тільки в пам’яті вкладки й не
+            записується у localStorage або URL.
           </div>
         </div>
       </section>
