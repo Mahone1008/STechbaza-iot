@@ -17,6 +17,7 @@ from app.models.schedule import DeviceSchedule, ScheduleOccurrence, ScheduleRevi
 from app.models.equipment import PumpInstallation, EquipmentModule, EquipmentConfiguration
 
 __all__ = [
+    "FactoryController", "FactoryAudit", "PersonalWorkspace", "AccountSecurity",
     "PumpInstallation", "EquipmentModule", "EquipmentConfiguration",
     "AlarmNotification",
     "NotificationRead",

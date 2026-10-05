@@ -79,7 +79,7 @@ class BrowserAuthTests(unittest.TestCase):
             self.assertEqual(response["cache-control"], "no-store")
 
     def test_limiter_storage_failure_denies_login(self):
-        with patch("app.api.v1.auth.AuthThrottle.check", side_effect=OperationalError("test", {}, Exception())):
+        with patch("app.api.auth_throttle.AuthThrottle.check", side_effect=OperationalError("test", {}, Exception())):
             code, _, response = request("POST", "/api/v1/auth/login",
                 body={"email": "user@example.com", "password": "test"})
         self.assertEqual(code, 503)

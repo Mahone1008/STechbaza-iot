@@ -19,11 +19,13 @@ for (const role of ["owner", "viewer"] as const) test(`${role} completes login, 
   await page.getByRole("table").getByRole("link", { name: tenants[0].name, exact: true }).click();
   await page.getByRole("table").getByRole("link", { name: "Об’єкт A", exact: true }).click();
   await page.getByRole("link", { name: "Насос A", exact: true }).click();
+  await page.getByRole("tab", { name: "Графіки", exact: true }).click();
   await expect(page.locator(".telemetry-chart")).toBeVisible();
   await page.getByLabel("Період", { exact: true }).selectOption("21600");
   await page.getByLabel("Інтервал", { exact: true }).selectOption("900");
   await page.reload(); await expect(page.getByLabel("Період", { exact: true })).toHaveValue("21600");
   await expect(page.getByLabel("Інтервал", { exact: true })).toHaveValue("900");
+  await page.getByRole("tab", { name: "Панель", exact: true }).click();
   if (role === "owner") {
     await page.getByRole("button", { name: "Зупинити", exact: true }).click();
     await page.getByRole("dialog").getByRole("button", { name: "Скасувати" }).click();
@@ -55,8 +57,10 @@ test("two tenants in two tabs keep history and reads separate and logout clears 
   const writes = await stage14Workspace(context);
   const second = await context.newPage();
   await page.goto(`/devices/${tenants[0].device}`);
+  await page.getByRole("tab", { name: "Графіки", exact: true }).click();
   await page.getByLabel("Період", { exact: true }).selectOption("21600");
   await second.goto(`/devices/${tenants[1].device}`);
+  await second.getByRole("tab", { name: "Графіки", exact: true }).click();
   await expect(second.getByRole("heading", { name: "Насос B", exact: true })).toBeVisible();
   await expect(second.getByLabel("Період", { exact: true })).toHaveValue("3600");
   await second.getByLabel("Період", { exact: true }).selectOption("86400");

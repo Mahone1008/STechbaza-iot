@@ -5,7 +5,7 @@ param(
 $ErrorActionPreference = "Stop"
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $frontend = Join-Path $repoRoot "frontend"
-$backendRequirements = Join-Path $repoRoot "backend\requirements.txt"
+$backendRequirements = Join-Path $repoRoot "backend\requirements.lock"
 $venvRoot = Join-Path $repoRoot ".venv"
 $venvPython = Join-Path $venvRoot "Scripts\python.exe"
 
@@ -48,7 +48,7 @@ if (-not (Test-Path -LiteralPath $venvPython -PathType Leaf)) {
 }
 
 Write-Host "Preparing backend schema dependencies in .venv" -ForegroundColor Cyan
-& $venvPython -m pip install --disable-pip-version-check --no-input -r $backendRequirements
+& $venvPython -m pip install --disable-pip-version-check --no-input --require-hashes -r $backendRequirements
 Assert-LastExit "Backend schema dependency installation"
 
 Set-Location $frontend

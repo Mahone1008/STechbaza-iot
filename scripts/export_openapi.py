@@ -17,6 +17,8 @@ os.environ.setdefault(
 os.environ.setdefault("AUTH_BROWSER_ORIGINS", "http://127.0.0.1:3000")
 os.environ.setdefault("AUTH_COOKIE_SECURE", "false")
 
+os.environ.setdefault("ACCOUNT_KEY_SECRET", "schema-export-account-key-not-for-runtime-0000")
+
 from app.main import app  # noqa: E402
 
 

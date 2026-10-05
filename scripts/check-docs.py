@@ -64,7 +64,7 @@ def reference() -> str:
     if app_version != schema["info"]["version"] or app_version != health_version:
         raise ValueError("Backend, /health and committed OpenAPI versions differ")
     head, count = migration_head()
-    firmware = re.search(r'FirmwareVersion\[\]="(\d+\.\d+\.\d+)"', read("firmware/kerumo_v3/kerumo_v3.ino"))[1]
+    firmware = re.search(r'FirmwareVersion\[\]\s*=\s*"(\d+\.\d+\.\d+)"', read("firmware/kerumo_v3/kerumo_v3.ino"))[1]
     lines = ["# Довідник поточної реалізації", "",
              "Генерується `python scripts/check-docs.py --write`. Не редагувати вручну.",
              "CI звіряє його з tracked code. Це перелік реалізації, а не доказ фізичного приймання.",

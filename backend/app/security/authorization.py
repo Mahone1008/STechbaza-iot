@@ -175,6 +175,16 @@ class AccessControl:
             raise _not_found()
         return [uuid.UUID(value) for value in membership.site_ids] if membership.site_ids is not None else None
 
+    def list_creatable_sites(self, *, limit: int, offset: int) -> list[Site]:
+        from app.security.roles import OrganizationRole
+
+        # All roles with device.create are privileged; use the same MFA rule as claim.
+        require_privileged_mfa(self._current, "service")
+        roles = [role.value for role in OrganizationRole if role_has_permission(role, Permission.DEVICE_CREATE)]
+        return self._sites.list_for_user_permission(
+            self._current.user.id, roles, superadmin=self.is_superadmin, limit=limit, offset=offset,
+        )
+
     def _require_site_scope(self, site: Site):
         allowed = self.allowed_site_ids(site.organization_id)
         if allowed is not None and site.id not in allowed:

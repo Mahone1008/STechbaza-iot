@@ -238,3 +238,21 @@ Production-вимоги:
 
 Структуровані logs/metrics, backend lint/type/dependency gates і повна модульність
 firmware залишаються цілями з [аудиту](audit-2026-09-30.md), а не завершеними пунктами.
+
+## Поточні автоматичні gate після аудиту 05.10.2026
+
+Backend: `ruff` для всього app/tests, поступовий `mypy` та runtime/dev locks
+із хешами; [команди](backend-development.md). Frontend: typecheck, ESLint,
+unit/browser tests і `npm run format:check` для модулів, очищених аудитом.
+Список форматування явно задано в `frontend/scripts/check-format.mjs`; його
+розширюють разом із наступними змінами, без масового форматування сторонніх
+файлів. Firmware: native ASan/UBSan і всі ESP32 build variants чинного CI.
+
+Перевірка 05.10.2026 виявила окремий upstream-блокер повного npm audit:
+[GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm)
+для `braces <=3.0.3` у dev-ланцюжку `eslint-config-next` → Next ESLint plugin
+→ `fast-glob` → `micromatch`. На дату перевірки виправленої версії `braces`
+немає, актуальний Next ESLint 16.3.8 також використовує цей ланцюжок.
+`npm audit --omit=dev` не знаходить уразливостей. Повний CI gate винесено в окремий job, щоб незалежні browser/live перевірки
+могли завершитися; gate **залишено блокувальним**, без allowlist, downgrade ESLint або приховування dev-пакетів.
+Це відкрите зовнішнє обмеження; повторити audit після upstream-виправлення.

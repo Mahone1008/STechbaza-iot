@@ -1,15 +1,25 @@
+from app import mqtt_ingress
+from app.mqtt_topics import extract_device_uid, extract_command_event_uid
+from app.mqtt_diagnostics import (
+    remember_raw_message,
+    remember_command_publish,
+    reject_payload,
+    rejection_status,
+    last_mqtt_message as last_mqtt_message,
+    last_ingestion_result as last_ingestion_result,
+    last_heartbeat_result as last_heartbeat_result,
+    last_command_publish_result as last_command_publish_result,
+    last_command_ack_result as last_command_ack_result,
+    last_command_result_result as last_command_result_result,
+)
 import json
 import logging
 import os
 import threading
-from datetime import datetime, timezone
 from typing import Any
 
 import paho.mqtt.client as mqtt
-from pydantic import ValidationError
-from sqlalchemy.exc import DataError
 
-from app.db import SessionLocal
 from app.mqtt_payload import (
     MAX_JSON_DEPTH,
     MAX_JSON_NODES,
@@ -17,35 +27,6 @@ from app.mqtt_payload import (
     MAX_STRING_LENGTH,
     InvalidMQTTPayload,
     decode_payload,
-    load_json_object,
-)
-from app.schemas.command_ack import CommandAckEnvelope
-from app.schemas.command_result import CommandResultEnvelope
-from app.schemas.heartbeat import HeartbeatEnvelope
-from app.schemas.telemetry import TelemetryEnvelope
-from app.services.command_ack import (
-    CommandAckCommandNotFoundError,
-    CommandAckDeviceMismatchError,
-    CommandAckDeviceNotFoundError,
-    CommandAckInvalidTransitionError,
-    CommandAckService,
-)
-from app.services.command_result import (
-    CommandResultCommandNotFoundError,
-    CommandResultConflictError,
-    CommandResultDeviceMismatchError,
-    CommandResultDeviceNotFoundError,
-    CommandResultInvalidTransitionError,
-    CommandResultService,
-)
-from app.services.device_presence import (
-    DevicePresenceService,
-    PresenceDeviceNotFoundError,
-)
-from app.services.telemetry import (
-    TelemetryCapabilityViolationError,
-    TelemetryDeviceNotFoundError,
-    TelemetryService,
 )
 
 logger = logging.getLogger(__name__)
@@ -74,47 +55,10 @@ MQTT_COMMAND_TOPIC_TEMPLATE = os.getenv(
     "MQTT_COMMAND_TOPIC_TEMPLATE",
     "techbaza/devices/{device_uid}/commands",
 )
-MQTT_PUBLISH_TIMEOUT_SECONDS = float(
-    os.getenv("MQTT_PUBLISH_TIMEOUT_SECONDS", "3")
-)
+MQTT_PUBLISH_TIMEOUT_SECONDS = float(os.getenv("MQTT_PUBLISH_TIMEOUT_SECONDS", "3"))
 
 _lock = threading.Lock()
 _connected = False
-_last_message: dict[str, Any] | None = None
-_last_ingestion: dict[str, Any] | None = None
-_last_heartbeat: dict[str, Any] | None = None
-_last_command_publish: dict[str, Any] | None = None
-_last_command_ack: dict[str, Any] | None = None
-_last_command_result: dict[str, Any] | None = None
-_payload_rejections: dict[str, int] = {}
-_last_payload_rejection: dict[str, Any] | None = None
-
-
-def _extract_device_uid(topic: str, expected_suffix: str) -> str | None:
-    parts = topic.split("/")
-    if (
-        len(parts) == 4
-        and parts[0] == "techbaza"
-        and parts[1] == "devices"
-        and parts[2]
-        and parts[3] == expected_suffix
-    ):
-        return parts[2]
-    return None
-
-
-def _extract_command_event_uid(topic: str, event_name: str) -> str | None:
-    parts = topic.split("/")
-    if (
-        len(parts) == 5
-        and parts[0] == "techbaza"
-        and parts[1] == "devices"
-        and parts[2]
-        and parts[3] == "commands"
-        and parts[4] == event_name
-    ):
-        return parts[2]
-    return None
 
 
 def command_topic(device_uid: str) -> str:
@@ -124,90 +68,6 @@ def command_topic(device_uid: str) -> str:
         raise ValueError("Некоректний device_uid для MQTT topic")
 
     return MQTT_COMMAND_TOPIC_TEMPLATE.format(device_uid=device_uid)
-
-
-def _remember_raw_message(message: mqtt.MQTTMessage, payload: str | None) -> None:
-    global _last_message
-    with _lock:
-        _last_message = {
-            "topic": message.topic[:256],
-            "payload": payload[:2048] if payload is not None else None,
-            "payload_bytes": len(message.payload),
-            "payload_truncated": payload is not None and len(payload) > 2048,
-            "qos": message.qos,
-            "retain": bool(message.retain),
-            "received_at": datetime.now(timezone.utc).isoformat(),
-        }
-
-
-def _remember_ingestion(**data: Any) -> None:
-    global _last_ingestion
-    with _lock:
-        _last_ingestion = {
-            **data,
-            "processed_at": datetime.now(timezone.utc).isoformat(),
-        }
-
-
-def _remember_heartbeat(**data: Any) -> None:
-    global _last_heartbeat
-    with _lock:
-        _last_heartbeat = {
-            **data,
-            "processed_at": datetime.now(timezone.utc).isoformat(),
-        }
-
-
-def _remember_command_publish(**data: Any) -> None:
-    global _last_command_publish
-    with _lock:
-        _last_command_publish = {
-            **data,
-            "processed_at": datetime.now(timezone.utc).isoformat(),
-        }
-
-
-def _remember_command_ack(**data: Any) -> None:
-    global _last_command_ack
-    with _lock:
-        _last_command_ack = {
-            **data,
-            "processed_at": datetime.now(timezone.utc).isoformat(),
-        }
-
-
-def _remember_command_result(**data: Any) -> None:
-    global _last_command_result
-    with _lock:
-        _last_command_result = {
-            **data,
-            "processed_at": datetime.now(timezone.utc).isoformat(),
-        }
-
-
-def _reject_payload(topic: str, reason: str) -> None:
-    """Відхилення до DB: bounded diagnostics без вмісту пакета/ValidationError."""
-
-    global _last_payload_rejection
-    logger.warning("MQTT payload rejected: topic=%r reason=%s", topic[:256], reason)
-    with _lock:
-        _payload_rejections[reason] = _payload_rejections.get(reason, 0) + 1
-        _last_payload_rejection = {
-            "topic": topic[:256],
-            "reason": reason,
-            "processed_at": datetime.now(timezone.utc).isoformat(),
-        }
-    routes = (
-        (_extract_device_uid(topic, "telemetry"), _remember_ingestion),
-        (_extract_device_uid(topic, "heartbeat"), _remember_heartbeat),
-        (_extract_command_event_uid(topic, "ack"), _remember_command_ack),
-        (_extract_command_event_uid(topic, "result"), _remember_command_result),
-    )
-    for device_uid, remember in routes:
-        if device_uid is not None:
-            remember(status="rejected", topic=topic[:256], device_uid=device_uid[:160],
-                     reason="invalid_payload", payload_error=reason)
-            break
 
 
 def publish_command_message(
@@ -223,7 +83,7 @@ def publish_command_message(
         connected = _connected
 
     if not connected:
-        _remember_command_publish(
+        remember_command_publish(
             status="failed",
             reason="mqtt_not_connected",
             topic=topic,
@@ -248,7 +108,7 @@ def publish_command_message(
 
         if info.rc != mqtt.MQTT_ERR_SUCCESS:
             reason = f"mqtt_publish_rc_{info.rc}"
-            _remember_command_publish(
+            remember_command_publish(
                 status="failed",
                 reason=reason,
                 topic=topic,
@@ -261,7 +121,7 @@ def publish_command_message(
 
         info.wait_for_publish(timeout=MQTT_PUBLISH_TIMEOUT_SECONDS)
         if not info.is_published():
-            _remember_command_publish(
+            remember_command_publish(
                 status="failed",
                 reason="mqtt_publish_timeout",
                 topic=topic,
@@ -277,7 +137,7 @@ def publish_command_message(
             device_uid,
             command_id,
         )
-        _remember_command_publish(
+        remember_command_publish(
             status="failed",
             reason="mqtt_publish_exception",
             topic=topic,
@@ -288,7 +148,7 @@ def publish_command_message(
         )
         return False, "mqtt_publish_exception"
 
-    _remember_command_publish(
+    remember_command_publish(
         status="published",
         reason="published",
         topic=topic,
@@ -299,374 +159,6 @@ def publish_command_message(
         retain=False,
     )
     return True, "published"
-
-
-def _handle_telemetry(topic: str, payload_text: str) -> bool:
-    device_uid = _extract_device_uid(topic, "telemetry")
-    if device_uid is None:
-        return True
-
-    try:
-        payload_json = load_json_object(payload_text)
-        envelope = TelemetryEnvelope.model_validate(payload_json)
-    except (InvalidMQTTPayload, ValidationError) as exc:
-        _reject_payload(topic, exc.reason if isinstance(exc, InvalidMQTTPayload) else "invalid_envelope")
-        return True
-
-    try:
-        with SessionLocal() as session:
-            result = TelemetryService(session).ingest(
-                device_uid=device_uid,
-                payload=envelope,
-            )
-    except TelemetryDeviceNotFoundError:
-        _remember_ingestion(
-            status="rejected",
-            topic=topic,
-            device_uid=device_uid,
-            message_id=str(envelope.message_id),
-            reason="unknown_device",
-        )
-        return True
-    except TelemetryCapabilityViolationError as exc:
-        _remember_ingestion(
-            status="rejected",
-            topic=topic,
-            device_uid=device_uid,
-            message_id=str(envelope.message_id),
-            reason="capability_violation",
-            missing_capabilities=list(exc.missing_capabilities),
-            unsupported_keys=list(exc.unsupported_keys),
-        )
-        return True
-    except DataError:
-        # SQL відхилив значення payload, наприклад NaN у JSONB чи overflow.
-        # Повтор незмінного packet не виправить дані; не блокуємо ним потік.
-        logger.warning("Відхилено MQTT payload, несумісний зі схемою БД: topic=%s", topic)
-        _remember_ingestion(status="rejected", topic=topic, device_uid=device_uid,
-                 reason="invalid_database_value")
-        return True
-    except Exception:
-        logger.exception(
-            "Помилка ingestion телеметрії: uid=%s message_id=%s",
-            device_uid,
-            envelope.message_id,
-        )
-        _remember_ingestion(
-            status="error",
-            topic=topic,
-            device_uid=device_uid,
-            message_id=str(envelope.message_id),
-            reason="internal_error",
-        )
-        return False
-
-    _remember_ingestion(
-        status="duplicate" if result.duplicate else "stored",
-        topic=topic,
-        device_uid=device_uid,
-        message_id=str(envelope.message_id),
-        session_id=(
-            str(envelope.session_id)
-            if envelope.session_id is not None
-            else None
-        ),
-        telemetry_id=str(result.telemetry_id),
-        duplicate=result.duplicate,
-        state_updated=result.state_updated,
-        ordering_reason=result.ordering_reason,
-    )
-    return True
-
-
-def _handle_heartbeat(topic: str, payload_text: str) -> bool:
-    device_uid = _extract_device_uid(topic, "heartbeat")
-    if device_uid is None:
-        return True
-
-    try:
-        payload_json = load_json_object(payload_text)
-        envelope = HeartbeatEnvelope.model_validate(payload_json)
-    except (InvalidMQTTPayload, ValidationError) as exc:
-        _reject_payload(topic, exc.reason if isinstance(exc, InvalidMQTTPayload) else "invalid_envelope")
-        return True
-
-    try:
-        with SessionLocal() as session:
-            heartbeat = DevicePresenceService(session).mark_seen(
-                device_uid=device_uid,
-                session_id=envelope.session_id,
-                message_id=envelope.message_id,
-                sequence=envelope.sequence,
-            )
-    except PresenceDeviceNotFoundError:
-        _remember_heartbeat(
-            status="rejected",
-            topic=topic,
-            device_uid=device_uid,
-            message_id=str(envelope.message_id),
-            reason="unknown_device",
-        )
-        return True
-    except DataError:
-        # SQL відхилив значення payload, наприклад NaN у JSONB чи overflow.
-        # Повтор незмінного packet не виправить дані; не блокуємо ним потік.
-        logger.warning("Відхилено MQTT payload, несумісний зі схемою БД: topic=%s", topic)
-        _remember_heartbeat(status="rejected", topic=topic, device_uid=device_uid,
-                 reason="invalid_database_value")
-        return True
-    except Exception:
-        logger.exception(
-            "Помилка heartbeat ingestion: uid=%s message_id=%s",
-            device_uid,
-            envelope.message_id,
-        )
-        _remember_heartbeat(
-            status="error",
-            topic=topic,
-            device_uid=device_uid,
-            message_id=str(envelope.message_id),
-            reason="internal_error",
-        )
-        return False
-
-    _remember_heartbeat(
-        status="accepted" if heartbeat.accepted else "ignored",
-        topic=topic,
-        device_uid=device_uid,
-        message_id=str(envelope.message_id),
-        session_id=(
-            str(envelope.session_id)
-            if envelope.session_id is not None
-            else None
-        ),
-        sequence=envelope.sequence,
-        seen_at=heartbeat.seen_at.isoformat() if heartbeat.seen_at else None,
-        reason=heartbeat.reason,
-    )
-    return True
-
-
-def _handle_command_ack(topic: str, payload_text: str) -> bool:
-    device_uid = _extract_command_event_uid(topic, "ack")
-    if device_uid is None:
-        return True
-
-    try:
-        payload_json = load_json_object(payload_text)
-        envelope = CommandAckEnvelope.model_validate(payload_json)
-    except (InvalidMQTTPayload, ValidationError) as exc:
-        _reject_payload(topic, exc.reason if isinstance(exc, InvalidMQTTPayload) else "invalid_envelope")
-        return True
-
-    try:
-        with SessionLocal() as session:
-            result = CommandAckService(session).acknowledge(
-                device_uid=device_uid,
-                payload=envelope,
-            )
-    except CommandAckDeviceNotFoundError:
-        _remember_command_ack(
-            status="rejected",
-            topic=topic,
-            device_uid=device_uid,
-            command_id=str(envelope.command_id),
-            message_id=str(envelope.message_id),
-            reason="unknown_device",
-        )
-        return True
-    except CommandAckCommandNotFoundError:
-        _remember_command_ack(
-            status="rejected",
-            topic=topic,
-            device_uid=device_uid,
-            command_id=str(envelope.command_id),
-            message_id=str(envelope.message_id),
-            reason="unknown_command",
-        )
-        return True
-    except CommandAckDeviceMismatchError:
-        _remember_command_ack(
-            status="rejected",
-            topic=topic,
-            device_uid=device_uid,
-            command_id=str(envelope.command_id),
-            message_id=str(envelope.message_id),
-            reason="device_mismatch",
-        )
-        return True
-    except CommandAckInvalidTransitionError as exc:
-        _remember_command_ack(
-            status="rejected",
-            topic=topic,
-            device_uid=device_uid,
-            command_id=str(envelope.command_id),
-            message_id=str(envelope.message_id),
-            reason="invalid_transition",
-            command_status=exc.status,
-        )
-        return True
-    except DataError:
-        # SQL відхилив значення payload, наприклад NaN у JSONB чи overflow.
-        # Повтор незмінного packet не виправить дані; не блокуємо ним потік.
-        logger.warning("Відхилено MQTT payload, несумісний зі схемою БД: topic=%s", topic)
-        _remember_command_ack(status="rejected", topic=topic, device_uid=device_uid,
-                 reason="invalid_database_value")
-        return True
-    except Exception:
-        logger.exception(
-            "Помилка command ACK: device_uid=%s command_id=%s",
-            device_uid,
-            envelope.command_id,
-        )
-        _remember_command_ack(
-            status="error",
-            topic=topic,
-            device_uid=device_uid,
-            command_id=str(envelope.command_id),
-            message_id=str(envelope.message_id),
-            reason="internal_error",
-        )
-        return False
-
-    _remember_command_ack(
-        status="duplicate" if result.duplicate else "accepted",
-        topic=topic,
-        device_uid=device_uid,
-        command_id=str(envelope.command_id),
-        message_id=str(envelope.message_id),
-        session_id=str(envelope.session_id),
-        duplicate=result.duplicate,
-        command_updated=result.updated,
-        reason=result.reason,
-        command_status=result.command.status,
-        acknowledged_at=(
-            result.command.acknowledged_at.isoformat()
-            if result.command.acknowledged_at is not None
-            else None
-        ),
-    )
-    return True
-
-
-def _handle_command_result(topic: str, payload_text: str) -> bool:
-    device_uid = _extract_command_event_uid(topic, "result")
-    if device_uid is None:
-        return True
-
-    try:
-        payload_json = load_json_object(payload_text)
-        envelope = CommandResultEnvelope.model_validate(payload_json)
-    except (InvalidMQTTPayload, ValidationError) as exc:
-        _reject_payload(topic, exc.reason if isinstance(exc, InvalidMQTTPayload) else "invalid_envelope")
-        return True
-
-    try:
-        with SessionLocal() as session:
-            result = CommandResultService(session).complete(
-                device_uid=device_uid,
-                payload=envelope,
-            )
-    except CommandResultDeviceNotFoundError:
-        _remember_command_result(
-            status="rejected",
-            topic=topic,
-            device_uid=device_uid,
-            command_id=str(envelope.command_id),
-            message_id=str(envelope.message_id),
-            reason="unknown_device",
-        )
-        return True
-    except CommandResultCommandNotFoundError:
-        _remember_command_result(
-            status="rejected",
-            topic=topic,
-            device_uid=device_uid,
-            command_id=str(envelope.command_id),
-            message_id=str(envelope.message_id),
-            reason="unknown_command",
-        )
-        return True
-    except CommandResultDeviceMismatchError:
-        _remember_command_result(
-            status="rejected",
-            topic=topic,
-            device_uid=device_uid,
-            command_id=str(envelope.command_id),
-            message_id=str(envelope.message_id),
-            reason="device_mismatch",
-        )
-        return True
-    except CommandResultConflictError:
-        _remember_command_result(
-            status="rejected",
-            topic=topic,
-            device_uid=device_uid,
-            command_id=str(envelope.command_id),
-            message_id=str(envelope.message_id),
-            reason="terminal_result_conflict",
-        )
-        return True
-    except CommandResultInvalidTransitionError as exc:
-        _remember_command_result(
-            status="rejected",
-            topic=topic,
-            device_uid=device_uid,
-            command_id=str(envelope.command_id),
-            message_id=str(envelope.message_id),
-            reason="invalid_transition",
-            command_status=exc.status,
-        )
-        return True
-    except DataError:
-        # SQL відхилив значення payload, наприклад NaN у JSONB чи overflow.
-        # Повтор незмінного packet не виправить дані; не блокуємо ним потік.
-        logger.warning("Відхилено MQTT payload, несумісний зі схемою БД: topic=%s", topic)
-        _remember_command_result(status="rejected", topic=topic, device_uid=device_uid,
-                 reason="invalid_database_value")
-        return True
-    except Exception:
-        logger.exception(
-            "Помилка command result: device_uid=%s command_id=%s",
-            device_uid,
-            envelope.command_id,
-        )
-        _remember_command_result(
-            status="error",
-            topic=topic,
-            device_uid=device_uid,
-            command_id=str(envelope.command_id),
-            message_id=str(envelope.message_id),
-            reason="internal_error",
-        )
-        return False
-
-    _remember_command_result(
-        status="duplicate" if result.duplicate else "accepted",
-        topic=topic,
-        device_uid=device_uid,
-        command_id=str(envelope.command_id),
-        message_id=str(envelope.message_id),
-        session_id=str(envelope.session_id),
-        duplicate=result.duplicate,
-        command_updated=result.updated,
-        reason=result.reason,
-        command_status=result.command.status,
-        acknowledged_at=(
-            result.command.acknowledged_at.isoformat()
-            if result.command.acknowledged_at is not None
-            else None
-        ),
-        completed_at=(
-            result.command.completed_at.isoformat()
-            if result.command.completed_at is not None
-            else None
-        ),
-        result=result.command.result,
-        error_code=result.command.error_code,
-        error_message=result.command.error_message,
-    )
-    return True
 
 
 def _on_connect(client, userdata, connect_flags, reason_code, properties) -> None:
@@ -702,22 +194,22 @@ def _on_message(client, userdata, message) -> None:
     try:
         payload = decode_payload(message.payload)
     except InvalidMQTTPayload as exc:
-        _remember_raw_message(message, None)
-        _reject_payload(message.topic, exc.reason)
+        remember_raw_message(message, None)
+        reject_payload(message.topic, exc.reason)
         if message.qos > 0:
             client.ack(message.mid, message.qos)
         return
-    _remember_raw_message(message, payload)
+    remember_raw_message(message, payload)
     processed = True
 
-    if _extract_device_uid(message.topic, "telemetry") is not None:
-        processed = _handle_telemetry(message.topic, payload)
-    elif _extract_device_uid(message.topic, "heartbeat") is not None:
-        processed = _handle_heartbeat(message.topic, payload)
-    elif _extract_command_event_uid(message.topic, "ack") is not None:
-        processed = _handle_command_ack(message.topic, payload)
-    elif _extract_command_event_uid(message.topic, "result") is not None:
-        processed = _handle_command_result(message.topic, payload)
+    if extract_device_uid(message.topic, "telemetry") is not None:
+        processed = mqtt_ingress.handle_telemetry(message.topic, payload)
+    elif extract_device_uid(message.topic, "heartbeat") is not None:
+        processed = mqtt_ingress.handle_heartbeat(message.topic, payload)
+    elif extract_command_event_uid(message.topic, "ack") is not None:
+        processed = mqtt_ingress.handle_command_ack(message.topic, payload)
+    elif extract_command_event_uid(message.topic, "result") is not None:
+        processed = mqtt_ingress.handle_command_result(message.topic, payload)
 
     if not processed:
         # Вихід із network loop запускає reconnect з тією самою MQTT session.
@@ -803,50 +295,5 @@ def mqtt_status() -> dict[str, Any]:
             "max_json_depth": MAX_JSON_DEPTH,
             "max_json_nodes": MAX_JSON_NODES,
             "max_json_string_length": MAX_STRING_LENGTH,
-            "payload_rejections": dict(_payload_rejections),
-            "last_payload_rejection": (
-                dict(_last_payload_rejection) if _last_payload_rejection else None
-            ),
+            **rejection_status(),
         }
-
-
-def last_mqtt_message() -> dict[str, Any] | None:
-    with _lock:
-        return dict(_last_message) if _last_message is not None else None
-
-
-def last_ingestion_result() -> dict[str, Any] | None:
-    with _lock:
-        return dict(_last_ingestion) if _last_ingestion is not None else None
-
-
-def last_heartbeat_result() -> dict[str, Any] | None:
-    with _lock:
-        return dict(_last_heartbeat) if _last_heartbeat is not None else None
-
-
-def last_command_publish_result() -> dict[str, Any] | None:
-    with _lock:
-        return (
-            dict(_last_command_publish)
-            if _last_command_publish is not None
-            else None
-        )
-
-
-def last_command_ack_result() -> dict[str, Any] | None:
-    with _lock:
-        return (
-            dict(_last_command_ack)
-            if _last_command_ack is not None
-            else None
-        )
-
-
-def last_command_result_result() -> dict[str, Any] | None:
-    with _lock:
-        return (
-            dict(_last_command_result)
-            if _last_command_result is not None
-            else None
-        )

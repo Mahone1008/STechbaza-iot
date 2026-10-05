@@ -3,7 +3,7 @@ import os
 import unittest
 import uuid
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta
 from unittest.mock import patch
 
 from sqlalchemy import select, func

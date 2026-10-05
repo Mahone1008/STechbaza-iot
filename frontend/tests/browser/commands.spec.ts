@@ -161,6 +161,7 @@ test("viewer has journal access without command controls, including mobile layou
   await page.route(`${commandsUrl}?*`, async (route) => { if (await fulfillPreflight(route)) return; await fulfillJson(route, 200, [commandFixture()]); });
   await page.setViewportSize({ width: 390, height: 844 }); await page.goto(path);
   await expect(controls(page)).toHaveCount(0);
+  await page.getByRole("tab", { name: "Журнал", exact: true }).click();
   await page.getByRole("table", { name: "Журнал команд пристрою" }).getByRole("link", { name: "Переглянути команду Запустити", exact: true }).click();
   await expect(detail(page)).toContainText("У черзі");
   await detail(page).getByText("Автор і технічні деталі команди", { exact: true }).click();
@@ -188,7 +189,7 @@ test("cursor journal pages retain their boundary after insertion and reject fore
     const id = query.get("before_id"); const start = id ? rows.findIndex((row) => row.id === id) + 1 : 0;
     await fulfillJson(route, 200, foreign ? [commandFixture({ device_id: ORGANIZATION_ID })] : rows.slice(start, start + 21));
   });
-  await page.goto(path); const table = page.getByRole("table", { name: "Журнал команд пристрою" }); await expect(table).toContainText("Actor 19");
+  await page.goto(path); await page.getByRole("tab", { name: "Журнал", exact: true }).click(); const table = page.getByRole("table", { name: "Журнал команд пристрою" }); await expect(table).toContainText("Actor 19");
   const boundary = rows[19]!; rows.unshift(commandFixture({ id: "f8f2f2d6-e380-492a-a9dc-d0b9ba792136", created_at: "2026-09-28T12:01:00Z", actor_display_name: "New actor" }));
   await page.getByRole("button", { name: "Наступні команди", exact: true }).click(); await expect(table).toContainText("Actor 20"); await expect(table).not.toContainText("Actor 19");
   expect(queries.at(-1)!.get("before_id")).toBe(boundary.id); expect(queries.at(-1)!.get("offset")).toBeNull();

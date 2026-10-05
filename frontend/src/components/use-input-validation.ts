@@ -39,15 +39,26 @@ export function useInputValidation(message = "") {
     for (let parent = element.parentElement; parent && parent !== element.form; parent = parent.parentElement) {
       if (parent instanceof HTMLDetailsElement) parent.open = true;
     }
-    element.focus();
+    // Inline errors and newly opened details must finish rendering before focus
+    // is restored; otherwise a concurrent dialog/layout update can steal it.
+    requestAnimationFrame(() => {
+      if (element.isConnected && !element.validity.valid) element.focus();
+    });
   };
   const onChange = () => setNativeError("");
+  const onBlur = (element: HTMLInputElement, next: EventTarget | null) => {
+    // Showing a new error during pointer-down moves the submit button before
+    // pointer-up, swallowing the click. Native submit validation will report
+    // the same error and focus the field once that click has completed.
+    if (next instanceof HTMLButtonElement && next.type === "submit" && next.form === element.form) return;
+    validate(element);
+  };
   return {
     inputRef,
     error: touched ? message || nativeError : "",
     onInvalid,
     onChange,
-    onBlur: validate,
+    onBlur,
     reset: () => {
       setTouched(false);
       setNativeError("");

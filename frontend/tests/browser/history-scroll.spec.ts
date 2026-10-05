@@ -49,14 +49,9 @@ test.beforeEach(async ({ page }) => {
 });
 
 async function gapBeforeHistory(page: Page) {
-  const lastModule = await page.locator(".overview-modules > .card").last().boundingBox();
-  const equipment = await page.locator("section.card").filter({ has: page.getByRole("heading", { name: "Обладнання", exact: true }) }).boundingBox();
-  const history = await page.locator("section.card").filter({ has: page.getByRole("heading", { name: "Історія телеметрії", exact: true }) }).boundingBox();
-  // Між модулями й історією є паспорт: перевіряємо обидва порожні проміжки.
-  return Math.max(
-    equipment!.y - (lastModule!.y + lastModule!.height),
-    history!.y - (equipment!.y + equipment!.height),
-  );
+  const controls = await page.locator(".panel-refresh-controls").boundingBox();
+  const history = await page.locator("#device-section-charts section.card").filter({ has: page.getByRole("heading", { name: "Історія телеметрії", exact: true }) }).boundingBox();
+  return history!.y - (controls!.y + controls!.height);
 }
 
 test("resizing between mobile and desktop does not leave empty space before history", async ({ page }) => {
@@ -72,11 +67,14 @@ for (const width of [1280, 393]) test(`settled diagnostics release unused panel 
   data.diagnostics = diagnosticsFixture();
   await page.route(overviewUrl, async (route) => { if (await fulfillPreflight(route)) return; await fulfillJson(route, 200, data); });
   await page.setViewportSize({ width, height: 852 }); await ready(page);
+  await page.getByRole("tab", { name: "Обладнання", exact: true }).click();
+  await page.getByText("Технічні дані контролера", { exact: true }).click();
   await expect(page.getByText("Зупинку ще не підтверджено", { exact: true })).toBeVisible();
   data.diagnostics.last_stop = null;
   data.diagnostics.uptime_ms = 3000;
   await page.getByRole("button", { name: "Оновити панель" }).click();
   await expect(page.getByText("Не зафіксовано", { exact: true })).toBeVisible();
+  await page.getByRole("tab", { name: "Графіки", exact: true }).click();
   await expect.poll(() => gapBeforeHistory(page)).toBeLessThanOrEqual(24);
 });
 
@@ -131,17 +129,9 @@ test("automatic refresh preserves scroll, keeps the chart and does not close the
   await page.route(seriesUrl, async (route) => { if (await fulfillPreflight(route)) return; await history.promise; await fulfillJson(route, 200, series(route.request().url())).catch(() => {}); });
   try {
     const y = await position(page);
-    await page.clock.runFor(31000);
-    await expect(page.getByRole("button", { name: "Оновити панель" })).toBeDisabled();
-    await expect(page.getByText("Перевіряємо модулі та показання…")).toHaveCount(0);
-    await expect(page.locator(".telemetry-chart")).toBeVisible();
-    await expect(page.getByLabel("Метрика", { exact: true })).toBeVisible();
-    await stable(page, y, true);
-    panel.release();
+    await page.clock.runFor(61000);
+    // Only the visible history polls; inactive overview must not occupy space.
     await expect(page.getByRole("button", { name: "Оновити панель" })).toBeEnabled();
-    await expect(page.locator(".telemetry-chart")).toBeVisible();
-    await stable(page, y, true);
-    await page.clock.runFor(31000);
     await expect(page.getByText("Оновлюємо історію…")).toBeVisible();
     await expect(page.locator(".telemetry-chart")).toBeVisible();
     await expect(page.getByRole("table")).toBeVisible();

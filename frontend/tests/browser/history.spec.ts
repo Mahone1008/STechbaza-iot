@@ -55,29 +55,30 @@ test("foreign history is rejected and disabled module removes history controls",
   await page.getByRole("button", { name: "Оновити панель" }).click();
   await expect(page.getByText("Увімкнених каналів з підтримкою історії немає.")).toBeVisible(); await expect(page.getByLabel("Метрика", { exact: true })).toHaveCount(0);
 });
-test("default polling refreshes the panel after five seconds and pauses in manual mode", async ({ page }) => {
+test("charts poll history without polling the inactive panel, and manual mode pauses both", async ({ page }) => {
   await page.clock.install(); let overview = 0, series = 0;
   page.on("request", (r) => { if (r.method() !== "GET") return; if (r.url().endsWith("/overview")) overview++; if (r.url().includes("/telemetry/series?")) series++; });
   await ready(page);
   await expect(page.getByLabel("Автооновлення", { exact: true })).toHaveValue("5");
   expect(overview).toBe(1); expect(series).toBe(1);
-  await page.clock.runFor(6000); await expect.poll(() => overview).toBe(2); expect(series).toBe(1);
+  await page.clock.runFor(6000); expect(overview).toBe(1); expect(series).toBe(1);
+  await page.clock.runFor(55000); await expect.poll(() => series).toBe(2); expect(overview).toBe(1);
   await page.getByLabel("Автооновлення", { exact: true }).selectOption("0");
-  await page.clock.runFor(61000); expect(overview).toBe(2); expect(series).toBe(1);
+  await page.clock.runFor(61000); expect(overview).toBe(1); expect(series).toBe(2);
 });
 test("polling follows selected 30/60 budget, pauses hidden and manual modes, resumes without catch-up bursts", async ({ page }) => {
   await page.clock.install(); let overview = 0, series = 0;
   page.on("request", (r) => { if (r.method() !== "GET") return; if (r.url().endsWith("/overview")) overview++; if (r.url().includes("/telemetry/series?")) series++; });
   await ready(page); expect(overview).toBe(1); expect(series).toBe(1);
   await page.getByLabel("Автооновлення", { exact: true }).selectOption("30");
-  await page.clock.runFor(31000); await expect.poll(() => overview).toBe(2); expect(series).toBe(1);
-  await page.clock.runFor(31000); await expect.poll(() => series).toBe(2); await expect.poll(() => overview).toBe(3);
+  await page.clock.runFor(31000); await expect.poll(() => overview).toBe(1); expect(series).toBe(1);
+  await page.clock.runFor(31000); await expect.poll(() => series).toBe(2); await expect.poll(() => overview).toBe(1);
   await page.evaluate(() => { Object.defineProperty(document, "visibilityState", { configurable: true, value: "hidden" }); document.dispatchEvent(new Event("visibilitychange")); });
-  await page.clock.runFor(180000); expect(overview).toBe(3); expect(series).toBe(2);
+  await page.clock.runFor(180000); expect(overview).toBe(1); expect(series).toBe(2);
   await page.evaluate(() => { Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" }); document.dispatchEvent(new Event("visibilitychange")); });
-  await expect.poll(() => overview).toBe(4); await expect.poll(() => series).toBe(3);
+  await expect.poll(() => overview).toBe(1); await expect.poll(() => series).toBe(3);
   await page.getByLabel("Автооновлення", { exact: true }).selectOption("0");
-  await page.clock.runFor(120000); expect(overview).toBe(4); expect(series).toBe(3);
+  await page.clock.runFor(120000); expect(overview).toBe(1); expect(series).toBe(3);
 });
 test("Retry-After blocks manual retries and hidden resume; automatic retry recovers", async ({ page }) => {
   await page.clock.install(); await ready(page); let calls = 0;

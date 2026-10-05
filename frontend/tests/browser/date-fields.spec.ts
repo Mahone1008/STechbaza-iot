@@ -9,7 +9,6 @@ const trigger = (page: Page, label: string) =>
   page.getByRole("button", { name: new RegExp(`^Відкрити календар: ${label}`) });
 async function editor(page: Page) {
   await page.goto(`/devices/${DEVICE_ID}`);
-  await page.getByText("Додаткові налаштування команди", { exact: true }).click();
   await page.getByRole("tab", { name: "Розклади", exact: true }).click();
   await page.getByRole("button", { name: "Новий розклад", exact: true }).click();
 }

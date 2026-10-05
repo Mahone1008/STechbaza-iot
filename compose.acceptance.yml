@@ -31,6 +31,8 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://techbaza_demo:${DEMO_DB_PASSWORD:?Create .env.demo first}@postgres:5432/techbaza_demo
       AUTH_ACCESS_TOKEN_SECRET: ${DEMO_JWT_SECRET:?Create .env.demo first}
+      ACCOUNT_KEY_SECRET: ${DEMO_ACCOUNT_KEY_SECRET:?Set DEMO_ACCOUNT_KEY_SECRET; preserve the old DEMO_JWT_SECRET when upgrading}
+      ACCOUNT_KEY_PREVIOUS_SECRETS: ${ACCOUNT_KEY_PREVIOUS_SECRETS:-[]}
       AUTH_BROWSER_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
       AUTH_COOKIE_SECURE: 'false'
       MQTT_HOST: mosquitto

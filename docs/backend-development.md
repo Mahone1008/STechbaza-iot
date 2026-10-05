@@ -40,3 +40,27 @@ integration tests і не замінює цей gate.
 API/controllers, services, repositories та security guards перевіряються
 разом. Зміни HTTP DTO потребують `scripts/export_openapi.py`, frontend
 `npm run api:generate` та committed OpenAPI zero diff.
+
+## Відтворюване середовище та статичні перевірки
+
+З кореня репозиторію, у Python 3.13 virtualenv:
+
+```sh
+python -m pip install --require-hashes -r backend/requirements.lock
+python -m pip install --require-hashes -r backend/requirements-dev.lock
+python -m ruff check backend/app backend/tests
+python -m mypy
+```
+
+Ruff перевіряє помилки та невикористані імпорти всього backend. Початковий
+mypy gate охоплює шість модулів account security, ключів, throttle та
+repositories; перелік у `pyproject.toml`. Це поступове впровадження типізації,
+а не твердження про повну strict-типізацію старого коду.
+
+Прямі залежності редагують у `requirements.txt`/`requirements-dev.txt`, після
+чого оновлюють committed lock-файли командою `uv pip compile --python-version
+3.13 --generate-hashes --output-file <lock> <requirements>`. Docker і CI
+встановлюють lock із перевіркою хешів. Оновлення проходить integration suite.
+
+Перед оновленням наявної установки обов’язково перенесіть секрет за
+[інструкцією account keys](account-key-operations-v1.md).

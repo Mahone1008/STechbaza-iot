@@ -15,6 +15,8 @@ test("diagnostics distinguish a requested stop from readback and transport-speci
   await mockOverview(page, () => data);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(path);
+  await page.getByRole("tab", { name: "Обладнання", exact: true }).click();
+  await page.getByText("Технічні дані контролера", { exact: true }).click();
   await expect(page.getByText("RSSI: -67 dBm", { exact: true })).toBeVisible();
   await expect(page.getByText("Просідання живлення", { exact: true })).toBeVisible();
   await expect(page.getByText("1 д 1 год 1 хв 1 с", { exact: true })).toBeVisible();
@@ -137,4 +139,21 @@ test("foreign overview identity is rejected instead of rendering another device"
   await mockOverview(page, () => data); await page.goto(`/organizations/${ORGANIZATION_ID}/sites/${SITE_ID}/devices`);
   await page.getByRole("link", { name: "Насосна станція №1" }).click();
   await expect(page.getByRole("alert").filter({ has: page.getByRole("heading", { name: /Дані більше недоступні|Не вдалося завантажити панель/ }) })).toBeVisible(); await expect(page.locator(".metric-card")).toHaveCount(0);
+});
+
+test("equipment diagnostics age in manual mode and disappear after a failed refresh", async ({ page }) => {
+  const data = fixture(); data.diagnostics = diagnosticsFixture();
+  await mockOverview(page, () => data);
+  await page.clock.install();
+  await page.goto(path);
+  await page.getByRole("combobox", { name: "Автооновлення", exact: true }).selectOption("0");
+  await page.getByRole("tab", { name: "Обладнання", exact: true }).click();
+  await page.getByText("Технічні дані контролера", { exact: true }).click();
+  const diagnostics = page.locator(".card").filter({ has: page.getByRole("heading", { name: "Діагностика контролера", exact: true }) });
+  await expect(diagnostics).toContainText("Свіжі дані");
+  await page.clock.fastForward(130_000);
+  await expect(diagnostics).toContainText("Остання відома діагностика; поточний стан не підтверджено.");
+  await mockOverview(page, () => ({ detail: "Unavailable" }), 503);
+  await page.getByRole("button", { name: "Оновити панель", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Діагностика контролера", exact: true })).toHaveCount(0);
 });

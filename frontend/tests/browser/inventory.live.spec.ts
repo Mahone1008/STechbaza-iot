@@ -52,15 +52,20 @@ test("real organization and site selection shows API devices, presence and resto
   await expect(page.getByRole("button", { name: "Запустити", exact: true })).toBeVisible();
   const overview = await overviewPromise;
   expect(overview.modules.length).toBeGreaterThan(0);
-  for (const capability of overview.capabilities) {
-    await expect(page.locator(".overview-modules .card-description").filter({ hasText: capability.code })).toBeVisible();
+  for (const capabilityModule of overview.modules.filter((item) => item.channels.length > 0)) {
+    const capability = overview.capabilities.find((item) => item.id === capabilityModule.capability_id)!;
+    await expect(page.locator(".overview-modules").getByRole("heading", { name: capability.name, exact: true })).toBeVisible();
   }
+  await page.getByRole("tab", { name: "Обладнання", exact: true }).click();
+  await page.getByText("Технічні дані контролера", { exact: true }).click();
+  await expect(page.getByText("TB-DEMO-PUMP", { exact: true })).toBeVisible();
+  await page.getByRole("tab", { name: "Панель", exact: true }).click();
   const channels = overview.modules.flatMap((module) => module.channels);
   await expect(page.locator(".metric-card")).toHaveCount(channels.length);
-  await expect(page.getByText("TB-DEMO-PUMP", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Оновити панель" }).click();
   await expect(page.locator(".metric-card")).toHaveCount(channels.length);
   // Перевіряємо реальний series без додаткового login та навантаження rate limit.
+  await page.getByRole("tab", { name: "Графіки", exact: true }).click();
   await expect(page.getByRole("button", { name: "Оновити історію" })).toBeEnabled();
   const historyPromise = page.waitForResponse((response) => response.request().method() === "GET" && response.url().includes("/telemetry/series?"))
     .then(async (response) => { expect(response.status()).toBe(200); return await response.json() as components["schemas"]["TelemetrySeriesRead"]; });
@@ -76,6 +81,7 @@ test("real organization and site selection shows API devices, presence and resto
   if (process.env.KERUMO_RUN_COMMAND_DEMO === "1") {
     expect(API).toBe("http://127.0.0.1:8001");
     expect(overview.device.uid).toBe("TB-DEMO-PUMP");
+    await page.getByRole("tab", { name: "Панель", exact: true }).click();
     const control = page.locator("section.card").filter({ has: page.getByRole("heading", { name: "Керування пристроєм", exact: true }) });
     await control.getByRole("button", { name: "Зупинити", exact: true }).click();
     const receiptPromise = page.waitForResponse((r) => r.request().method() === "POST" && r.url() === `${API}/api/v1/devices/${overview.device.id}/commands`);
@@ -87,6 +93,7 @@ test("real organization and site selection shows API devices, presence and resto
     await expect(details.locator(".status-badge")).toHaveText("Контролер повідомив про виконання", { timeout: 20_000 });
     await details.getByText("Автор і технічні деталі команди", { exact: true }).click();
     await expect(details).toContainText(command.request_id); await expect(details).toContainText(email);
+    await page.getByRole("tab", { name: "Журнал", exact: true }).click();
     await page.getByRole("button", { name: "Оновити журнал", exact: true }).click();
     await expect(page.getByRole("table", { name: "Журнал команд пристрою" })).toContainText("Контролер повідомив про виконання");
   }
@@ -118,9 +125,12 @@ test("real organization and site selection shows API devices, presence and resto
   if (process.env.KERUMO_RUN_NOTIFICATION_DEMO === "1") await checkNotificationIncident(page, browser);
   // Same authenticated test also exercises a different modular composition.
   const newDevice = rows.find((row) => row.uid === "TB-DEMO-NEW")!;
+  const newOverviewResponse = page.waitForResponse((r) => r.url() === `${API}/api/v1/devices/${newDevice.id}/overview`);
   await page.goto(`/devices/${newDevice.id}`);
+  const newOverview = await (await newOverviewResponse).json() as components["schemas"]["DeviceOverviewRead"];
+  expect(newOverview.capabilities.map((item) => item.code)).toEqual(["water_level.read"]);
   await expect(page.getByRole("heading", { name: newDevice.name, exact: true })).toBeVisible();
-  await expect(page.locator(".overview-modules .card-description")).toHaveText(["water_level.read"]);
+  await expect(page.locator(".overview-modules").getByRole("heading", { exact: true, name: newOverview.capabilities[0]!.name })).toBeVisible();
   await expect(page.locator(".metric-card")).toHaveCount(1);
   await expect(page.locator(".metric-card")).toContainText("Немає даних");
   await expect(page.locator(".metric-card strong")).toHaveText("—");

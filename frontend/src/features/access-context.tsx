@@ -28,7 +28,7 @@ export type AccessSnapshot =
   | Readonly<{ status: "idle" | "resolving" }>
   | DirectoryAccessSnapshot
   | ReadyAccessSnapshot
-  | Readonly<{ status: "no-access"; profile: CurrentUserResponse | null; message: string }>
+  | Readonly<{ status: "no-access"; profile: CurrentUserResponse | null; message: string; reason: "empty" | "denied" }>
   | Readonly<{ status: "unavailable"; message: string }>;
 
 type AccessContextValue = Readonly<{
@@ -37,7 +37,9 @@ type AccessContextValue = Readonly<{
   hasPermission: (permission: PermissionCode) => boolean;
 }>;
 const AccessContext = createContext<AccessContextValue | null>(null);
-class NoAccess extends Error {}
+class NoAccess extends Error {
+  constructor(message: string, readonly reason: "empty" | "denied" = "denied") { super(message); }
+}
 
 export function AccessContextProvider({ children }: Readonly<{ children: ReactNode }>) {
   const queryClient = useQueryClient();
@@ -106,7 +108,7 @@ export function AccessContextProvider({ children }: Readonly<{ children: ReactNo
           const selected = organizations.find((organization) => organization.is_active && (
             profile!.platform_role === "superadmin" || profile!.memberships.some((membership) => membership.organization_id === organization.id)
           ));
-          if (!selected) throw new NoAccess("Для цього користувача немає активної доступної організації на початковій сторінці. Перевірте каталог організацій.");
+          if (!selected) throw new NoAccess("Для цього користувача немає активної доступної організації на початковій сторінці. Перевірте каталог організацій.", organizations.length === 0 ? "empty" : "denied");
           activeOrganization = selected;
           organizationId = selected.id;
         }
@@ -134,7 +136,7 @@ export function AccessContextProvider({ children }: Readonly<{ children: ReactNo
         }
         if (error instanceof NoAccess || (phase === "context" && isApiError(error) && (error.kind === "forbidden" || error.kind === "not-found"))) {
           if (scope) forgetContext(scope);
-          publish({ status: "no-access", profile, message: error instanceof NoAccess ? error.message : "Контекст недоступний: доступ відкликано або запис видалено. Оберіть організацію повторно." });
+          publish({ status: "no-access", profile, reason: error instanceof NoAccess ? error.reason : "denied", message: error instanceof NoAccess ? error.message : "Контекст недоступний: доступ відкликано або запис видалено. Оберіть організацію повторно." });
           return;
         }
         publish({ status: "unavailable", message: apiErrorDisplayMessage(error) });

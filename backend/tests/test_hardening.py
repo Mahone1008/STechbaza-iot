@@ -12,11 +12,11 @@ from unittest.mock import Mock, patch
 
 import paho.mqtt.client as paho
 from pydantic import ValidationError
-from sqlalchemy import String, create_engine, select
+from sqlalchemy import String, create_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 from sqlalchemy.exc import DataError
 
-from app import mqtt_client
+from app import mqtt_client, mqtt_ingress
 from app.main import app
 from app.repositories import commands as command_repo
 from app.schemas.capability import DeviceCapabilityAssign, DeviceCapabilityUpdate
@@ -56,7 +56,7 @@ class MQTTTests(unittest.TestCase):
     def test_database_failure_does_not_ack(self):
         payload = json.dumps({"schema_version": 1, "message_id": str(uuid.uuid4())}).encode()
         client = self.client(payload)
-        with patch.object(mqtt_client, "SessionLocal", side_effect=RuntimeError("DB unavailable")):
+        with patch.object(mqtt_ingress, "SessionLocal", side_effect=RuntimeError("DB unavailable")):
             with patch.object(client, "_send_puback", return_value=0) as ack:
                 with self.assertLogs("app.mqtt_client", logging.ERROR):
                     with self.assertRaises(mqtt_client.MQTTProcessingError):
@@ -71,7 +71,7 @@ class MQTTTests(unittest.TestCase):
                 ack.assert_called_once_with(77)
 
         client = self.client(b"{}")
-        with patch.object(mqtt_client, "_handle_telemetry", return_value=True):
+        with patch.object(mqtt_ingress, "handle_telemetry", return_value=True):
             with patch.object(client, "_send_puback", return_value=0) as ack:
                 client._handle_publish()
                 ack.assert_called_once_with(77)
@@ -79,7 +79,7 @@ class MQTTTests(unittest.TestCase):
     def test_permanently_invalid_database_value_does_not_retry_forever(self):
         payload = json.dumps({"schema_version": 1, "message_id": str(uuid.uuid4())}).encode()
         client = self.client(payload)
-        with patch.object(mqtt_client, "SessionLocal", side_effect=DataError("test", {}, ValueError())):
+        with patch.object(mqtt_ingress, "SessionLocal", side_effect=DataError("test", {}, ValueError())):
             with self.assertLogs("app.mqtt_client", logging.WARNING):
                 with patch.object(client, "_send_puback", return_value=0) as ack:
                     client._handle_publish()

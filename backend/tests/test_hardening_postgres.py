@@ -19,7 +19,7 @@ import paho.mqtt.client as paho
 from sqlalchemy import delete, select, text
 
 from app.db import SessionLocal
-from app import mqtt_client
+from app import mqtt_client, mqtt_ingress
 from app.models.capability import Capability
 from app.models.command import DeviceCommand
 from app.models.device import Device
@@ -187,7 +187,7 @@ class PostgreSQLHardeningTests(unittest.TestCase):
                 ready.set()
         receiver.on_subscribe = on_subscribe
         publisher = paho.Client(paho.CallbackAPIVersion.VERSION2)
-        original_service = mqtt_client.TelemetryService
+        original_service = mqtt_ingress.TelemetryService
         attempts = []
 
         def fail_once(session):
@@ -205,7 +205,7 @@ class PostgreSQLHardeningTests(unittest.TestCase):
         try:
             with patch.object(mqtt_client, "client", receiver), \
                  patch.multiple(mqtt_client, **topics), \
-                 patch.object(mqtt_client, "TelemetryService", side_effect=fail_once):
+                 patch.object(mqtt_ingress, "TelemetryService", side_effect=fail_once):
                 try:
                     mqtt_client.start_mqtt()
                     self.assertTrue(ready.wait(5), "MQTT subscription timed out")

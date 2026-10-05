@@ -1,21 +1,11 @@
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import {
   AUTH_CHANNEL_NAME,
   clearLogoutMarker,
-  createAuthTabId,
   isSnapshotUsable,
   parseAuthChannelMessage,
   readRecentLogoutMarker,
@@ -27,170 +17,42 @@ import {
   type AuthSessionSnapshotMessage,
 } from "@/features/auth-coordination";
 import {
-  ApiError,
   apiErrorDisplayMessage,
-  apiRequest,
   browserLogin,
   browserLogout,
-  browserRefresh,
   clearAllSessionCaches,
   isApiError,
-  type ApiRequestOptions,
   type BrowserLoginRequest,
   type BrowserLoginResponse,
 } from "@/lib/api";
 
-const DOCUMENT_TAB_ID = createAuthTabId();
-const PEER_RESPONSE_WINDOW_MS = 350;
-const MIN_ACCESS_VALIDITY_MS = 30_000;
-const MIN_PEER_TOKEN_VALIDITY_MS = 5_000;
-const MAX_TIMER_DELAY_MS = 2_147_483_647;
-
-export type AuthenticatedSession = Readonly<{
-  status: "authenticated";
-  email: string | null;
-  accessExpiresAt: number;
-  sessionExpiresAt: number;
-  source: "login" | "refresh" | "peer";
-  refreshState: "ready" | "degraded";
-  refreshMessage: string | null;
-}>;
-
-export type AuthSessionSnapshot =
-  | Readonly<{ status: "restoring"; startedAt: number }>
-  | Readonly<{ status: "anonymous"; reason: "none" | "expired" | "revoked" | "logout" }>
-  | AuthenticatedSession
-  | Readonly<{ status: "unavailable"; message: string; retryAt: number | null }>
-  | Readonly<{ status: "logging-out"; startedAt: number; email: string | null }>
-  | Readonly<{
-      status: "logout-failed";
-      message: string;
-      retryAt: number | null;
-      email: string | null;
-    }>;
-
-export type AuthorizedApiRequestOptions = Omit<ApiRequestOptions, "accessToken"> & Readonly<{
-  retryOnUnauthorized?: boolean;
-}>;
-
-type RefreshReason = "startup" | "timer" | "visibility" | "demand" | "unauthorized" | "retry";
-type SessionInvalidationReason = "expired" | "revoked";
-
-type AuthSessionContextValue = Readonly<{
-  session: AuthSessionSnapshot;
-  login: (payload: BrowserLoginRequest, signal?: AbortSignal) => Promise<void>;
-  logout: () => Promise<boolean>;
-  cancelLogout: () => void;
-  refreshSession: (reason?: RefreshReason) => Promise<boolean>;
-  clearSession: (reason?: SessionInvalidationReason) => void;
-  getAccessToken: (minimumValidityMs?: number) => Promise<string | null>;
-  authorizedRequest: <T>(options: AuthorizedApiRequestOptions) => Promise<T>;
-}>;
-
-type RefreshOutcome =
-  | Readonly<{ kind: "peer"; snapshot: AuthSessionSnapshotMessage }>
-  | Readonly<{ kind: "api"; response: BrowserLoginResponse; issuedAt: number }>;
-
-type PeerSnapshotResolver = (snapshot: AuthSessionSnapshotMessage | null) => void;
-type LogoutFallback = Readonly<{ session: AuthenticatedSession; accessToken: string }>;
-
-let sameDocumentRefreshPromise: Promise<RefreshOutcome> | null = null;
-
-function isNewUsablePeerSnapshot(
-  snapshot: AuthSessionSnapshotMessage | null,
-  baselineEventAt: number,
-): snapshot is AuthSessionSnapshotMessage {
-  return snapshot !== null
-    && snapshot.issuedAt > baselineEventAt
-    && isSnapshotUsable(snapshot, Date.now(), MIN_PEER_TOKEN_VALIDITY_MS);
-}
-
-async function coordinatedBrowserRefresh(
-  baselineEventAt: number,
-  getLatestPeerSnapshot: () => AuthSessionSnapshotMessage | null,
-  requestPeerSnapshot: () => Promise<AuthSessionSnapshotMessage | null>,
-  commitApiRefresh: (response: BrowserLoginResponse, issuedAt: number) => void,
-): Promise<RefreshOutcome> {
-  if (sameDocumentRefreshPromise) return sameDocumentRefreshPromise;
-
-  const promise = withCrossTabAuthLock(DOCUMENT_TAB_ID, async () => {
-    const cachedPeer = getLatestPeerSnapshot();
-    if (isNewUsablePeerSnapshot(cachedPeer, baselineEventAt)) {
-      return { kind: "peer", snapshot: cachedPeer } as const;
-    }
-
-    const requestedPeer = await requestPeerSnapshot();
-    if (isNewUsablePeerSnapshot(requestedPeer, baselineEventAt)) {
-      return { kind: "peer", snapshot: requestedPeer } as const;
-    }
-
-    const response = await browserRefresh();
-    const issuedAt = Date.now();
-    commitApiRefresh(response, issuedAt);
-    return { kind: "api", response, issuedAt } as const;
-  }).finally(() => {
-    sameDocumentRefreshPromise = null;
-  });
-
-  sameDocumentRefreshPromise = promise;
-  return promise;
-}
-
-function normalizeEmail(value: string): string {
-  return value.trim().toLowerCase();
-}
-
-function sessionOrigin(session: AuthenticatedSession): "login" | "refresh" {
-  return session.source === "login" ? "login" : "refresh";
-}
-
-function noAccessTokenError(path: string): ApiError {
-  return new ApiError("Сесію не вдалося підтвердити.", {
-    kind: "unauthorized",
-    status: 401,
-    method: "GET",
-    url: path,
-    retryAfterSeconds: null,
-    requestId: null,
-    details: null,
-  });
-}
-
-function logoutCancelledRequestError(path: string, method: string): ApiError {
-  return new ApiError("Запит скасовано під час завершення сесії.", {
-    kind: "aborted",
-    status: null,
-    method,
-    url: path,
-    retryAfterSeconds: null,
-    requestId: null,
-    details: { reason: "logout" },
-  });
-}
-
-function createLinkedRequestController(externalSignal?: AbortSignal) {
-  const controller = new AbortController();
-  const abortFromExternal = () => controller.abort(externalSignal?.reason);
-
-  if (externalSignal?.aborted) {
-    abortFromExternal();
-  } else {
-    externalSignal?.addEventListener("abort", abortFromExternal, { once: true });
-  }
-
-  return {
-    controller,
-    cleanup: () => externalSignal?.removeEventListener("abort", abortFromExternal),
-  };
-}
+import {
+  DOCUMENT_TAB_ID,
+  MAX_TIMER_DELAY_MS,
+  MIN_ACCESS_VALIDITY_MS,
+  MIN_PEER_TOKEN_VALIDITY_MS,
+  PEER_RESPONSE_WINDOW_MS,
+  coordinatedBrowserRefresh,
+  authorizedApiRequest,
+  type AuthorizedApiRequestOptions,
+  isNewUsablePeerSnapshot,
+  normalizeEmail,
+  sessionOrigin,
+  type AuthSessionContextValue,
+  type AuthSessionSnapshot,
+  type AuthenticatedSession,
+  type LogoutFallback,
+  type PeerSnapshotResolver,
+  type RefreshReason,
+  type SessionInvalidationReason,
+} from "./auth-session-runtime";
+export type { AuthSessionSnapshot, AuthenticatedSession, AuthorizedApiRequestOptions } from "./auth-session-runtime";
 
 const AuthSessionContext = createContext<AuthSessionContextValue | null>(null);
 
 export function AuthSessionProvider({ children }: Readonly<{ children: ReactNode }>) {
   const queryClient = useQueryClient();
-  const [session, setSession] = useState<AuthSessionSnapshot>(
-    () => ({ status: "restoring", startedAt: Date.now() }),
-  );
+  const [session, setSession] = useState<AuthSessionSnapshot>(() => ({ status: "restoring", startedAt: Date.now() }));
   const sessionRef = useRef<AuthSessionSnapshot>(session);
   const accessTokenRef = useRef<string | null>(null);
   const mountedRef = useRef(false);
@@ -236,140 +98,144 @@ export function AuthSessionProvider({ children }: Readonly<{ children: ReactNode
     activeRequestControllersRef.current.clear();
   }, []);
 
-  const publishSnapshot = useCallback((authenticated: AuthenticatedSession) => {
-    const token = accessTokenRef.current;
-    if (!token || logoutIntentRef.current || readRecentLogoutMarker() !== null) return;
+  const publishSnapshot = useCallback(
+    (authenticated: AuthenticatedSession) => {
+      const token = accessTokenRef.current;
+      if (!token || logoutIntentRef.current || readRecentLogoutMarker() !== null) return;
 
-    postMessage({
-      version: 1,
-      type: "session-snapshot",
-      sourceTab: DOCUMENT_TAB_ID,
-      targetTab: null,
-      issuedAt: lastEventAtRef.current,
-      sessionOrigin: sessionOrigin(authenticated),
-      email: authenticated.email,
-      accessToken: token,
-      accessExpiresAt: authenticated.accessExpiresAt,
-      sessionExpiresAt: authenticated.sessionExpiresAt,
-    });
-  }, [postMessage]);
-
-  const applyTokenResponse = useCallback((
-    response: BrowserLoginResponse,
-    options: Readonly<{
-      email: string | null;
-      source: "login" | "refresh";
-      issuedAt: number;
-      broadcast: boolean;
-      force?: boolean;
-    }>,
-  ): boolean => {
-    if (options.force) {
-      clearLogoutMarker();
-      logoutIntentRef.current = false;
-      logoutFallbackRef.current = null;
-    } else if (
-      logoutIntentRef.current
-      || sessionRef.current.status === "logging-out"
-      || sessionRef.current.status === "logout-failed"
-      || readRecentLogoutMarker() !== null
-    ) {
-      return false;
-    }
-
-    if (!options.force && options.issuedAt < lastEventAtRef.current) return false;
-
-    const now = Date.now();
-    const current = sessionRef.current;
-    const email = options.email
-      ?? (current.status === "authenticated" ? current.email : null);
-    const next: AuthenticatedSession = {
-      status: "authenticated",
-      email,
-      accessExpiresAt: now + response.expires_in * 1_000,
-      sessionExpiresAt: now + response.session_expires_in * 1_000,
-      source: options.source,
-      refreshState: "ready",
-      refreshMessage: null,
-    };
-
-    accessTokenRef.current = response.access_token;
-    lastEventAtRef.current = options.issuedAt;
-    retryAttemptRef.current = 0;
-    refreshNotBeforeRef.current = 0;
-    clearRetryTimer();
-    commitSession(next);
-    if (options.broadcast) publishSnapshot(next);
-    return true;
-  }, [clearRetryTimer, commitSession, publishSnapshot]);
-
-  const applyPeerSnapshot = useCallback((snapshot: AuthSessionSnapshotMessage): boolean => {
-    if (logoutIntentRef.current || readRecentLogoutMarker() !== null) return false;
-    if (sessionRef.current.status === "logging-out" || sessionRef.current.status === "logout-failed") {
-      return false;
-    }
-    if (!isSnapshotUsable(snapshot, Date.now(), MIN_PEER_TOKEN_VALIDITY_MS)) return false;
-    if (snapshot.issuedAt < lastEventAtRef.current) return false;
-
-    const current = sessionRef.current;
-    const next: AuthenticatedSession = {
-      status: "authenticated",
-      email: snapshot.email ?? (current.status === "authenticated" ? current.email : null),
-      accessExpiresAt: snapshot.accessExpiresAt,
-      sessionExpiresAt: snapshot.sessionExpiresAt,
-      source: "peer",
-      refreshState: "ready",
-      refreshMessage: null,
-    };
-
-    accessTokenRef.current = snapshot.accessToken;
-    latestPeerSnapshotRef.current = snapshot;
-    lastEventAtRef.current = snapshot.issuedAt;
-    retryAttemptRef.current = 0;
-    refreshNotBeforeRef.current = 0;
-    clearRetryTimer();
-    commitSession(next);
-    return true;
-  }, [clearRetryTimer, commitSession]);
-
-  const clearSessionInternal = useCallback((
-    reason: "none" | "expired" | "revoked" | "logout",
-    options: Readonly<{ broadcast: boolean; issuedAt?: number }> = { broadcast: false },
-  ) => {
-    const issuedAt = options.issuedAt ?? Date.now();
-    if (issuedAt < lastEventAtRef.current) return;
-
-    if (reason === "logout") recordLogoutMarker(issuedAt);
-    logoutIntentRef.current = false;
-    logoutFallbackRef.current = null;
-    accessTokenRef.current = null;
-    latestPeerSnapshotRef.current = null;
-    lastEventAtRef.current = issuedAt;
-    retryAttemptRef.current = 0;
-    refreshNotBeforeRef.current = 0;
-    clearRetryTimer();
-    abortAuthorizedRequests();
-    resolvePeerWaiters(null);
-    commitSession({ status: "anonymous", reason });
-    void clearAllSessionCaches(queryClient);
-
-    if (options.broadcast && reason !== "none") {
       postMessage({
         version: 1,
-        type: "session-cleared",
+        type: "session-snapshot",
         sourceTab: DOCUMENT_TAB_ID,
-        issuedAt,
-        reason,
+        targetTab: null,
+        issuedAt: lastEventAtRef.current,
+        sessionOrigin: sessionOrigin(authenticated),
+        email: authenticated.email,
+        accessToken: token,
+        accessExpiresAt: authenticated.accessExpiresAt,
+        sessionExpiresAt: authenticated.sessionExpiresAt,
       });
-    }
-  }, [
-    abortAuthorizedRequests,
-    clearRetryTimer,
-    commitSession,
-    postMessage,
-    queryClient,
-    resolvePeerWaiters,
-  ]);
+    },
+    [postMessage],
+  );
+
+  const applyTokenResponse = useCallback(
+    (
+      response: BrowserLoginResponse,
+      options: Readonly<{
+        email: string | null;
+        source: "login" | "refresh";
+        issuedAt: number;
+        broadcast: boolean;
+        force?: boolean;
+      }>,
+    ): boolean => {
+      if (options.force) {
+        clearLogoutMarker();
+        logoutIntentRef.current = false;
+        logoutFallbackRef.current = null;
+      } else if (
+        logoutIntentRef.current ||
+        sessionRef.current.status === "logging-out" ||
+        sessionRef.current.status === "logout-failed" ||
+        readRecentLogoutMarker() !== null
+      ) {
+        return false;
+      }
+
+      if (!options.force && options.issuedAt < lastEventAtRef.current) return false;
+
+      const now = Date.now();
+      const current = sessionRef.current;
+      const email = options.email ?? (current.status === "authenticated" ? current.email : null);
+      const next: AuthenticatedSession = {
+        status: "authenticated",
+        email,
+        accessExpiresAt: now + response.expires_in * 1_000,
+        sessionExpiresAt: now + response.session_expires_in * 1_000,
+        source: options.source,
+        refreshState: "ready",
+        refreshMessage: null,
+      };
+
+      accessTokenRef.current = response.access_token;
+      lastEventAtRef.current = options.issuedAt;
+      retryAttemptRef.current = 0;
+      refreshNotBeforeRef.current = 0;
+      clearRetryTimer();
+      commitSession(next);
+      if (options.broadcast) publishSnapshot(next);
+      return true;
+    },
+    [clearRetryTimer, commitSession, publishSnapshot],
+  );
+
+  const applyPeerSnapshot = useCallback(
+    (snapshot: AuthSessionSnapshotMessage): boolean => {
+      if (logoutIntentRef.current || readRecentLogoutMarker() !== null) return false;
+      if (sessionRef.current.status === "logging-out" || sessionRef.current.status === "logout-failed") {
+        return false;
+      }
+      if (!isSnapshotUsable(snapshot, Date.now(), MIN_PEER_TOKEN_VALIDITY_MS)) return false;
+      if (snapshot.issuedAt < lastEventAtRef.current) return false;
+
+      const current = sessionRef.current;
+      const next: AuthenticatedSession = {
+        status: "authenticated",
+        email: snapshot.email ?? (current.status === "authenticated" ? current.email : null),
+        accessExpiresAt: snapshot.accessExpiresAt,
+        sessionExpiresAt: snapshot.sessionExpiresAt,
+        source: "peer",
+        refreshState: "ready",
+        refreshMessage: null,
+      };
+
+      accessTokenRef.current = snapshot.accessToken;
+      latestPeerSnapshotRef.current = snapshot;
+      lastEventAtRef.current = snapshot.issuedAt;
+      retryAttemptRef.current = 0;
+      refreshNotBeforeRef.current = 0;
+      clearRetryTimer();
+      commitSession(next);
+      return true;
+    },
+    [clearRetryTimer, commitSession],
+  );
+
+  const clearSessionInternal = useCallback(
+    (
+      reason: "none" | "expired" | "revoked" | "logout",
+      options: Readonly<{ broadcast: boolean; issuedAt?: number }> = { broadcast: false },
+    ) => {
+      const issuedAt = options.issuedAt ?? Date.now();
+      if (issuedAt < lastEventAtRef.current) return;
+
+      if (reason === "logout") recordLogoutMarker(issuedAt);
+      logoutIntentRef.current = false;
+      logoutFallbackRef.current = null;
+      accessTokenRef.current = null;
+      latestPeerSnapshotRef.current = null;
+      lastEventAtRef.current = issuedAt;
+      retryAttemptRef.current = 0;
+      refreshNotBeforeRef.current = 0;
+      clearRetryTimer();
+      abortAuthorizedRequests();
+      resolvePeerWaiters(null);
+      commitSession({ status: "anonymous", reason });
+      void clearAllSessionCaches(queryClient);
+
+      if (options.broadcast && reason !== "none") {
+        postMessage({
+          version: 1,
+          type: "session-cleared",
+          sourceTab: DOCUMENT_TAB_ID,
+          issuedAt,
+          reason,
+        });
+      }
+    },
+    [abortAuthorizedRequests, clearRetryTimer, commitSession, postMessage, queryClient, resolvePeerWaiters],
+  );
 
   const requestPeerSnapshot = useCallback((): Promise<AuthSessionSnapshotMessage | null> => {
     const channel = channelRef.current;
@@ -400,136 +266,148 @@ export function AuthSessionProvider({ children }: Readonly<{ children: ReactNode
     });
   }, []);
 
-  const scheduleRetry = useCallback((error: unknown) => {
-    if (logoutIntentRef.current) return;
-    clearRetryTimer();
-    const retryAfterSeconds = isApiError(error) ? error.retryAfterSeconds : null;
-    const delay = refreshRetryDelayMs(retryAttemptRef.current, retryAfterSeconds);
-    retryAttemptRef.current += 1;
-    const retryAt = Date.now() + delay;
-    refreshNotBeforeRef.current = retryAfterSeconds === null ? 0 : retryAt;
+  const scheduleRetry = useCallback(
+    (error: unknown) => {
+      if (logoutIntentRef.current) return;
+      clearRetryTimer();
+      const retryAfterSeconds = isApiError(error) ? error.retryAfterSeconds : null;
+      const delay = refreshRetryDelayMs(retryAttemptRef.current, retryAfterSeconds);
+      retryAttemptRef.current += 1;
+      const retryAt = Date.now() + delay;
+      refreshNotBeforeRef.current = retryAfterSeconds === null ? 0 : retryAt;
 
-    const current = sessionRef.current;
-    const tokenStillUsable = current.status === "authenticated"
-      && accessTokenRef.current !== null
-      && current.accessExpiresAt - Date.now() > MIN_PEER_TOKEN_VALIDITY_MS;
-    const message = apiErrorDisplayMessage(error);
+      const current = sessionRef.current;
+      const tokenStillUsable =
+        current.status === "authenticated" &&
+        accessTokenRef.current !== null &&
+        current.accessExpiresAt - Date.now() > MIN_PEER_TOKEN_VALIDITY_MS;
+      const message = apiErrorDisplayMessage(error);
 
-    if (tokenStillUsable && current.status === "authenticated") {
-      commitSession({ ...current, refreshState: "degraded", refreshMessage: message });
-    } else {
-      commitSession({ status: "unavailable", message, retryAt });
-    }
+      if (tokenStillUsable && current.status === "authenticated") {
+        commitSession({ ...current, refreshState: "degraded", refreshMessage: message });
+      } else {
+        commitSession({ status: "unavailable", message, retryAt });
+      }
 
-    retryTimerRef.current = globalThis.setTimeout(() => {
-      retryTimerRef.current = null;
-      void refreshSessionRef.current("retry");
-    }, Math.min(delay, MAX_TIMER_DELAY_MS));
-  }, [clearRetryTimer, commitSession]);
-
-  const commitApiRefresh = useCallback((response: BrowserLoginResponse, issuedAt: number) => {
-    const current = sessionRef.current;
-    applyTokenResponse(response, {
-      email: current.status === "authenticated" ? current.email : null,
-      source: "refresh",
-      issuedAt,
-      broadcast: true,
-    });
-  }, [applyTokenResponse]);
-
-  const refreshSession = useCallback((reason: RefreshReason = "demand"): Promise<boolean> => {
-    void reason;
-    if (
-      logoutIntentRef.current
-      || sessionRef.current.status === "logging-out"
-      || sessionRef.current.status === "logout-failed"
-      || readRecentLogoutMarker() !== null
-    ) {
-      return Promise.resolve(false);
-    }
-    if (refreshPromiseRef.current) return refreshPromiseRef.current;
-
-    // Manual retry, focus і demand не обходять cooldown після 429/503.
-    const remainingCooldown = refreshNotBeforeRef.current - Date.now();
-    if (remainingCooldown > 0) {
-      if (retryTimerRef.current === null) {
-        retryTimerRef.current = globalThis.setTimeout(() => {
+      retryTimerRef.current = globalThis.setTimeout(
+        () => {
           retryTimerRef.current = null;
           void refreshSessionRef.current("retry");
-        }, Math.min(remainingCooldown, MAX_TIMER_DELAY_MS));
+        },
+        Math.min(delay, MAX_TIMER_DELAY_MS),
+      );
+    },
+    [clearRetryTimer, commitSession],
+  );
+
+  const commitApiRefresh = useCallback(
+    (response: BrowserLoginResponse, issuedAt: number) => {
+      const current = sessionRef.current;
+      applyTokenResponse(response, {
+        email: current.status === "authenticated" ? current.email : null,
+        source: "refresh",
+        issuedAt,
+        broadcast: true,
+      });
+    },
+    [applyTokenResponse],
+  );
+
+  const refreshSession = useCallback(
+    (reason: RefreshReason = "demand"): Promise<boolean> => {
+      void reason;
+      if (
+        logoutIntentRef.current ||
+        sessionRef.current.status === "logging-out" ||
+        sessionRef.current.status === "logout-failed" ||
+        readRecentLogoutMarker() !== null
+      ) {
+        return Promise.resolve(false);
       }
-      return Promise.resolve(false);
-    }
+      if (refreshPromiseRef.current) return refreshPromiseRef.current;
 
-    const baselineEventAt = lastEventAtRef.current;
-    const request = (async () => {
-      try {
-        const outcome = await coordinatedBrowserRefresh(
-          baselineEventAt,
-          () => latestPeerSnapshotRef.current,
-          requestPeerSnapshot,
-          commitApiRefresh,
-        );
-
-        if (outcome.kind === "peer") {
-          return applyPeerSnapshot(outcome.snapshot);
+      // Manual retry, focus і demand не обходять cooldown після 429/503.
+      const remainingCooldown = refreshNotBeforeRef.current - Date.now();
+      if (remainingCooldown > 0) {
+        if (retryTimerRef.current === null) {
+          retryTimerRef.current = globalThis.setTimeout(
+            () => {
+              retryTimerRef.current = null;
+              void refreshSessionRef.current("retry");
+            },
+            Math.min(remainingCooldown, MAX_TIMER_DELAY_MS),
+          );
         }
+        return Promise.resolve(false);
+      }
 
-        const current = sessionRef.current;
-        return applyTokenResponse(outcome.response, {
-          email: current.status === "authenticated" ? current.email : null,
-          source: "refresh",
-          issuedAt: outcome.issuedAt,
-          broadcast: false,
-        });
-      } catch (error) {
-        const newerPeer = latestPeerSnapshotRef.current;
-        if (isNewUsablePeerSnapshot(newerPeer, baselineEventAt)) {
-          return applyPeerSnapshot(newerPeer);
-        }
+      const baselineEventAt = lastEventAtRef.current;
+      const request = (async () => {
+        try {
+          const outcome = await coordinatedBrowserRefresh(
+            baselineEventAt,
+            () => latestPeerSnapshotRef.current,
+            requestPeerSnapshot,
+            commitApiRefresh,
+          );
 
-        if (isApiError(error) && (error.kind === "unauthorized" || error.kind === "forbidden")) {
-          clearSessionInternal(error.kind === "forbidden" ? "revoked" : "expired", { broadcast: true });
+          if (outcome.kind === "peer") {
+            return applyPeerSnapshot(outcome.snapshot);
+          }
+
+          const current = sessionRef.current;
+          return applyTokenResponse(outcome.response, {
+            email: current.status === "authenticated" ? current.email : null,
+            source: "refresh",
+            issuedAt: outcome.issuedAt,
+            broadcast: false,
+          });
+        } catch (error) {
+          const newerPeer = latestPeerSnapshotRef.current;
+          if (isNewUsablePeerSnapshot(newerPeer, baselineEventAt)) {
+            return applyPeerSnapshot(newerPeer);
+          }
+
+          if (isApiError(error) && (error.kind === "unauthorized" || error.kind === "forbidden")) {
+            clearSessionInternal(error.kind === "forbidden" ? "revoked" : "expired", { broadcast: true });
+            return false;
+          }
+          if (isApiError(error) && error.kind === "aborted") return false;
+
+          scheduleRetry(error);
           return false;
+        } finally {
+          refreshPromiseRef.current = null;
         }
-        if (isApiError(error) && error.kind === "aborted") return false;
+      })();
 
-        scheduleRetry(error);
-        return false;
-      } finally {
-        refreshPromiseRef.current = null;
-      }
-    })();
-
-    refreshPromiseRef.current = request;
-    return request;
-  }, [
-    applyPeerSnapshot,
-    applyTokenResponse,
-    clearSessionInternal,
-    commitApiRefresh,
-    requestPeerSnapshot,
-    scheduleRetry,
-  ]);
+      refreshPromiseRef.current = request;
+      return request;
+    },
+    [applyPeerSnapshot, applyTokenResponse, clearSessionInternal, commitApiRefresh, requestPeerSnapshot, scheduleRetry],
+  );
 
   useEffect(() => {
     refreshSessionRef.current = refreshSession;
   }, [refreshSession]);
 
-  const login = useCallback(async (payload: BrowserLoginRequest, signal?: AbortSignal) => {
-    await withCrossTabAuthLock(DOCUMENT_TAB_ID, async () => {
-      logoutIntentRef.current = false;
-      logoutFallbackRef.current = null;
-      const response = await browserLogin(payload, signal);
-      applyTokenResponse(response, {
-        email: normalizeEmail(String(payload.email)),
-        source: "login",
-        issuedAt: Date.now(),
-        broadcast: true,
-        force: true,
+  const login = useCallback(
+    async (payload: BrowserLoginRequest, signal?: AbortSignal) => {
+      await withCrossTabAuthLock(DOCUMENT_TAB_ID, async () => {
+        logoutIntentRef.current = false;
+        logoutFallbackRef.current = null;
+        const response = await browserLogin(payload, signal);
+        applyTokenResponse(response, {
+          email: normalizeEmail(String(payload.email)),
+          source: "login",
+          issuedAt: Date.now(),
+          broadcast: true,
+          force: true,
+        });
       });
-    });
-  }, [applyTokenResponse]);
+    },
+    [applyTokenResponse],
+  );
 
   const logout = useCallback((): Promise<boolean> => {
     if (logoutPromiseRef.current) return logoutPromiseRef.current;
@@ -557,37 +435,31 @@ export function AuthSessionProvider({ children }: Readonly<{ children: ReactNode
       const issuedAt = Date.now();
       clearSessionInternal("logout", { broadcast: true, issuedAt });
       return true;
-    }).catch((error: unknown) => {
-      // Відмова/timeout lock виникає до callback, тому обробляємо всю операцію.
-      if (sessionRef.current.status === "anonymous" && sessionRef.current.reason === "logout") {
-        return true;
-      }
+    })
+      .catch((error: unknown) => {
+        // Відмова/timeout lock виникає до callback, тому обробляємо всю операцію.
+        if (sessionRef.current.status === "anonymous" && sessionRef.current.reason === "logout") {
+          return true;
+        }
 
-      logoutIntentRef.current = false;
-      const retryAt = isApiError(error) && error.retryAfterSeconds !== null
-        ? Date.now() + error.retryAfterSeconds * 1_000
-        : null;
-      commitSession({
-        status: "logout-failed",
-        message: apiErrorDisplayMessage(error),
-        retryAt,
-        email: logoutFallbackRef.current?.session.email ?? null,
+        logoutIntentRef.current = false;
+        const retryAt =
+          isApiError(error) && error.retryAfterSeconds !== null ? Date.now() + error.retryAfterSeconds * 1_000 : null;
+        commitSession({
+          status: "logout-failed",
+          message: apiErrorDisplayMessage(error),
+          retryAt,
+          email: logoutFallbackRef.current?.session.email ?? null,
+        });
+        return false;
+      })
+      .finally(() => {
+        logoutPromiseRef.current = null;
       });
-      return false;
-    }).finally(() => {
-      logoutPromiseRef.current = null;
-    });
 
     logoutPromiseRef.current = promise;
     return promise;
-  }, [
-    abortAuthorizedRequests,
-    clearRetryTimer,
-    clearSessionInternal,
-    commitSession,
-    queryClient,
-    resolvePeerWaiters,
-  ]);
+  }, [abortAuthorizedRequests, clearRetryTimer, clearSessionInternal, commitSession, queryClient, resolvePeerWaiters]);
 
   const cancelLogout = useCallback(() => {
     if (sessionRef.current.status !== "logout-failed") return;
@@ -595,9 +467,9 @@ export function AuthSessionProvider({ children }: Readonly<{ children: ReactNode
     logoutIntentRef.current = false;
     const fallback = logoutFallbackRef.current;
     if (
-      fallback
-      && fallback.session.sessionExpiresAt > Date.now()
-      && fallback.session.accessExpiresAt - Date.now() > MIN_PEER_TOKEN_VALIDITY_MS
+      fallback &&
+      fallback.session.sessionExpiresAt > Date.now() &&
+      fallback.session.accessExpiresAt - Date.now() > MIN_PEER_TOKEN_VALIDITY_MS
     ) {
       accessTokenRef.current = fallback.accessToken;
       logoutFallbackRef.current = null;
@@ -610,74 +482,42 @@ export function AuthSessionProvider({ children }: Readonly<{ children: ReactNode
     void refreshSessionRef.current("demand");
   }, [commitSession]);
 
-  const clearSession = useCallback((reason: SessionInvalidationReason = "revoked") => {
-    clearSessionInternal(reason, { broadcast: true });
-  }, [clearSessionInternal]);
+  const clearSession = useCallback(
+    (reason: SessionInvalidationReason = "revoked") => {
+      clearSessionInternal(reason, { broadcast: true });
+    },
+    [clearSessionInternal],
+  );
 
-  const getAccessToken = useCallback(async (minimumValidityMs = MIN_ACCESS_VALIDITY_MS) => {
-    if (logoutIntentRef.current) return null;
-    const current = sessionRef.current;
-    const token = accessTokenRef.current;
-    if (
-      current.status === "authenticated"
-      && token
-      && current.accessExpiresAt - Date.now() > minimumValidityMs
-    ) {
-      return token;
-    }
-
-    const refreshed = await refreshSession("demand");
-    return refreshed && !logoutIntentRef.current ? accessTokenRef.current : null;
-  }, [refreshSession]);
-
-  const authorizedRequest = useCallback(async <T,>(options: AuthorizedApiRequestOptions): Promise<T> => {
-    const method = options.method ?? "GET";
-    const linked = createLinkedRequestController(options.signal);
-    activeRequestControllersRef.current.add(linked.controller);
-
-    try {
-      if (logoutIntentRef.current) throw logoutCancelledRequestError(options.path, method);
-      const token = await getAccessToken();
-      if (linked.controller.signal.aborted || logoutIntentRef.current) {
-        throw logoutCancelledRequestError(options.path, method);
+  const getAccessToken = useCallback(
+    async (minimumValidityMs = MIN_ACCESS_VALIDITY_MS) => {
+      if (logoutIntentRef.current) return null;
+      const current = sessionRef.current;
+      const token = accessTokenRef.current;
+      if (current.status === "authenticated" && token && current.accessExpiresAt - Date.now() > minimumValidityMs) {
+        return token;
       }
-      if (!token) throw noAccessTokenError(options.path);
 
-      const { retryOnUnauthorized, signal: _signal, ...requestOptions } = options;
-      void _signal;
+      const refreshed = await refreshSession("demand");
+      return refreshed && !logoutIntentRef.current ? accessTokenRef.current : null;
+    },
+    [refreshSession],
+  );
 
-      try {
-        return await apiRequest<T>({
-          ...requestOptions,
-          accessToken: token,
-          signal: linked.controller.signal,
-        });
-      } catch (error) {
-        const mayRetry = retryOnUnauthorized ?? method === "GET";
-        if (
-          !mayRetry
-          || !isApiError(error)
-          || error.kind !== "unauthorized"
-          || linked.controller.signal.aborted
-          || logoutIntentRef.current
-        ) {
-          throw error;
-        }
-
-        const refreshed = await refreshSession("unauthorized");
-        const replacementToken = accessTokenRef.current;
-        if (!refreshed || !replacementToken || logoutIntentRef.current) throw error;
-        return apiRequest<T>({
-          ...requestOptions,
-          accessToken: replacementToken,
-          signal: linked.controller.signal,
-        });
-      }
-    } finally {
-      activeRequestControllersRef.current.delete(linked.controller);
-      linked.cleanup();
-    }
-  }, [getAccessToken, refreshSession]);
+  const authorizedRequest = useCallback(
+    <T,>(options: AuthorizedApiRequestOptions) =>
+      authorizedApiRequest<T>(
+        {
+          activeControllers: () => activeRequestControllersRef.current,
+          logoutRequested: () => logoutIntentRef.current,
+          currentAccessToken: () => accessTokenRef.current,
+          getAccessToken,
+          refreshSession,
+        },
+        options,
+      ),
+    [getAccessToken, refreshSession],
+  );
 
   useEffect(() => {
     mountedRef.current = true;
@@ -695,11 +535,11 @@ export function AuthSessionProvider({ children }: Readonly<{ children: ReactNode
           const current = sessionRef.current;
           const token = accessTokenRef.current;
           if (
-            !logoutIntentRef.current
-            && readRecentLogoutMarker() === null
-            && current.status === "authenticated"
-            && token
-            && current.accessExpiresAt - Date.now() > MIN_PEER_TOKEN_VALIDITY_MS
+            !logoutIntentRef.current &&
+            readRecentLogoutMarker() === null &&
+            current.status === "authenticated" &&
+            token &&
+            current.accessExpiresAt - Date.now() > MIN_PEER_TOKEN_VALIDITY_MS
           ) {
             channel?.postMessage({
               version: 1,
@@ -766,10 +606,7 @@ export function AuthSessionProvider({ children }: Readonly<{ children: ReactNode
   useEffect(() => {
     if (session.status !== "authenticated") return;
 
-    const timer = globalThis.setTimeout(
-      () => void refreshSession("timer"),
-      refreshDelayMs(session.accessExpiresAt),
-    );
+    const timer = globalThis.setTimeout(() => void refreshSession("timer"), refreshDelayMs(session.accessExpiresAt));
     return () => globalThis.clearTimeout(timer);
   }, [refreshSession, session]);
 
@@ -777,10 +614,7 @@ export function AuthSessionProvider({ children }: Readonly<{ children: ReactNode
     const refreshWhenVisible = () => {
       if (document.visibilityState !== "visible" || logoutIntentRef.current) return;
       const current = sessionRef.current;
-      if (
-        current.status === "authenticated"
-        && current.accessExpiresAt - Date.now() <= MIN_ACCESS_VALIDITY_MS
-      ) {
+      if (current.status === "authenticated" && current.accessExpiresAt - Date.now() <= MIN_ACCESS_VALIDITY_MS) {
         void refreshSession("visibility");
       }
     };
@@ -804,16 +638,7 @@ export function AuthSessionProvider({ children }: Readonly<{ children: ReactNode
       getAccessToken,
       authorizedRequest,
     }),
-    [
-      authorizedRequest,
-      cancelLogout,
-      clearSession,
-      getAccessToken,
-      login,
-      logout,
-      refreshSession,
-      session,
-    ],
+    [authorizedRequest, cancelLogout, clearSession, getAccessToken, login, logout, refreshSession, session],
   );
 
   return <AuthSessionContext.Provider value={value}>{children}</AuthSessionContext.Provider>;

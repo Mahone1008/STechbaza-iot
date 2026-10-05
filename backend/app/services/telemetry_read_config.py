@@ -1,6 +1,6 @@
 import os
 
-from app.device_contract import METRIC_UNITS
+from app.device_contract import METRIC_UNITS as METRIC_UNITS
 
 
 TELEMETRY_STALE_AFTER_SECONDS = int(os.getenv("TELEMETRY_STALE_AFTER_SECONDS", "120"))

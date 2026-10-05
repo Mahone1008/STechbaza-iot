@@ -40,7 +40,7 @@ jobs:
         with:
           python-version: '3.13'
       - name: Install backend schema dependencies
-        run: python -m pip install -r backend/requirements.txt
+        run: python -m pip install --require-hashes -r backend/requirements.lock
       - name: Export backend OpenAPI snapshot
         run: python scripts/export_openapi.py
       - uses: actions/setup-node@v4
@@ -65,6 +65,9 @@ jobs:
       - name: Lint
         working-directory: frontend
         run: npm run lint
+      - name: Check formatting of audited modules
+        working-directory: frontend
+        run: npm run format:check
       - name: Unit and component tests
         working-directory: frontend
         run: npm run test:unit
@@ -74,9 +77,6 @@ jobs:
       - name: Frontend bundle budget
         working-directory: frontend
         run: npm run check:budget
-      - name: Dependency vulnerability gate
-        working-directory: frontend
-        run: npm audit --json --audit-level=high > artifacts/stage14/dependency-audit.json
       - name: Install Chromium
         working-directory: frontend
         run: npx playwright install --with-deps chromium
@@ -115,6 +115,32 @@ jobs:
             frontend/playwright-report
             frontend/test-results
           if-no-files-found: ignore
+          retention-days: 5
+
+  dependencies:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.16.0'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install locked frontend dependencies
+        working-directory: frontend
+        run: npm ci --no-audit --no-fund
+      - name: Dependency vulnerability gate
+        working-directory: frontend
+        run: |
+          mkdir -p artifacts/stage14
+          npm audit --json --audit-level=high > artifacts/stage14/dependency-audit.json
+      - name: Preserve dependency report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dependency-audit
+          path: frontend/artifacts/stage14/dependency-audit.json
           retention-days: 5
 
   auth-live:

@@ -1,8 +1,8 @@
+from app.api.auth_throttle import throttle_auth
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse
-from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.db import get_db_session
@@ -21,7 +21,6 @@ from app.schemas.auth import (
 from app.security.browser_auth import (
     require_browser_request, read_refresh_cookie, set_refresh_cookie, clear_refresh_cookie,
 )
-from app.services.auth_throttle import AuthThrottle, AuthRateLimitedError
 from app.security.current_user import (
     CurrentUserContext,
     get_current_user_context,
@@ -57,17 +56,7 @@ def _token_response(pair) -> TokenResponse:
     )
 
 
-def _throttle(request: Request, session: Session, *, email: str | None = None) -> None:
-    # Беремо peer ASGI; довіра до proxy headers налаштовується лише на сервері.
-    ip = request.client.host if request.client else "unknown-peer"
-    try:
-        AuthThrottle(session).check(ip, email=email)
-    except AuthRateLimitedError as exc:
-        raise HTTPException(429, "Забагато auth-спроб. Спробуйте пізніше",
-                            headers={"Retry-After": str(exc.retry_after)}) from exc
-    except SQLAlchemyError as exc:
-        session.rollback()
-        raise HTTPException(503, "Auth storage тимчасово недоступне") from exc
+
 
 
 def _login_pair(
@@ -75,7 +64,7 @@ def _login_pair(
     request: Request,
     session: DbSession,
 ):
-    _throttle(request, session, email=str(payload.email))
+    throttle_auth(request, session, email=str(payload.email))
     try:
         pair = AuthService(session).login(payload)
     except InvalidCredentialsError as exc:
@@ -104,7 +93,7 @@ def refresh(
     request: Request,
     session: DbSession,
 ) -> TokenResponse:
-    _throttle(request, session)
+    throttle_auth(request, session)
     try:
         pair = AuthService(session).refresh(payload.refresh_token)
     except InvalidRefreshTokenError as exc:
@@ -128,7 +117,7 @@ def logout(
     request: Request,
     session: DbSession,
 ) -> Response:
-    _throttle(request, session)
+    throttle_auth(request, session)
     AuthService(session).logout(payload.refresh_token)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
@@ -153,7 +142,7 @@ def browser_login(payload: LoginRequest, request: Request, response: Response, s
 @router.post("/browser/refresh", response_model=BrowserTokenResponse,
              dependencies=[Depends(require_browser_request)])
 def browser_refresh(request: Request, response: Response, session: DbSession):
-    _throttle(request, session)
+    throttle_auth(request, session)
     token = read_refresh_cookie(request)
     try:
         if token is None:
@@ -171,7 +160,7 @@ def browser_refresh(request: Request, response: Response, session: DbSession):
 @router.post("/browser/logout", status_code=204,
              dependencies=[Depends(require_browser_request)])
 def browser_logout(request: Request, session: DbSession):
-    _throttle(request, session)
+    throttle_auth(request, session)
     token = read_refresh_cookie(request)
     if token:
         AuthService(session).logout(token)

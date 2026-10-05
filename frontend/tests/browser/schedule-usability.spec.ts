@@ -18,7 +18,6 @@ test.beforeEach(async ({ page }) => {
 async function editor(page: Page) {
   await page.goto(`/devices/${DEVICE_ID}`);
   await page.getByLabel("Автооновлення", { exact: true }).selectOption("0");
-  await page.getByText("Додаткові налаштування команди", { exact: true }).click();
   await page.getByRole("tab", { name: "Розклади", exact: true }).click();
   await page.getByRole("button", { name: "Новий розклад", exact: true }).click();
   await page.getByLabel("Назва розкладу", { exact: true }).fill("Полив");

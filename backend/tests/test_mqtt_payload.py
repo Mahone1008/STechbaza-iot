@@ -8,7 +8,7 @@ from unittest.mock import Mock, patch
 
 from pydantic import ValidationError
 
-from app import mqtt_client
+from app import mqtt_client, mqtt_ingress
 from app.mqtt_payload import (
     MAX_JSON_DEPTH, MAX_JSON_NODES, MAX_PAYLOAD_BYTES, MAX_STRING_LENGTH,
     InvalidMQTTPayload, decode_payload, load_json_object,
@@ -120,7 +120,7 @@ class MQTTIngressTests(unittest.TestCase):
         for suffix in ("telemetry", "heartbeat", "commands/ack", "commands/result"):
             for payload in invalid:
                 with self.subTest(suffix=suffix, size=len(payload)), \
-                     patch.object(mqtt_client, "SessionLocal") as sessions, \
+                     patch.object(mqtt_ingress, "SessionLocal") as sessions, \
                      self.assertLogs("app.mqtt_client", level="WARNING"):
                     client = Mock()
                     mqtt_client._on_message(client, None, self.message(payload, suffix))
@@ -144,8 +144,8 @@ class MQTTIngressTests(unittest.TestCase):
         def ingest(**kwargs):
             order.append("committed")
             return NS(duplicate=False, telemetry_id=uuid.uuid4(), state_updated=True, ordering_reason="new")
-        with patch.object(mqtt_client, "SessionLocal"), \
-             patch.object(mqtt_client, "TelemetryService") as service:
+        with patch.object(mqtt_ingress, "SessionLocal"), \
+             patch.object(mqtt_ingress, "TelemetryService") as service:
             service.return_value.ingest.side_effect = ingest
             with self.assertLogs("app.mqtt_client", level="WARNING"):
                 mqtt_client._on_message(client, None, self.message(b'{"v":1e400}', mid=7))
@@ -155,8 +155,8 @@ class MQTTIngressTests(unittest.TestCase):
 
     def test_service_valueerror_is_not_misclassified_as_invalid_json(self):
         client = Mock()
-        with patch.object(mqtt_client, "SessionLocal"), \
-             patch.object(mqtt_client, "TelemetryService") as service:
+        with patch.object(mqtt_ingress, "SessionLocal"), \
+             patch.object(mqtt_ingress, "TelemetryService") as service:
             service.return_value.ingest.side_effect = ValueError("Unexpected service failure")
             with self.assertLogs("app.mqtt_client", level="ERROR"), \
                  self.assertRaises(mqtt_client.MQTTProcessingError):

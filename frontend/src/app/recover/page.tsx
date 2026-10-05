@@ -1,2 +1,2 @@
-import { RegisterPage } from "@/features/account-security";
+import { RegisterPage } from "@/features/register";
 export default function Page() { return <RegisterPage recovery />; }

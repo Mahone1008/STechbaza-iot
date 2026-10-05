@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { Button, Card, SelectField, TextField } from "@/components/ui";
+import { usePanelActivity } from "./panel-activity";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import type { ReadyAccessSnapshot } from "./access-context";
 import { useAuthSession } from "./auth-session";
@@ -63,6 +64,7 @@ export function CommandControls({
   onCreated: (id: string) => void;
   onSchedules?: () => void;
 }) {
+  const sectionActive = usePanelActivity();
   const { authorizedRequest } = useAuthSession();
   const device = context.activeDevice!;
   const [frequency, setFrequency] = useState("");
@@ -512,7 +514,7 @@ export function CommandControls({
         </section>
       )}
       <ConfirmDialog
-        open={active && !!dialog}
+        open={sectionActive && !!dialog}
         title={dialog?.kind === "discard" ? "Завершити перевірку?" : "Підтвердити команду"}
         description={
           dialog?.kind === "discard"
