@@ -1,6 +1,15 @@
 name: Backend checks
 
 on:
+  pull_request:
+    paths:
+      - 'backend/**'
+      - 'pyproject.toml'
+      - 'infrastructure/mosquitto/**'
+      - '.github/workflows/backend-checks.yml'
+      - 'compose.demo.yml'
+      - 'compose.acceptance.yml'
+      - 'scripts/reset-demo-review.ps1'
   push:
     branches: [main, "codex/**"]
     paths:

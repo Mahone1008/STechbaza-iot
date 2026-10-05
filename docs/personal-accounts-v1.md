@@ -163,3 +163,8 @@ Email password reset, production delivery/abuse tuning та окреме
 збереження memberships. Чужі організації не очищуються через сам факт
 участі review-користувача. [Точний обсяг і команди](demo-review-accounts-v1.md).
 Не запускайте seed/simulator після reset, якщо бажаєте порожні приклади.
+
+Якщо приклад уже отримав MQTT credentials, reset спочатку чекає підтвердження
+їх відкликання шлюзом. Недоступний шлюз зупиняє видалення БД. Сценарій
+враховує наявні `.env.v3`/`.env.controllers` overlays, щоб зберегти налаштування
+підключення backend. Перед reset фізичне обладнання має бути зупинене й DISARM.

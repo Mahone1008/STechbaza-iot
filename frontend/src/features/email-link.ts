@@ -6,10 +6,15 @@ import { useEffect, useState } from "react";
 export function useEmailLinkToken() {
   const [token, setToken] = useState("");
   useEffect(() => {
-    const value = new URLSearchParams(window.location.hash.slice(1)).get("token");
-    if (!value) return;
-    window.history.replaceState(null, "", window.location.pathname + window.location.search);
-    queueMicrotask(() => setToken(value));
+    const capture = () => {
+      const value = new URLSearchParams(window.location.hash.slice(1)).get("token");
+      if (!value) return;
+      window.history.replaceState(null, "", window.location.pathname + window.location.search);
+      queueMicrotask(() => setToken(value));
+    };
+    capture();
+    window.addEventListener("hashchange", capture);
+    return () => window.removeEventListener("hashchange", capture);
   }, []);
   return token;
 }

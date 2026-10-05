@@ -100,6 +100,16 @@ test("a cancelled or expired email link never offers password setup", async ({ p
   await privateState(page, token);
 });
 
+test("email proof opens in the existing registration tab and clears the address fragment", async ({ page }) => {
+  await mockMissingBrowserSession(page);
+  await route(page, "auth/registration/inspect", (request) => fulfillJson(request, 200, { email }));
+  await page.goto("/register");
+  await page.getByRole("heading", { name: "Почнімо з вашої пошти", exact: true }).waitFor();
+  await page.goto(`/register#token=${token}`);
+  await expect(page.getByLabel("Ваше ім’я", { exact: true })).toBeVisible();
+  await privateState(page, token);
+});
+
 test("invitation uses the exact personal account and shows its role before acceptance", async ({ page }) => {
   await mockAuthenticatedWorkspace(page, { email });
   await route(page, "invitations/inspect", (request) =>

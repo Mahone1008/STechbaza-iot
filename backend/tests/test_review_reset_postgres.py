@@ -12,7 +12,13 @@ from app.demo.catalog import identity
 from app.demo.reset_review import reset_review
 from app.demo.review_accounts import ACCOUNTS, _prepare_accounts
 from app.models import AuthSession, Device, Organization, OrganizationMembership, Site, User
-from app.models.onboarding import AccountSecurity, FactoryAudit, FactoryController
+from app.models.onboarding import (
+    AccountSecurity,
+    ControllerCredential,
+    FactoryAudit,
+    FactoryController,
+)
+from app.services.controller_broker import BrokerUnavailable
 from app.security.tokens import utc_now
 
 
@@ -155,3 +161,50 @@ class ReviewResetTests(OnboardingFixtures, unittest.TestCase):
             reset_review({**self.passwords, "owner": "wrong-password-" + "x" * 32}, apply=True)
         with SessionLocal() as session:
             self.assertIsNotNone(session.get(Device, identity("review:device")))
+
+    def add_network_key(self):
+        with SessionLocal.begin() as session:
+            session.get(FactoryController, self.factory_id).device_id = identity("review:device")
+            session.add(
+                ControllerCredential(
+                    device_id=identity("review:device"),
+                    controller_id=self.factory_id,
+                    secret="private-reset-fixture",
+                    revision=1,
+                    applied_revision=1,
+                    revoked=False,
+                )
+            )
+
+    def test_reset_requires_broker_revoke_before_deleting_network_key(self):
+        self.add_network_key()
+        with (
+            patch.dict(os.environ, {"TECHBAZA_DEMO_MODE": "1"}),
+            patch("app.demo.reset_review.assert_database"),
+            patch("app.demo.reset_review.ControllerBroker") as broker,
+        ):
+            reset_review(self.passwords)
+            broker.assert_not_called()
+            report = reset_review(self.passwords, apply=True)
+            self.assertEqual(report["network_keys"], 1)
+            broker.return_value.__enter__.return_value.apply.assert_called_once_with(
+                "TB-DEMO-RESET", "", True
+            )
+        with SessionLocal() as session:
+            self.assertIsNone(session.get(ControllerCredential, identity("review:device")))
+
+    def test_unavailable_broker_aborts_database_reset(self):
+        self.add_network_key()
+        with (
+            patch.dict(os.environ, {"TECHBAZA_DEMO_MODE": "1"}),
+            patch("app.demo.reset_review.assert_database"),
+            patch(
+                "app.demo.reset_review.ControllerBroker", side_effect=BrokerUnavailable("offline")
+            ),
+            self.assertRaises(RuntimeError),
+        ):
+            reset_review(self.passwords, apply=True)
+        with SessionLocal() as session:
+            self.assertIsNotNone(session.get(Device, identity("review:device")))
+            self.assertIsNotNone(session.get(ControllerCredential, identity("review:device")))
+            self.assertIsNotNone(session.get(AccountSecurity, ACCOUNTS[0].user_id))

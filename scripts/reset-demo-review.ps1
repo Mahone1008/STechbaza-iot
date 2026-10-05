@@ -6,6 +6,9 @@ try {
     $credentials = Join-Path $repoRoot '.local/demo-accounts/accounts.json'
     if (-not (Test-Path -LiteralPath $credentials -PathType Leaf)) { throw 'Existing demo credentials file is required; passwords will not be generated or changed.' }
     $dc = @('compose', '-p', 'techbaza-demo', '--env-file', '.env.demo', '-f', 'compose.demo.yml')
+    foreach ($overlay in @('v3', 'controllers')) {
+        if (Test-Path ".env.$overlay") { $dc += @('--env-file', ".env.$overlay", '-f', "compose.$overlay.yml") }
+    }
     & docker @dc up -d --wait postgres
     if ($LASTEXITCODE -ne 0) { throw 'Demo database is not ready.' }
     $arguments = @('run', '--rm', '-T', '--no-deps', '-v', "${credentials}:/private/accounts.json:ro", 'backend', 'python', '-m', 'app.demo.reset_review', '--credentials', '/private/accounts.json')

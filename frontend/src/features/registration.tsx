@@ -18,8 +18,9 @@ export function RegistrationPage() {
   const { session, authorizedRequest } = useAuthSession();
   const token = useEmailLinkToken();
   const [email, setEmail] = useState("");
-  const [verifiedEmail, setVerifiedEmail] = useState("");
-  const [linkError, setLinkError] = useState("");
+  const [inspected, setInspected] = useState<{ token: string; email?: string; error?: string } | null>(null);
+  const verifiedEmail = inspected?.token === token ? inspected.email : undefined;
+  const linkError = inspected?.token === token ? inspected.error : undefined;
   const [sent, setSent] = useState(false);
   const { busy, error, run } = useAccountAction();
   useEffect(() => {
@@ -34,10 +35,10 @@ export function RegistrationPage() {
       signal: controller.signal,
     })
       .then((result) => {
-        if (!controller.signal.aborted) setVerifiedEmail(result.email);
+        if (!controller.signal.aborted) setInspected({ token, email: result.email });
       })
       .catch((cause) => {
-        if (!controller.signal.aborted) setLinkError(apiErrorDisplayMessage(cause));
+        if (!controller.signal.aborted) setInspected({ token, error: apiErrorDisplayMessage(cause) });
       });
     return () => controller.abort();
   }, [token]);
@@ -77,7 +78,7 @@ export function RegistrationPage() {
               </Button>
             </div>
           ) : verifiedEmail ? (
-            <CreatePersonalAccount token={token} email={verifiedEmail} />
+            <CreatePersonalAccount key={token} token={token} email={verifiedEmail} />
           ) : (
             <p role="status">Перевіряємо посилання…</p>
           )

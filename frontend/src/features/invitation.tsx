@@ -12,6 +12,10 @@ import { useAccountAction } from "./use-account-action";
 
 export function InvitationPage() {
   const token = useEmailLinkToken();
+  return <InvitationWithToken key={token} token={token} />;
+}
+
+function InvitationWithToken({ token }: { token: string }) {
   const { session, login, authorizedRequest, logout } = useAuthSession();
   const { retryAccess } = useAccessContext();
   const [preview, setPreview] = useState<components["schemas"]["InvitationPreview"] | null>(null);

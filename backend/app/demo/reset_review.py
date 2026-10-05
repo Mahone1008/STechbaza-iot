@@ -32,6 +32,7 @@ from app.models.onboarding import (
 from app.security.passwords import verify_password
 from app.security.tokens import utc_now
 from app.services.auth_throttle import rate_key
+from app.services.controller_broker import BrokerUnavailable, ControllerBroker
 
 
 def reset_review(passwords: dict[str, str], *, apply: bool = False):
@@ -104,17 +105,35 @@ def reset_review(passwords: dict[str, str], *, apply: bool = False):
                 )
             )
         )
+        credentials = list(
+            session.scalars(
+                select(ControllerCredential)
+                .where(ControllerCredential.controller_id.in_(controllers))
+                .with_for_update()
+            )
+        )
         report = {
             "accounts": len(users),
             "sites": len(sites),
             "devices": len(devices),
             "controllers": len(controllers),
+            "network_keys": len(credentials),
             "security_reset": True,
             "passwords_and_roles_preserved": True,
             "applied": apply,
         }
         if not apply:
             return report
+        if credentials:
+            try:
+                with ControllerBroker() as broker:
+                    for credential in credentials:
+                        device = session.get(Device, credential.device_id)
+                        broker.apply(device.uid, "", True)
+            except BrokerUnavailable:
+                raise RuntimeError(
+                    "Шлюз не підтвердив відкликання ключів; очистку бази скасовано"
+                ) from None
         # Rights stay attached to the same organizations and identities.
         before = [
             (user.id, user.password_hash, user.platform_role, user.is_active) for user in users
