@@ -9,14 +9,14 @@ firmware **0.7.0**. Програмний цикл реалізовано; фіз
 
 | Частина | Перевірена ревізія та результат |
 |---|---|
-| Backend | [`0a1a3d1`, CI](https://github.com/Mahone1008/STechbaza-iot/actions/runs/37287235046): 267 tests без skips, реальні PostgreSQL/MQTT/HTTP, PowerShell `check-stage2`, clean install і backup/restore |
-| Frontend | [`0a1a3d1`, CI](https://github.com/Mahone1008/STechbaza-iot/actions/runs/37287234982): 122 unit + 8 tooling, 224 browser + 44 повторні + 10 live, API/types/lint/format/build/budget та dependency audit |
-| Firmware і gateways | [`843b4f7`, CI](https://github.com/Mahone1008/STechbaza-iot/actions/runs/37288935571): ASan/UBSan, шість ESP32-S3 builds, legacy gateway та TLS/ACL/rotation/active-session revoke нового gateway |
+| Backend | [`492fe58`, CI](https://github.com/Mahone1008/STechbaza-iot/actions/runs/37302084520): 275 tests без skips, реальні PostgreSQL/MQTT/HTTP, PowerShell `check-stage2`, clean install і backup/restore |
+| Frontend | [`120d532`, CI](https://github.com/Mahone1008/STechbaza-iot/actions/runs/37303862294): 124 unit + 8 tooling, 227 browser + 44 повторні + 10 live, API/types/lint/format/build/budget та dependency audit |
+| Firmware і gateways | [`492fe58`, CI](https://github.com/Mahone1008/STechbaza-iot/actions/runs/37302084536): ASan/UBSan, шість ESP32-S3 builds, legacy gateway та TLS/ACL/rotation/active-session revoke нового gateway |
 
-Наведені CI-докази стосуються базового циклу 0.46.0. У 0.47.0 покупець
-активує пристрій без реєстрації, з виданими логіном/паролем; зміни мають
-окремі перевірки label account, auth, onboarding та передачі. Фізичне
-приймання прошивки 0.7.0 залишається потрібним.
+Наведені CI-докази стосуються 0.47.0: активації із заводських реквізитів,
+нового постійного пароля й TOTP, передачі та збереження історії.
+Ревізія frontend відрізняється від backend лише уточненням очікуваного
+тексту помилки у live-тесті. Фізичне приймання прошивки 0.7.0 залишається потрібним.
 
 ## 1. Оновити чинний сервер без втрати даних
 

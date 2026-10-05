@@ -69,3 +69,18 @@ Browser сценарії onboarding використовують mocked API; т�
 окремо реальним PostgreSQL через HTTP-шар. Фізичні ESP32/VFD ці перевірки
 не запускають. SIGMA додано лише для паспорта; керування потребує окремого
 документованого драйвера. Прийнятий драйвер SU600 не змінювався.
+
+## Підсумкові докази GitHub CI
+
+- [Backend, 492fe58](https://github.com/Mahone1008/STechbaza-iot/actions/runs/37302084520):
+  275 tests без skips, browser auth у Chromium, чиста установка,
+  HTTP/MQTT, PowerShell acceptance та точне backup/restore.
+- [Frontend, 120d532](https://github.com/Mahone1008/STechbaza-iot/actions/runs/37303862294):
+  124 unit + 8 tooling, 227 browser, повторні regressions та 10 live;
+  dependency audit, API/types/lint/format/build/budget.
+- [Firmware/gateways, 492fe58](https://github.com/Mahone1008/STechbaza-iot/actions/runs/37302084536):
+  sanitizer tests, шість ESP32-S3 builds, TLS/ACL і ротація шлюзу.
+
+Між 492fe58 і 120d532 змінено лише очікуваний текст помилки у live-тесті:
+«логін» замість «email». Код застосунку однаковий. Наступне уточнення
+цього звіту та чекліста містить лише документацію.
