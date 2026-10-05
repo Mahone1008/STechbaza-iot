@@ -15,7 +15,7 @@
     "typecheck": "tsc --noEmit",
     "api:generate": "openapi-typescript ./src/lib/api/openapi.json --output ./src/lib/api/schema.d.ts --alphabetize",
     "api:verify": "node ./scripts/verify-openapi.mjs",
-    "test:unit": "vitest run",
+    "test:unit": "vitest run && node --test scripts/eslint-config.test.mjs",
     "test:browser": "playwright test",
     "test:browser:live": "playwright test --config playwright.live.config.ts",
     "browser:install": "playwright install chromium",
@@ -27,6 +27,11 @@
     "next": "16.3.6",
     "react": "19.2.8",
     "react-dom": "19.2.8"
+  },
+  "overrides": {
+    "@next/eslint-plugin-next@16.3.6": {
+      "fast-glob": "npm:glob@13.0.6"
+    }
   },
   "devDependencies": {
     "@axe-core/playwright": "4.13.0",
