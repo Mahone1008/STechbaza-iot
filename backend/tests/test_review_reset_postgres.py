@@ -20,6 +20,7 @@ from app.models.onboarding import (
 )
 from app.services.controller_broker import BrokerUnavailable
 from app.security.tokens import utc_now
+from app.security.passwords import hash_password
 
 
 @unittest.skipUnless(os.getenv("TECHBAZA_RUN_DB_TESTS") == "1", "Requires isolated PostgreSQL")
@@ -208,3 +209,16 @@ class ReviewResetTests(OnboardingFixtures, unittest.TestCase):
             self.assertIsNotNone(session.get(Device, identity("review:device")))
             self.assertIsNotNone(session.get(ControllerCredential, identity("review:device")))
             self.assertIsNotNone(session.get(AccountSecurity, ACCOUNTS[0].user_id))
+
+    def test_reset_preserves_a_personal_password_changed_after_provisioning(self):
+        self.passwords["owner"] = "personal-12!"
+        password_hash = hash_password(self.passwords["owner"])
+        with SessionLocal.begin() as session:
+            session.get(User, ACCOUNTS[0].user_id).password_hash = password_hash
+        with (
+            patch.dict(os.environ, {"TECHBAZA_DEMO_MODE": "1"}),
+            patch("app.demo.reset_review.assert_database"),
+        ):
+            reset_review(self.passwords, apply=True)
+        with SessionLocal() as session:
+            self.assertEqual(session.get(User, ACCOUNTS[0].user_id).password_hash, password_hash)

@@ -9,7 +9,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from app.db import SessionLocal
 from app.demo.catalog import identity, require_demo
-from app.demo.review_accounts import ACCOUNTS, validate_passwords
+from app.demo.review_accounts import ACCOUNTS
 from app.demo.seed import assert_database
 from app.models import (
     AccountLink,
@@ -35,9 +35,20 @@ from app.services.auth_throttle import rate_key
 from app.services.controller_broker import BrokerUnavailable, ControllerBroker
 
 
+def validate_reset_credentials(value: object) -> dict[str, str]:
+    if not isinstance(value, dict) or set(value) != {account.key for account in ACCOUNTS}:
+        raise ValueError("Потрібен чинний файл восьми demo-паролів")
+    if any(
+        not isinstance(password, str) or not 12 <= len(password) <= 128
+        for password in value.values()
+    ):
+        raise ValueError("Потрібні чинні паролі; нові значення не генеруються")
+    return value
+
+
 def reset_review(passwords: dict[str, str], *, apply: bool = False):
     require_demo()
-    validate_passwords(passwords)
+    validate_reset_credentials(passwords)
     user_ids = [account.user_id for account in ACCOUNTS]
     with SessionLocal.begin() as session:
         assert_database(session)
@@ -189,7 +200,9 @@ def main():
     parser.add_argument("--apply", action="store_true")
     args = parser.parse_args()
     try:
-        passwords = validate_passwords(json.loads(args.credentials.read_text(encoding="utf-8-sig")))
+        passwords = validate_reset_credentials(
+            json.loads(args.credentials.read_text(encoding="utf-8-sig"))
+        )
         report = reset_review(passwords, apply=args.apply)
     except (OSError, ValueError, RuntimeError) as error:
         raise SystemExit(str(error)) from None
