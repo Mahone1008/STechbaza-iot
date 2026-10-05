@@ -30,7 +30,7 @@ python -m unittest discover -s tests -v
 ```
 
 Пропуски integration tests у цьому режимі очікувані; це не повне приймання.
-Результати поточного аудиту — у [звіті](../docs/audit-2026-09-30.md).
+Результати поточного звірення — у [звіті](../docs/audit-2026-10-05-documentation.md).
 
 `GET /health` — публічний liveness/version. `/health/db`, `/health/mqtt`,
 `/mqtt/last` та `/mqtt/ingestion/last` потребують Bearer superadmin.
@@ -42,7 +42,10 @@ python -m unittest discover -s tests -v
 - `models`, `repositories`, `alembic` — дані та міграції.
 - `security` — identity, sessions, permissions та tenant guards.
 - `device_contract.py` — спільний registry каналів і підтримуваних команд.
-- `mqtt_client.py` — MQTT ingestion; `operations` — preflight/recovery.
+- `mqtt_client.py` — MQTT transport; `mqtt_ingress.py` — обробка повідомлень;
+  `mqtt_diagnostics.py` — діагностичний стан; `mqtt_topics.py` — topic helpers.
+- `services/account_security.py` — реєстрація, TOTP, recovery та сесії;
+  `services/onboarding.py` — заводський реєстр і claim; `operations` — preflight/recovery.
 - `demo`, `tools`, `tests` — simulator, операційні перевірки та регресії.
 
 API lifespan запускає MQTT і фонові workers. Поточне локальне розгортання
@@ -52,3 +55,7 @@ API lifespan запускає MQTT і фонові workers. Поточне ло�
 [Frontend API](../docs/frontend-api-contract-v1.md),
 [канали](../docs/module-channel-contract-v1.md),
 [auth](../docs/browser-auth-v1.md), [план продукту](../docs/product-readiness-plan-v1.md).
+
+Перед оновленням наявної установки: [перенесення account keys](../docs/account-key-operations-v1.md).
+Поточні lock/static gate: [backend development](../docs/backend-development.md).
+Реалізована частина етапу 2: [buyer onboarding](../docs/buyer-onboarding-v1.md).

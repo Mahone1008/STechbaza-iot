@@ -85,7 +85,8 @@ def reference() -> str:
         lines.append(f"| `{c.capability_code}` | {c.source} | `{c.key}` | {c.data_type} | {c.unit or '—'} | {'так' if c.supports_series else 'ні'} |")
     lines += ["", "## Підтримувані команди", "", "| Команда | Потрібна capability |", "|---|---|"]
     lines += [f"| `{key}` | `{value}` |" for key, value in sorted(COMMAND_REQUIRED_CAPABILITY.items())]
-    lines += ["", "Порядок, TTL, профіль частоти й outbound v2: [command-safety-v2](command-safety-v2.md).",
+    lines += ["", "Порядок, TTL і профіль частоти: [command-safety-v2](command-safety-v2.md).",
+              "Outbound v2 для legacy; v3 для [managed binding](equipment-foundation-v1.md).",
               "ACK/Result лишаються v1. Дозвіл API не замінює локальні блокування VFD.", "", "## Tenant permissions", "",
               "Джерело: `backend/app/security/roles.py`. Додаткові owner/platform/resource guards",
               "описані в [RBAC](rbac-multitenant-guards-v1.md).", "",

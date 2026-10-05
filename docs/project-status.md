@@ -5,10 +5,10 @@ security API/service та browser session runtime; виправлено філь
 перед пагінацією connect/sites, старіння діагностики та поведінку форм. Додано
 backend lock/static gates та browser перевірки onboarding/MFA/factory. Перед
 оновленням потрібне [перенесення account secret](account-key-operations-v1.md).
-Повний npm audit має [відкритий dev-dependency блокер](development-standards.md).
+Dev-ланцюжок із `braces` замінено; [обсяг заміни й перевірки](development-standards.md).
 Це виправлення якості коду; незавершені функції етапу 2 залишаються відкритими.
 
-Оновлено **02.10.2026**: додано основу паспортів, профілів і прив’язки обладнання.
+Оновлено **05.10.2026**: звірено документацію після onboarding та аудиту якості.
 Поточний код: backend 0.45.0, firmware 0.6.0, міграція 0022;
 назва режиму програми — «За етапами».
 Календарне фізичне приймання SCHEDULE-01 відкрите. Стендові результати
@@ -33,7 +33,7 @@ backend lock/static gates та browser перевірки onboarding/MFA/factory
 [Погоджений наступний план](next-stage-plan-vfd-service-qr.md): п'ять етапів
 для моделей частотників, QR/B2B, місцевого/дистанційного керування, сервісу
 та приймання. [Програмну основу етапу 1 реалізовано](equipment-foundation-v1.md);
-етапи 2–5 та фізичне приймання 0.6.0 відкриті. SU600 має драйвер;
+етап 2 реалізовано частково, етапи 3–5 та фізичне приймання 0.6.0 відкриті. SU600 має драйвер;
 інші шість серій SUSWE внесені до каталогу без дозволу керування.
 Додано окрему команду [підготовки восьми тестових входів](demo-review-accounts-v1.md)
 для чинних ролей, другого клієнта та покупця без об'єктів.
@@ -46,6 +46,7 @@ backend lock/static gates та browser перевірки onboarding/MFA/factory
 | Команди | Outbound v2 для legacy / v3 для введеного паспорта, monotonic sequence, Stop ordering, HTTP idempotency, TTL, late replies, перевірка прав і frequency profile при dispatch | ACK/Result — повідомлення edge; не незалежний фізичний вимір |
 | Таймер / етапи | До 8 етапів/24 год; локальний відлік, прогрес і Result; стендові таймер, 5 етапів, F5 під RUN та STOP; повний план після F5 відновлюється із серверної команди | Потрібні capability і firmware від 0.3.0; повтор UI після виправлення та переривання активної програми залишаються у PROGRAM-01 |
 | Календар | Разово/дні/інтервали/місяці/роки, сезонні місяці, винятки, часові зміни частоти, revision/audit і журнал запусків | Сервер потрібен для старту; наявний V3 зупиняється при втраті мережі; SCHEDULE-01 ще відкрите |
+| Етап 2: покупець і завод | Реєстрація/recovery/TOTP, власні сесії, заводський реєстр і постачання, claim за окремим activation code, новий/наявний об'єкт, вибір паспорта; п'ять розділів пристрою | QR-друк, Wi-Fi з телефона, firmware bootstrap/MQTT enrollment, передача/повернення/reset ще не завершені; [точний контракт](buyer-onboarding-v1.md) |
 | Frontend | Етапи 9–14 реалізовано; реальні API, polling, command journal | Повністю прийнято 10/24 операцій; залишок manual acceptance у roadmap |
 | V3 читання | ESP32-S3 N16R8 → SU600 → Wi-Fi/TLS → API/UI підтверджено | Це конкретний SU600 profile, не всі SUSWE/RS485 моделі |
 | V3 керування | Частота 20→30 Гц, START/STOP, повторний пуск; оператор підтвердив обертання/зупинку | Не прийнято повний діапазон/навантаження/польові умови |
@@ -106,7 +107,7 @@ backend lock/static gates та browser перевірки onboarding/MFA/factory
 | PROD-01 | TLS/identity вже є на V3 gateway, але fleet provisioning/rotation/revocation та transfer/config lifecycle неповні | Реалізація й приймання P1/P2 |
 | PROD-02 | Deployment, процеси/worker ownership, production settings, logs/metrics, DB retention/PITR | P5, restore/release rehearsal, виміряні RPO/RTO |
 | PROD-03 | OTA, незалежний security review, load/reconnect/soak, pilot/support/conformity | P6–P9 з окремими доказами |
-| CODE-01 | Python dependency lock/audit та lint/type gate; великі MQTT/auth adapters, щільний C++ adapter | Окремі поведінково нейтральні зміни з regression gate; не масове форматування під час bench |
+| STAGE2-01 | Програмна основа QR/B2B є; повний шлях від заводського комплекту до керованого контролера ще не завершено | Wi-Fi/setup і bootstrap firmware, MQTT credentials lifecycle, commissioning/readback, передача/reset та наскрізне приймання за [планом](next-stage-plan-vfd-service-qr.md) |
 | NEXT-01 | Плавні часові ramp-профілі/шаблони, service editor F-параметрів, синхронізація LOCAL/REMOTE switch ↔ сайт | Узгоджений protocol/config/RBAC/safety design; таймер і ступінчасті програми вже реалізовано |
 | V4-01 | Модуль 4G ще не отримано | Модель/revision/BOM, transport design та LTE recovery acceptance після доставки |
 
@@ -114,6 +115,11 @@ V3-01 не закрито успішним gateway-тестом: це різні
 Не знижуємо захист UTC/TTL для маскування невстановленої причини Offline.
 Читання нульового струму, один успішний пуск або один power cycle не є
 випробуванням точності, довговічності чи всіх захистів.
+
+CODE-01 закрито в межах аудиту 05.10: Python locks із хешами, Ruff,
+поступовий mypy, поділ MQTT/account/session та NVS/Modbus adapters.
+Повна strict-типізація, структуровані logs/metrics і production dependency
+management залишаються подальшою роботою. [Звірення документації](audit-2026-10-05-documentation.md).
 
 ## Оцінка готовності
 

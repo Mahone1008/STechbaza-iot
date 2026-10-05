@@ -19,6 +19,8 @@
 | Екран або дія | Запити | Важлива поведінка |
 |---|---|---|
 | Вхід | `POST /auth/browser/login`, `GET /auth/me` | Browser flow 0.33.0: [cookie, refresh та CORS](browser-auth-v1.md); JWT перевіряється разом із server-side session |
+| Реєстрація / recovery / security | `/auth/register`, `/auth/recover`, `/auth/security*`, `/auth/sessions*` | [Account contract](buyer-onboarding-v1.md); секрети одноразові, сесії лише власні |
+| Підключення покупця / завод | `/connect/*`, `/factory/controllers*` | Окремий activation code; завод — superadmin + MFA; фізичний onboarding ще відкритий |
 | Вибір клієнта | `GET /organizations` | Лише доступні організації; superadmin має глобальний доступ |
 | Меню клієнта | `GET /organizations/{id}/access` | Поточні permissions, без копії таблиці ролей у UI |
 | Об'єкти | `GET /organizations/{id}/sites` | Tenant isolation на сервері |
@@ -34,6 +36,8 @@
 | Налаштування модулів | `GET /devices/{id}/capabilities`, `PATCH /devices/{id}/capabilities/{capability_id}` | Повний список assignments, включно з вимкненими; зміни потребують `capability.manage` |
 | Історія пакетів | `GET /devices/{id}/telemetry` | Сирі пакети, стабільне сортування received_at DESC, id DESC |
 | Графік показника | `GET /devices/{id}/telemetry/series` | UTC-період, min/max/average, пропуски та обмеження: [контракт графіків](telemetry-panel-charts-v1.md) |
+| Розклади | `/devices/{id}/schedules*` | Окрема вкладка; preview/збереження потребують command.execute, читання — command.read |
+| Обладнання | `/devices/{id}/equipment*`, `/equipment/profiles` | Паспорт та desired/applied revision; [commissioning](equipment-foundation-v1.md) |
 
 `GET /auth/me` повертає identity, session та memberships, але не замінює
 актуальний `/organizations/{id}/access`. Не слід вважати membership у
@@ -185,7 +189,10 @@ Loading, empty, offline, no telemetry та access denied — різні UI-ст�
 
 ## 7. Запити керування
 
-Поточні команди: `vfd.start`, `vfd.stop`, `vfd.frequency.set`.
+Прямі команди: `vfd.start`, `vfd.stop`, `vfd.frequency.set`, `vfd.program.start`.
+`vfd.schedule.start` формує scheduler за [правилом календаря](control-schedules-v1.md),
+а не довільний frontend POST. [Програма](control-programs-v1.md) містить
+масив етапів і потребує capability `vfd.program` разом із `vfd.control`.
 Клієнт генерує request_id один раз на намір користувача. При втраті HTTP
 відповіді повторює той самий request_id і payload, а не створює новий.
 POST повертає 201 для нової команди та 200 для тотожного повтору.

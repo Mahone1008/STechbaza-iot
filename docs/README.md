@@ -1,6 +1,6 @@
 # Документація KERUMO
 
-Почніть з [поточного стану](project-status.md) та [аудиту 30.09.2026](audit-2026-09-30.md).
+Почніть з [поточного стану](project-status.md) та [звірення 05.10.2026](audit-2026-10-05-documentation.md).
 Чинні документи описують реалізацію; плани — майбутні критерії; історичні
 досьє — докази своїх дат і revisions. Старий PASS не означає PASS поточного commit.
 Назви/посилання збережено, щоб не втрачати історію та зовнішні bookmarks.
@@ -10,6 +10,7 @@
 
 ## Поточна точка та аудит
 
+- [Актуалізація документації й залежностей — 05.10.2026](audit-2026-10-05-documentation.md)
 - [Аудит документації та коду — 30.09.2026](audit-2026-09-30.md)
 - [Аудит режимів керування та календарного інтерфейсу — 01.10.2026](audit-2026-10-01-control-ui.md)
 - [Довідник поточної реалізації](generated-code-reference.md)
@@ -17,6 +18,10 @@
 
 ## Чинні контракти й інструкції
 
+- [Buyer onboarding: реалізована частина етапу 2 та відкриті функції](buyer-onboarding-v1.md)
+- [Account keys: перенесення, ротація та backup](account-key-operations-v1.md)
+- [Основа обладнання, профілі SUSWE й commissioning v1](equipment-foundation-v1.md)
+- [Тестові облікові записи всіх ролей](demo-review-accounts-v1.md)
 - [Alarm Lifecycle v1](alarm-lifecycle-v1.md)
 - [Alarm Rule Engine v1](alarm-rule-engine-v1.md)
 - [HTTP API v1](api-v1.md)
@@ -54,6 +59,7 @@
 
 ## Плани та критерії приймання
 
+- [Погоджений план: моделі частотників, QR/B2B та сервіс](next-stage-plan-vfd-service-qr.md)
 - [Frontend v1 — поетапний план KERUMO](frontend-roadmap-v1.md)
 - [KERUMO — план готовності продукту v1](product-readiness-plan-v1.md)
 
@@ -122,5 +128,3 @@
 - [Етап H — коригування backend перед frontend](stage-h-backend-corrections.md)
 - [Telemetry ingestion — локальна перевірка](telemetry-ingestion-local-test.md)
 - [Тестова збірка backend v1 — межі приймання](test-backend-release-v1.md)
-
-- [Основа обладнання, профілі SUSWE й commissioning v1](equipment-foundation-v1.md).

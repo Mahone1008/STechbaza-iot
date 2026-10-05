@@ -101,6 +101,11 @@ CI та Windows-приймання підтверджені, Етап H заве
 Потрібен .env.demo з операції 4; для нового стенду credentials можна створити
 командою `python backend/app/demo/config.py --output .env.demo`.
 
+Для наявного `.env.demo` до аудиту 05.10 **не генеруйте нові credentials**:
+перенесіть його старий `DEMO_JWT_SECRET` у `DEMO_ACCOUNT_KEY_SECRET`
+за [інструкцією account keys](account-key-operations-v1.md) до Compose-команд.
+Це зберігає чинні TOTP, recovery та заводські activation/bootstrap keys.
+
 Історичний [check-stage8-op4.ps1](../scripts/check-stage8-op4.ps1) призначений
 для коду 0.35.0, прийнятого на afb637f, і виконував:
 

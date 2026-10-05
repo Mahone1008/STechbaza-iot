@@ -11,15 +11,24 @@
 | `/auth/browser/*` | Browser login/refresh/logout | Exact Origin, CSRF header, HttpOnly cookie; login credentials |
 | `/auth/login`, `/auth/refresh`, `/auth/logout` | JSON flow для CLI | Credentials/refresh secret, спільний rate limiter |
 | `/auth/me` | User/session/memberships | Bearer JWT та активна server-side session |
+| `/auth/register`, `/auth/recover` | Реєстрація й відновлення за recovery key | Exact Origin/CSRF, throttle; вхід не потрібний |
+| `/auth/security/*`, `/auth/security`, `/auth/sessions*` | TOTP/recovery/власні сесії | Bearer; зміни ключів із password/OTP proof |
+| `/factory/controllers*` | Заводський реєстр, постачання, аудит | `superadmin` та MFA-verified session завжди |
+| `/connect/*` | Claim покупця, об'єкти й вибір обладнання | Bearer, окремий activation code для першого claim, tenant/scope guards |
+| `/bootstrap/{id}/contact` | Час контакту та версія контролера | Окремий bootstrap Bearer secret, throttle; не user JWT |
 | `/organizations`, `/organizations/{id}/access` | Доступні клієнти й permissions | Tenant membership; superadmin bypass |
 | Sites/devices | Каталог установок та контролерів | Відповідні read/create permissions |
 | Capabilities | Каталог та assignments конкретного Device | Read/manage; catalog create — platform service_admin/superadmin |
 | Telemetry/state/availability/overview/series | Показники, якість, присутність та історія | Tenant scope і відповідні permissions/capabilities |
 | Commands | Створення, поточний lifecycle та журнал | command.execute/read, capability; profile/dispatch guards |
+| Equipment/profiles/configurations/manifest | Паспорт, каталог і desired/applied binding | Device read або capability.manage; каталог — активний вхід |
+| Schedules/preview/runs | Календарні правила, preview і журнал запусків | command.read/execute та tenant guards |
 | Events/alarms/transitions/acknowledge | Історія інцидентів та actor audit | event.read, alarm.read/acknowledge |
 | Notifications/count/read | Персональна стрічка та прочитання | notification.read та поточний tenant scope |
 
-Створення Organization дозволяється superadmin. Platform service_admin не має
+Прямий `POST /organizations` дозволяється superadmin. Buyer claim може
+створити персональну організацію й owner як частину захищеної транзакції;
+[точний onboarding flow](buyer-onboarding-v1.md). Platform service_admin не має
 автоматичного доступу до всіх клієнтів. [Точна матриця](rbac-multitenant-guards-v1.md).
 Чужий tenant і відсутній ресурс повертають однаковий 404; UI guard не замінює API guard.
 
@@ -37,6 +46,8 @@ Frontend отримує access у memory через browser login/refresh, по�
 для Stop. Типи: `vfd.start`, `vfd.stop`, `vfd.frequency.set`, `vfd.program.start`.
 Програма використовує versioned payload із масивом етапів; для неї потрібні
 `vfd.program` і `vfd.control`. [Межі, допуск і результати](control-programs-v1.md).
+`vfd.schedule.start` створює scheduler за збереженим правилом; прямий
+користувацький POST цієї команди не дозволено. [Календарний API](control-schedules-v1.md).
 При тотожному повторі того самого автора повертається та сама команда:
 201 для нової, 200 для повтору; конфлікт намірів — 409.
 
@@ -44,7 +55,8 @@ API зберігає команду до MQTT dispatch. Новий POST/ACK не
 TTL 5–300 с (типово 30) обмежує перше прийняття; тривалість RUN він не задає.
 Діапазон frequency визначає валідований профіль установки, крім загальної
 API-межі 0..100 Гц. Порядок Stop, повторна перевірка прав, пізні відповіді,
-sequence та `result_unknown`: [чинний command v2](command-safety-v2.md).
+sequence та `result_unknown`: [command safety](command-safety-v2.md).
+Managed equipment binding додає [envelope v3](equipment-foundation-v1.md).
 
 ## Діагностика й помилки
 

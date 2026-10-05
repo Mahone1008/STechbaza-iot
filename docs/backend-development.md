@@ -34,7 +34,7 @@ docker compose exec -T mosquitto mosquitto_pub -h localhost -t techbaza/test/bac
 [Backend README](../backend/README.md) містить повний Windows gate.
 GitHub Actions запускає integration suite з PostgreSQL/MQTT, міграції,
 ізольований demo та backup/restore. Поточні результати з commit/межами —
-[аудит](audit-2026-09-30.md). Python unittest без opt-in сервісів пропускає
+[звіт](audit-2026-10-05-documentation.md). Python unittest без opt-in сервісів пропускає
 integration tests і не замінює цей gate.
 
 API/controllers, services, repositories та security guards перевіряються

@@ -158,7 +158,8 @@ techbaza/devices/{device_uid}/commands/result
 ```
 
 State є частиною telemetry; alarms/events формує backend. Outbound commands
-мають schema v2, решта перелічених envelopes — v1. V3 gateway вже має TLS
+мають schema v2 для legacy або v3 для managed binding; решта перелічених
+envelopes — v1. [Контракт прив'язки v3](equipment-foundation-v1.md). V3 gateway вже має TLS
 і device ACL; це не закриває production lifecycle credentials.
 
 Production-вимоги:
@@ -236,8 +237,9 @@ Production-вимоги:
   виконайте `python scripts/check-docs.py --write` та перевірте diff.
 - Цей gate не перевіряє зовнішні URL, anchors, фізичні вимірювання або всю семантику prose.
 
-Структуровані logs/metrics, backend lint/type/dependency gates і повна модульність
-firmware залишаються цілями з [аудиту](audit-2026-09-30.md), а не завершеними пунктами.
+Структуровані logs/metrics, повна strict-типізація та production runtime
+залишаються цілями. Backend lint/type/lock gates і виділення NVS/Modbus
+adapters уже виконано; точний обсяг наведено нижче.
 
 ## Поточні автоматичні gate після аудиту 05.10.2026
 
@@ -248,11 +250,27 @@ unit/browser tests і `npm run format:check` для модулів, очищен
 розширюють разом із наступними змінами, без масового форматування сторонніх
 файлів. Firmware: native ASan/UBSan і всі ESP32 build variants чинного CI.
 
-Перевірка 05.10.2026 виявила окремий upstream-блокер повного npm audit:
+Перевірка 05.10.2026 виявила upstream-блокер повного npm audit:
 [GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm)
 для `braces <=3.0.3` у dev-ланцюжку `eslint-config-next` → Next ESLint plugin
 → `fast-glob` → `micromatch`. На дату перевірки виправленої версії `braces`
 немає, актуальний Next ESLint 16.3.8 також використовує цей ланцюжок.
-`npm audit --omit=dev` не знаходить уразливостей. Повний CI gate винесено в окремий job, щоб незалежні browser/live перевірки
-могли завершитися; gate **залишено блокувальним**, без allowlist, downgrade ESLint або приховування dev-пакетів.
-Це відкрите зовнішнє обмеження; повторити audit після upstream-виправлення.
+
+У проєкті ланцюжок усунуто scoped npm override: тільки для
+`@next/eslint-plugin-next@16.3.6` залежність `fast-glob` замінено npm alias
+на `glob@13.0.6`. `braces` і `micromatch` більше не встановлюються.
+Next plugin використовує лише `globSync` для пошуку root directories,
+потім перевіряє наявність `pages`/`app` у кожному результаті. `glob` може
+повернути також files: вони відсіюються цими перевірками. Це сумісність
+конкретного caller, а не універсальна заміна всього API `fast-glob`.
+
+`npm run test:unit` включає regression справжнього Next ESLint rule для
+звичайного root, relative/absolute paths, wildcard, brace alternatives,
+масиву каталогів і Windows separators. Перед зміною версії Next plugin
+повторно перевірити всі його glob callers, оновити/прибрати scoped override
+та виконати clean `npm ci`, lint, unit/build і повний `npm audit`.
+
+Повний audit і `npm audit --omit=dev` не знаходять відомих уразливостей
+на дату перевірки. CI audit лишається окремим блокувальним job, без allowlist
+або приховування dev-пакетів. Нуль у звіті стосується поточного lock і бази
+advisories; він не є гарантією відсутності невідомих помилок.

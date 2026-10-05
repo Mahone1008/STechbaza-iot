@@ -48,7 +48,8 @@ CI звіряє його з tracked code. Це перелік реалізаці
 | `vfd.start` | `vfd.control` |
 | `vfd.stop` | `vfd.control` |
 
-Порядок, TTL, профіль частоти й outbound v2: [command-safety-v2](command-safety-v2.md).
+Порядок, TTL і профіль частоти: [command-safety-v2](command-safety-v2.md).
+Outbound v2 для legacy; v3 для [managed binding](equipment-foundation-v1.md).
 ACK/Result лишаються v1. Дозвіл API не замінює локальні блокування VFD.
 
 ## Tenant permissions

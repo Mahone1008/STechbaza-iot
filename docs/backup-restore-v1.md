@@ -1,13 +1,14 @@
 # Чисте встановлення та backup/restore v1
 
-> Оновлення 0.42.0: schema head 0020 (календарні розклади та їх аудит).
-> Нові backup manifests містять 0.42.0/0020; перевірка попередніх manifests збережена.
+> Поточні backup manifests містять backend 0.45.0 / schema 0022;
+> перевірка попередніх підтримуваних manifests збережена. Перед оновленням
+> і відновленням старої установки виконайте [перенесення account key](account-key-operations-v1.md).
 > Fingerprint симулятора включає таблицю програм, якщо вона існує; backup
 > старих версій без цієї таблиці читається за попереднім форматом. Після
 > відновлення активна програма не поновлює RUN автоматично.
 > Правила порядку команд, TTL та пізніх відповідей: [command-safety-v2.md](command-safety-v2.md).
 
-Етап 8, операція 6. Backend **0.37.0**, PostgreSQL **16**, міграція
+Історичне приймання Етапу 8, операції 6: backend **0.37.0**, PostgreSQL **16**, міграція
 **20260926_0017**. Повний CI та локальне приймання пройдено 26.09.2026:
 109 tests без skips, відновлено 20 таблиць і SQLite, live recovery — PASS.
 Операцію 6 та Етап 8 закрито; докази — у [журналі](stage-8-test-backend.md).
@@ -15,7 +16,7 @@
 Чинний сценарій використовує [поточні версії](generated-code-reference.md),
 H-03 preflight перед promotion, без повторного seed наявного demo/restored copy.
 Пізніша міграція 0018 і правила command v2 враховані в recovery policy нижче.
-[Актуальний CI та його commit](audit-2026-09-30.md); числа 109/158 — історичні прогони.
+[Актуальні докази та їх межі](audit-2026-10-05-documentation.md); числа 109/158 — історичні прогони.
 
 Оновлення ключів і відновлення старих backup: [account-key-operations-v1](account-key-operations-v1.md).
 
@@ -148,7 +149,7 @@ opt-in guard. Нові 4 PostgreSQL tests: round-trip CHECK та виявлен�
 ідемпотентність recovery policy зі збереженням terminal history.
 Історичний підсумок Етапу 8 — **109 regression tests**.
 На прийманні H-01–H-05 було **158 tests**; це історичний результат.
-[Поточний прогін](audit-2026-09-30.md) виконує розширений набір.
+[Звірення 05.10](audit-2026-10-05-documentation.md) виконує розширений набір.
 
 Fingerprint читає всі public tables у read-only REPEATABLE READ, UTC;
 порівнює PostgreSQL JSON row text без перетворення чисел на Python float,
