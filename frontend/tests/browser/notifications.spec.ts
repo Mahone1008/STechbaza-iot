@@ -118,7 +118,7 @@ test("mobile escaped snapshot preserves read and alarm permissions separately", 
   await get(page, detailUrl, () => notificationFixture({ title: '<img src=x onerror="alert(1)">', description: "x".repeat(400) }));
   await page.goto(path); await expect(card(page)).toContainText('<img src=x onerror="alert(1)">'); await expect(card(page).locator("img, script")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Позначити прочитаним" })).toBeEnabled(); await expect(page.getByRole("link", { name: "До інциденту" })).toHaveCount(0);
-  await page.getByText("Технічні деталі повідомлення").click(); expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await expect(card(page).locator("pre")).toHaveCount(0); expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await expect(page.locator(".mobile-nav").getByRole("link", { name: "Повідомлення" })).toBeVisible();
 });
 

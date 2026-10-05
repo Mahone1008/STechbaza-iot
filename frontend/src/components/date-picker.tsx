@@ -181,7 +181,7 @@ export function DatePicker({
         </tbody>
       </table>
       <p className="help-copy calendar-keyboard-help">
-        Стрілки — вибір дня; Page Up/Down — місяць; Escape — закрити без змін.
+        Оберіть дату. Стрілки змінюють день, Page Up/Down змінюють місяць, Escape закриває календар.
       </p>
     </ModalDialog>
   );

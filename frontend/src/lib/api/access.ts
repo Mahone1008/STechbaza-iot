@@ -42,7 +42,7 @@ export function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 export function invalidResponse(path: string, expected: string, details: unknown = null): never {
-  throw new ApiError("Backend повернув некоректні дані.", {
+  throw new ApiError("Не вдалося перевірити отримані дані. Оновіть сторінку або спробуйте пізніше.", {
     kind: "invalid-response",
     status: 200,
     method: "GET",

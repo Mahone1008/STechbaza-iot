@@ -44,7 +44,7 @@ test("route permission blocks an authenticated user before the page content rend
   await page.goto("/alarms");
 
   await expect(page.getByRole("heading", { name: "Недостатньо прав" })).toBeVisible();
-  await expect(page.getByText(/permission alarm\.read/u)).toBeVisible();
+  await expect(page.getByText(/Ваша роль «Спостерігач» не дозволяє відкрити цей розділ/u)).toBeVisible();
   await expect(page.getByRole("heading", { name: "Аварії та інциденти" })).not.toBeVisible();
   await expect(page.getByRole("link", { name: "Перейти до доступного розділу" })).toHaveAttribute("href", "/devices");
 });
@@ -55,7 +55,7 @@ test("viewer can read devices but command controls stay disabled by backend perm
   await page.goto("/ui-kit/device-demo");
 
   await expect(page.getByRole("heading", { name: "Насосна станція №1" })).toBeVisible();
-  await expect(page.getByText(/Owner · Спостерігач/u)).toBeVisible();
+  await expect(page.getByText("Спостерігач", { exact: true })).toBeVisible();
   await expect(page.getByText(/не має permission command\.execute/u)).toBeVisible();
   await expect(page.getByRole("button", { name: "Запустити" })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Зупинити" })).toBeDisabled();
@@ -69,7 +69,7 @@ test("profile or permission API outage is not treated as anonymous access", asyn
   await page.goto("/devices");
 
   await expect(page.getByRole("heading", { name: "Не вдалося перевірити права" })).toBeVisible();
-  await expect(page.getByText(/tenant data/u)).toBeVisible();
+  await expect(page.getByText(/Повторіть перевірку або оберіть іншу організацію/u)).toBeVisible();
   await expect(page.getByRole("button", { name: "Повторити" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Пристрої" })).not.toBeVisible();
   await expect(page).toHaveURL(/\/devices$/u);

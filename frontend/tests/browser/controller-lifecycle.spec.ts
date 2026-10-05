@@ -170,7 +170,7 @@ test("handover kit remains visible after passport refresh removes its old associ
     if (!(await fulfillPreflight(route))) await fulfillJson(route, 503, { detail: "Перевірка мережевої відмови" });
   });
   await page.getByRole("button", { name: "Оновити паспорт", exact: true }).click();
-  await expect(page.getByText("Перевірка мережевої відмови", { exact: true })).toBeVisible();
+  await expect(page.getByText("Сервіс тимчасово недоступний. Спробуйте пізніше.", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Завантажити комплект передачі" })).toBeVisible();
   const download = page.waitForEvent("download");
   await page.getByRole("button", { name: "Завантажити комплект передачі" }).click();

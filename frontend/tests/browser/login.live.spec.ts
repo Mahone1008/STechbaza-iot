@@ -53,10 +53,10 @@ test("real browser login resolves /auth/me, organization access and an HttpOnly 
   expect(Number(payload.session_expires_in)).toBeGreaterThan(0);
 
   await expect(page).toHaveURL(/\/devices$/u);
-  await expect(page.getByText("Сесія підтверджена")).toBeVisible();
+  await expect(page.locator(".app-shell")).toBeVisible();
   await expect(page.getByText(DEMO_EMAIL)).toBeVisible();
   await expect(page.getByText("DEMO: клієнт A").first()).toBeVisible();
-  await expect(page.getByText(/DEMO: owner · Власник/u)).toBeVisible();
+  await expect(page.getByText("Власник", { exact: true })).toBeVisible();
 
   const accessToken = String(payload.access_token);
   expect(profileRequests).toBe(1);

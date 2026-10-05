@@ -55,7 +55,7 @@ test("organizations and sites use bounded pages including empty and inactive row
 
 test("confirmed context survives reload and /devices revalidates the saved site", async ({ page }) => {
   await page.goto(tenantPath);
-  await expect(page.getByText("Online", { exact: true })).toBeVisible();
+  await expect(page.getByText("На зв’язку", { exact: true })).toBeVisible();
   const saved = await page.evaluate(() => Object.entries(sessionStorage));
   expect(saved).toEqual([[`kerumo.context.v1:${USER_ID}:${SESSION_ID}`, JSON.stringify({ organizationId: ORGANIZATION_ID, siteId: SITE_ID })]]);
   await page.reload();
@@ -67,13 +67,13 @@ test("confirmed context survives reload and /devices revalidates the saved site"
     await fulfillJson(route, 200, sitePayload());
   });
   await page.goto("/devices");
-  await expect(page.getByText("Online", { exact: true })).toBeVisible();
+  await expect(page.getByText("На зв’язку", { exact: true })).toBeVisible();
   expect(reads).toBe(1);
 });
 
 test("a saved removed site has a recovery path and never falls back to fixtures", async ({ page }) => {
   await page.goto(tenantPath);
-  await expect(page.getByText("Online", { exact: true })).toBeVisible();
+  await expect(page.getByText("На зв’язку", { exact: true })).toBeVisible();
   await page.route(`${API_ORIGIN}/api/v1/sites/${SITE_ID}`, async (route) => {
     if (await fulfillPreflight(route)) return;
     await fulfillJson(route, 404, { detail: "Об’єкт видалено" });
@@ -115,7 +115,7 @@ test("changing tenants hides previous rows and restores only the newly validated
     await fulfillJson(route, 200, body);
   });
   await page.goto(tenantPath);
-  await expect(page.getByText("Online", { exact: true })).toBeVisible();
+  await expect(page.getByText("На зв’язку", { exact: true })).toBeVisible();
   await page.getByRole("navigation", { name: "Шлях до об’єкта" }).getByRole("link", { name: "Організації", exact: true }).click();
   await page.getByRole("link", { name: "Інша організація", exact: true }).click();
   await page.getByRole("link", { name: "Інший об’єкт", exact: true }).click();
@@ -134,8 +134,8 @@ test("presence distinguishes offline, never connected and unavailable without fa
     await fulfillJson(route, index === 3 ? 503 : 200, index === 3 ? { detail: "Unavailable" } : { ...availabilityPayload(device), online: index === 0, ...(index === 2 ? { last_seen_at: null, seconds_since_seen: null } : {}) });
   });
   await page.goto(tenantPath);
-  await expect(page.getByText("Online", { exact: true })).toBeVisible();
-  await expect(page.getByText("Offline", { exact: true })).toBeVisible();
+  await expect(page.getByText("На зв’язку", { exact: true })).toBeVisible();
+  await expect(page.getByText("Немає зв’язку", { exact: true })).toBeVisible();
   await expect(page.getByText("Ще не було зв’язку", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("Стан невідомий", { exact: true })).toBeVisible();
   await expect(page.getByText(/Життєвий цикл: active/)).toHaveCount(4);
@@ -163,7 +163,7 @@ test("paging cancels old presence workers and late responses cannot overwrite th
     await expect.poll(() => started.length).toBe(4);
     expect(started.every((index) => index < 20)).toBe(true);
     await page.getByRole("button", { name: "Наступна" }).click();
-    await expect(page.getByText("Online", { exact: true })).toHaveCount(5);
+    await expect(page.getByText("На зв’язку", { exact: true })).toHaveCount(5);
     await expect(page.getByRole("link", { name: "Контролер 24", exact: true })).toBeVisible();
     release.forEach((resolve) => resolve());
     await expect(page.getByRole("link", { name: "Насосна станція №1" })).toHaveCount(0);
@@ -207,7 +207,7 @@ test("organization/site deep link resumes after login and logout clears its save
   await expect(page).toHaveURL(new RegExp(`/login\\?returnTo=${encodeURIComponent(tenantPath)}$`, "u"));
   await fillLogin(page);
   await page.getByRole("button", { name: "Увійти" }).click();
-  await expect(page.getByText("Online", { exact: true })).toBeVisible();
+  await expect(page.getByText("На зв’язку", { exact: true })).toBeVisible();
   expect(await page.evaluate(() => Object.keys(sessionStorage))).toHaveLength(1);
   await page.locator(".sidebar").getByRole("button", { name: "Відкрити меню користувача" }).click();
   await page.getByRole("menuitem", { name: /Вийти з акаунта/u }).click();
@@ -229,7 +229,7 @@ test("revoked presence hides rows and a successful explicit retry restores them"
   expect(calls).toBe(1);
   available = true;
   await page.getByRole("button", { name: "Повторити", exact: true }).click();
-  await expect(page.getByText("Online", { exact: true })).toBeVisible();
+  await expect(page.getByText("На зв’язку", { exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "Насосна станція №1" })).toBeVisible();
   expect(calls).toBe(2);
 });
@@ -238,7 +238,7 @@ test("revoked presence hides rows and a successful explicit retry restores them"
 test("mobile inventory preserves breadcrumbs, last-seen time and real device navigation", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(tenantPath);
-  await expect(page.getByText("Online", { exact: true })).toBeVisible();
+  await expect(page.getByText("На зв’язку", { exact: true })).toBeVisible();
   await expect(page.getByRole("navigation", { name: "Шлях до об’єкта" })).toContainText("Тестовий об’єкт");
   await expect(page.getByText(/Останній зв’язок:/u)).toBeVisible();
   await expect(page.getByRole("navigation", { name: "Мобільна навігація" })).toBeVisible();

@@ -6,7 +6,7 @@ import { seriesWindow } from "@/lib/api/telemetry-series";
 it("renders disconnected paths, zero, exact table counts and timezone", () => {
   const data = seriesFixture(seriesWindow(180, 60), undefined, undefined, true);
   const html = renderToStaticMarkup(<TelemetryChart series={data} timezone="Europe/Kyiv" />);
-  expect(html.match(/<path /g)).toHaveLength(2); expect(html).toContain("Europe/Kyiv"); expect(html).toContain("Часткові дані"); expect(html).toContain("<td>0</td>"); expect(html).toContain("<td>—</td>");
+  expect(html.match(/<path /g)).toHaveLength(2); expect(html).toContain("Europe/Kyiv"); expect(html).toContain("Часткові дані"); expect(html).toContain("<td>0</td>"); expect(html).toContain("<td>Немає даних</td>");
 });
 it("normalizes large finite values without overflowing SVG coordinates", () => {
   const data = seriesFixture(seriesWindow(180, 60), undefined, undefined, true);

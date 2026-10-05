@@ -81,11 +81,11 @@ test("timer confirmation sends one complete plan with separate TTL and validates
       button.click();
     });
   await expect(
-    page.getByText("Сервер прийняв команду. Перевіряємо повідомлення контролера нижче.", { exact: true }),
+    page.getByText("Команду прийнято. Очікуємо результат від контролера.", { exact: true }),
   ).toBeVisible();
   await page.getByRole("combobox", { name: "Режим роботи", exact: true }).selectOption("program");
   await expect(
-    page.getByText("Сервер прийняв команду. Перевіряємо повідомлення контролера нижче.", { exact: true }),
+    page.getByText("Команду прийнято. Очікуємо результат від контролера.", { exact: true }),
   ).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Стан вибраної команди", exact: true })).toBeVisible();
   expect(posts).toHaveLength(1);

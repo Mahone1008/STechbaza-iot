@@ -136,7 +136,7 @@ export function AccessContextProvider({ children }: Readonly<{ children: ReactNo
         }
         if (error instanceof NoAccess || (phase === "context" && isApiError(error) && (error.kind === "forbidden" || error.kind === "not-found"))) {
           if (scope) forgetContext(scope);
-          publish({ status: "no-access", profile, reason: error instanceof NoAccess ? error.reason : "denied", message: error instanceof NoAccess ? error.message : "Контекст недоступний: доступ відкликано або запис видалено. Оберіть організацію повторно." });
+          publish({ status: "no-access", profile, reason: error instanceof NoAccess ? error.reason : "denied", message: error instanceof NoAccess ? error.message : "Організація або обладнання більше недоступні. Оберіть іншу організацію або зверніться до її адміністратора." });
           return;
         }
         publish({ status: "unavailable", message: apiErrorDisplayMessage(error) });

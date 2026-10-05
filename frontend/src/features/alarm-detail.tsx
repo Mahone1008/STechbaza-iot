@@ -26,8 +26,8 @@ function TransitionHistory({ context, alarmId, onDenied }: { context: ReadyAcces
   return <Card title="Історія інциденту" description="Останні переходи першими. Підтвердження не закриває активну аварію." actions={<Button disabled={!query.active || query.isFetching} onClick={query.refresh}>Оновити історію інциденту</Button>}>
     <StableRegion>{query.isFetching || query.isPending ? <p role="status">Завантажуємо історію інциденту…</p> : query.isError ? <AlarmError error={query.error} /> : <DataTable caption="Переходи інциденту" rows={query.data.slice(0, 20)} emptyMessage="Переходів ще немає." columns={[
       { key: "time", header: "Час", render: (row) => formatSeen(row.occurred_at, context.activeSite?.timezone) },
-      { key: "type", header: "Подія", render: (row) => <>{transitionLabels[row.transition_type]}<div className="table-secondary">{row.from_state ? alarmStateLabels[row.from_state] : "—"} → {row.to_state ? alarmStateLabels[row.to_state] : "—"}</div></> },
-      { key: "actor", header: "Автор / причина", render: (row) => <>{row.actor_display_name ?? row.actor_email ?? "Система"}{row.actor_display_name && row.actor_email && <div className="table-secondary">{row.actor_email}</div>}<div className="table-secondary">{row.reason ?? "—"}</div><details><summary>Деталі переходу</summary><pre className="command-json">{JSON.stringify({ id: row.id, event_id: row.event_id, role: row.actor_organization_role, data: row.data }, null, 2)}</pre></details></> },
+      { key: "type", header: "Подія", render: (row) => <>{transitionLabels[row.transition_type]}<div className="table-secondary">{row.from_state ? alarmStateLabels[row.from_state] : "Не зазначено"} → {row.to_state ? alarmStateLabels[row.to_state] : "Не зазначено"}</div></> },
+      { key: "actor", header: "Автор / причина", render: (row) => <>{row.actor_display_name ?? row.actor_email ?? "Система"}{row.actor_display_name && row.actor_email && <div className="table-secondary">{row.actor_email}</div>}{row.reason && <div className="table-secondary">{row.reason}</div>}</> },
     ]} />}</StableRegion>
     <AlarmPagination page={page} more={!query.isError && (query.data?.length ?? 0) > 20} busy={!query.active || query.isFetching} onPage={setPage} />
     <p className="help-copy">Нові переходи можуть змінити склад сторінок. Оновлення стану інциденту повертає історію на першу сторінку.</p>
@@ -50,7 +50,7 @@ function Incident({ context, id }: { context: ReadyAccessSnapshot; id: string })
   const time = (value: string | null) => value ? formatSeen(value, context.activeSite?.timezone) : "Ще немає";
   const denied = ack.outcome?.kind === "denied" || accessError !== null;
   const reconciled = alarm && ack.outcome && query.data!.read > ack.outcome.checkedRead && !denied;
-  const message = reconciled ? alarm.acknowledged_at ? "Стан перевірено: підтвердження збережене сервером." : alarm.state === "resolved" ? "Стан перевірено: аварію усунено без підтвердження оператором." : "Стан перевірено: підтвердження ще не зафіксоване." : ack.outcome?.message;
+  const message = reconciled ? alarm.acknowledged_at ? "Отримання аварії підтверджено." : alarm.state === "resolved" ? "Стан перевірено: аварію усунено без підтвердження оператором." : "Стан перевірено: підтвердження ще не зафіксоване." : ack.outcome?.message;
   return <>
     <PageHeader title="Деталі інциденту" eyebrow={`${device.name} · ${device.uid}`} description="Стан аварії та підтвердження оператора зберігаються окремо." actions={<Link className="button button-secondary" href={alarmsHref(device.id)}>До аварій пристрою</Link>} />
     <Card title="Стан інциденту" actions={<Button disabled={!query.active || query.isFetching || ack.busy} onClick={denied ? retryAccess : query.refresh}>{denied ? "Оновити доступ" : "Перевірити стан"}</Button>}>
@@ -60,16 +60,16 @@ function Incident({ context, id }: { context: ReadyAccessSnapshot; id: string })
         <h2 className="alarm-title">{alarm.title}</h2>
         {alarm.description && <p>{alarm.description}</p>}
         <AlarmBadges alarm={alarm} />
-        <dl className="overview-details"><div><dt>Виникла</dt><dd>{time(alarm.first_raised_at)}</dd></div><div><dt>Останнє спрацювання</dt><dd>{time(alarm.last_raised_at)}</dd></div><div><dt>Спрацювань</dt><dd>{alarm.occurrence_count}</dd></div><div><dt>Усунена</dt><dd>{time(alarm.resolved_at)}</dd></div><div><dt>Підтверджена</dt><dd>{time(alarm.acknowledged_at)}</dd></div><div><dt>Підтвердив оператор</dt><dd>{alarm.acknowledged_by_display_name ?? "—"}{alarm.acknowledged_by_email && ` · ${alarm.acknowledged_by_email}`}</dd></div></dl>
+        <dl className="overview-details"><div><dt>Виникла</dt><dd>{time(alarm.first_raised_at)}</dd></div><div><dt>Останнє спрацювання</dt><dd>{time(alarm.last_raised_at)}</dd></div><div><dt>Спрацювань</dt><dd>{alarm.occurrence_count}</dd></div><div><dt>Усунена</dt><dd>{time(alarm.resolved_at)}</dd></div><div><dt>Підтверджена</dt><dd>{time(alarm.acknowledged_at)}</dd></div><div><dt>Підтвердив оператор</dt><dd>{alarm.acknowledged_by_display_name ?? "Не зазначено"}{alarm.acknowledged_by_email && ` · ${alarm.acknowledged_by_email}`}</dd></div></dl>
         <p>Підтвердження означає, що оператор побачив аварію. Воно не усуває причину і не керує обладнанням.</p>
         {!ack.allowed ? <p className="help-copy">Ваша роль дозволяє перегляд, але не підтвердження аварій.</p> : alarm.state === "active" && !alarm.acknowledged_at ? <Button variant="primary" disabled={!ack.canConfirm} onClick={() => setDialog(true)}>Підтвердити отримання</Button> : null}
         {ack.needsCheck && <p>Спочатку натисніть «Перевірити стан». Повтор виконується лише після нового підтвердження.</p>}
         {ack.waiting && <p role="status">Зачекайте до завершення обмеження повторних запитів.</p>}
-        <details><summary>Технічні деталі інциденту</summary><dl className="overview-details"><div><dt>ID інциденту</dt><dd>{alarm.id}</dd></div><div><dt>Тип</dt><dd>{alarm.alarm_type}</dd></div><div><dt>Ключ</dt><dd>{alarm.alarm_key}</dd></div><div><dt>Оновлено сервером</dt><dd>{time(alarm.updated_at)}</dd></div></dl><pre className="command-json">{JSON.stringify(alarm.context, null, 2)}</pre></details>
+        <details><summary>Додаткові відомості</summary><dl className="overview-details"><div><dt>Код типу аварії</dt><dd>{alarm.alarm_type}</dd></div><div><dt>Останнє оновлення</dt><dd>{time(alarm.updated_at)}</dd></div></dl></details>
       </>}</StableRegion>
     </Card>
     {alarm && !denied && <TransitionHistory key={query.data!.read} context={context} alarmId={id} onDenied={setAccessError} />}
-    <ConfirmDialog open={dialog && !!alarm && !denied} title="Підтвердити отримання аварії" description="Сервер збереже автора першого підтвердження. Активна аварія залишиться активною до усунення її причини." confirmLabel="Підтвердити отримання" confirmDisabled={!ack.canConfirm} onClose={() => setDialog(false)} onConfirm={() => void ack.confirm()}><p>{device.name}</p><p>{alarm?.title}</p></ConfirmDialog>
+    <ConfirmDialog open={dialog && !!alarm && !denied} title="Підтвердити отримання аварії" description="Ваше підтвердження буде збережено в історії. Аварія залишиться активною до усунення її причини." confirmLabel="Підтвердити отримання" confirmDisabled={!ack.canConfirm} onClose={() => setDialog(false)} onConfirm={() => void ack.confirm()}><p>{device.name}</p><p>{alarm?.title}</p></ConfirmDialog>
   </>;
 }
 

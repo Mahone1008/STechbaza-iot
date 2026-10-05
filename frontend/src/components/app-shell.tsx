@@ -36,7 +36,6 @@ const navigation: readonly NavigationItem[] = [
   { href: "/devices", label: "Пристрої", icon: "devices", permission: "device.read" },
   { href: "/alarms", label: "Аварії", icon: "alarm", permission: "alarm.read" },
   { href: "/notifications" as Route, label: "Повідомлення", icon: "components", permission: "notification.read" },
-  { href: "/ui-kit", label: "Компоненти", icon: "components", permission: "capability.read" },
 ];
 
 const mobileNavigationItems: readonly MobileNavigationItem[] = [
@@ -44,7 +43,6 @@ const mobileNavigationItems: readonly MobileNavigationItem[] = [
   { href: "/devices", label: "Пристрої", icon: "devices", permission: "device.read" },
   { href: "/alarms", label: "Аварії", icon: "alarm", permission: "alarm.read" },
   { href: "/notifications" as Route, label: "Повідомлення", icon: "components", permission: "notification.read" },
-  { href: "/ui-kit", label: "Ще", icon: "more", permission: "capability.read" },
 ];
 
 function Brand({ compact = false }: { compact?: boolean }) {
@@ -147,10 +145,8 @@ function sessionPresentation(
 ): Readonly<{
   userName: string;
   userStatus: string;
-  note: string;
-  noteClass: string;
+  connectionWarning: boolean;
 }> {
-  const restored = session.status === "authenticated" && session.source !== "login";
   const role = organizationRoleLabel(
     ready.status === "ready" ? ready.access.organization_role : null,
     ready.profile.platform_role,
@@ -158,11 +154,8 @@ function sessionPresentation(
 
   return {
     userName: ready.profile.login_name ?? ready.profile.email,
-    userStatus: `${ready.profile.display_name} · ${role}`,
-    note: restored ? "Сесія відновлена" : "Сесія підтверджена",
-    noteClass: session.status === "authenticated" && session.refreshState === "degraded"
-      ? " prototype-note-warning"
-      : " prototype-note-auth",
+    userStatus: role,
+    connectionWarning: session.status === "authenticated" && session.refreshState === "degraded",
   };
 }
 
@@ -315,10 +308,9 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
           <span className="topbar-brand"><Brand compact /></span>
           <div className="topbar-context"><span>{organizationName}</span><span aria-hidden="true">/</span><strong>{routeLabel(pathname)}</strong></div>
           <div className="topbar-actions">
-            <span className={`prototype-note${presentation.noteClass}`} role="status">
-              <span className="prototype-dot" aria-hidden="true" />
-              {presentation.note}
-            </span>
+            {presentation.connectionWarning && (
+              <span className="connection-notice" role="status">З’єднання нестабільне</span>
+            )}
             <div className="topbar-user-menu">
               <UserMenu compact presentation={presentation} organizationName={organizationName} />
             </div>

@@ -30,7 +30,7 @@ describe("module overview boundary", () => {
   });
   it.each(["missing", "invalid"] as const)("keeps %s null rather than zero", (status) => {
     const data = overviewFixture(); data.readings[0] = { ...data.readings[0]!, status, value: null };
-    expect(readingText(parse(data).modules[0]!.channels[0]!)).toBe("—");
+    expect(readingText(parse(data).modules[0]!.channels[0]!)).toBe("-");
     data.readings[0]!.value = 0; expect(() => parse(data)).toThrow();
   });
   it("rejects wrong device, parent, organization, unit and unassigned readings", () => {

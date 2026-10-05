@@ -45,11 +45,11 @@ function DeviceAlarms({ context }: { context: ReadyAccessSnapshot }) {
   });
   const change = (value: Partial<AlarmFilters>) => setSelection((old) => ({ ...old, ...value, page: 0 }));
   return <>
-    <PageHeader title="Аварії пристрою" eyebrow={`${device.name} · ${device.uid}`} description="Підтвердження оператором і усунення причини — окремі стани." actions={<><Link className="button button-secondary" href={`/devices/${device.id}` as Route}>Панель пристрою</Link><Link className="button button-secondary" href="/alarms">Обрати пристрій</Link></>} />
+    <PageHeader title="Аварії пристрою" eyebrow={`${device.name} · ${device.uid}`} description="Переглядайте аварії та підтверджуйте їх отримання. Підтвердження не усуває причину аварії." actions={<><Link className="button button-secondary" href={`/devices/${device.id}` as Route}>Панель пристрою</Link><Link className="button button-secondary" href="/alarms">Обрати пристрій</Link></>} />
     <form className="history-controls" onSubmit={(event) => { event.preventDefault(); change({ alarm_type: type.trim() }); }}>
       <SelectField label="Стан аварії" aria-label="Стан аварії" value={selection.state} onChange={(e) => change({ state: e.target.value as AlarmFilters["state"] })}><option value="active">Активні</option><option value="resolved">Усунені</option><option value="">Усі стани</option></SelectField>
       <SelectField label="Важливість" aria-label="Важливість" value={selection.severity} onChange={(e) => change({ severity: e.target.value as AlarmFilters["severity"] })}><option value="">Усі рівні</option><option value="critical">Критичні</option><option value="warning">Попередження</option></SelectField>
-      <TextField label="Тип аварії" aria-label="Тип аварії" value={type} maxLength={96} placeholder="Усі типи" onChange={(e) => setType(e.target.value)} hint="Точний код із деталей інциденту; порожнє поле — усі типи." />
+      <TextField label="Тип аварії" aria-label="Тип аварії" value={type} maxLength={96} placeholder="Усі типи" onChange={(e) => setType(e.target.value)} hint="Введіть код типу з деталей інциденту або залиште поле порожнім для всіх типів." />
       <Button type="submit">Застосувати тип</Button>
     </form>
     <Card title="Інциденти" description="Стан на час завантаження. Оновлення повертає першу сторінку." actions={<Button disabled={!query.active || query.isFetching} onClick={() => { if (!selection.page) query.refresh(); else setSelection((old) => ({ ...old, page: 0 })); }}>Оновити аварії</Button>}>

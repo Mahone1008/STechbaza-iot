@@ -130,7 +130,7 @@ for (const width of [320, 393, 1280])
       await expect(page.locator(".schedule-panel")).toHaveCount(0);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     }
-    await expect(ttl).toHaveAccessibleDescription(/STOP.*30 с від запланованого часу/);
+    await expect(ttl).toHaveAccessibleDescription(/Для ручних команд: від 5 до 300 с.*30 с від запланованого часу/);
     await mode.scrollIntoViewIfNeeded();
     await test.info().attach(`schedule-mode-${width}`, { body: await page.screenshot(), contentType: "image/png" });
     await page.getByRole("tab", { name: "Розклади", exact: true }).click();
@@ -466,7 +466,7 @@ test("required fields and frequency limits are checked before calendar preview",
   expect(previews).toBe(0);
   await page.getByLabel("Назва розкладу", { exact: true }).fill("Полив");
   const frequency = page.getByRole("spinbutton", { name: "Частота за розкладом, Гц", exact: true });
-  await expect(frequency).toHaveAccessibleDescription(/Робочі межі: 20–50 Гц/);
+  await expect(frequency).toHaveAccessibleDescription(/Робочі межі: 20-50 Гц/);
   await frequency.fill("60");
   await preview.click();
   await expect(frequency).toBeFocused();

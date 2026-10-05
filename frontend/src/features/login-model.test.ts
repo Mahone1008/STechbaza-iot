@@ -88,7 +88,7 @@ describe("login form model", () => {
     expect(limited.summary).toContain("17");
 
     const network = loginErrorPresentation(apiError("network", null));
-    expect(network.summary).toContain("Backend недоступний");
+    expect(network.summary).toContain("Не вдалося підключитися");
     expect(network.clearPassword).toBe(false);
   });
 

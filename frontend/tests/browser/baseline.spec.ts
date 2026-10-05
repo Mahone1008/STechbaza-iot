@@ -9,11 +9,11 @@ test("core routes render only after profile, organization and permissions resolv
   await expect(page.getByRole("heading", { name: "Пристрої" })).toBeVisible();
   await expect(page.getByText("DEMO: клієнт A").first()).toBeVisible();
   await expect(page.getByText("owner@example.com")).toBeVisible();
-  await expect(page.getByText(/Owner · Власник/u)).toBeVisible();
+  await expect(page.getByText("Власник", { exact: true })).toBeVisible();
 
   await page.getByRole("link", { name: "Насосна станція №1" }).click();
   await expect(page.getByRole("heading", { name: "Насосна станція №1" })).toBeVisible();
-  await expect(page.getByText("Сесія відновлена")).toBeVisible();
+  await expect(page.locator(".app-shell")).toBeVisible();
 });
 
 test("critical demo action requires permission and confirmation and never claims physical success", async ({ page }) => {
@@ -47,7 +47,7 @@ test("API panel distinguishes success from a network failure inside an authorize
   await page.unroute("http://127.0.0.1:8001/health");
   await page.route("http://127.0.0.1:8001/health", async (route) => route.abort("failed"));
   await page.getByRole("button", { name: "Перевірити API" }).click();
-  await expect(page.getByText(/Backend недоступний/)).toBeVisible();
+  await expect(page.getByText(/Не вдалося підключитися/)).toBeVisible();
 });
 
 test("mobile navigation keeps only permitted primary routes visible", async ({ page }) => {

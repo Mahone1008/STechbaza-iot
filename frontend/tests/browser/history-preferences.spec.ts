@@ -12,13 +12,13 @@ async function ready(page: Page) {
   await expect(page.getByRole("button", { name: "Оновити історію" })).toBeEnabled();
 }
 async function choose(page: Page) {
-  await page.getByLabel("Метрика", { exact: true }).selectOption("vfd.frequency_hz");
+  await page.getByLabel("Показник", { exact: true }).selectOption("vfd.frequency_hz");
   await page.getByLabel("Період", { exact: true }).selectOption("21600");
   await page.getByLabel("Інтервал", { exact: true }).selectOption("900");
   await ready(page);
 }
 async function selection(page: Page, metric: string, seconds: string, bucket: string) {
-  await expect(page.getByLabel("Метрика", { exact: true })).toHaveValue(metric);
+  await expect(page.getByLabel("Показник", { exact: true })).toHaveValue(metric);
   await expect(page.getByLabel("Період", { exact: true })).toHaveValue(seconds);
   await expect(page.getByLabel("Інтервал", { exact: true })).toHaveValue(bucket);
 }
@@ -39,7 +39,7 @@ test("F5 restores metric, six-hour period and fifteen-minute interval before the
   requests.length = 0;
   await page.reload(); await ready(page);
   await selection(page, "vfd.frequency_hz", "21600", "900");
-  await expect(page.getByRole("img", { name: /Історія vfd.frequency_hz, Hz/ })).toBeVisible();
+  await expect(page.getByRole("img", { name: /Історія Вихідна частота, Hz/ })).toBeVisible();
   expect(requests).toHaveLength(1);
   const params = new URL(requests[0]!).searchParams;
   expect(params.get("metric")).toBe("vfd.frequency_hz");

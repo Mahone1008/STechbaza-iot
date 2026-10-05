@@ -50,14 +50,14 @@ function parseBrowserTokenResponse(
     }
   }
 
-  throw new ApiError(`Backend повернув некоректну відповідь ${operation}.`, {
+  throw new ApiError("Не вдалося підтвердити доступ. Спробуйте ще раз.", {
     kind: "invalid-response",
     status: 200,
     method: "POST",
     url: buildApiUrl(path).toString(),
     retryAfterSeconds: null,
     requestId: null,
-    details: { expected: "BrowserTokenResponse" },
+    details: { expected: "BrowserTokenResponse", operation },
   });
 }
 

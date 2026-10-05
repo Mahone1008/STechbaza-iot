@@ -19,12 +19,12 @@ export function Button({ className, variant = "secondary", size = "default", ful
   );
 }
 
-type CardProps = { children: ReactNode; className?: string; title?: string; description?: string; actions?: ReactNode };
+type CardProps = { children: ReactNode; id?: string; className?: string; title?: string; description?: string; actions?: ReactNode };
 
-export function Card({ children, className, title, description, actions }: CardProps) {
+export function Card({ children, id, className, title, description, actions }: CardProps) {
   const hasHeader = Boolean(title || description || actions);
   return (
-    <section className={classNames("card", className)}>
+    <section id={id} className={classNames("card", className)}>
       {hasHeader ? (
         <header className="card-header">
           <div>{title ? <h2 className="card-title">{title}</h2> : null}{description ? <p className="card-description">{description}</p> : null}</div>

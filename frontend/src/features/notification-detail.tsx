@@ -39,7 +39,6 @@ function Detail({ context, id }: { context: ReadyAccessSnapshot; id: string }) {
         <div className="ui-row">{!item.read_at && <Button variant="primary" disabled={!mark.canRead} onClick={() => void mark.markRead()}>Позначити прочитаним</Button>}{context.access.permissions.includes("alarm.read") && <Link className="button button-secondary" href={alarmHref(item.device_id, item.alarm_id)}>До інциденту</Link>}</div>
         {mark.needsCheck && <p>Перед повторною спробою натисніть «Перевірити повідомлення».</p>}
         {mark.waiting && <p role="status">Зачекайте до завершення обмеження повторних запитів.</p>}
-        <details><summary>Технічні деталі повідомлення</summary><dl className="overview-details"><div><dt>ID повідомлення</dt><dd>{item.id}</dd></div><div><dt>ID пристрою</dt><dd>{item.device_id}</dd></div><div><dt>ID інциденту</dt><dd>{item.alarm_id}</dd></div><div><dt>ID переходу</dt><dd>{item.transition_id}</dd></div></dl></details>
       </>}</StableRegion>
     </Card>
   </>;

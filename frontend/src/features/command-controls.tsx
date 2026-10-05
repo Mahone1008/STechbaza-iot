@@ -36,7 +36,10 @@ const SchedulePanel = dynamic(() => import("./schedule-panel").then((module) => 
 
 type Intent = Readonly<{ input: CommandInput; deadline: number }>;
 type Uncertain = Readonly<{ intent: Intent; retryAt: number; message: string }>;
-type Dialog = { kind: "new"; type: CommandType; target: EquipmentTarget | null } | { kind: "retry" } | { kind: "discard" };
+type Dialog =
+  | { kind: "new"; type: CommandType; target: EquipmentTarget | null }
+  | { kind: "retry" }
+  | { kind: "discard" };
 // Read only from event handlers/effects, never while rendering controls.
 function monotonicNow() {
   return performance.now();
@@ -226,7 +229,7 @@ export function CommandControls({
       if (controller.signal.aborted) throw new Error("Очікування відповіді перервано.");
       if (!mounted.current || pending.current !== controller) return;
       setUncertain(null);
-      setNotice("Сервер прийняв команду. Перевіряємо повідомлення контролера нижче.");
+      setNotice("Команду прийнято. Очікуємо результат від контролера.");
       onCreated(command.id);
     } catch (error) {
       if (!mounted.current || pending.current !== controller) return;
@@ -330,8 +333,8 @@ export function CommandControls({
                   onChange={(event) => setTtl(event.target.value)}
                   hint={
                     mode === "schedule"
-                      ? "Для команд, надісланих кнопками, зокрема STOP: 5–300 с. Запуск за розкладом має окреме вікно прийняття — 30 с від запланованого часу."
-                      : "Типово 30 с, дозволено 5–300 с. Після цього контролер не починає нове виконання. Це не тривалість роботи насоса."
+                      ? "Для ручних команд: від 5 до 300 с. Контролер має прийняти запуск за розкладом протягом 30 с від запланованого часу."
+                      : "Типово 30 с, дозволено 5-300 с. Після цього контролер не починає нове виконання. Це не тривалість роботи насоса."
                   }
                 />
               </div>
@@ -387,17 +390,23 @@ export function CommandControls({
                 limits={limits ?? null}
               />
             )}
-            {mode === "schedule" && canReadSchedules && (
-              onSchedules ? <div className="ui-row"><Button onClick={onSchedules}>Перейти до розкладів</Button></div> : <SchedulePanel
-                context={context}
-                visible={settingsOpen}
-                poll={poll}
-                limits={limits ?? null}
-                supported={overview.diagnostics?.program?.supports_schedule === true}
-                maxScheduleSeconds={overview.diagnostics?.program?.max_schedule_seconds}
-                onCommand={onCreated}
-              />
-            )}
+            {mode === "schedule" &&
+              canReadSchedules &&
+              (onSchedules ? (
+                <div className="ui-row">
+                  <Button onClick={onSchedules}>Перейти до розкладів</Button>
+                </div>
+              ) : (
+                <SchedulePanel
+                  context={context}
+                  visible={settingsOpen}
+                  poll={poll}
+                  limits={limits ?? null}
+                  supported={overview.diagnostics?.program?.supports_schedule === true}
+                  maxScheduleSeconds={overview.diagnostics?.program?.max_schedule_seconds}
+                  onCommand={onCreated}
+                />
+              ))}
           </details>
           {(mode === "timer" || mode === "program") && !programRunning && (
             <p className="program-mode-notice">
@@ -415,7 +424,7 @@ export function CommandControls({
               За останніми даними програма виконується або зупиняється.{" "}
               {context.access.permissions.includes("command.read") &&
                 "План відкривається через «Переглянути етапи роботи» нижче. "}
-              Редагування, зміна частоти й новий запуск — після зупинки.
+              Редагування, зміна частоти й новий запуск стануть доступними після зупинки.
             </p>
           )}
           {(mode === "timer" || mode === "program") && !programRunning && !programStopped && (
@@ -436,7 +445,7 @@ export function CommandControls({
                     onChange={(event) => setFrequency(event.target.value)}
                     hint={
                       limits
-                        ? `Робочі межі пристрою: ${limits.min_hz}–${limits.max_hz} Гц.`
+                        ? `Робочі межі пристрою: ${limits.min_hz}-${limits.max_hz} Гц.`
                         : "Спочатку налаштуйте допустимі межі частоти обладнання."
                     }
                   />
@@ -446,7 +455,9 @@ export function CommandControls({
                 {(mode === "timer" || mode === "program") && (
                   <Button
                     disabled={!enabled("vfd.program.start")}
-                    onClick={() => setDialog({ kind: "new", type: "vfd.program.start", target: overview?.equipmentTarget ?? null })}
+                    onClick={() =>
+                      setDialog({ kind: "new", type: "vfd.program.start", target: overview?.equipmentTarget ?? null })
+                    }
                   >
                     {mode === "timer"
                       ? programValid
@@ -474,8 +485,8 @@ export function CommandControls({
           )}
           {!online && (
             <p>
-              Запуск і зміна частоти недоступні без актуального зв’язку. Зупинка може очікувати доставки на сервері до
-              завершення TTL; фізична зупинка не гарантована.
+              Запуск і зміна частоти недоступні без актуального зв’язку. Команда зупинки може чекати доставки до
+              завершення часу її прийняття. Без зв’язку зупинку не можна підтвердити.
             </p>
           )}
           {online && blockedReason && <p role="status">{blockedReason} Команда зупинки залишається доступною.</p>}
@@ -488,17 +499,15 @@ export function CommandControls({
           <h3>Прийом команди не підтверджено</h3>
           <p>{uncertain.message}</p>
           <p>
-            Сервер міг прийняти запит. Спочатку перевірте журнал. Повтор надсилає той самий запит і не створює нової
-            команди, якщо його вже прийнято.
+            Команду могли прийняти. Спочатку перевірте журнал і стан пристрою. Кнопка повтору перевіряє ту саму команду
+            без створення дубліката.
           </p>
           <p>
             {now >= uncertain.intent.deadline
               ? "Час ручного повтору минув. Перевірте журнал команд."
               : `Ручний повтор доступний ще ${Math.max(0, Math.ceil((uncertain.intent.deadline - now) / 1000))} с.`}
           </p>
-          {now < uncertain.retryAt && (
-            <p>Сервер обмежив частоту запитів. Зачекайте {Math.ceil((uncertain.retryAt - now) / 1000)} с.</p>
-          )}
+          {now < uncertain.retryAt && <p>Забагато спроб. Зачекайте {Math.ceil((uncertain.retryAt - now) / 1000)} с.</p>}
           <div className="ui-row">
             <Button disabled={!retryEnabled} onClick={() => setDialog({ kind: "retry" })}>
               Повторити той самий запит
@@ -507,10 +516,6 @@ export function CommandControls({
               Завершити перевірку запиту
             </Button>
           </div>
-          <details>
-            <summary>Ідентифікатор запиту</summary>
-            <code>{uncertain.intent.input.request_id}</code>
-          </details>
         </section>
       )}
       <ConfirmDialog
@@ -518,7 +523,7 @@ export function CommandControls({
         title={dialog?.kind === "discard" ? "Завершити перевірку?" : "Підтвердити команду"}
         description={
           dialog?.kind === "discard"
-            ? "Це не скасовує команду на сервері. Нова дія матиме інший ідентифікатор. Перед нею перевірте журнал і стан обладнання."
+            ? "Це не скасовує вже прийняту команду. Перед новою дією перевірте журнал і стан обладнання."
             : `${device.name} · ${device.uid}`
         }
         confirmLabel={
@@ -546,14 +551,17 @@ export function CommandControls({
               Час на прийняття команди:{" "}
               {dialog?.kind === "retry" ? uncertain?.intent.input.ttl_seconds : validTtl ? ttl : 30} с.
             </p>
-            <p>Відповідь сервера підтверджує реєстрацію запиту; виконання перевіряється окремо.</p>
+            <p>Прийняття команди ще не означає її виконання. Результат з’явиться після відповіді контролера.</p>
             {selectedType === "vfd.stop" && !online && (
-              <p>Пристрій offline: команда чекатиме доставки до завершення TTL. Фізичну зупинку ще не підтверджено.</p>
+              <p>
+                Немає зв’язку з пристроєм. Команда чекатиме доставки до завершення часу її прийняття. Зупинку ще не
+                підтверджено.
+              </p>
             )}
             {selectedType === "vfd.stop" && (busy || uncertain) && (
               <p>
-                Stop припинить доставку попереднього запиту. Уже розпочату дію потрібно перевірити за відповіддю
-                контролера та телеметрією.
+                Зупинка скасує очікування попередньої команди. Якщо її вже виконують, перевірте результат за відповіддю
+                контролера та показниками пристрою.
               </p>
             )}
           </>

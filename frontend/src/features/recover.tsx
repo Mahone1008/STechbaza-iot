@@ -46,6 +46,12 @@ export function RecoveryPage() {
       <Card title={issuedKey ? "Збережіть ключ відновлення" : "Дані для відновлення"}>
         {issuedKey ? (
           <>
+            <div className="notice notice-success" role="status">
+              <div className="notice-copy">
+                <strong>Доступ відновлено</strong>
+                <span>Увійдіть із новим паролем і налаштуйте застосунок автентифікації знову.</span>
+              </div>
+            </div>
             <p>Новий ключ показано один раз. Збережіть його окремо від пароля.</p>
             <code className="recovery-key">{issuedKey}</code>
             <label className="ui-row">
@@ -102,6 +108,10 @@ export function RecoveryPage() {
             <p>
               Усі попередні сесії буде завершено. Двоетапний вхід потрібно налаштувати знову; старий ключ відновлення
               перестане діяти.
+            </p>
+            <p className="help-copy">
+              Якщо ключа немає, самостійне відновлення недоступне. Зверніться до того, хто надав вам доступ; для
+              адміністратора платформи потрібна допомога адміністратора сервера.
             </p>
             {error && <p role="alert">{error}</p>}
             <Button variant="primary" type="submit" disabled={busy}>

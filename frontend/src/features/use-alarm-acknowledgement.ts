@@ -43,7 +43,7 @@ export function useAlarmAcknowledgement({ context, alarm, read, active, refresh 
       parseAcknowledgement(raw, context.activeDevice!.id, alarm.id);
       controller.signal.throwIfAborted();
       if (!mounted.current) return;
-      setOutcome({ kind: "confirmed", message: "Підтвердження зафіксовано сервером. Перечитуємо стан і автора.", checkedRead: read, retryAt: 0 });
+      setOutcome({ kind: "confirmed", message: "Отримання аварії підтверджено. Оновлюємо її стан.", checkedRead: read, retryAt: 0 });
       refresh();
     } catch (error) {
       if (!mounted.current) return;

@@ -65,7 +65,9 @@ export function EquipmentPassportPanel({
                 >
                   {equipmentStateLabels[data.configuration_state]}
                 </StatusBadge>
-                <p className="help-copy">Паспорт завантажується на запит. Реєстрація модуля не вмикає керування ним.</p>
+                <p className="help-copy">
+                  Після зміни обладнання перевірте підключення та дочекайтеся підтвердження контролера.
+                </p>
                 {data.modules.length === 0 ? (
                   <p>
                     Обладнання ще не внесено в паспорт. Для заповнення потрібні модель зі шильдика та перевірка
@@ -102,7 +104,7 @@ export function EquipmentPassportPanel({
                             <dd>{module.serial_number || "Не зазначено"}</dd>
                           </div>
                           <div>
-                            <dt>Ревізія обладнання / ПЗ</dt>
+                            <dt>Версія обладнання / ПЗ</dt>
                             <dd>
                               {module.hardware_revision || "Не зазначено"} /{" "}
                               {module.software_revision || "Не зазначено"}
@@ -130,8 +132,9 @@ export function EquipmentPassportPanel({
                               {module.manufacturer} {module.model}
                             </strong>
                             <p>
-                              Серійний номер: {module.serial_number || "Не зазначено"} · Ревізії:{" "}
-                              {module.hardware_revision || "—"} / {module.software_revision || "—"}
+                              Серійний номер: {module.serial_number || "Не зазначено"} · Версії:{" "}
+                              {module.hardware_revision || "Не зазначено"} /{" "}
+                              {module.software_revision || "Не зазначено"}
                             </p>
                             <p>Замінено: {formatSeen(module.retired_at!, context.activeSite?.timezone ?? "UTC")}</p>
                           </li>
@@ -151,7 +154,7 @@ export function EquipmentPassportPanel({
                         </dd>
                       </div>
                       <div>
-                        <dt>Збережена / повідомлена ревізія</dt>
+                        <dt>Версія налаштувань / підтверджена контролером</dt>
                         <dd>
                           {data.desired.manifest.revision} / {data.reported?.revision ?? "Немає підтвердження"}
                         </dd>
@@ -159,7 +162,7 @@ export function EquipmentPassportPanel({
                       <div>
                         <dt>Межі установки</dt>
                         <dd>
-                          {data.desired.manifest.frequency_limits.min_hz}–
+                          {data.desired.manifest.frequency_limits.min_hz}-
                           {data.desired.manifest.frequency_limits.max_hz} Гц
                         </dd>
                       </div>
@@ -172,23 +175,6 @@ export function EquipmentPassportPanel({
                         <dd>{formatSeen(data.desired.created_at, context.activeSite?.timezone ?? "UTC")}</dd>
                       </div>
                     </dl>
-                    <details>
-                      <summary>Ідентифікатори конфігурації</summary>
-                      <dl className="overview-details">
-                        <div>
-                          <dt>Покоління прив’язки</dt>
-                          <dd>{data.desired.manifest.binding_generation}</dd>
-                        </div>
-                        <div>
-                          <dt>Збережений hash</dt>
-                          <dd>{data.desired.configuration_hash}</dd>
-                        </div>
-                        <div>
-                          <dt>Повідомлений hash</dt>
-                          <dd>{data.reported?.configuration_hash ?? "Не отримано"}</dd>
-                        </div>
-                      </dl>
-                    </details>
                   </section>
                 )}
               </>

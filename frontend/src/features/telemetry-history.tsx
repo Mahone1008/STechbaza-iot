@@ -30,7 +30,7 @@ function HistoryData({ context, channel, seconds, bucket, poll }: { context: Rea
       <span className="help-copy" role="status">{query.isFetching && query.data ? "Оновлюємо історію…" : ""}</span>
     </div>
     {!query.active && <p role="status">Оновлення призупинено: вкладка прихована або немає мережі.</p>}
-    {query.isError ? <section role="alert" className="notice notice-warning"><h3>Історія недоступна</h3><p>{status === 409 ? "Модуль більше недоступний. Оновіть панель, щоб перевірити склад модулів." : status === 422 ? "Період або обсяг історії перевищує ліміт. Оберіть коротший період; більший інтервал не зменшує кількість вхідних повідомлень." : apiErrorDisplayMessage(query.error)}</p>{status === 429 && <p>Повторний запит можливий після затримки сервера.</p>}</section> : query.data ? <TelemetryChart series={query.data} timezone={context.activeSite?.timezone ?? "UTC"} /> : <p role="status">Завантажуємо історію…</p>}
+    {query.isError ? <section role="alert" className="notice notice-warning"><h3>Історія недоступна</h3><p>{status === 409 ? "Модуль більше недоступний. Оновіть панель, щоб перевірити склад модулів." : status === 422 ? "За цей період забагато даних. Оберіть коротший період." : apiErrorDisplayMessage(query.error)}</p>{status === 429 && <p>Зачекайте перед повторною спробою.</p>}</section> : query.data ? <TelemetryChart series={query.data} timezone={context.activeSite?.timezone ?? "UTC"} /> : <p role="status">Завантажуємо історію…</p>}
   </StableRegion>;
 }
 export function TelemetryHistory({ context, overview, poll }: { context: ReadyAccessSnapshot; overview: Overview; poll: PollSeconds }) {
@@ -45,10 +45,10 @@ export function TelemetryHistory({ context, overview, poll }: { context: ReadyAc
     saveHistorySelection(storageKey, next);
     setSaved(next);
   };
-  return <Card title="Історія телеметрії" description="Час приймання сервером; середнє за валідними зразками, а не за тривалістю. Оновлення пересуває період до поточного часу.">
+  return <Card title="Історія телеметрії" description="Переглядайте зміну показників за вибраний період. Час відповідає надходженню даних; пропуски не вважаються нульовими значеннями.">
     {!channel ? <p>Увімкнених каналів з підтримкою історії немає.</p> : <>
       <div className="history-controls telemetry-history-controls">
-        <SelectField label="Метрика" value={channel.key} onChange={(e) => change({ metric: e.target.value })}>{channels.map((c) => <option key={c.key} value={c.key}>{channelLabel(c.key)} · {c.unit}</option>)}</SelectField>
+        <SelectField label="Показник" value={channel.key} onChange={(e) => change({ metric: e.target.value })}>{channels.map((c) => <option key={c.key} value={c.key}>{channelLabel(c.key)} · {c.unit}</option>)}</SelectField>
         <SelectField label="Період" value={seconds} onChange={(e) => { const period = periods.find((p) => p.seconds === Number(e.target.value))!; change({ seconds: period.seconds, bucket: period.bucket }); }}>{periods.map((p) => <option key={p.seconds} value={p.seconds}>{p.label}</option>)}</SelectField>
         <SelectField label="Інтервал" value={bucket} onChange={(e) => change({ bucket: Number(e.target.value) })}>{historyBuckets.map((b) => <option key={b} value={b} disabled={Math.ceil(seconds / b) > 1000}>{b < 3600 ? `${b / 60} хв` : `${b / 3600} год`}</option>)}</SelectField>
       </div>

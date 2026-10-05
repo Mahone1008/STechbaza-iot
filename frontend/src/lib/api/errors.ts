@@ -62,7 +62,8 @@ export function apiErrorKindForStatus(status: number): ApiErrorKind {
 }
 
 function readString(value: unknown): string | null {
-  return typeof value === "string" && value.trim() ? value.trim() : null;
+  if (typeof value !== "string" || !/[А-Яа-яІіЇїЄєҐґ]/u.test(value)) return null;
+  return value.trim().replace(/\s+[—–]\s+/gu, ", ").replace(/[—–]/gu, "-") || null;
 }
 
 function readValidationMessages(value: unknown): string[] {
@@ -76,6 +77,8 @@ function readValidationMessages(value: unknown): string[] {
 }
 
 export function problemMessage(payload: unknown, status: number): string {
+  // Internal service failures stay in the API diagnostics, never in customer copy.
+  if (status >= 500) return "Сервіс тимчасово недоступний. Спробуйте пізніше.";
   if (payload && typeof payload === "object") {
     const detail = Reflect.get(payload, "detail");
     const detailText = readString(detail);
@@ -95,12 +98,11 @@ export function problemMessage(payload: unknown, status: number): string {
 
   if (status === 401) return "Сесію не підтверджено або вона завершилася.";
   if (status === 403) return "Недостатньо прав для цієї дії.";
-  if (status === 404) return "Ресурс не знайдено або він недоступний.";
-  if (status === 409) return "Стан ресурсу змінився. Оновіть дані й повторіть рішення вручну.";
-  if (status === 422) return "Запит містить некоректні дані.";
+  if (status === 404) return "Дані не знайдено або доступ до них закрито.";
+  if (status === 409) return "Дані змінилися. Оновіть сторінку та перевірте їх перед повторною спробою.";
+  if (status === 422) return "Перевірте заповнені поля та спробуйте ще раз.";
   if (status === 429) return "Забагато запитів. Зачекайте перед повтором.";
-  if (status >= 500) return "Сервер тимчасово не може виконати запит.";
-  return `API повернув HTTP ${status}.`;
+  return "Не вдалося виконати дію. Спробуйте ще раз.";
 }
 
 export function parseRetryAfter(value: string | null, nowMs = Date.now()): number | null {
@@ -118,11 +120,13 @@ export function parseRetryAfter(value: string | null, nowMs = Date.now()): numbe
 
 export function apiErrorDisplayMessage(error: unknown): string {
   if (!isApiError(error)) {
-    return "Сталася непередбачена помилка інтерфейсу.";
+    return "Не вдалося виконати дію. Спробуйте ще раз.";
   }
 
-  if (error.kind === "network") return "Backend недоступний. Перевірте адресу API та стан сервера.";
-  if (error.kind === "timeout") return "Backend не відповів у відведений час.";
-  if (error.kind === "aborted") return "Запит скасовано. Стару відповідь не буде застосовано до нового екрана.";
-  return error.message;
+  if (error.kind === "network") return "Не вдалося підключитися. Перевірте з’єднання з інтернетом і спробуйте ще раз.";
+  if (error.kind === "timeout") return "Сервіс не відповів вчасно. Спробуйте ще раз.";
+  if (error.kind === "aborted") return "Дію скасовано.";
+  if (error.kind === "server") return "Сервіс тимчасово недоступний. Спробуйте пізніше.";
+  if (error.kind === "invalid-response") return "Не вдалося перевірити отримані дані. Оновіть сторінку або спробуйте пізніше.";
+  return readString(error.message) ?? problemMessage(null, error.status ?? 0);
 }

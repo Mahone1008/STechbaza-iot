@@ -1,8 +1,9 @@
 import { bucketLabels, type Series } from "@/lib/api/telemetry-series";
 import { formatSeen } from "@/lib/api/inventory";
+import { channelLabel } from "@/lib/api/overview";
 
 const numberFormatter = new Intl.NumberFormat("uk-UA", { maximumSignificantDigits: 8 });
-const number = (value: number | null) => value === null ? "—" : numberFormatter.format(value);
+const number = (value: number | null) => value === null ? "Немає даних" : numberFormatter.format(value);
 export function TelemetryChart({ series, timezone }: { series: Series; timezone: string }) {
   const values = series.buckets.flatMap((b) => b.minimum === null ? [] : [b.minimum, b.maximum!]);
   const magnitude = Math.max(1, ...values.map(Math.abs));
@@ -18,11 +19,11 @@ export function TelemetryChart({ series, timezone }: { series: Series; timezone:
   }
   if (segment) segments.push(segment);
   return <>
-    {series.sample_count === 0 ? <p role="status">За цей період немає валідних вимірювань.</p> : <svg className="telemetry-chart" viewBox="0 0 800 260" role="img" aria-label={`Історія ${series.metric}, ${series.unit}. Середнє та мінімум–максимум; розриви означають відсутність валідних даних.`}>
+    {series.sample_count === 0 ? <p role="status">За цей період немає вимірювань для графіка.</p> : <svg className="telemetry-chart" viewBox="0 0 800 260" role="img" aria-label={`Історія ${channelLabel(series.metric)}, ${series.unit}. Середнє значення та межі вимірювань. Пропуски означають відсутність даних.`}>
       <line x1="65" y1="220" x2="775" y2="220" stroke="currentColor" opacity="0.3" />
       <text x="60" y="20" textAnchor="end">{number(high * magnitude)}</text><text x="60" y="220" textAnchor="end">{number(low * magnitude)}</text>
       {series.buckets.map((b, i) => b.average === null ? null : <g key={b.start}>
-        <title>{`${formatSeen(b.start, timezone)}: ${number(b.average)} ${series.unit}; min ${number(b.minimum)}, max ${number(b.maximum)}, n=${b.sample_count}; ${bucketLabels[b.status]}`}</title>
+        <title>{`${formatSeen(b.start, timezone)}: ${number(b.average)} ${series.unit}; мінімум ${number(b.minimum)}, максимум ${number(b.maximum)}, вимірювань: ${b.sample_count}; ${bucketLabels[b.status]}`}</title>
         <line x1={x(i)} x2={x(i)} y1={y(b.minimum!)} y2={y(b.maximum!)} stroke="currentColor" strokeWidth="3" />
         <circle cx={x(i)} cy={y(b.average)} r="3" fill={b.status === "partial" ? "var(--warning)" : "currentColor"} />
       </g>)}
@@ -31,13 +32,13 @@ export function TelemetryChart({ series, timezone }: { series: Series; timezone:
     </svg>}
     <p className="help-copy">{series.sample_count === 0
       ? series.message_count > 0
-        ? "Повідомлення надходили, але для цієї метрики значення були відсутні або некоректні. Це не нульові вимірювання; якість видно в таблиці нижче."
+        ? "Для цього показника надходили неповні або некоректні дані. Подробиці доступні в таблиці вимірювань."
         : "У вибраному періоді немає повідомлень із вимірюваннями. Оберіть інший період або оновіть історію після надходження даних."
-      : "Лінія — середнє; вертикальні відрізки — мінімум–максимум. Помаранчеві точки — часткові дані. Пропуски не з’єднуються."}</p>
-    <p>{formatSeen(series.start, timezone)} — {formatSeen(series.end, timezone)} · {timezone}</p>
-    <p>Валідних вимірювань: {series.sample_count}; повідомлень: {series.message_count}. Інтервал: {series.bucket_seconds} с.</p>
+      : "Лінія показує середнє значення, вертикальні відрізки показують мінімум і максимум. Помаранчеві точки позначають неповні дані. Пропуски не з’єднуються."}</p>
+    <p>{formatSeen(series.start, timezone)} / {formatSeen(series.end, timezone)} · {timezone}</p>
+    <p>Вимірювань для графіка: {series.sample_count}; повідомлень: {series.message_count}. Інтервал: {series.bucket_seconds} с.</p>
     <details><summary>Таблиця вимірювань</summary><div className="history-table" tabIndex={0} role="region" aria-label="Інтервали історії"><table>
-      <caption>Час приймання сервером · {timezone} · {series.unit}</caption>
+      <caption>Час надходження даних · {timezone} · {series.unit}</caption>
       <thead><tr><th>Початок</th><th>Кінець</th><th>Якість</th><th>Мін.</th><th>Макс.</th><th>Середнє</th><th>Кількість</th><th>Відсутні</th><th>Некоректні</th></tr></thead>
       <tbody>{series.buckets.map((b) => <tr key={b.start}><td>{formatSeen(b.start, timezone)}</td><td>{formatSeen(b.end, timezone)}</td><td>{bucketLabels[b.status]}</td><td>{number(b.minimum)}</td><td>{number(b.maximum)}</td><td>{number(b.average)}</td><td>{b.sample_count}</td><td>{b.missing_count}</td><td>{b.invalid_count}</td></tr>)}</tbody>
     </table></div></details>

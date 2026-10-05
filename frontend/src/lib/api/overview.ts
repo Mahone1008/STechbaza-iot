@@ -127,11 +127,11 @@ export function controlBlockReason(overview: Overview, elapsedSeconds = 0): stri
   return null;
 }
 export const qualityLabels: Record<Quality, string> = { fresh: "Свіжі дані", stale: "Застарілі дані", missing: "Немає даних", invalid: "Некоректні дані" };
-export const reasonLabels: Record<Freshness["reason"], string> = { no_telemetry: "Телеметрія ще не надходила", recent: "Телеметрія отримана нещодавно", timeout: "Перевищено час актуальності", session_changed: "Контролер змінив сесію; показання належать попередній сесії", future_timestamp: "Час контролера або повідомлення потребує перевірки", delayed_report: "Повідомлення надійшло із затримкою" };
-const labels: Record<string, string> = { "vfd.frequency_hz": "Вихідна частота", "vfd.set_frequency_hz": "Задана частота", "vfd.current_a": "Струм", "vfd.voltage_v": "Вихідна напруга", "pressure.bar": "Тиск", "water_level.percent": "Рівень води", pump_running: "Стан RUN частотника", vfd_fault_code: "Код помилки частотника", local_mode: "Ручний режим", emergency_stop: "Аварійна зупинка", vfd_link: "Зв’язок із частотником", vfd_configuration_valid: "Налаштування профілю перевірено", control_armed: "Локальний дозвіл керування" };
+export const reasonLabels: Record<Freshness["reason"], string> = { no_telemetry: "Телеметрія ще не надходила", recent: "Телеметрія отримана нещодавно", timeout: "Перевищено час актуальності", session_changed: "Очікуємо дані після перезапуску контролера", future_timestamp: "Час контролера або повідомлення потребує перевірки", delayed_report: "Повідомлення надійшло із затримкою" };
+const labels: Record<string, string> = { "vfd.frequency_hz": "Вихідна частота", "vfd.set_frequency_hz": "Задана частота", "vfd.current_a": "Струм", "vfd.voltage_v": "Вихідна напруга", "pressure.bar": "Тиск", "water_level.percent": "Рівень води", pump_running: "Стан роботи частотника", vfd_fault_code: "Код помилки частотника", local_mode: "Ручний режим", emergency_stop: "Аварійна зупинка", vfd_link: "Зв’язок із частотником", vfd_configuration_valid: "Налаштування профілю перевірено", control_armed: "Локальний дозвіл керування" };
 export function channelLabel(key: string): string { return Object.hasOwn(labels, key) ? labels[key]! : key; }
 export function readingText(channel: Channel & Reading): string {
-  if (channel.status === "missing" || channel.status === "invalid" || channel.value === null) return "—";
+  if (channel.status === "missing" || channel.status === "invalid" || channel.value === null) return "-";
   if (typeof channel.value === "boolean") return channel.value ? "Так" : "Ні";
   return new Intl.NumberFormat("uk-UA", { maximumSignificantDigits: 15 }).format(channel.value);
 }

@@ -23,7 +23,12 @@ export function proxy(request: NextRequest) {
   const requestHeaders = new Headers(request.headers);
   // Overwrite caller-supplied values; Next extracts the nonce from this header.
   requestHeaders.set("Content-Security-Policy", policy);
-  const response = NextResponse.next({ request: { headers: requestHeaders } });
+  const internalPreview = request.nextUrl.pathname === "/ui-kit" || request.nextUrl.pathname.startsWith("/ui-kit/");
+  const notFoundUrl = new URL("/_not-found", request.url);
+  const response =
+    internalPreview && process.env.KERUMO_UI_PREVIEW !== "1"
+      ? NextResponse.rewrite(notFoundUrl, { status: 404, request: { headers: requestHeaders } })
+      : NextResponse.next({ request: { headers: requestHeaders } });
   response.headers.set("Content-Security-Policy", policy);
   response.headers.set("Cache-Control", "private, no-store, max-age=0");
   response.headers.set("X-Content-Type-Options", "nosniff");

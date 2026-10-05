@@ -46,7 +46,18 @@ describe("API error contract", () => {
       details: null,
     });
 
-    expect(apiErrorDisplayMessage(network)).toContain("Backend недоступний");
+    expect(apiErrorDisplayMessage(network)).toContain("Не вдалося підключитися");
     expect(apiErrorDisplayMessage(timeout)).toContain("не відповів");
+  });
+
+  it("keeps service diagnostics and untranslated validation out of customer messages", () => {
+    expect(problemMessage({ detail: "SQLAlchemyError at /app/db.py" }, 500)).toBe(
+      "Сервіс тимчасово недоступний. Спробуйте пізніше.",
+    );
+    expect(problemMessage({ detail: [{ msg: "Field required", loc: ["body", "otp"] }] }, 422)).toBe(
+      "Перевірте заповнені поля та спробуйте ще раз.",
+    );
+    expect(problemMessage({ detail: "Частота — від 5–50 Гц" }, 422)).toBe("Частота, від 5-50 Гц");
+    expect(problemMessage({}, 418)).not.toMatch(/API|HTTP/);
   });
 });
