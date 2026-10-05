@@ -3,6 +3,8 @@ import { spawnSync } from "node:child_process";
 // Extend this gate as older modules are touched; avoid unrelated formatting churn.
 const files = [
   "src/components/controller-qr.tsx",
+  "src/components/text-field.tsx",
+  "src/features/login.tsx",
   "src/features/controller-lifecycle.tsx",
   "src/features/equipment-actions.tsx",
   "src/features/factory-controller-actions.tsx",

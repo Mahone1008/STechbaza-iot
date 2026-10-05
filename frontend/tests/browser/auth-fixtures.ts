@@ -282,5 +282,5 @@ export async function fillLogin(
   password = "valid-test-password",
 ): Promise<void> {
   await page.getByLabel("Логін").fill(email);
-  await page.getByLabel("Пароль").fill(password);
+  await page.getByLabel("Пароль", { exact: true }).fill(password);
 }

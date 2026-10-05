@@ -154,7 +154,7 @@ function SecuritySettings() {
 
   return (
     <>
-      <Card title="Двоетапний вхід">
+      <Card title="Двоетапний вхід" className="account-security-card">
         {state.isError ? (
           <p role="alert">{apiErrorDisplayMessage(state.error)}</p>
         ) : !state.data ? (
@@ -215,7 +215,7 @@ function SecuritySettings() {
           </div>
         )}
       </Card>
-      <Card title="Постійний пароль">
+      <Card title="Постійний пароль" className="account-security-card">
         <p>
           Підтвердьте зміну поточним паролем і свіжим кодом вище. Ваш застосунок автентифікації залишиться прив’язаним
           до облікового запису.
@@ -251,7 +251,7 @@ function SecuritySettings() {
         {notice && <p role="status">{notice}</p>}
         {actionError("password")}
       </Card>
-      <Card title="Ключ відновлення">
+      <Card title="Ключ відновлення" className="account-security-card">
         <p>
           Перший особистий ключ видається під час активації. Він дозволяє відновити доступ, якщо втратите постійний
           пароль або телефон.
@@ -275,7 +275,7 @@ function SecuritySettings() {
         )}
         {actionError("recovery")}
       </Card>
-      <Card title="Активні сесії">
+      <Card title="Активні сесії" className="account-security-card">
         {sessions.isError ? (
           <p role="alert">{apiErrorDisplayMessage(sessions.error)}</p>
         ) : (

@@ -243,6 +243,54 @@ test("TOTP enrollment clears its secret, rotates recovery and revokes only the s
   await noStoredSecrets(page, secret, password, recovery);
 });
 
+for (const width of [320, 1440])
+  test(`password settings keep separate controls and readable spacing at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await mockAuthenticatedWorkspace(page);
+    await read(page, "auth/security", () => ({
+      mfa_enabled: false,
+      privileged_mfa_required: false,
+      current_session_verified: false,
+      recovery_available: true,
+    }));
+    await read(page, "auth/sessions", () => []);
+    let changes = 0;
+    await route(page, "auth/security/password", async (request) => {
+      changes += 1;
+      expect(request.request().postDataJSON()).toEqual({
+        password,
+        otp: null,
+        new_password: "new-browser-password-123",
+      });
+      await request.fulfill({ status: 204, headers: corsHeaders, body: "" });
+    });
+    await page.goto("/account/security");
+    await page.getByLabel("Поточний пароль для підтвердження", { exact: true }).fill(password);
+    const card = page
+      .locator(".card")
+      .filter({ has: page.getByRole("heading", { name: "Постійний пароль", exact: true }) });
+    const input = card.getByLabel("Повторіть новий пароль", { exact: true });
+    await card.getByLabel("Новий пароль", { exact: true }).fill("new-browser-password-123");
+    await input.fill("new-browser-password-123");
+    const field = card.locator(".field").filter({ has: page.getByLabel("Повторіть новий пароль", { exact: true }) });
+    await field.getByRole("button", { name: "Показати пароль", exact: true }).click();
+    await expect(input).toHaveAttribute("type", "text");
+    await expect(card.getByLabel("Новий пароль", { exact: true })).toHaveAttribute("type", "password");
+    await field.getByRole("button", { name: "Приховати пароль", exact: true }).click();
+    await input.focus();
+    const button = card.getByRole("button", { name: "Змінити пароль", exact: true });
+    await expect(button).toBeEnabled();
+    const inputBox = (await input.boundingBox())!,
+      buttonBox = (await button.boundingBox())!;
+    expect(buttonBox.y - (inputBox.y + inputBox.height)).toBeGreaterThanOrEqual(12);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.screenshot({ path: test.info().outputPath(`security-${width}.png`), fullPage: true });
+    expect(changes).toBe(0);
+    await button.click();
+    await expect(input).toHaveValue("");
+    expect(changes).toBe(1);
+  });
+
 for (const failure of [
   { status: 401, detail: "Код не підтверджено" },
   { status: 503, detail: "Перевірка двоетапного входу тимчасово недоступна" },
@@ -477,6 +525,13 @@ test("activation saves permanent credentials and confirms MFA before the factory
   await page.getByRole("button", { name: "Створити постійний доступ", exact: true }).click();
   permanentPassword = await page.getByLabel("Новий згенерований пароль", { exact: true }).inputValue();
   expect(permanentPassword).toMatch(/^[A-Za-z0-9_-]{24}$/);
+  const generatedField = page
+    .locator(".field")
+    .filter({ has: page.getByLabel("Новий згенерований пароль", { exact: true }) });
+  await generatedField.getByRole("button", { name: "Показати пароль", exact: true }).click();
+  await expect(page.getByLabel("Новий згенерований пароль", { exact: true })).toHaveAttribute("type", "text");
+  await generatedField.getByRole("button", { name: "Приховати пароль", exact: true }).click();
+  await expect(page.getByLabel("Новий згенерований пароль", { exact: true })).toHaveAttribute("type", "password");
   await expect(page.getByRole("img", { name: "QR для застосунку автентифікації", exact: true })).toBeVisible();
   const downloading = page.waitForEvent("download");
   await page.getByRole("button", { name: "Завантажити дані входу та ключ відновлення", exact: true }).click();

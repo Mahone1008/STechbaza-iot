@@ -28,29 +28,32 @@
 }
 
 .access-gate-mark {
+  display: grid;
+  place-items: center;
   width: 38px;
   height: 38px;
   margin: 24px 0 18px;
-  border: 5px solid var(--brand-soft);
-  border-top-color: var(--brand);
+  background: var(--brand-soft);
+  color: var(--brand);
   border-radius: 50%;
-  animation: access-gate-spin 900ms linear infinite;
 }
 
 .access-gate-mark-warning {
-  border-color: var(--warning-soft);
-  border-top-color: var(--warning);
+  background: var(--warning-soft);
+  color: var(--warning);
 }
 
 .access-gate-mark-danger {
-  border-color: var(--danger-soft);
-  border-top-color: var(--danger);
-  animation: none;
+  background: var(--danger-soft);
+  color: var(--danger);
 }
+
+.access-gate-mark-busy { border: 5px solid var(--brand-soft); border-top-color: var(--brand); background: transparent; animation: access-gate-spin 900ms linear infinite; }
 
 .access-gate-card h1 {
   margin-bottom: 10px;
   font-size: 27px;
+  line-height: 1.25;
 }
 
 .access-gate-card p {

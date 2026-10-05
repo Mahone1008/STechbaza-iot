@@ -84,7 +84,10 @@ export function LoginPanel() {
     const updateClock = () => {
       const now = Date.now();
       setClock(now);
-      if (now >= blockedUntil) setBlockedUntil(null);
+      if (now >= blockedUntil) {
+        setBlockedUntil(null);
+        setFormError("");
+      }
     };
 
     updateClock();
@@ -179,7 +182,7 @@ export function LoginPanel() {
           </div>
           <div className="login-feature">
             <strong>Безпека</strong>
-            <span>Права перевіряє backend</span>
+            <span>Доступ лише до вашого обладнання</span>
           </div>
         </div>
       </section>
@@ -196,7 +199,7 @@ export function LoginPanel() {
           {loggedOutNotice && session.status === "anonymous" ? (
             <div className="login-alert login-alert-success" role="status">
               <strong>Сесію завершено</strong>
-              <span>Server-side session відкликано, приватний cache очищено в усіх відкритих вкладках.</span>
+              <span>Ви вийшли з облікового запису в усіх відкритих вкладках цього браузера.</span>
             </div>
           ) : null}
 
@@ -205,13 +208,13 @@ export function LoginPanel() {
               <strong>{session.status === "logging-out" ? "Завершуємо сесію" : "Перевіряємо наявну сесію"}</strong>
               <span>
                 {session.status === "logging-out"
-                  ? "Чекаємо підтвердження logout від backend."
-                  : "HttpOnly cookie перевіряється без показу або збереження secret у JavaScript."}
+                  ? "Зачекайте, поки завершиться вихід з облікового запису."
+                  : "Перевіряємо, чи можна безпечно продовжити роботу в кабінеті."}
               </span>
             </div>
           ) : session.status === "logout-failed" && !formError ? (
             <div className="login-alert login-alert-warning" role="alert">
-              <strong>Logout не підтверджено</strong>
+              <strong>Вихід не підтверджено</strong>
               <span>
                 {session.message} Поверніться до захищеного маршруту, щоб повторити вихід або відновити кабінет.
               </span>
@@ -293,8 +296,8 @@ export function LoginPanel() {
             <Link href={`/recover?returnTo=${encodeURIComponent(returnTo)}` as Route}>Відновити доступ</Link>
           </div>
           <div className="login-security">
-            Refresh token зберігається лише в HttpOnly cookie. Access token залишається тільки в пам’яті вкладки й не
-            записується у localStorage або URL.
+            Зберігайте постійний пароль і ключ відновлення в надійному місці. Код із застосунку потрібен, якщо
+            двоетапний вхід увімкнено.
           </div>
         </div>
       </section>

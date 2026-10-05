@@ -32,18 +32,22 @@ function AccessGate({
   title,
   description,
   tone = "info",
+  busy = false,
   children,
 }: Readonly<{
   title: string;
   description: string;
   tone?: "info" | "warning" | "danger";
+  busy?: boolean;
   children?: ReactNode;
 }>) {
   return (
     <main className="access-gate">
       <section className="access-gate-card" role={tone === "danger" ? "alert" : "status"}>
         <div className="access-gate-brand" aria-label="KERUMO">KERUMO</div>
-        <span className={`access-gate-mark access-gate-mark-${tone}`} aria-hidden="true" />
+        <span className={`access-gate-mark access-gate-mark-${tone}${busy ? " access-gate-mark-busy" : ""}`} aria-hidden="true">
+          {!busy && <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="12" r="9" /><path d="M12 7v6M12 16h.01" /></svg>}
+        </span>
         <h1>{title}</h1>
         <p>{description}</p>
         {children ? <div className="access-gate-actions">{children}</div> : null}
@@ -137,6 +141,7 @@ export function WorkspaceGuard({ children }: Readonly<{ children: ReactNode }>) 
     return (
       <AccessGate
         title="Завершуємо сесію"
+        busy
         description="Відкликаємо HttpOnly session на backend, скасовуємо активні запити та очищуємо приватний cache."
       />
     );
@@ -154,7 +159,7 @@ export function WorkspaceGuard({ children }: Readonly<{ children: ReactNode }>) 
   }
 
   if (session.status === "restoring") {
-    return <AccessGate title="Перевіряємо сесію" description="Безпечна HttpOnly session перевіряється через backend." />;
+    return <AccessGate title="Перевіряємо сесію" description="Безпечна HttpOnly session перевіряється через backend." busy />;
   }
 
   if (session.status === "unavailable") {
@@ -168,11 +173,11 @@ export function WorkspaceGuard({ children }: Readonly<{ children: ReactNode }>) 
   }
 
   if (session.status === "anonymous") {
-    return <AccessGate title="Потрібен вхід" description="Переходимо до захищеної форми входу…" />;
+    return <AccessGate title="Потрібен вхід" description="Переходимо до захищеної форми входу…" busy />;
   }
 
   if (snapshot.status === "idle" || snapshot.status === "resolving") {
-    return <AccessGate title="Перевіряємо профіль і права" description="Завантажуємо /auth/me, доступні організації та актуальні permissions." />;
+    return <AccessGate title="Перевіряємо профіль і права" description="Завантажуємо /auth/me, доступні організації та актуальні permissions." busy />;
   }
 
   if (snapshot.status === "unavailable") {
@@ -192,7 +197,11 @@ export function WorkspaceGuard({ children }: Readonly<{ children: ReactNode }>) 
 
   if (snapshot.status === "no-access") {
     return (
-      <AccessGate title={snapshot.reason === "empty" ? "Додайте свій перший контролер" : "Немає доступної організації"} description={snapshot.message} tone="warning">
+      <AccessGate
+        title={snapshot.reason === "empty" ? "Додайте свій перший контролер" : "Немає доступної організації"}
+        description={snapshot.reason === "empty" ? "Додайте контролер із комплекту. У майстрі активації ви створите об’єкт і виберете частотний перетворювач." : snapshot.message}
+        tone={snapshot.reason === "empty" ? "info" : "warning"}
+      >
         <Link className="button button-primary" href={"/connect" as Route}>Додати контролер</Link>
         <Button variant="secondary" onClick={retryAccess}>Оновити доступ</Button>
         <Link className="button button-secondary" href={"/organizations" as Route}>Обрати організацію</Link>

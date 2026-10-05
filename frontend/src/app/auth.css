@@ -50,25 +50,27 @@
   box-shadow: 0 18px 48px rgb(20 33 38 / 18%);
 }
 .user-menu-profile { display: grid; gap: 4px; padding: 15px 16px 13px; }
-.user-menu-profile strong { overflow: hidden; color: var(--text); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.user-menu-profile strong { overflow-wrap: anywhere; color: var(--text); font-size: 13px; line-height: 1.5; }
 .user-menu-profile span { color: var(--text-secondary); font-size: 12px; }
 .user-menu-profile small { color: var(--text-soft); font-size: 11px; }
 .user-menu-separator { height: 1px; background: var(--border); }
 .user-menu-action {
   display: grid;
   width: 100%;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: center;
+  grid-template-columns: 19px minmax(0, 1fr);
+  align-items: start;
   gap: 11px;
   border: 0;
   background: transparent;
   padding: 12px 16px;
   color: var(--text);
+  font-size: 13px;
+  line-height: 1.5;
   text-align: left;
 }
 .user-menu-action:hover, .user-menu-action:focus-visible { background: var(--background); }
 .user-menu-action:focus-visible { outline-offset: -3px; }
-.user-menu-action .nav-icon { width: 19px; height: 19px; }
+.user-menu-action .nav-icon { width: 19px; height: 19px; margin-top: 1px; }
 .user-menu-action > span { display: grid; gap: 2px; }
 .user-menu-action strong { font-size: 13px; }
 .user-menu-action small { color: var(--text-secondary); font-size: 11px; }
