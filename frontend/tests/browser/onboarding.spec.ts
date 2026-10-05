@@ -264,6 +264,7 @@ test("TOTP enrollment clears its secret, rotates recovery and revokes only the s
   await proof.fill(password);
   await page.getByRole("button", { name: "Налаштувати двоетапний вхід", exact: true }).click();
   await expect(page.locator(".recovery-key")).toHaveText(secret);
+  await expect(page.getByRole("img", { name: "QR для застосунку автентифікації", exact: true })).toBeVisible();
   await expect(proof).toHaveCount(0);
   await otp.fill("123456");
   await page.getByRole("button", { name: "Підтвердити код і ввімкнути", exact: true }).click();

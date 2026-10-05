@@ -46,6 +46,7 @@ function FactoryRegister() {
   const [passed, setPassed] = useState(false);
   const [secrets, setSecrets] = useState<Schema["FactorySecrets"] | null>(null);
   const [labelUrl, setLabelUrl] = useState("");
+  const [readyLabelUrl, setReadyLabelUrl] = useState<string | null>(null);
   const [printBuyer, setPrintBuyer] = useState(false);
   const printLabel = (buyer: boolean) => {
     flushSync(() => setPrintBuyer(buyer));
@@ -127,7 +128,7 @@ function FactoryRegister() {
           <div className="connect-fields">
             <p>Контролер зареєстровано. Завантажте приватний заводський комплект: повторно ключі не показуються.</p>
             <div className="factory-label factory-public-label">
-              <ControllerQr url={labelUrl} />
+              <ControllerQr url={labelUrl} onReady={setReadyLabelUrl} />
               <strong>KERUMO · {secrets.controller.serial_number}</strong>
               <p>{labelUrl}</p>
             </div>
@@ -139,12 +140,16 @@ function FactoryRegister() {
               onChange={(event) => setLabelUrl(event.target.value)}
               hint="Для телефона потрібна доступна HTTPS-адреса вашого сайту, а не localhost."
             />
-            <Button onClick={() => printLabel(false)}>Друкувати публічний QR</Button>
-            <Button onClick={() => printLabel(true)}>Друкувати закриту етикетку покупця</Button>
+            <Button disabled={readyLabelUrl !== labelUrl} onClick={() => printLabel(false)}>
+              Друкувати публічний QR
+            </Button>
+            <Button disabled={readyLabelUrl !== labelUrl} onClick={() => printLabel(true)}>
+              Друкувати закриту етикетку покупця
+            </Button>
             <details open={printBuyer || undefined} data-buyer-print={printBuyer ? "true" : "false"}>
               <summary>Закрита картка покупця</summary>
               <div className="factory-label factory-private-label">
-                <ControllerQr url={labelUrl} />
+                <ControllerQr url={labelUrl} onReady={setReadyLabelUrl} />
                 <strong>KERUMO · {secrets.controller.serial_number}</strong>
                 <p>{labelUrl}</p>
                 <p>
