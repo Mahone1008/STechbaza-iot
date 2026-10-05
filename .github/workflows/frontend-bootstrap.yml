@@ -77,9 +77,6 @@ jobs:
       - name: Frontend bundle budget
         working-directory: frontend
         run: npm run check:budget
-      - name: Dependency vulnerability gate
-        working-directory: frontend
-        run: npm audit --json --audit-level=high > artifacts/stage14/dependency-audit.json
       - name: Install Chromium
         working-directory: frontend
         run: npx playwright install --with-deps chromium
@@ -118,6 +115,32 @@ jobs:
             frontend/playwright-report
             frontend/test-results
           if-no-files-found: ignore
+          retention-days: 5
+
+  dependencies:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.16.0'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install locked frontend dependencies
+        working-directory: frontend
+        run: npm ci --no-audit --no-fund
+      - name: Dependency vulnerability gate
+        working-directory: frontend
+        run: |
+          mkdir -p artifacts/stage14
+          npm audit --json --audit-level=high > artifacts/stage14/dependency-audit.json
+      - name: Preserve dependency report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dependency-audit
+          path: frontend/artifacts/stage14/dependency-audit.json
           retention-days: 5
 
   auth-live:

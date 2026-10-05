@@ -253,6 +253,6 @@ unit/browser tests і `npm run format:check` для модулів, очищен
 для `braces <=3.0.3` у dev-ланцюжку `eslint-config-next` → Next ESLint plugin
 → `fast-glob` → `micromatch`. На дату перевірки виправленої версії `braces`
 немає, актуальний Next ESLint 16.3.8 також використовує цей ланцюжок.
-`npm audit --omit=dev` не знаходить уразливостей. Повний CI gate **залишено
-блокувальним**, без allowlist, downgrade ESLint або приховування dev-пакетів.
+`npm audit --omit=dev` не знаходить уразливостей. Повний CI gate винесено в окремий job, щоб незалежні browser/live перевірки
+могли завершитися; gate **залишено блокувальним**, без allowlist, downgrade ESLint або приховування dev-пакетів.
 Це відкрите зовнішнє обмеження; повторити audit після upstream-виправлення.
