@@ -104,24 +104,67 @@ test("invalid credentials stay on login and do not disclose account existence", 
 
   await expect(page).toHaveURL(/\/login$/u);
   await expect(page.locator(".login-alert")).toContainText("Невірний логін або пароль");
-  await expect(page.getByLabel("Пароль")).toHaveValue("");
+  await expect(page.getByLabel("Пароль", { exact: true })).toHaveValue("");
 });
 
-test("rate limit disables repeat login for Retry-After duration", async ({ page }) => {
-  await mockBrowserLogin(page, async (route) => {
-    await route.fulfill({
-      status: 429,
-      headers: { ...corsHeaders, "content-type": "application/json", "retry-after": "3" },
-      body: JSON.stringify({ detail: "Забагато auth-спроб" }),
+for (const seconds of [3, 60])
+  test(`rate limit expires its banner after ${seconds}s without replaying login`, async ({ page }) => {
+    await page.clock.install();
+    let requests = 0;
+    await mockBrowserLogin(page, async (route) => {
+      requests += 1;
+      await route.fulfill({
+        status: requests === 1 ? 429 : 401,
+        headers: { ...corsHeaders, "content-type": "application/json", "retry-after": String(seconds) },
+        body: JSON.stringify({ detail: "Забагато auth-спроб" }),
+      });
     });
+
+    await page.goto("/login");
+    await fillLogin(page);
+    await page.getByRole("button", { name: "Увійти" }).click();
+
+    await expect(page.locator(".login-alert-warning")).toContainText(/Повторіть через/u);
+    await expect(page.getByRole("button", { name: /Спробуйте через/u })).toBeDisabled();
+    await page.clock.fastForward(1_000);
+    await expect(page.locator(".login-alert-warning")).toContainText(`Повторіть через ${seconds - 1} с.`);
+    await page.clock.fastForward(seconds * 1_000);
+    await expect(page.locator(".login-alert-warning, .login-alert-danger")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Увійти", exact: true })).toBeEnabled();
+    expect(requests).toBe(1);
+    await fillLogin(page);
+    await page.getByRole("button", { name: "Увійти", exact: true }).click();
+    await expect(page.locator(".login-alert-danger")).toContainText("Невірний логін або пароль.");
+    await page.clock.fastForward(1_000);
+    await expect(page.locator(".login-alert-danger")).toBeVisible();
+    expect(requests).toBe(2);
   });
 
+test("password visibility is keyboard accessible and never submits the login form", async ({ page }) => {
+  let requests = 0;
+  await mockBrowserLogin(page, async (route) => {
+    requests += 1;
+    await route.abort("failed");
+  });
+  await page.setViewportSize({ width: 320, height: 640 });
   await page.goto("/login");
-  await fillLogin(page);
-  await page.getByRole("button", { name: "Увійти" }).click();
-
-  await expect(page.locator(".login-alert")).toContainText(/Повторіть через [123] с/u);
-  await expect(page.getByRole("button", { name: /Спробуйте через/u })).toBeDisabled();
+  const password = page.getByLabel("Пароль", { exact: true });
+  await password.fill("visible-test-password");
+  await expect(password).toHaveAttribute("type", "password");
+  const toggle = page.getByRole("button", { name: "Показати пароль", exact: true });
+  await expect(toggle).toHaveAccessibleDescription("Пароль");
+  await toggle.focus();
+  await toggle.press("Enter");
+  await expect(password).toHaveAttribute("type", "text");
+  await expect(password).toHaveValue("visible-test-password");
+  await expect(password).toHaveAttribute("autocomplete", "current-password");
+  await expect(page.getByRole("button", { name: "Приховати пароль", exact: true })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await page.getByRole("button", { name: "Приховати пароль", exact: true }).press("Space");
+  await expect(password).toHaveAttribute("type", "password");
+  expect(requests).toBe(0);
 });
 
 test("network failure is not rendered as invalid credentials or an empty state", async ({ page }) => {
@@ -132,7 +175,7 @@ test("network failure is not rendered as invalid credentials or an empty state",
   await page.getByRole("button", { name: "Увійти" }).click();
 
   await expect(page.locator(".login-alert")).toContainText("Backend недоступний");
-  await expect(page.getByLabel("Пароль")).toHaveValue("valid-test-password");
+  await expect(page.getByLabel("Пароль", { exact: true })).toHaveValue("valid-test-password");
 });
 
 for (const source of ["login", "refresh"] as const) {

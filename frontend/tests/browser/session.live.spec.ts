@@ -15,7 +15,7 @@ const DEMO_PASSWORD: string = demoPassword;
 async function login(page: Page) {
   await page.goto("/login");
   await page.getByLabel("Логін").fill(DEMO_EMAIL);
-  await page.getByLabel("Пароль").fill(DEMO_PASSWORD);
+  await page.getByLabel("Пароль", { exact: true }).fill(DEMO_PASSWORD);
   await page.getByRole("button", { name: "Увійти" }).click();
   await expect(page).toHaveURL(/\/devices$/u);
   await expect(page.getByText("Сесія підтверджена")).toBeVisible();

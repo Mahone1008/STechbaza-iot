@@ -23,7 +23,6 @@ export function PermanentAccessFields({
   const [password, setPassword] = useState("");
   const [otp, setOtp] = useState("");
   const [saved, setSaved] = useState(false);
-  const [visible, setVisible] = useState(false);
   const { busy, error, run } = useAccountAction();
   useEffect(() => {
     onChange({ password, otp, saved });
@@ -73,14 +72,7 @@ export function PermanentAccessFields({
       ) : (
         <>
           <TextField label="Постійний логін" value={login} readOnly autoComplete="off" />
-          <TextField
-            label="Новий згенерований пароль"
-            type={visible ? "text" : "password"}
-            value={password}
-            readOnly
-            autoComplete="off"
-          />
-          <Button onClick={() => setVisible(!visible)}>{visible ? "Приховати пароль" : "Показати пароль"}</Button>
+          <TextField label="Новий згенерований пароль" type="password" value={password} readOnly autoComplete="off" />
           <Button onClick={download}>Завантажити дані входу та ключ відновлення</Button>
           <p>Збережіть файл у надійному місці. Ключ відновлення допоможе, якщо втратите пароль або телефон.</p>
           <h3>Підключіть застосунок автентифікації</h3>

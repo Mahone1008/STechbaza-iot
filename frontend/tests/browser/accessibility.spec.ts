@@ -66,7 +66,7 @@ test("login keyboard validation exposes field errors and passes accessibility ch
   await expect(email).toBeFocused();
   await expect(email).toHaveAttribute("aria-invalid", "true");
   await expect(email).toHaveAccessibleDescription(/логін із комплекту/u);
-  await expect(page.getByLabel("Пароль")).toHaveAccessibleDescription("Введіть пароль.");
+  await expect(page.getByLabel("Пароль", { exact: true })).toHaveAccessibleDescription("Введіть пароль.");
   await noPageOverflow(page);
   await audit(page, "login-errors");
 });

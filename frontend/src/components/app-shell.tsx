@@ -65,7 +65,7 @@ function Brand({ compact = false }: { compact?: boolean }) {
   );
 }
 
-type IconName = "devices" | "alarm" | "components" | "more" | "chevron" | "logout";
+type IconName = "devices" | "alarm" | "components" | "more" | "chevron" | "logout" | "security";
 
 function Icon({ name, className = "nav-icon" }: { name: IconName; className?: string }) {
   const paths: Record<IconName, ReactNode> = {
@@ -97,6 +97,12 @@ function Icon({ name, className = "nav-icon" }: { name: IconName; className?: st
       </>
     ),
     chevron: <path d="m9 18 6-6-6-6" />,
+    security: (
+      <>
+        <path d="m12 3 8 3v6c0 5-8 9-8 9s-8-4-8-9V6l8-3Z" />
+        <path d="m8 12 3 3 5-6" />
+      </>
+    ),
     logout: (
       <>
         <path d="M10 5H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h4" />
@@ -237,8 +243,8 @@ function UserMenu({
             <small>{organizationName}</small>
           </div>
           <div className="user-menu-separator" />
-          <Link className="user-menu-action" role="menuitem" href={"/account/security" as Route} onClick={() => setOpen(false)}>Безпека облікового запису</Link>
-          <Link className="user-menu-action" role="menuitem" href={"/connect" as Route} onClick={() => setOpen(false)}>Додати контролер</Link>
+          <Link className="user-menu-action" role="menuitem" href={"/account/security" as Route} onClick={() => setOpen(false)}><Icon name="security" /><span>Безпека облікового запису</span></Link>
+          <Link className="user-menu-action" role="menuitem" href={"/connect" as Route} onClick={() => setOpen(false)}><Icon name="devices" /><span>Додати контролер</span></Link>
           <button
             className="user-menu-action user-menu-action-danger"
             type="button"
@@ -250,7 +256,7 @@ function UserMenu({
             }}
           >
             <Icon name="logout" />
-            <span><strong>Вийти з акаунта</strong><small>Відкликати поточну browser session</small></span>
+            <span><strong>Вийти з акаунта</strong><small>Завершити поточний сеанс</small></span>
           </button>
         </div>
       ) : null}
