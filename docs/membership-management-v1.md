@@ -1,5 +1,8 @@
 # Membership Management v1
 
+З 0.49.0 учасники також приєднуються через [email-запрошення](personal-accounts-v1.md);
+власник керує ними на `/organizations/{id}/members`.
+
 ## Мета
 
 Операція 4.2 додає керований API для ролей користувачів усередині Organization.

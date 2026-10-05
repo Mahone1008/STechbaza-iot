@@ -61,7 +61,7 @@ export function AccessContextProvider({ children }: Readonly<{ children: ReactNo
     // Старі tenant queries скасовуються й видаляються також при зміні маршруту.
     const cleared = previousScope ? clearSessionCache(queryClient, previousScope) : clearAllSessionCaches(queryClient);
     // На публічній сторінці не запускаємо запит, який скасує перехід після login.
-    if (session.status !== "authenticated" || pathname === "/login" || pathname === "/") {
+    if (session.status !== "authenticated" || ["/login", "/register", "/invite", "/"].includes(pathname)) {
       if (session.status === "anonymous") forgetContext();
       queueMicrotask(() => publish({ status: "idle" }));
       return () => controller.abort();

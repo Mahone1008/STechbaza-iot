@@ -76,6 +76,15 @@ def sessions(current: Current, session: Db):
     return AccountSecurityService(session).list_sessions(current)
 
 
+@router.post("/security/totp/disable", status_code=204)
+def disable_totp(
+    payload: SecurityProof, current: Current, request: Request, session: Db
+):
+    throttle_auth(request, session, email=current.user.email)
+    AccountSecurityService(session).disable_totp(current, payload)
+    return Response(status_code=204)
+
+
 @router.delete("/sessions/{session_id}", status_code=204)
 def revoke_session(session_id: uuid.UUID, current: Current, session: Db):
     AccountSecurityService(session).revoke_session(current, session_id)

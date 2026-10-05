@@ -8,14 +8,14 @@ CI звіряє його з tracked code. Це перелік реалізаці
 
 | Компонент | Значення з коду |
 |---|---|
-| Backend / OpenAPI / health | 0.48.0 |
-| Alembic head | `20261005_0025`; 25 міграцій |
+| Backend / OpenAPI / health | 0.49.0 |
+| Alembic head | `20261005_0026`; 26 міграцій |
 | Frontend package | 0.1.0 |
 | Node engine | `>=20.9.0` |
 | Package manager | `npm@10.9.2` |
 | Next.js / React | 16.3.6 / 19.2.8 |
 | Firmware V3 | 0.7.0 |
-| OpenAPI paths | 81 |
+| OpenAPI paths | 92 |
 
 ## Канали телеметрії
 
@@ -94,10 +94,14 @@ ACK/Result лишаються v1. Дозвіл API не замінює лока�
 | `/api/v1/auth/me` | GET |
 | `/api/v1/auth/recover` | POST |
 | `/api/v1/auth/refresh` | POST |
+| `/api/v1/auth/registration/complete` | POST |
+| `/api/v1/auth/registration/inspect` | POST |
+| `/api/v1/auth/registration/start` | POST |
 | `/api/v1/auth/security` | GET |
 | `/api/v1/auth/security/password` | POST |
 | `/api/v1/auth/security/recovery` | POST |
 | `/api/v1/auth/security/totp/confirm` | POST |
+| `/api/v1/auth/security/totp/disable` | POST |
 | `/api/v1/auth/security/totp/setup` | POST |
 | `/api/v1/auth/sessions` | GET |
 | `/api/v1/auth/sessions/{session_id}` | DELETE |
@@ -105,9 +109,11 @@ ACK/Result лишаються v1. Дозвіл API не замінює лока�
 | `/api/v1/bootstrap/{controller_id}/contact` | POST |
 | `/api/v1/capabilities` | GET, POST |
 | `/api/v1/commands/{command_id}` | GET |
+| `/api/v1/connect/organizations` | GET |
 | `/api/v1/connect/sites` | GET |
 | `/api/v1/connect/{controller_id}` | GET |
 | `/api/v1/connect/{controller_id}/access/{operation}` | POST |
+| `/api/v1/connect/{controller_id}/account-registration` | POST |
 | `/api/v1/connect/{controller_id}/claim` | POST |
 | `/api/v1/connect/{controller_id}/equipment` | PUT |
 | `/api/v1/connect/{controller_id}/security` | POST |
@@ -140,11 +146,16 @@ ACK/Result лишаються v1. Дозвіл API не замінює лока�
 | `/api/v1/factory/controllers/{controller_id}/quarantine` | POST |
 | `/api/v1/factory/controllers/{controller_id}/reset` | POST |
 | `/api/v1/factory/controllers/{controller_id}/shipments` | POST |
+| `/api/v1/invitations/accept` | POST |
+| `/api/v1/invitations/inspect` | POST |
+| `/api/v1/invitations/register` | POST |
 | `/api/v1/notifications/{notification_id}` | GET |
 | `/api/v1/notifications/{notification_id}/read` | POST |
 | `/api/v1/organizations` | GET, POST |
 | `/api/v1/organizations/{organization_id}` | GET |
 | `/api/v1/organizations/{organization_id}/access` | GET |
+| `/api/v1/organizations/{organization_id}/invitations` | GET, POST |
+| `/api/v1/organizations/{organization_id}/invitations/{invitation_id}` | DELETE |
 | `/api/v1/organizations/{organization_id}/memberships` | GET, POST |
 | `/api/v1/organizations/{organization_id}/memberships/{membership_id}` | PATCH |
 | `/api/v1/organizations/{organization_id}/notifications` | GET |

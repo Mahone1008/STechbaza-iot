@@ -50,6 +50,8 @@ export function LoginPanel() {
   const router = useRouter();
   const params = useSearchParams();
   const returnTo = safeLoginReturnTo(params.get("returnTo"));
+  const controllerId = /^\/connect\/([a-f0-9-]{36})$/i.exec(returnTo)?.[1];
+  const registrationHref = (controllerId ? `/register?controller=${controllerId}` : "/register") as Route;
   const [otp, setOtp] = useState("");
   const { login, session } = useAuthSession();
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -172,8 +174,8 @@ export function LoginPanel() {
           <Brand />
           <h2>Вхід до кабінету</h2>
           <p>
-            Уперше тут? Використайте логін і пароль із комплекту або відкрийте QR на шильдику. Якщо пристрій уже
-            активовано, введіть свій постійний логін і пароль.
+            Увійдіть зі своєю поштою та особистим паролем. Для першого підключення створіть обліковий запис або
+            відкрийте QR на шильдику контролера.
           </p>
 
           {loggedOutNotice && session.status === "anonymous" ? (
@@ -277,6 +279,7 @@ export function LoginPanel() {
 
           <div className="login-support">
             <Link href="/connect">Активувати контролер за QR</Link>
+            <Link href={registrationHref}>Створити обліковий запис</Link>
             <Link href={`/recover?returnTo=${encodeURIComponent(returnTo)}` as Route}>Відновити доступ</Link>
           </div>
           <div className="login-security">

@@ -79,39 +79,18 @@ async function noStoredSecrets(page: Page, ...secrets: string[]) {
   }
 }
 
-test("QR activation uses the label password without registration and resumes its wizard", async ({ page }) => {
+test("public QR keeps account registration separate from device activation", async ({ page }) => {
   await mockMissingBrowserSession(page);
-  let posts = 0;
-  await route(page, "auth/browser/login", async (request) => {
-    posts++;
-    expect(request.request().postDataJSON()).toEqual({ controller_id: id, password });
-    if (posts === 1) {
-      await fulfillJson(request, 401, { detail: "Невірний логін або пароль." });
-      return;
-    }
-    await mockAuthenticatedWorkspace(page);
-    await read(page, `connect/${id}`, () => ({ ...connection, activation_required: false }));
-    await read(page, "connect/sites", () => []);
-    await read(page, "equipment/profiles", () => [profile]);
-    await fulfillJson(request, 200, {
-      access_token: "activation-access-token-only-for-browser-test",
-      token_type: "bearer",
-      expires_in: 300,
-      session_expires_in: 3600,
-      onboarding_path: `/connect/${id}`,
-    });
-  });
   await page.goto(`/connect/${id}`);
-  await expect(page.getByRole("link", { name: "Створити обліковий запис", exact: true })).toHaveCount(0);
-  await page.getByLabel("Пароль з етикетки", { exact: true }).fill(password);
-  await page.getByRole("button", { name: "Активувати контролер", exact: true }).click();
-  await expect(page.getByRole("main").getByRole("alert")).toContainText("Невірний логін або пароль.");
-  expect(posts).toBe(1);
-  await page.getByRole("button", { name: "Активувати контролер", exact: true }).click();
-  await expect(page.getByLabel("Назва об’єкта", { exact: true })).toBeVisible();
-  await expect(page.getByLabel("Пароль активації з етикетки", { exact: true })).toHaveCount(0);
-  expect(posts).toBe(2);
-  await noStoredSecrets(page, password);
+  await expect(page.getByRole("link", { name: "Створити обліковий запис", exact: true })).toHaveAttribute(
+    "href",
+    `/register?controller=${id}`,
+  );
+  await expect(page.getByRole("link", { name: "Увійти", exact: true })).toHaveAttribute(
+    "href",
+    `/login?returnTo=${encodeURIComponent(`/connect/${id}`)}`,
+  );
+  await expect(page.getByLabel("Пароль з етикетки", { exact: true })).toHaveCount(0);
 });
 
 for (const query of ["", "?returnTo=%2Faccount%2Fsecurity"])
@@ -121,7 +100,11 @@ for (const query of ["", "?returnTo=%2Faccount%2Fsecurity"])
     await route(page, "auth/browser/login", async (request) => {
       expect(request.request().postDataJSON()).toEqual({ email: login, password });
       await mockAuthenticatedWorkspace(page);
-      await read(page, `connect/${id}`, () => ({ ...connection, activation_required: false }));
+      await read(page, `connect/${id}`, () => ({
+        ...connection,
+        activation_required: false,
+        permanent_login: "ku-017ca46d342c4ab6bd1c89a602021951",
+      }));
       await read(page, "connect/sites", () => []);
       await read(page, "equipment/profiles", () => [profile]);
       await fulfillJson(request, 200, {
@@ -137,7 +120,7 @@ for (const query of ["", "?returnTo=%2Faccount%2Fsecurity"])
     await page.getByLabel("Пароль", { exact: true }).fill(password);
     await page.getByRole("button", { name: "Увійти", exact: true }).click();
     await expect(page).toHaveURL(`/connect/${id}`);
-    await expect(page.getByLabel("Назва об’єкта", { exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Створіть особистий обліковий запис", exact: true })).toBeVisible();
     await noStoredSecrets(page, password);
   });
 
@@ -178,11 +161,17 @@ test("ending the current security session returns a normal login to the device h
   await expect(page.locator(".password-guidance")).toBeVisible();
 });
 
-test("registration route is removed", async ({ page }) => {
+test("registration requests a verified personal mailbox", async ({ page }) => {
   await mockMissingBrowserSession(page);
+  await route(page, "auth/registration/start", async (request) => {
+    expect(request.request().postDataJSON()).toEqual({ email: "buyer@example.com", controller_id: null });
+    await fulfillJson(request, 202, null);
+  });
   const response = await page.goto("/register");
-  expect(response?.status()).toBe(404);
-  await expect(page.getByRole("button", { name: "Зареєструватися", exact: true })).toHaveCount(0);
+  expect(response?.status()).toBe(200);
+  await page.getByLabel("Електронна пошта", { exact: true }).fill("buyer@example.com");
+  await page.getByRole("button", { name: "Підтвердити пошту", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("відкрийте лист KERUMO");
 });
 
 test("recovery failure is not retried and explicit retry displays a replacement key", async ({ page }) => {
@@ -396,7 +385,9 @@ for (const failure of [
     await otp.fill("000000");
     await card.getByRole("button", { name: "Підтвердити код і ввімкнути", exact: true }).click();
     const error = card.getByRole("alert");
-    await expect(error).toHaveText(failure.status === 503 ? "Сервіс тимчасово недоступний. Спробуйте пізніше." : failure.detail);
+    await expect(error).toHaveText(
+      failure.status === 503 ? "Сервіс тимчасово недоступний. Спробуйте пізніше." : failure.detail,
+    );
     await expect(error).toBeFocused();
     await expect(error).toBeInViewport();
     await expect(card.locator(".recovery-key")).toHaveText(secret);
@@ -501,6 +492,7 @@ for (const existing of [false, true])
     await mockAuthenticatedWorkspace(page);
     await read(page, `connect/${id}`, () => connection);
     await read(page, "connect/sites", () => [{ id: SITE_ID, name: "Existing site" }]);
+    await read(page, "connect/organizations", () => []);
     await read(page, "equipment/profiles", () => [profile]);
     let claims = 0,
       writes = 0;
@@ -509,7 +501,9 @@ for (const existing of [false, true])
       expect(request.request().postDataJSON()).toEqual({
         activation_code: activation,
         device_name: "Контролер насоса",
-        ...(existing ? { site_id: SITE_ID } : { new_site: { name: "My well", timezone: "Europe/Kyiv" } }),
+        ...(existing
+          ? { site_id: SITE_ID }
+          : { new_site: { name: "My well", timezone: "Europe/Kyiv", organization_name: "Моя організація" } }),
       });
       await fulfillJson(request, 200, { ...connection, state: "claimed", device_id: DEVICE_ID, site_id: SITE_ID });
     });
@@ -546,55 +540,3 @@ for (const existing of [false, true])
     expect(writes).toBe(1);
     await noStoredSecrets(page, activation);
   });
-
-test("activation saves permanent credentials and confirms MFA before the factory password expires", async ({
-  page,
-}) => {
-  await mockAuthenticatedWorkspace(page);
-  const login = "ku-017ca46d342c4ab6bd1c89a602021951";
-  const secret = "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ";
-  const setup = { login, secret, uri: `otpauth://totp/KERUMO:${login}?secret=${secret}`, recovery_key: recovery };
-  await read(page, `connect/${id}`, () => ({ ...connection, activation_required: false, permanent_login: login }));
-  await read(page, "connect/sites", () => []);
-  await read(page, "equipment/profiles", () => [profile]);
-  await route(page, `connect/${id}/security`, async (request) => {
-    await fulfillJson(request, 200, setup);
-  });
-  let permanentPassword = "";
-  await route(page, `connect/${id}/claim`, async (request) => {
-    const body = request.request().postDataJSON();
-    expect(body).toEqual({
-      device_name: "Контролер насоса",
-      new_site: { name: "New well", timezone: "Europe/Kyiv" },
-      new_password: permanentPassword,
-      otp: "123456",
-    });
-    await fulfillJson(request, 200, { ...connection, state: "claimed", device_id: DEVICE_ID, site_id: SITE_ID });
-  });
-  await page.goto(`/connect/${id}`);
-  await page.getByLabel("Назва об’єкта", { exact: true }).fill("New well");
-  const submit = page.getByRole("button", { name: "Підключити до об’єкта", exact: true });
-  await expect(submit).toBeDisabled();
-  await page.getByRole("button", { name: "Створити постійний доступ", exact: true }).click();
-  permanentPassword = await page.getByLabel("Новий згенерований пароль", { exact: true }).inputValue();
-  expect(permanentPassword).toMatch(/^[A-Za-z0-9_-]{24}$/);
-  const generatedField = page
-    .locator(".field")
-    .filter({ has: page.getByLabel("Новий згенерований пароль", { exact: true }) });
-  await generatedField.getByRole("button", { name: "Показати пароль", exact: true }).click();
-  await expect(page.getByLabel("Новий згенерований пароль", { exact: true })).toHaveAttribute("type", "text");
-  await generatedField.getByRole("button", { name: "Приховати пароль", exact: true }).click();
-  await expect(page.getByLabel("Новий згенерований пароль", { exact: true })).toHaveAttribute("type", "password");
-  await expect(page.getByRole("img", { name: "QR для застосунку автентифікації", exact: true })).toBeVisible();
-  const downloading = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Завантажити дані входу та ключ відновлення", exact: true }).click();
-  const downloaded = await downloading;
-  expect(downloaded.suggestedFilename()).toBe(`kerumo-access-${login}.json`);
-  await page.getByLabel("Я зберіг нові дані входу та ключ відновлення", { exact: true }).check();
-  await expect(submit).toBeDisabled();
-  await page.getByLabel("Код підтвердження постійного доступу", { exact: true }).fill("123456");
-  await submit.click();
-  await expect(page.getByRole("status").filter({ hasText: "Контролер прив’язано" })).toBeVisible();
-  await expect(page.getByLabel("Новий згенерований пароль", { exact: true })).toHaveCount(0);
-  await noStoredSecrets(page, permanentPassword, secret, recovery);
-});

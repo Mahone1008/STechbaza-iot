@@ -58,7 +58,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="TechBaza Backend",
-    version="0.48.0",
+    version="0.49.0",
     description="Backend API платформи TechBaza IoT Pump Control",
     lifespan=lifespan,
 )
@@ -109,7 +109,7 @@ async def account_key_unavailable(request: Request, exc: AccountKeyUnavailableEr
 @app.exception_handler(RequestValidationError)
 async def validation_error(request: Request, exc: RequestValidationError):
     if request.url.path.startswith(
-        ("/api/v1/auth/", "/api/v1/connect/", "/api/v1/bootstrap/", "/api/v1/factory/")
+        ("/api/v1/auth/", "/api/v1/connect/", "/api/v1/bootstrap/", "/api/v1/factory/", "/api/v1/invitations/")
     ):
         # Стандартна validation response містить input: password/refresh не
         # повинні повертатися клієнту чи потрапляти до журналів його помилок.
@@ -122,7 +122,7 @@ def health() -> dict[str, str]:
     return {
         "status": "ok",
         "service": "techbaza-backend",
-        "version": "0.48.0",
+        "version": "0.49.0",
     }
 
 

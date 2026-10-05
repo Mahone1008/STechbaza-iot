@@ -2,7 +2,6 @@
 import { AccountGate } from "./account-gate";
 import { useAccessContext } from "./access-context";
 import { ControllerActivation } from "./controller-activation";
-import { PermanentAccessFields, type ActivationProof } from "./permanent-access";
 import { useAccountAction } from "./use-account-action";
 import type { Route } from "next";
 import Link from "next/link";
@@ -73,11 +72,12 @@ function ConnectWizard({ id }: { id: string }) {
   const { retryAccess } = useAccessContext();
   const [connection, setConnection] = useState<Connection | null>(null);
   const [activation, setActivation] = useState("");
-  const [access, setAccess] = useState<ActivationProof>({ password: "", otp: "", saved: false });
   const [deviceName, setDeviceName] = useState("Контролер насоса");
   const [siteName, setSiteName] = useState("");
   const [timezone, setTimezone] = useState("Europe/Kyiv");
   const [siteId, setSiteId] = useState("");
+  const [organizationId, setOrganizationId] = useState("");
+  const [organizationName, setOrganizationName] = useState("Моя організація");
   const [selectedProfile, setSelectedProfile] = useState("");
   const [model, setModel] = useState("");
   const [revision, setRevision] = useState("");
@@ -123,27 +123,40 @@ function ConnectWizard({ id }: { id: string }) {
         signal,
       }),
   });
+  const organizations = usePanelQuery({
+    queryKey: ["connect-organizations", key],
+    intervalMs: 0,
+    queryFn: (signal) =>
+      authorizedRequest<Schema["OrganizationRead"][]>({
+        path: "/api/v1/connect/organizations",
+        signal,
+      }),
+  });
   const data = connection ?? query.data;
   const profile = profiles.data?.find((item) => `${item.id}:${item.version}` === selectedProfile);
   const { busy, error, run: mutate } = useAccountAction();
   const submitClaim = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     void mutate(async () => {
-      if (data?.permanent_login && (!access.saved || !access.password || !/^\d{6}$/.test(access.otp)))
-        throw new Error("Збережіть постійні дані входу та введіть код із застосунку.");
       const result = await authorizedRequest<Connection>({
         path: `/api/v1/connect/${id}/claim`,
         method: "POST",
         body: {
           ...(data?.activation_required === false ? {} : { activation_code: activation }),
-          ...(data?.permanent_login ? { new_password: access.password, otp: access.otp } : {}),
           device_name: deviceName,
-          ...(siteId ? { site_id: siteId } : { new_site: { name: siteName, timezone } }),
+          ...(siteId
+            ? { site_id: siteId }
+            : {
+                new_site: {
+                  name: siteName,
+                  timezone,
+                  ...(organizationId ? { organization_id: organizationId } : { organization_name: organizationName }),
+                },
+              }),
         },
       });
       setConnection(parseConnection(result, id));
       setActivation("");
-      setAccess({ password: "", otp: "", saved: false });
       retryAccess();
     });
   };
@@ -191,6 +204,18 @@ function ConnectWizard({ id }: { id: string }) {
       </Card>
     );
   if (!data) return <p role="status">Перевіряємо контролер…</p>;
+  if (data.permanent_login)
+    return (
+      <Card title="Створіть особистий обліковий запис">
+        <p>
+          Заводські дані підтверджено. Збережіть особистий доступ із вашою поштою та паролем, щоб додавати кілька
+          контролерів до одного кабінету.
+        </p>
+        <Link className="button button-primary" href={`/register?controller=${id}` as Route}>
+          Створити обліковий запис
+        </Link>
+      </Card>
+    );
   return (
     <>
       <Card title={data.hardware_model} description={`Серійний номер: ${data.serial_number}`}>
@@ -215,6 +240,31 @@ function ConnectWizard({ id }: { id: string }) {
             )}
             {!siteId && (
               <>
+                <SelectField
+                  label="Організація для нового об’єкта"
+                  value={organizationId}
+                  onChange={(event) => setOrganizationId(event.target.value)}
+                >
+                  <option value="">Створити нову організацію</option>
+                  {organizations.data?.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.name}
+                    </option>
+                  ))}
+                </SelectField>
+                {!organizationId && (
+                  <TextField
+                    label="Назва організації"
+                    required
+                    minLength={2}
+                    maxLength={160}
+                    value={organizationName}
+                    onChange={(event) => setOrganizationName(event.target.value)}
+                  />
+                )}
+                {organizations.isError && (
+                  <p role="status">Наявні організації не завантажено. Можна створити нову або повторити підключення.</p>
+                )}
                 <TextField
                   required
                   minLength={2}
@@ -254,14 +304,7 @@ function ConnectWizard({ id }: { id: string }) {
                 hint="Пароль із комплекту підтверджує право додати контролер. Сам QR цього права не дає."
               />
             )}
-            {data.permanent_login && (
-              <PermanentAccessFields id={id} login={data.permanent_login} onChange={setAccess} />
-            )}
-            <Button
-              variant="primary"
-              type="submit"
-              disabled={busy || (!!data.permanent_login && (!access.saved || !/^\d{6}$/.test(access.otp)))}
-            >
+            <Button variant="primary" type="submit" disabled={busy}>
               {busy ? "Прив’язуємо…" : "Підключити до об’єкта"}
             </Button>
           </form>

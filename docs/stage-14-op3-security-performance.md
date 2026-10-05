@@ -76,7 +76,7 @@ null і fallback для невідомої timezone. Відсоток приск
 
 | Показник | Gate | Метод і межі |
 |---|---|---|
-| Усі build JS chunks gzip | ≤ 358 400 bytes (350 KiB) | Сума окремо gzip-стиснених `.next/static/**/*.js`; не transfer однієї сторінки |
+| Усі build JS chunks gzip | ≤ 384 000 bytes (375 KiB) | Сума окремо gzip-стиснених `.next/static/**/*.js`; не transfer однієї сторінки |
 | Найбільший JS chunk gzip | ≤ 122 880 bytes (120 KiB) | Той самий Node/zlib звіт |
 | Початкова панель | < 8 000 ms | Chromium, локальний production build, mocked API, до готового графіка |
 | Щільна історія | < 4 000 ms | Зміна інтервалу до 672 заповнених buckets, очікування DOM і двох animation frames |
@@ -110,3 +110,8 @@ Audit snapshot включає dev dependencies; gate блокує high/critical 
 - [Next.js: CSP, nonces та dynamic rendering](https://nextjs.org/docs/app/guides/content-security-policy).
 - [Playwright: CDPSession](https://playwright.dev/docs/api/class-cdpsession).
 - [Chrome DevTools Protocol: Runtime](https://chromedevtools.github.io/devtools-protocol/tot/Runtime/).
+
+З 0.49.0 whole-build budget становить 375 KiB: додані окремі routes реєстрації,
+запрошення й учасників збільшили суму gzip chunks приблизно на 20 KiB
+(348 460 → 368 301 bytes на локальному build). Це сума всіх routes,
+а не завантаження сторінки входу. Окремий chunk ceiling 120 KiB збережено.

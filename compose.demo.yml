@@ -35,6 +35,15 @@ services:
       ACCOUNT_KEY_PREVIOUS_SECRETS: ${ACCOUNT_KEY_PREVIOUS_SECRETS:-[]}
       AUTH_BROWSER_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
       AUTH_COOKIE_SECURE: 'false'
+      MAIL_DELIVERY_MODE: ${MAIL_DELIVERY_MODE:-local}
+      MAIL_PUBLIC_URL: ${MAIL_PUBLIC_URL:-http://127.0.0.1:3000}
+      MAIL_LOCAL_DIRECTORY: /private/mail
+      MAIL_FROM: ${MAIL_FROM:-KERUMO <access@kerumo.example.com>}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURITY: ${SMTP_SECURITY:-starttls}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       MQTT_HOST: mosquitto
       MQTT_PORT: '1883'
       MQTT_CLIENT_ID: techbaza-demo-backend
@@ -49,6 +58,8 @@ services:
       DEMO_OTHER_PASSWORD: ${DEMO_OTHER_PASSWORD:?Create .env.demo first}
     ports:
       - "127.0.0.1:8001:8000"
+    volumes:
+      - ./.local/mail:/private/mail
     depends_on:
       postgres:
         condition: service_healthy

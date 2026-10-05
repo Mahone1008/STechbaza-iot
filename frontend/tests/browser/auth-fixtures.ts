@@ -52,7 +52,7 @@ export const viewerPermissions = [
 export const corsHeaders = {
   "access-control-allow-origin": FRONTEND_ORIGIN,
   "access-control-allow-credentials": "true",
-  "access-control-allow-methods": "GET, POST, PUT, DELETE, OPTIONS",
+  "access-control-allow-methods": "GET, POST, PATCH, PUT, DELETE, OPTIONS",
   "access-control-allow-headers": "authorization, content-type, x-techbaza-csrf",
   "access-control-expose-headers": "Retry-After",
   vary: "Origin",

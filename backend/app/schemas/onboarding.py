@@ -55,7 +55,7 @@ class TotpSetupRead(StrictModel):
     uri: str
 
 
-class ActivationAccessRead(TotpSetupRead):
+class ActivationAccessRead(StrictModel):
     login: str
     recovery_key: str
 
@@ -121,6 +121,14 @@ class FactoryReset(FactoryQuarantine):
 class NewSite(StrictModel):
     name: str = Field(min_length=2, max_length=160)
     timezone: str = Field(default="Europe/Kyiv", min_length=3, max_length=64)
+    organization_id: uuid.UUID | None = None
+    organization_name: str | None = Field(default=None, min_length=2, max_length=160)
+
+    @model_validator(mode="after")
+    def one_organization(self):
+        if self.organization_id is not None and self.organization_name is not None:
+            raise ValueError("Оберіть наявну організацію або створіть нову")
+        return self
 
     @field_validator("timezone")
     @classmethod
@@ -138,7 +146,6 @@ class ClaimRequest(StrictModel):
     site_id: uuid.UUID | None = None
     new_site: NewSite | None = None
     new_password: Password | None = Field(default=None, min_length=12, max_length=128)
-    otp: str | None = Field(default=None, pattern=r"^[0-9]{6}$")
 
     @model_validator(mode="after")
     def exactly_one_site(self):

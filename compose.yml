@@ -65,9 +65,20 @@ services:
       AUTH_LOGIN_IP_LIMIT: ${AUTH_LOGIN_IP_LIMIT:-30}
       AUTH_LOGIN_ACCOUNT_LIMIT: ${AUTH_LOGIN_ACCOUNT_LIMIT:-10}
       AUTH_SESSION_IP_LIMIT: ${AUTH_SESSION_IP_LIMIT:-120}
+      MAIL_DELIVERY_MODE: ${MAIL_DELIVERY_MODE:-disabled}
+      MAIL_PUBLIC_URL: ${MAIL_PUBLIC_URL:-http://127.0.0.1:3000}
+      MAIL_LOCAL_DIRECTORY: /private/mail
+      MAIL_FROM: ${MAIL_FROM:-KERUMO <access@kerumo.example.com>}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURITY: ${SMTP_SECURITY:-starttls}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       TELEMETRY_STALE_AFTER_SECONDS: ${TELEMETRY_STALE_AFTER_SECONDS:-120}
     ports:
       - "127.0.0.1:8000:8000"
+    volumes:
+      - ./.local/mail:/private/mail
     depends_on:
       postgres:
         condition: service_healthy

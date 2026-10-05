@@ -31,7 +31,6 @@ from app.security.current_user import CurrentUserContext
 from app.security.roles import Permission
 from app.security.tokens import utc_now
 from app.security.passwords import hash_password, verify_password
-from app.security.account_keys import verify_stored_totp
 from app.security.mfa_policy import require_privileged_mfa
 from app.services.equipment_profiles import get_profile
 from app.services.label_accounts import permanent_login, renew_label
@@ -155,21 +154,11 @@ def claim(
     if not label_buyer and payload.new_password is not None:
         raise HTTPException(422, "Пароль наявного кабінету змінюється в налаштуваннях безпеки")
     if label_buyer:
-        if (
-            security is None
-            or not security.totp_secret
-            or not security.recovery_hash
-            or security.totp_enabled_at
-        ):
-            raise HTTPException(422, "Налаштуйте двоетапний вхід у майстрі активації")
-        counter, encrypted = verify_stored_totp(
-            security.totp_secret, payload.otp or "", security.totp_last_counter
-        )
-        if counter is None:
-            raise HTTPException(422, "Введіть чинний код із застосунку автентифікації")
-        security.totp_last_counter, security.totp_secret = counter, encrypted
-        security.totp_enabled_at = utc_now()
-        current.auth_session.mfa_verified_at = utc_now()
+        if security is None or not security.recovery_hash or security.totp_enabled_at:
+            raise HTTPException(422, "Створіть постійний доступ і збережіть ключ відновлення")
+        # Clear an unfinished setup from older activation clients; enrollment is optional later.
+        security.totp_secret, security.totp_last_counter = None, None
+        current.auth_session.mfa_verified_at = None
     if payload.site_id:
         site = AccessControl(session, current).require_site(
             payload.site_id, Permission.DEVICE_CREATE
@@ -180,11 +169,22 @@ def claim(
         )
         AccessControl(session, current).require_site(site.id, Permission.DEVICE_CREATE)
     else:
-        require_privileged_mfa(current, "owner")
+        require_privileged_mfa(current)
         workspace = session.get(PersonalWorkspace, user.id)
-        if workspace is None:
+        if payload.new_site.organization_id:
+            organization_id = payload.new_site.organization_id
+            session.scalar(
+                select(Organization.id).where(Organization.id == organization_id).with_for_update()
+            )
+            AccessControl(session, current).require_organization(
+                organization_id, Permission.SITE_CREATE
+            )
+        elif workspace is None or payload.new_site.organization_name:
             organization = Organization(
-                id=uuid.uuid4(), name=user.display_name, slug=f"buyer-{user.id.hex}", is_active=True
+                id=uuid.uuid4(),
+                name=payload.new_site.organization_name or user.display_name,
+                slug=f"buyer-{uuid.uuid4().hex}",
+                is_active=True,
             )
             session.add(organization)
             session.flush()
@@ -193,9 +193,11 @@ def claim(
                     organization_id=organization.id, user_id=user.id, role="owner", is_active=True
                 )
             )
-            workspace = PersonalWorkspace(user_id=user.id, organization_id=organization.id)
-            session.add(workspace)
+            if workspace is None:
+                workspace = PersonalWorkspace(user_id=user.id, organization_id=organization.id)
+                session.add(workspace)
             session.flush()
+            organization_id = organization.id
         else:
             session.scalar(
                 select(Organization.id)
@@ -205,9 +207,10 @@ def claim(
             AccessControl(session, current).require_organization(
                 workspace.organization_id, Permission.SITE_CREATE
             )
+            organization_id = workspace.organization_id
         site = Site(
             id=uuid.uuid4(),
-            organization_id=workspace.organization_id,
+            organization_id=organization_id,
             name=payload.new_site.name,
             code=f"site-{uuid.uuid4().hex}",
             timezone=payload.new_site.timezone,

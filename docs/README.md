@@ -21,6 +21,7 @@
 ## Чинні контракти й інструкції
 
 - [Buyer onboarding: реалізована частина етапу 2 та відкриті функції](buyer-onboarding-v1.md)
+- [Особисті акаунти, добровільний Authenticator, запрошення та SMTP](personal-accounts-v1.md)
 - [Account keys: перенесення, ротація та backup](account-key-operations-v1.md)
 - [Основа обладнання, профілі SUSWE й commissioning v1](equipment-foundation-v1.md)
 - [Тестові облікові записи всіх ролей](demo-review-accounts-v1.md)
