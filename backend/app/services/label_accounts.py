@@ -1,5 +1,6 @@
 """A private label creates an ordinary buyer identity on its first use."""
 
+import re
 import uuid
 
 from sqlalchemy import select
@@ -40,6 +41,8 @@ def label_session_valid(session, user: User) -> bool:
 
 
 def create_label_account(session, login: str, password: str) -> User | None:
+    if re.fullmatch(r"kr-[0-9a-f]{32}-g[1-9][0-9]*", login) is None:
+        return None
     row = session.scalar(
         select(FactoryController)
         .where(FactoryController.buyer_login == login, FactoryController.status == "ready")

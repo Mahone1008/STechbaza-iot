@@ -114,11 +114,13 @@ class AuthService:
         self._auth_sessions.add(auth_session)
         self._session.commit()
 
-        pending = self._session.scalar(
-            select(FactoryController)
-            .where(FactoryController.buyer_user_id == user.id, FactoryController.status == "ready")
-            .limit(1)
-        )
+        pending = None
+        if user.login_name and user.login_name.startswith("kr-"):
+            pending = self._session.scalar(
+                select(FactoryController.id)
+                .where(FactoryController.buyer_user_id == user.id, FactoryController.status == "ready")
+                .limit(1)
+            )
 
         access = create_access_token(
             user_id=user.id,
@@ -130,7 +132,7 @@ class AuthService:
             access_expires_in=access.expires_in,
             refresh_token=refresh.token,
             refresh_expires_in=refresh.expires_in,
-            onboarding_path=f"/connect/{pending.id}" if pending else None,
+            onboarding_path=f"/connect/{pending}" if pending else None,
         )
 
     def refresh(self, refresh_token: str) -> TokenPair:
