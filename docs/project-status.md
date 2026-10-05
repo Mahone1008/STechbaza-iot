@@ -15,11 +15,13 @@ Dev-ланцюжок із `braces` замінено; [обсяг заміни й
 таймера й етапів стосуються 0.3.0; повне PROGRAM-01 ще відкрите.
 Базову діагностику V3 0.2.2 прийнято на стенді з доказами оператора.
 Це поточний реєстр стану; датовані досьє зберігають історичні докази.
-[Аудит UI 01.10](audit-2026-10-01-control-ui.md): календар відкривається
-лише у своєму режимі всередині налаштувань; виправлено згортання,
+[Аудит UI 01.10](audit-2026-10-01-control-ui.md) на своїй ревізії обмежив
+календар його режимом усередині налаштувань; тоді виправлено згортання,
 підписи та незалежні чернетки таймера/етапів. Повторний аудит переніс TTL
 перед режимом, виправив мобільні поля часу/автооновлення та поширив вибір
 інтервалу на календар і журнал команд. Фізичне приймання не змінено.
+Пізніше етап 2 виніс календар в окрему вкладку «Розклади»; чинна навігація
+та п'ять розділів описані в [onboarding contract](buyer-onboarding-v1.md).
 [Аудит форм 02.10](audit-2026-10-02-frontend-forms.md): системний date-picker
 замінено календарем у межах екрана; спільне оформлення select тепер діє
 також на повідомлення й аварії. Додано перевірки дат, клавіатури, фокуса
@@ -107,6 +109,7 @@ Dev-ланцюжок із `braces` замінено; [обсяг заміни й
 | PROD-01 | TLS/identity вже є на V3 gateway, але fleet provisioning/rotation/revocation та transfer/config lifecycle неповні | Реалізація й приймання P1/P2 |
 | PROD-02 | Deployment, процеси/worker ownership, production settings, logs/metrics, DB retention/PITR | P5, restore/release rehearsal, виміряні RPO/RTO |
 | PROD-03 | OTA, незалежний security review, load/reconnect/soak, pilot/support/conformity | P6–P9 з окремими доказами |
+| CODE-01 | Locks/Ruff/поступовий mypy та поділ adapters виконано; автоматичний аудит Python dependencies на відомі CVE ще не налаштовано | Додати перевірку Python advisories у CI; розширювати типізацію разом зі змінами модулів |
 | STAGE2-01 | Програмна основа QR/B2B є; повний шлях від заводського комплекту до керованого контролера ще не завершено | Wi-Fi/setup і bootstrap firmware, MQTT credentials lifecycle, commissioning/readback, передача/reset та наскрізне приймання за [планом](next-stage-plan-vfd-service-qr.md) |
 | NEXT-01 | Плавні часові ramp-профілі/шаблони, service editor F-параметрів, синхронізація LOCAL/REMOTE switch ↔ сайт | Узгоджений protocol/config/RBAC/safety design; таймер і ступінчасті програми вже реалізовано |
 | V4-01 | Модуль 4G ще не отримано | Модель/revision/BOM, transport design та LTE recovery acceptance після доставки |
@@ -116,10 +119,11 @@ V3-01 не закрито успішним gateway-тестом: це різні
 Читання нульового струму, один успішний пуск або один power cycle не є
 випробуванням точності, довговічності чи всіх захистів.
 
-CODE-01 закрито в межах аудиту 05.10: Python locks із хешами, Ruff,
-поступовий mypy, поділ MQTT/account/session та NVS/Modbus adapters.
-Повна strict-типізація, структуровані logs/metrics і production dependency
-management залишаються подальшою роботою. [Звірення документації](audit-2026-10-05-documentation.md).
+Виконана частина CODE-01: Python locks із хешами, Ruff, поступовий mypy,
+поділ MQTT/account/session та NVS/Modbus adapters. Перевірка hash lock не
+замінює CVE audit. Повна strict-типізація, структуровані logs/metrics і
+production dependency management залишаються подальшою роботою.
+[Звірення документації](audit-2026-10-05-documentation.md).
 
 ## Оцінка готовності
 

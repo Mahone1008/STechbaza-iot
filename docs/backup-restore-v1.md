@@ -149,7 +149,8 @@ opt-in guard. Нові 4 PostgreSQL tests: round-trip CHECK та виявлен�
 ідемпотентність recovery policy зі збереженням terminal history.
 Історичний підсумок Етапу 8 — **109 regression tests**.
 На прийманні H-01–H-05 було **158 tests**; це історичний результат.
-[Звірення 05.10](audit-2026-10-05-documentation.md) виконує розширений набір.
+[Звірення 05.10](audit-2026-10-05-documentation.md) посилається на новіші
+прогони та розрізняє їхні дати й revisions.
 
 Fingerprint читає всі public tables у read-only REPEATABLE READ, UTC;
 порівнює PostgreSQL JSON row text без перетворення чисел на Python float,

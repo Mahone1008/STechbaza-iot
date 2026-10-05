@@ -250,6 +250,10 @@ unit/browser tests і `npm run format:check` для модулів, очищен
 розширюють разом із наступними змінами, без масового форматування сторонніх
 файлів. Firmware: native ASan/UBSan і всі ESP32 build variants чинного CI.
 
+Python lock/hash gate забезпечує фіксацію складу, але не перевіряє відомі
+CVE. Окремий автоматичний Python advisory audit у CI ще не налаштований;
+це залишок CODE-01 у [реєстрі стану](project-status.md).
+
 Перевірка 05.10.2026 виявила upstream-блокер повного npm audit:
 [GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm)
 для `braces <=3.0.3` у dev-ланцюжку `eslint-config-next` → Next ESLint plugin

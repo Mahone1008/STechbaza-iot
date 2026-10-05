@@ -11,7 +11,7 @@ schema 0022 та firmware 0.6.0 не змінено цією роботою.
 
 | Область | Виправлення |
 |---|---|
-| Поточний статус і плани | Етап 2 позначено частково виконаним; CODE-01 закрито в межах аудиту; production/hardware acceptance не оголошено завершеним |
+| Поточний статус і плани | Етап 2 позначено частково виконаним; CODE-01 містить виконані зміни й залишок Python CVE gate; production/hardware acceptance не оголошено завершеним |
 | Buyer/factory/account | Додано чинний контракт реєстрації, recovery, TOTP, сесій, factory, claim, паспорта й bootstrap contact; перелічено незавершені фізичні кроки |
 | RBAC і demo accounts | Описано `site_ids`/`expires_at`, MFA policy та вимогу MFA для factory навіть локально |
 | UI і календар | Документи ведуть до п'яти розділів; календар — окрема вкладка, паспорт/діагностика — в «Обладнанні» |
@@ -53,11 +53,19 @@ patterns, масивом каталогів, Windows separators і сторон�
 | OpenAPI verify / TypeScript / ESLint / format gate | PASS |
 | Vitest | 122 PASS |
 | Next ESLint compatibility regressions | 8 PASS |
+| Окрема перевірка вкладеного шаблону | 10 000 вкладених пар braces у subprocess: 0 matches, без RangeError/timeout |
 | Mocked Chromium browser suite | 220 PASS, без пропусків |
 | Документація / equipment catalog | PASS; довідник з коду, локальні file links у 117 Markdown files, profile/firmware hash |
 | Production build / bundle budget | PASS; 319636 / 358400 gzip bytes, найбільший chunk 71628 / 122880 |
 
 Зміна dependency lock і compatibility tests: commit `27a8e93`.
+
+GitHub Actions на `bbd9c1c3427b0f9d6a6a482ae2fbf3f66c085a40`:
+[frontend, повний audit і live API/MQTT — PASS](https://github.com/Mahone1008/STechbaza-iot/actions/runs/37277057681),
+[firmware/gateway — PASS](https://github.com/Mahone1008/STechbaza-iot/actions/runs/37277057698),
+[документація — PASS](https://github.com/Mahone1008/STechbaza-iot/actions/runs/37277057738).
+Наступне уточнення цього звіту й відкритих питань змінює лише Markdown;
+виконуваний код і dependency lock відповідають перевіреній ревізії.
 
 Попередній аудит backend/firmware має окремі докази PR #2:
 [backend CI](https://github.com/Mahone1008/STechbaza-iot/actions/runs/37272950837)
