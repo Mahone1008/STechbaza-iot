@@ -41,6 +41,7 @@ EquipmentBinding equipment{};
 bool managedEquipment = false;
 Provisioning provisioning;
 std::atomic<bool> locallyConfirmed{true};
+std::atomic<bool> configurationRestartPending{false};
 const char *deviceUid() { return provisioning.enabled ? provisioning.uid.c_str() : KERUMO_DEVICE_UID; }
 const char *mqttHost() { return provisioning.enabled ? provisioning.host.c_str() : KERUMO_MQTT_HOST; }
 const char *mqttPassword() { return provisioning.enabled ? provisioning.password.c_str() : KERUMO_MQTT_PASSWORD; }
@@ -142,6 +143,8 @@ void deviceTask(void *) {
   StopReason lastReason = StopReason::None;
   for (;;) {
     uint8_t action = localAction.exchange(0);
+    if (configurationRestartPending.load() && action != 2)
+      action = 0;
     if (action == 5) {
       DriveState state{};
       double hz{};
@@ -169,7 +172,8 @@ void deviceTask(void *) {
       controller.disarm();
       Serial.println("DISARMED; pending local STOP is retried until verified");
     }
-    controller.tick(networkReady.load() && static_cast<uint32_t>(millis() - networkCheckedMs.load()) < 8000);
+    controller.tick(!configurationRestartPending.load() && networkReady.load() &&
+                    static_cast<uint32_t>(millis() - networkCheckedMs.load()) < 8000);
     if (controller.stopReason() != lastReason) {
       lastReason = controller.stopReason();
       Serial.printf("CONTROL: last_stop=%s armed=%d\n", stopReasonCode(lastReason), controller.isArmed());
@@ -433,10 +437,21 @@ void loop() {
   }
   if (provisioning.enabled) {
     static bool wantsPortal = false;
+    static uint32_t restartRequestedAt = 0;
     Sample state{};
     const bool fresh = xQueuePeek(samples, &state, 0) == pdTRUE && millis() - state.sampledMs < 5000;
     const bool stopped = !managedEquipment || (fresh && !state.armed && state.vfd.ok[1] && state.vfd.ok[3] &&
                                                confirmedStopped(state.vfd.state, state.vfd.outputHz));
+    if (configurationRestartPending.load()) {
+      networkReady.store(false);
+      mqtt.stop();
+      // STOP до HTTP-запиту міг застаріти. ARM заблоковано, а VFD task
+      // виконує DISARM/STOP; перезапуск лише після нового локального readback.
+      if (!managedEquipment || (stopped && static_cast<int32_t>(state.sampledMs - restartRequestedAt) > 0))
+        ESP.restart();
+      delay(20);
+      return;
+    }
     if (provisioning.buttonHeld()) { wantsPortal = true; localAction.store(2); }
     if (wantsPortal && stopped) { provisioning.openPortal(); wantsPortal = false; }
     provisioning.loop();
@@ -445,7 +460,13 @@ void loop() {
       networkReady.store(false); mqtt.stop(); delay(5); return;
     }
     if (WiFi.status() == WL_CONNECTED && deviceClock.utcMs() && provisioning.poll(FirmwareVersion, stopped)) {
-      networkReady.store(false); mqtt.stop(); ESP.restart();
+      restartRequestedAt = millis();
+      configurationRestartPending.store(true);
+      networkReady.store(false);
+      localAction.store(2);
+      mqtt.stop();
+      Serial.println("CONFIGURATION STORED: waiting for fresh local STOP before restart");
+      return;
     }
     if (provisioning.suspended || provisioning.uid.isEmpty()) {
       networkReady.store(false); mqtt.stop(); delay(20); return;
