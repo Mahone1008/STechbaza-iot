@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { loginErrorPresentation, safeLoginReturnTo, validateLoginForm } from "@/features/login-model";
 import { ApiError } from "@/lib/api";
@@ -101,4 +101,15 @@ describe("login form model", () => {
     expect(safeLoginReturnTo("/login")).toBe("/devices");
     expect(safeLoginReturnTo("/admin")).toBe("/devices");
   });
+});
+
+it("staff recovery and rejected return URLs lead back to the private console", () => {
+  vi.stubEnv("NEXT_PUBLIC_PORTAL_MODE", "staff");
+  try {
+    expect(safeLoginReturnTo(null)).toBe("/operations");
+    expect(safeLoginReturnTo("https://outside.example.com")).toBe("/operations");
+    expect(safeLoginReturnTo("/account/security")).toBe("/account/security");
+  } finally {
+    vi.unstubAllEnvs();
+  }
 });
