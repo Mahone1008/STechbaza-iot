@@ -33,10 +33,16 @@
 #ifndef KERUMO_ENABLE_EXTENDED_TEST
 #define KERUMO_ENABLE_EXTENDED_TEST false
 #endif
+#ifndef KERUMO_ENABLE_REMOTE_OPERATION
+#define KERUMO_ENABLE_REMOTE_OPERATION false
+#endif
+static_assert(!KERUMO_ENABLE_REMOTE_OPERATION ||
+                  (KERUMO_ENABLE_CONTROL && KERUMO_ENABLE_EXTENDED_TEST),
+              "Remote operation requires control and the extended SU600 checks");
 
 using namespace kerumo;
 namespace {
-constexpr char FirmwareVersion[] = "0.7.0";
+constexpr char FirmwareVersion[] = "0.8.0";
 EquipmentBinding equipment{};
 bool managedEquipment = false;
 Provisioning provisioning;
@@ -138,6 +144,7 @@ void deviceTask(void *) {
     drive.setInstallationLimits(equipment.minHz, equipment.maxHz);
   const bool ready = controller.begin(deviceUid());
   Serial.printf("V3: storage=%s mode=%s UID=%s\n", ready ? "OK" : "LOCKED",
+                KERUMO_ENABLE_REMOTE_OPERATION ? "REMOTE / CHECKING" :
                 KERUMO_ENABLE_CONTROL ? "CONTROL / DISARMED" : "READ ONLY", deviceUid());
   uint32_t lastSample = 0, lastReplay = 0;
   StopReason lastReason = StopReason::None;
@@ -173,7 +180,9 @@ void deviceTask(void *) {
       Serial.println("DISARMED; pending local STOP is retried until verified");
     }
     controller.tick(!configurationRestartPending.load() && networkReady.load() &&
-                    static_cast<uint32_t>(millis() - networkCheckedMs.load()) < 8000);
+                    static_cast<uint32_t>(millis() - networkCheckedMs.load()) < 8000,
+                    KERUMO_ENABLE_REMOTE_OPERATION && locallyConfirmed.load() &&
+                    !configurationRestartPending.load());
     if (controller.stopReason() != lastReason) {
       lastReason = controller.stopReason();
       Serial.printf("CONTROL: last_stop=%s armed=%d\n", stopReasonCode(lastReason), controller.isArmed());
@@ -181,6 +190,10 @@ void deviceTask(void *) {
     Command command{};
     if (xQueueReceive(stopCommands, &command, 0) == pdTRUE ||
         xQueueReceive(commands, &command, 0) == pdTRUE) {
+      // Config/readback can take time; do not execute after the network lease expires.
+      if (configurationRestartPending.load() || !networkReady.load() ||
+          static_cast<uint32_t>(millis() - networkCheckedMs.load()) >= 8000)
+        controller.tick(false);
       char ack[37], result[37];
       uuid(ack);
       uuid(result);
@@ -317,6 +330,8 @@ void telemetry(const Sample &sample, uint64_t sequence) {
   auto state = doc["state"].to<JsonObject>();
   // Never re-label an old sample as current after a network stall.
   const bool fresh = static_cast<uint32_t>(millis() - sample.sampledMs) < 5000;
+  if (fresh && sample.storageOk && sample.sampledUtcMs > 0)
+    doc["command_sequence_floor"] = sample.commandSequence;
   const char *keys[] = {"vfd.set_frequency_hz", "vfd.frequency_hz", "vfd.current_a", "vfd.voltage_v"};
   const double readings[] = {sample.vfd.setHz, sample.vfd.outputHz, sample.vfd.currentA, sample.vfd.voltageV};
   for (size_t i = 0; i < 4; ++i)

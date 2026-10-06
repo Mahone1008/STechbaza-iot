@@ -139,6 +139,7 @@ test("MFA login requests its code without erasing the verified password and then
   await code.fill("000000");
   await page.getByRole("button", { name: "Увійти", exact: true }).click();
   await expect(page.locator(".login-alert-danger")).toContainText("Код із застосунку не прийнято");
+  await expect(code).toBeFocused();
   await expect(page.getByLabel("Пароль", { exact: true })).toHaveValue("valid-test-password");
   await code.fill("123456");
   await page.getByRole("button", { name: "Увійти", exact: true }).click();

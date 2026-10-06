@@ -85,6 +85,7 @@ struct Sample {
   uint32_t sampledMs{};
   int64_t sampledUtcMs{};
   bool configOk{}, armed{}, storageOk{};
+  uint64_t commandSequence{};
   uint64_t uptimeMs{};
   StopDiagnostic lastStop{};
   ProgramProgress program{};
@@ -97,7 +98,9 @@ class Controller {
   bool arm(SessionMode mode = SessionMode::Bench);
   void disarm(StopReason reason = StopReason::LocalDisarm);
   void receive(const Command& command, const char* session, const char* ackId, const char* resultId);
-  void tick(bool networkConnected);
+  // Explicit firmware opt-in, supplied only for a locally confirmed installation.
+  // Grants permission after checks; never starts or resumes motion.
+  void tick(bool networkConnected, bool remoteOperation = false);
   Sample sample();
   void replay() const;
   const Journal& journal() const { return journal_; }
@@ -117,7 +120,10 @@ class Controller {
   const bool controls_;
   Journal journal_{};
   bool storageOk_{}, armed_{}, stopping_{};
-  SessionMode mode_{SessionMode::Bench}; // RAM only: reboot never restores permission.
+  bool remoteInhibited_{}, remoteCheckStarted_{};
+  uint32_t lastRemoteCheck_{};
+  int64_t remotePermissionUtcMs_{}; // Reject commands issued before automatic permission.
+  SessionMode mode_{SessionMode::Bench}; // RAM only; remote mode revalidates after reboot.
   StopReason stopReason_{StopReason::None};
   StopDiagnostic lastStop_{}; // лише поточний boot; сама STOP-діагностика не записується в NVS
   uint32_t runSince_{}, lastStopAttempt_{}, lastConfigRead_{};

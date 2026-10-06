@@ -18,10 +18,10 @@ import {
 } from "@/features/login-model";
 import { isApiError } from "@/lib/api";
 
-function focusFirstInvalidField(errors: LoginFieldErrors): void {
+function focusFirstInvalidField(errors: LoginFieldErrors): number | null {
   const id = errors.email ? "login-email" : errors.password ? "login-password" : errors.otp ? "login-otp" : null;
-  if (!id) return;
-  window.requestAnimationFrame(() => document.getElementById(id)?.focus());
+  if (!id) return null;
+  return window.requestAnimationFrame(() => document.getElementById(id)?.focus());
 }
 
 function withoutFieldError(errors: LoginFieldErrors, field: keyof LoginFieldErrors): LoginFieldErrors {
@@ -61,6 +61,7 @@ export function LoginPanel() {
   const redirectTargetRef = useRef<Route | null>(null);
   const onboardingTargetRef = useRef<Route | null>(null);
   const alertRef = useRef<HTMLDivElement | null>(null);
+  const errorFocusRef = useRef<LoginFieldErrors>({});
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fieldErrors, setFieldErrors] = useState<LoginFieldErrors>({});
@@ -85,7 +86,11 @@ export function LoginPanel() {
   }, [router, session.status]);
 
   useEffect(() => {
-    if (formError) alertRef.current?.focus();
+    if (!formError) return;
+    // One focus owner after commit: the alert must not steal focus from MFA.
+    const frame = focusFirstInvalidField(errorFocusRef.current);
+    if (frame === null) alertRef.current?.focus();
+    else return () => window.cancelAnimationFrame(frame);
   }, [formError]);
 
   const submitLogin = async (event: FormEvent<HTMLFormElement>) => {
@@ -118,6 +123,7 @@ export function LoginPanel() {
       if (isApiError(error) && error.kind === "aborted") return;
 
       const presentation = loginErrorPresentation(error);
+      errorFocusRef.current = presentation.fieldErrors;
       setFormError(presentation.retryAfterSeconds > 0 ? "" : presentation.summary);
       setErrorTone(presentation.tone ?? "danger");
       setFieldErrors(presentation.fieldErrors);
@@ -125,7 +131,6 @@ export function LoginPanel() {
       if (presentation.retryAfterSeconds > 0) {
         block(presentation.retryAfterSeconds);
       }
-      focusFirstInvalidField(presentation.fieldErrors);
     } finally {
       if (abortControllerRef.current === controller) {
         abortControllerRef.current = null;

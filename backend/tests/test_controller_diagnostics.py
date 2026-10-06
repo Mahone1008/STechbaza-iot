@@ -28,6 +28,20 @@ class ControllerDiagnosticsTests(unittest.TestCase):
     def test_old_firmware_remains_valid(self):
         payload = TelemetryEnvelope(schema_version=1, message_id=uuid.uuid4())
         self.assertIsNone(payload.diagnostics)
+        self.assertIsNone(payload.command_sequence_floor)
+
+    def test_command_cursor_requires_strict_bounded_integer_and_current_packet_metadata(self):
+        base = {"schema_version": 1, "message_id": str(uuid.uuid4()),
+                "session_id": str(uuid.uuid4()), "sequence": 0,
+                "sent_at": "2026-10-06T10:00:00Z", "command_sequence_floor": 83}
+        for floor in (0, 83, 9007199254740991):
+            self.assertEqual(TelemetryEnvelope.model_validate({**base, "command_sequence_floor": floor}).command_sequence_floor, floor)
+        for floor in (-1, True, "83", 83.0, 9007199254740992):
+            with self.subTest(floor=floor), self.assertRaises(ValidationError):
+                TelemetryEnvelope.model_validate({**base, "command_sequence_floor": floor})
+        for field in ("session_id", "sequence", "sent_at"):
+            with self.subTest(field=field), self.assertRaises(ValidationError):
+                TelemetryEnvelope.model_validate({**base, field: None})
 
     def test_preserves_unknown_time_false_and_64_bit_uptime(self):
         expected = {**diagnostic_payload(), "program": None}

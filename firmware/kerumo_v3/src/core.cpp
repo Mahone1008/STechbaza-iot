@@ -229,8 +229,12 @@ bool Controller::arm(SessionMode mode) {
   armed_ = (mode == SessionMode::ExtendedTest ? driver_.extendedTestOk() : driver_.controlOk()) &&
            driver_.readState(state) && driver_.readOutputHz(output) && driver_.readFault(fault) &&
            fault == 0 && confirmedStopped(state, output);
-  if (armed_)
+  armed_ = armed_ && clock_.utcMs();
+  if (armed_) {
     mode_ = mode;
+    remoteInhibited_ = false; // An explicit successful ARM releases local DISARM.
+    remotePermissionUtcMs_ = 0;
+  }
   return armed_;
 }
 void Controller::recordStop(StopReason reason) {
@@ -267,6 +271,8 @@ void Controller::requestStop(StopReason reason) {
   stopping_ = true;
 }
 void Controller::disarm(StopReason reason) {
+  if (reason == StopReason::LocalDisarm)
+    remoteInhibited_ = true;
   armed_ = false;
   mode_ = SessionMode::Bench;
   if (journal_.motionPossible)
@@ -329,7 +335,8 @@ void Controller::receive(const Command &c, const char *session, const char *ackI
     incoming.outcome = Outcome::Failed;
     incoming.error = Error::ReadOnly;
     incoming.completedMs = now;
-  } else if (c.type != Type::Stop && !armed_) {
+  } else if (c.type != Type::Stop &&
+             (!armed_ || (remotePermissionUtcMs_ && c.issuedMs < remotePermissionUtcMs_))) {
     incoming.outcome = Outcome::Failed;
     incoming.error = Error::NotArmed;
     incoming.completedMs = now;
@@ -606,7 +613,7 @@ void Controller::tickProgram() {
     programHoldSince_ = clock_.uptimeMs();
   }
 }
-void Controller::tick(bool networkConnected) {
+void Controller::tick(bool networkConnected, bool remoteOperation) {
   const uint32_t now = clock_.monotonicMs();
   if (!networkConnected && (armed_ || journal_.motionPossible))
     disarm(StopReason::Network);
@@ -673,6 +680,19 @@ void Controller::tick(bool networkConnected) {
     if (!sessionConfigOk())
       disarm(StopReason::Config);
   }
+  // The option persists in firmware, never as a saved RUN/ARM latch. Reconnect
+  // and boot must first finish recovery STOP. Idle readback must confirm STOP,
+  // zero output, fault-free extended profile, valid clock and durable journal.
+  // Local DISARM blocks automatic permission until explicit ARM or reboot.
+  if (remoteOperation && networkConnected && !remoteInhibited_ && !armed_ && controls_ &&
+      storageOk_ && clock_.utcMs() && !journal_.motionPossible && !stopping_ &&
+      pending_ < 0 && programSlot_ < 0 &&
+      (!remoteCheckStarted_ || static_cast<uint32_t>(clock_.monotonicMs() - lastRemoteCheck_) >= 3000)) {
+    remoteCheckStarted_ = true;
+    lastRemoteCheck_ = clock_.monotonicMs();
+    if (arm(SessionMode::ExtendedTest))
+      remotePermissionUtcMs_ = clock_.utcMs();
+  }
 }
 Sample Controller::sample() {
   Sample sample{};
@@ -686,6 +706,7 @@ Sample Controller::sample() {
   sample.configOk = sessionConfigOk();
   sample.armed = armed_;
   sample.storageOk = storageOk_;
+  sample.commandSequence = journal_.highest;
   sample.uptimeMs = clock_.uptimeMs();
   sample.lastStop = lastStop_;
   sample.program = program_;

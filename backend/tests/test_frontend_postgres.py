@@ -148,6 +148,43 @@ class FrontendPostgresTests(unittest.TestCase):
             self.request(path, who="operator", method="POST", expected=201,
                          body={"request_id": str(uuid.uuid4()), "command_type": "vfd.stop"})
 
+    def test_command_cursor_restores_without_regression_duplicate_old_boot_or_delayed_packet(self):
+        boot = uuid.uuid4()
+        def ingest(sequence, floor, *, session_id=None, age=0, packet=None):
+            payload = packet or TelemetryEnvelope(schema_version=1, message_id=uuid.uuid4(),
+                session_id=session_id or boot, sequence=sequence,
+                sent_at=self.now - timedelta(seconds=age), command_sequence_floor=floor)
+            with SessionLocal() as session:
+                result = TelemetryService(session).ingest(
+                    device_uid=f"TB-FRONTEND-{self.devices[0].hex}", payload=payload, received_at=self.now)
+            return payload, result
+        def cursor(device=0):
+            with SessionLocal() as session:
+                return session.get(Device, self.devices[device]).command_sequence
+        # Fresh restored card starts at zero; controller NVS survives server reset.
+        packet, result = ingest(1, 83)
+        self.assertTrue(result.state_updated)
+        self.assertEqual(cursor(), 83)
+        self.assertEqual(cursor(1), 0) # Device/topic scope.
+        self.assertTrue(ingest(1, 500, packet=packet.model_copy(update={"command_sequence_floor": 500}))[1].duplicate)
+        self.assertFalse(ingest(0, 500)[1].state_updated)
+        self.assertEqual(cursor(), 83)
+        ingest(2, 4)
+        self.assertEqual(cursor(), 83) # Never lower a counter already allocated by server.
+        ingest(3, 500, age=11)
+        self.assertEqual(cursor(), 83)
+        ingest(4, 500, age=-3)
+        self.assertEqual(cursor(), 83)
+        ingest(1, 90, session_id=uuid.uuid4())
+        self.assertEqual(cursor(), 90)
+        self.assertFalse(ingest(5, 500)[1].state_updated) # Previous boot reappeared.
+        self.assertEqual(cursor(), 90)
+        # Command creation must allocate strictly after the synchronized floor.
+        self.assign("vfd.control")
+        result = self.request(f"/devices/{self.devices[0]}/commands", who="operator", method="POST",
+            expected=201, body={"request_id": str(uuid.uuid4()), "command_type": "vfd.stop"})
+        self.assertEqual(result["control_sequence"], 91)
+
     def test_new_device_has_explicit_empty_state(self):
         result = self.request(self.overview)
         self.assertEqual(result["device"]["id"], str(self.devices[0]))

@@ -17,12 +17,18 @@ class TelemetryEnvelope(BaseModel):
     session_id: uuid.UUID | None = None
     sent_at: datetime | None = None
     sequence: int | None = Field(default=None, ge=0, le=2**63 - 1)
+    # Independent from telemetry sequence: highest durable controller command.
+    command_sequence_floor: int | None = Field(default=None, strict=True, ge=0, le=9007199254740991)
     values: dict[str, Any] = Field(default_factory=dict, max_length=128)
     state: dict[str, Any] = Field(default_factory=dict, max_length=128)
     diagnostics: ControllerDiagnostics | None = None
 
     @model_validator(mode="after")
     def validate_diagnostic_session(self):
+        if self.command_sequence_floor is not None and (
+            self.session_id is None or self.sequence is None or self.sent_at is None
+        ):
+            raise ValueError("Command cursor requires boot session, packet sequence and UTC time")
         if self.diagnostics is not None and self.session_id is None:
             raise ValueError("Діагностика потребує boot session_id")
         return self

@@ -16,7 +16,10 @@ class OnboardingFixtures:
         self.controllers = []
         self.additional_users = []
         base.ComprehensivePostgresTests.setUp(self)
-        self.ip = f"198.18.33.{1 + uuid.uuid4().int % 250}"
+        # A 250-address pool lets unrelated suites share a persisted auth bucket.
+        # Use a separate documentation-only IPv6 peer for each isolated scenario.
+        peer = uuid.uuid4().hex[:24]
+        self.ip = "2001:db8:" + ":".join(peer[i:i + 4] for i in range(0, 24, 4))
         with SessionLocal.begin() as session:
             session.get(User, self.contexts["owner"].user.id).platform_role = "superadmin"
             session.get(
