@@ -1,3 +1,4 @@
+import { displaySettings } from "../helpers/customer-details";
 import { expect, test, type Page } from "@playwright/test";
 import { diagnosticsFixture, overviewFixture } from "../fixtures/overview";
 import { API_ORIGIN, DEVICE_ID, ORGANIZATION_ID, SITE_ID, REFRESH_URL, devicePayload, fulfillJson, fulfillPreflight, mockAuthenticatedWorkspace, mockBrowserLogoutSuccess } from "./auth-fixtures";
@@ -93,7 +94,7 @@ for (const status of [403, 404, 503]) test(`overview ${status} on refresh hides 
 test("quality expires while idle without a background overview request", async ({ page }) => {
   let requests = 0; const data = fixture(); data.telemetry_freshness.stale_after_seconds = 2;
   await mockOverview(page, () => { requests += 1; return data; }); await page.goto(path);
-  await page.getByLabel("Автооновлення", { exact: true }).selectOption("0");
+  await (await displaySettings(page)).selectOption("0");
   await expect(page.getByText("Перевищено час актуальності")).toBeVisible({ timeout: 8000 });
   await expect(page.locator(".metric-card").filter({ hasText: "Тиск" })).toContainText("Застарілі дані");
   expect(requests).toBe(1);
@@ -146,7 +147,7 @@ test("equipment diagnostics age in manual mode and disappear after a failed refr
   await mockOverview(page, () => data);
   await page.clock.install();
   await page.goto(path);
-  await page.getByRole("combobox", { name: "Автооновлення", exact: true }).selectOption("0");
+  await (await displaySettings(page)).selectOption("0");
   await page.getByRole("tab", { name: "Обладнання", exact: true }).click();
   await page.getByText("Технічні дані контролера", { exact: true }).click();
   const diagnostics = page.locator(".card").filter({ has: page.getByRole("heading", { name: "Діагностика контролера", exact: true }) });

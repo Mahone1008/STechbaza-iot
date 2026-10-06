@@ -33,6 +33,8 @@ const files = [
   "src/features/connect.tsx",
   "src/features/device-overview.tsx",
   "src/features/command-controls.tsx",
+  "src/features/command-journal.tsx",
+  "src/features/telemetry-history.tsx",
   "src/features/inventory.tsx",
   "src/features/alarms.tsx",
   "src/features/notifications.tsx",

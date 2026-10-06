@@ -16,6 +16,7 @@ type Schema = components["schemas"];
 type SecurityAction = "totp" | "totp-disable" | "password" | "recovery" | "session";
 type ActionProof = Readonly<{ password: string; otp: string }>;
 const EMPTY_PROOF: ActionProof = { password: "", otp: "" };
+const customerPortal = process.env.NEXT_PUBLIC_PORTAL_MODE !== "staff";
 
 function ConfirmationFields({
   purpose,
@@ -96,6 +97,8 @@ function SecuritySettings() {
   const [mfaChanged, setMfaChanged] = useState<boolean | null>(null);
   const errorRef = useRef<HTMLParagraphElement>(null);
   const successRef = useRef<HTMLDivElement>(null);
+  const recoveryDetailsRef = useRef<HTMLDetailsElement>(null);
+  const recoveryResultRef = useRef<HTMLDivElement>(null);
   const key = session.status === "authenticated" ? [session.email, session.sessionExpiresAt] : null;
   const state = usePanelQuery({
     queryKey: ["account-security", key],
@@ -124,11 +127,18 @@ function SecuritySettings() {
     sessions.refresh();
   });
   useEffect(() => {
-    if (error) errorRef.current?.focus();
+    if (error) {
+      const details = errorRef.current?.closest("details");
+      if (details) details.open = true;
+      errorRef.current?.focus();
+    }
   }, [error, activeAction]);
   useEffect(() => {
     if (mfaChanged !== null) successRef.current?.focus();
   }, [mfaChanged]);
+  useEffect(() => {
+    if (recovery) recoveryResultRef.current?.focus();
+  }, [recovery]);
   const mfaEnabled = mfaChanged ?? Boolean(state.data?.mfa_enabled);
   const securityReady = Boolean(state.data) && !state.isError;
   const startTotp = () =>
@@ -243,16 +253,26 @@ function SecuritySettings() {
                 </span>
               </div>
             </div>
-            <p>
-              Видалення запису із застосунку не вимикає двоетапний вхід. Збережіть особистий ключ відновлення, щоб
-              повернути доступ у разі втрати телефона або запису.
-            </p>
+            <details className="customer-disclosure section-help">
+              <summary>Як зберегти доступ до облікового запису</summary>
+              <p>
+                Видалення запису із застосунку не вимикає двоетапний вхід. Збережіть особистий ключ відновлення, щоб
+                повернути доступ у разі втрати телефона або запису.
+              </p>
+            </details>
             {!state.data.recovery_available && (
               <div className="notice notice-warning" role="status">
                 <div className="notice-copy">
                   <strong>Створіть ключ відновлення</strong>
                   <span>Без нього ви не зможете самостійно відновити доступ, якщо втратите застосунок.</span>
-                  <a href="#recovery-key-section">Перейти до створення ключа</a>
+                  <a
+                    href="#recovery-key-section"
+                    onClick={() => {
+                      if (recoveryDetailsRef.current) recoveryDetailsRef.current.open = true;
+                    }}
+                  >
+                    Перейти до створення ключа
+                  </a>
                 </div>
               </div>
             )}
@@ -345,21 +365,30 @@ function SecuritySettings() {
                 ? "Для адміністратора платформи двоетапний вхід обов’язковий."
                 : "Двоетапний вхід необов’язковий. Ви можете користуватися кабінетом із логіном і паролем."}
             </p>
-            <p>
-              Щоб додати захист через застосунок, підтвердьте поточний пароль. Потім відскануйте виданий QR або додайте
-              ключ у застосунок і введіть його код.
-            </p>
-            <TextField
-              label="Поточний пароль для підтвердження"
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              disabled={busy}
-              onChange={(event) => setPassword(event.target.value)}
-            />
-            <Button disabled={busy || !password} onClick={startTotp}>
-              {busy && activeAction === "totp" ? "Готуємо налаштування…" : "Налаштувати двоетапний вхід"}
-            </Button>
+            <details
+              className="customer-disclosure security-action-details"
+              name={customerPortal ? "security-actions" : undefined}
+              open={customerPortal ? undefined : true}
+            >
+              <summary>Налаштування двоетапного входу</summary>
+              <div className="disclosure-content connect-fields">
+                <p>
+                  Щоб додати захист через застосунок, підтвердьте поточний пароль. Потім відскануйте виданий QR або
+                  додайте ключ у застосунок і введіть його код.
+                </p>
+                <TextField
+                  label="Поточний пароль для підтвердження"
+                  type="password"
+                  autoComplete="current-password"
+                  value={password}
+                  disabled={busy}
+                  onChange={(event) => setPassword(event.target.value)}
+                />
+                <Button disabled={busy || !password} onClick={startTotp}>
+                  {busy && activeAction === "totp" ? "Готуємо налаштування…" : "Налаштувати двоетапний вхід"}
+                </Button>
+              </div>
+            </details>
           </>
         )}
         {actionError("totp")}
@@ -370,112 +399,162 @@ function SecuritySettings() {
           </p>
         )}
       </Card>
-      <Card title="Постійний пароль" className="account-security-card">
-        <p>
-          Якщо пароль вам передала інша людина, замініть його на власний. Особистий пароль, згенерований під час
-          активації, можна залишити.
-        </p>
-        <p>
-          Введіть новий пароль двічі (від 12 символів) і підтвердьте зміну поточним паролем у цьому розділі. Якщо
-          ввімкнено двоетапний вхід, додайте свіжий код із застосунку. Двоетапний захист зберігається.
-        </p>
-        <TextField
-          label="Новий пароль"
-          type="password"
-          autoComplete="new-password"
-          minLength={12}
-          maxLength={128}
-          value={newPassword}
-          onChange={(event) => setNewPassword(event.target.value)}
-        />
-        <TextField
-          label="Повторіть новий пароль"
-          type="password"
-          autoComplete="new-password"
-          value={confirmation}
-          onChange={(event) => setConfirmation(event.target.value)}
-        />
-        <ConfirmationFields
-          purpose="зміни пароля"
-          proof={passwordProof}
-          onChange={setPasswordProof}
-          mfaEnabled={mfaEnabled}
-          disabled={busy || !securityReady}
-        />
-        <Button
-          onClick={changePassword}
-          disabled={
-            busy ||
-            !securityReady ||
-            !passwordProof.password ||
-            newPassword.length < 12 ||
-            newPassword !== confirmation ||
-            (mfaEnabled && !/^\d{6}$/.test(passwordProof.otp))
-          }
+      <Card
+        title="Постійний пароль"
+        description="Особистий пароль для входу до вашого кабінету."
+        className="account-security-card"
+      >
+        <details
+          className="customer-disclosure security-action-details"
+          name={customerPortal ? "security-actions" : undefined}
+          open={customerPortal ? undefined : true}
         >
-          Змінити пароль
-        </Button>
+          <summary>Зміна пароля</summary>
+          <div className="disclosure-content connect-fields">
+            <p>
+              Якщо пароль вам передала інша людина, замініть його на власний. Особистий пароль, згенерований під час
+              активації, можна залишити.
+            </p>
+            <p>
+              Введіть новий пароль двічі (від 12 символів) і підтвердьте зміну поточним паролем у цьому розділі. Якщо
+              ввімкнено двоетапний вхід, додайте свіжий код із застосунку. Двоетапний захист зберігається.
+            </p>
+            <TextField
+              label="Новий пароль"
+              type="password"
+              autoComplete="new-password"
+              minLength={12}
+              maxLength={128}
+              value={newPassword}
+              onChange={(event) => setNewPassword(event.target.value)}
+            />
+            <TextField
+              label="Повторіть новий пароль"
+              type="password"
+              autoComplete="new-password"
+              value={confirmation}
+              onChange={(event) => setConfirmation(event.target.value)}
+            />
+            <ConfirmationFields
+              purpose="зміни пароля"
+              proof={passwordProof}
+              onChange={setPasswordProof}
+              mfaEnabled={mfaEnabled}
+              disabled={busy || !securityReady}
+            />
+            <Button
+              onClick={changePassword}
+              disabled={
+                busy ||
+                !securityReady ||
+                !passwordProof.password ||
+                newPassword.length < 12 ||
+                newPassword !== confirmation ||
+                (mfaEnabled && !/^\d{6}$/.test(passwordProof.otp))
+              }
+            >
+              Змінити пароль
+            </Button>
+            {actionError("password")}
+          </div>
+        </details>
         {notice && (
           <p className="notice notice-success" role="status">
             {notice}
           </p>
         )}
-        {actionError("password")}
       </Card>
-      <Card id="recovery-key-section" title="Ключ відновлення" className="account-security-card">
-        <p>
-          Ключ дозволяє відновити доступ без коду із застосунку, якщо втратите пароль, телефон або видалите запис
-          автентифікації. Перший ключ видається під час активації. Для інших облікових записів створіть його тут.
-        </p>
-        <p>
-          Створення нового ключа скасує попередній. Потрібен поточний пароль і, якщо ввімкнено двоетапний вхід, новий
-          код.
-        </p>
-        <ConfirmationFields
-          purpose="оновлення ключа"
-          proof={recoveryProof}
-          onChange={setRecoveryProof}
-          mfaEnabled={mfaEnabled}
-          disabled={busy || !securityReady}
-        />
-        <Button
-          disabled={
-            busy || !securityReady || !recoveryProof.password || (mfaEnabled && !/^\d{6}$/.test(recoveryProof.otp))
-          }
-          onClick={rotateRecovery}
+      <Card
+        id="recovery-key-section"
+        title="Ключ відновлення"
+        description="Допоможе повернути доступ у разі втрати пароля або телефона."
+        className="account-security-card"
+      >
+        {securityReady && (
+          <p className="security-summary">
+            {state.data!.recovery_available
+              ? "Ключ відновлення створено. Зберігайте його в надійному місці."
+              : "Ключ відновлення ще не створено."}
+          </p>
+        )}
+        <details
+          ref={recoveryDetailsRef}
+          className="customer-disclosure security-action-details"
+          name={customerPortal ? "security-actions" : undefined}
+          open={customerPortal ? undefined : true}
         >
-          Створити новий ключ відновлення
-        </Button>
+          <summary>Створення нового ключа</summary>
+          <div className="disclosure-content connect-fields">
+            <p>
+              Ключ дозволяє відновити доступ без коду із застосунку, якщо втратите пароль, телефон або видалите запис
+              автентифікації. Перший ключ видається під час активації. Для інших облікових записів створіть його тут.
+            </p>
+            <p>
+              Створення нового ключа скасує попередній. Потрібен поточний пароль і, якщо ввімкнено двоетапний вхід,
+              новий код.
+            </p>
+            <ConfirmationFields
+              purpose="оновлення ключа"
+              proof={recoveryProof}
+              onChange={setRecoveryProof}
+              mfaEnabled={mfaEnabled}
+              disabled={busy || !securityReady}
+            />
+            <Button
+              disabled={
+                busy || !securityReady || !recoveryProof.password || (mfaEnabled && !/^\d{6}$/.test(recoveryProof.otp))
+              }
+              onClick={rotateRecovery}
+            >
+              Створити новий ключ відновлення
+            </Button>
+            {actionError("recovery")}
+          </div>
+        </details>
         {recovery && (
-          <>
+          <div ref={recoveryResultRef} className="recovery-result" role="status" tabIndex={-1}>
             <p>Збережіть цей ключ. Повторно він не відображатиметься.</p>
             <code className="recovery-key">{recovery}</code>
             <Button onClick={() => setRecovery("")}>Я зберіг ключ</Button>
-          </>
+          </div>
         )}
-        {actionError("recovery")}
       </Card>
       <Card title="Активні сесії" className="account-security-card">
-        <p>
-          Це входи до вашого облікового запису в браузерах. Завершіть непотрібний або незнайомий сеанс, щоб закрити
-          доступ із нього. Завершення поточної сесії означає вихід із цього браузера.
+        <p className="security-summary">
+          {sessions.isFetching && !sessions.data
+            ? "Перевіряємо входи до вашого облікового запису…"
+            : sessions.data
+              ? `Відкритих сесій: ${sessions.data.length}.`
+              : "Входи до вашого облікового запису в браузерах."}
         </p>
-        {sessions.isError ? (
-          <p role="alert">{apiErrorDisplayMessage(sessions.error)}</p>
-        ) : (
-          <ul className="device-events">
-            {sessions.data?.map((item) => (
-              <li key={item.id}>
-                <strong>{item.current ? "Поточна сесія" : "Інша сесія"}</strong>
-                <p>Вхід: {new Date(item.created_at).toLocaleString("uk-UA")}</p>
-                <Button disabled={busy} onClick={() => revokeSession(item)}>
-                  Завершити сесію
-                </Button>
-              </li>
-            ))}
-          </ul>
-        )}
-        {actionError("session")}
+        {sessions.isError && <p role="alert">{apiErrorDisplayMessage(sessions.error)}</p>}
+        <details
+          className="customer-disclosure security-action-details"
+          name={customerPortal ? "security-actions" : undefined}
+          open={customerPortal ? undefined : true}
+        >
+          <summary>Переглянути активні сесії</summary>
+          <div className="disclosure-content">
+            <p>
+              Це входи до вашого облікового запису в браузерах. Завершіть непотрібний або незнайомий сеанс, щоб закрити
+              доступ із нього. Завершення поточної сесії означає вихід із цього браузера.
+            </p>
+            {!sessions.isError && (
+              <ul className="device-events">
+                {sessions.data?.map((item) => (
+                  <li key={item.id}>
+                    <strong>{item.current ? "Поточна сесія" : "Інша сесія"}</strong>
+                    <p>Вхід: {new Date(item.created_at).toLocaleString("uk-UA")}</p>
+                    <Button disabled={busy} onClick={() => revokeSession(item)}>
+                      Завершити сесію
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {actionError("session")}
+          </div>
+        </details>
       </Card>
     </>
   );

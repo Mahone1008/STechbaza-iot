@@ -1,3 +1,4 @@
+import { securityTotpPassword, securityPasswordProof, recoveryPasswordProof, revealSection } from "../helpers/customer-details";
 import { expect, test, type Page, type Route } from "@playwright/test";
 import type { components } from "../../src/lib/api/schema";
 import {
@@ -149,6 +150,7 @@ test("ending the current security session returns a normal login to the device h
   await expect(page.getByText("Двоетапний вхід увімкнено", { exact: true })).toBeVisible();
   await expect(page.getByLabel("Поточний пароль для підтвердження", { exact: true })).toHaveCount(0);
   await expect(page.getByLabel("Код із застосунку автентифікації", { exact: true })).toHaveCount(0);
+  await revealSection(page, "Переглянути активні сесії");
   await page
     .getByRole("listitem")
     .filter({ hasText: "Поточна сесія" })
@@ -247,7 +249,7 @@ test("TOTP enrollment clears its secret, rotates recovery and revokes only the s
     await fulfillJson(request, 200, {});
   });
   await page.goto("/account/security");
-  const proof = page.getByLabel("Поточний пароль для підтвердження", { exact: true });
+  const proof = (await securityTotpPassword(page));
   const otp = page.getByLabel("Код із застосунку автентифікації", { exact: true });
   await expect(otp).toHaveCount(0);
   await proof.fill(password);
@@ -266,12 +268,13 @@ test("TOTP enrollment clears its secret, rotates recovery and revokes only the s
   await expect(totpCard.getByRole("textbox")).toHaveCount(0);
   await page.setViewportSize({ width: 320, height: 900 });
   await page.screenshot({ path: test.info().outputPath("mfa-enabled-mobile.png") });
-  await page.getByLabel("Поточний пароль для оновлення ключа", { exact: true }).fill(password);
+  await (await recoveryPasswordProof(page)).fill(password);
   await page.getByLabel("Код із застосунку для оновлення ключа", { exact: true }).fill("654321");
   await page.getByRole("button", { name: "Створити новий ключ відновлення", exact: true }).click();
   await expect(page.locator(".recovery-key")).toHaveText(recovery);
   await page.getByRole("button", { name: "Я зберіг ключ", exact: true }).click();
   await expect(page.locator(".recovery-key")).toHaveCount(0);
+  await page.getByText("Переглянути активні сесії", { exact: true }).click();
   await page.getByRole("listitem").filter({ hasText: "Інша сесія" }).getByRole("button").click();
   await expect(page.getByText("Інша сесія", { exact: true })).toHaveCount(0);
   await expect(page.getByText("Поточна сесія", { exact: true })).toBeVisible();
@@ -302,7 +305,7 @@ for (const width of [320, 1440])
       await request.fulfill({ status: 204, headers: corsHeaders, body: "" });
     });
     await page.goto("/account/security");
-    await page.getByLabel("Поточний пароль для зміни пароля", { exact: true }).fill(password);
+    await (await securityPasswordProof(page)).fill(password);
     if (mfaEnabled) {
       await page.getByLabel("Код із застосунку для зміни пароля", { exact: true }).fill("987654");
     }
@@ -378,7 +381,7 @@ for (const failure of [
     const card = page
       .locator(".card")
       .filter({ has: page.getByRole("heading", { name: "Двоетапний вхід", exact: true }) });
-    await page.getByLabel("Поточний пароль для підтвердження", { exact: true }).fill(password);
+    await (await securityTotpPassword(page)).fill(password);
     await card.getByRole("button", { name: "Налаштувати двоетапний вхід", exact: true }).click();
     await expect(card.getByRole("img", { name: "QR для застосунку автентифікації", exact: true })).toBeVisible();
     const otp = page.getByLabel("Код із застосунку автентифікації", { exact: true });

@@ -1,3 +1,4 @@
+import { displaySettings, historyInterval } from "../helpers/customer-details";
 import { expect, test, type Page } from "@playwright/test";
 import { diagnosticsFixture, overviewWithFrequencyFixture } from "../fixtures/overview";
 import { seriesFixture } from "../fixtures/series";
@@ -20,7 +21,7 @@ function series(url: string, populated = true) {
 async function ready(page: Page, manual = true) {
   await page.goto(`/devices/${DEVICE_ID}`); await page.getByRole("tab", { name: "Графіки", exact: true }).click();
   await expect(page.locator(".telemetry-chart")).toBeVisible();
-  if (manual) await page.getByLabel("Автооновлення", { exact: true }).selectOption("0");
+  if (manual) await (await displaySettings(page)).selectOption("0");
 }
 async function position(page: Page) {
   await page.getByLabel("Показник", { exact: true }).evaluate((el) => window.scrollTo(0, scrollY + el.getBoundingClientRect().top - 80));
@@ -49,8 +50,8 @@ test.beforeEach(async ({ page }) => {
 });
 
 async function gapBeforeHistory(page: Page) {
-  const controls = await page.locator(".panel-refresh-controls").boundingBox();
-  const history = await page.locator("#device-section-charts section.card").filter({ has: page.getByRole("heading", { name: "Історія телеметрії", exact: true }) }).boundingBox();
+  const controls = await page.locator(".device-tabs").boundingBox();
+  const history = await page.locator("#device-section-charts section.card").filter({ has: page.getByRole("heading", { name: "Історія показань", exact: true }) }).boundingBox();
   return history!.y - (controls!.y + controls!.height);
 }
 
@@ -82,6 +83,7 @@ for (const viewport of [{ width: 1280, height: 720 }, { width: 390, height: 844 
   test(`metric, period and interval retain scroll during and after loading at ${viewport.width}px`, async ({ page }) => {
     await page.setViewportSize(viewport); await ready(page);
     for (const [label, value] of [["Показник", "vfd.frequency_hz"], ["Період", "86400"], ["Інтервал", "3600"]]) {
+      if (label === "Інтервал") await historyInterval(page);
       const response = gate();
       await page.route(seriesUrl, async (route) => { if (await fulfillPreflight(route)) return; await response.promise; await fulfillJson(route, 200, series(route.request().url())).catch(() => {}); });
       try {
@@ -123,7 +125,7 @@ test("automatic refresh preserves scroll, keeps the chart and does not close the
   await page.clock.install(); await page.setViewportSize({ width: 1280, height: 720 }); await ready(page, false);
   await page.getByText("Таблиця вимірювань", { exact: true }).click();
   // Цей сценарій координує 30/60 с, незалежно від типового інтервалу панелі.
-  await page.getByLabel("Автооновлення", { exact: true }).selectOption("30");
+  await (await displaySettings(page)).selectOption("30");
   const panel = gate(), history = gate();
   await page.route(overviewUrl, async (route) => { if (await fulfillPreflight(route)) return; await panel.promise; await fulfillJson(route, 200, overviewWithFrequencyFixture(devicePayload())).catch(() => {}); });
   await page.route(seriesUrl, async (route) => { if (await fulfillPreflight(route)) return; await history.promise; await fulfillJson(route, 200, series(route.request().url())).catch(() => {}); });
@@ -146,7 +148,7 @@ test("automatic refresh preserves scroll, keeps the chart and does not close the
 
 test("collapsing the measurements table releases its space but keeps the collapsed reserve during loading", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 720 }); await ready(page);
-  const card = page.locator("section.card").filter({ has: page.getByRole("heading", { name: "Історія телеметрії", exact: true }) });
+  const card = page.locator("section.card").filter({ has: page.getByRole("heading", { name: "Історія показань", exact: true }) });
   const height = () => card.evaluate((element) => element.getBoundingClientRect().height);
   const collapsedHeight = await height();
   const summary = card.getByText("Таблиця вимірювань", { exact: true });
@@ -172,6 +174,7 @@ test("collapsing the measurements table releases its space but keeps the collaps
 for (const width of [320, 1280]) test(`changing all three history filters releases an expanded table reserve at ${width}px`, async ({ page }) => {
   await page.setViewportSize({ width, height: 852 }); await ready(page);
   for (const [label, value] of [["Показник", "vfd.frequency_hz"], ["Період", "21600"], ["Інтервал", "900"]]) {
+    if (label === "Інтервал") await historyInterval(page);
     await page.getByText("Таблиця вимірювань", { exact: true }).click();
     await expect(page.getByRole("table")).toBeVisible();
     const response = gate();

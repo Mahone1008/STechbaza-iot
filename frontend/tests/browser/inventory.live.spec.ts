@@ -1,3 +1,4 @@
+import { alarmTypeFilter } from "../helpers/customer-details";
 import { checkNotificationIncident } from "../helpers/notification-incident";
 import type { components } from "../../src/lib/api/schema";
 import { expect, test } from "@playwright/test";
@@ -107,7 +108,7 @@ test("real organization and site selection shows API devices, presence and resto
     const pressure = rows.find((row) => row.uid === "TB-DEMO-PRESSURE")!;
     expect(pressure).toBeDefined();
     await page.goto(`/alarms/devices/${pressure.id}`);
-    await page.getByLabel("Тип аварії", { exact: true }).fill("demo.frontend.acknowledgement");
+    await (await alarmTypeFilter(page)).fill("demo.frontend.acknowledgement");
     await page.getByRole("button", { name: "Застосувати тип" }).click();
     const incidentPromise = page.waitForResponse((r) => r.request().method() === "GET" && /\/api\/v1\/alarms\/[0-9a-f-]+$/u.test(new URL(r.url()).pathname))
       .then(async (r) => { expect(r.status()).toBe(200); return await r.json() as components["schemas"]["DeviceAlarmRead"]; });

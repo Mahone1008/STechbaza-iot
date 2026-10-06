@@ -1,3 +1,4 @@
+import { displaySettings, historyInterval } from "../helpers/customer-details";
 import { expect, test, type Page } from "@playwright/test";
 import { seriesFixture } from "../fixtures/series";
 import { overviewFixture } from "../fixtures/overview";
@@ -36,7 +37,7 @@ test("period and bucket controls produce bounded UTC requests and empty history"
   expect(url.searchParams.get("metric")).toBe("pressure.bar"); expect(url.searchParams.get("start")).toMatch(/Z$/);
   expect(Date.parse(url.searchParams.get("end")!) - Date.parse(url.searchParams.get("start")!)).toBe(604800000);
   // Перевіряємо native option: toBeDisabled retargets вкладений label до select.
-  await expect(page.getByLabel("Інтервал", { exact: true }).locator('option[value="60"]')).toHaveJSProperty("disabled", true);
+  await expect((await historyInterval(page)).locator('option[value="60"]')).toHaveJSProperty("disabled", true);
   await expect(page.getByLabel("Показник", { exact: true }).locator("option")).toHaveCount(1);
 });
 for (const status of [403, 409, 422, 503]) test(`history ${status} removes previous chart and permits explicit recovery`, async ({ page }) => {
@@ -53,31 +54,31 @@ test("foreign history is rejected and disabled module removes history controls",
   const data = overviewFixture(devicePayload()); data.modules = []; data.command_types = []; data.allowed_commands = []; data.capabilities = []; data.readings = []; data.state_readings = [];
   await page.route(`${API_ORIGIN}/api/v1/devices/${DEVICE_ID}/overview`, async (route) => { if (await fulfillPreflight(route)) return; await fulfillJson(route, 200, data); });
   await page.getByRole("button", { name: "Оновити панель" }).click();
-  await expect(page.getByText("Увімкнених каналів з підтримкою історії немає.")).toBeVisible(); await expect(page.getByLabel("Показник", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("Для цього обладнання ще немає показників із доступною історією.")).toBeVisible(); await expect(page.getByLabel("Показник", { exact: true })).toHaveCount(0);
 });
 test("charts poll history without polling the inactive panel, and manual mode pauses both", async ({ page }) => {
   await page.clock.install(); let overview = 0, series = 0;
   page.on("request", (r) => { if (r.method() !== "GET") return; if (r.url().endsWith("/overview")) overview++; if (r.url().includes("/telemetry/series?")) series++; });
   await ready(page);
-  await expect(page.getByLabel("Автооновлення", { exact: true })).toHaveValue("5");
+  await expect((await displaySettings(page))).toHaveValue("5");
   expect(overview).toBe(1); expect(series).toBe(1);
   await page.clock.runFor(6000); expect(overview).toBe(1); expect(series).toBe(1);
   await page.clock.runFor(55000); await expect.poll(() => series).toBe(2); expect(overview).toBe(1);
-  await page.getByLabel("Автооновлення", { exact: true }).selectOption("0");
+  await (await displaySettings(page)).selectOption("0");
   await page.clock.runFor(61000); expect(overview).toBe(1); expect(series).toBe(2);
 });
 test("polling follows selected 30/60 budget, pauses hidden and manual modes, resumes without catch-up bursts", async ({ page }) => {
   await page.clock.install(); let overview = 0, series = 0;
   page.on("request", (r) => { if (r.method() !== "GET") return; if (r.url().endsWith("/overview")) overview++; if (r.url().includes("/telemetry/series?")) series++; });
   await ready(page); expect(overview).toBe(1); expect(series).toBe(1);
-  await page.getByLabel("Автооновлення", { exact: true }).selectOption("30");
+  await (await displaySettings(page)).selectOption("30");
   await page.clock.runFor(31000); await expect.poll(() => overview).toBe(1); expect(series).toBe(1);
   await page.clock.runFor(31000); await expect.poll(() => series).toBe(2); await expect.poll(() => overview).toBe(1);
   await page.evaluate(() => { Object.defineProperty(document, "visibilityState", { configurable: true, value: "hidden" }); document.dispatchEvent(new Event("visibilitychange")); });
   await page.clock.runFor(180000); expect(overview).toBe(1); expect(series).toBe(2);
   await page.evaluate(() => { Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" }); document.dispatchEvent(new Event("visibilitychange")); });
   await expect.poll(() => overview).toBe(1); await expect.poll(() => series).toBe(3);
-  await page.getByLabel("Автооновлення", { exact: true }).selectOption("0");
+  await (await displaySettings(page)).selectOption("0");
   await page.clock.runFor(120000); expect(overview).toBe(1); expect(series).toBe(3);
 });
 test("Retry-After blocks manual retries and hidden resume; automatic retry recovers", async ({ page }) => {
@@ -103,7 +104,7 @@ test("late history after navigation is cancelled and never renders on directory"
     await page.goto(path); await page.getByRole("tab", { name: "Графіки", exact: true }).click(); await expect.poll(() => started).toBe(true);
     await page.getByRole("navigation", { name: "Шлях до об’єкта" }).getByRole("link", { name: "Організації", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Організації", exact: true })).toBeVisible(); release();
-    await expect(page.getByRole("heading", { name: "Історія телеметрії" })).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "Історія показань" })).toHaveCount(0);
   } finally { release(); }
 });
 
@@ -111,7 +112,7 @@ test("offline cancels refresh traffic; manual-only mode does not refresh on retu
   await page.clock.install(); let requests = 0;
   page.on("request", (r) => { if (r.method() === "GET" && (r.url().endsWith("/overview") || r.url().includes("/telemetry/series?"))) requests++; });
   await ready(page); expect(requests).toBe(2);
-  await page.getByLabel("Автооновлення", { exact: true }).selectOption("0");
+  await (await displaySettings(page)).selectOption("0");
   await page.evaluate(() => { Object.defineProperty(navigator, "onLine", { configurable: true, value: false }); window.dispatchEvent(new Event("offline")); });
   await expect(page.getByRole("button", { name: "Оновити панель" })).toBeDisabled();
   await page.clock.runFor(120000); expect(requests).toBe(2);

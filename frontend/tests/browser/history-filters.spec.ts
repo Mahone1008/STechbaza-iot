@@ -1,3 +1,4 @@
+import { displaySettings, historyInterval } from "../helpers/customer-details";
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 import { overviewWithFrequencyFixture } from "../fixtures/overview";
@@ -26,9 +27,10 @@ for (const width of [320, 393]) test(`history filters and their open pickers fit
   await page.setViewportSize({ width, height: 852 });
   await page.goto(`/devices/${DEVICE_ID}`); await page.getByRole("tab", { name: "Графіки", exact: true }).click();
   await expect(page.locator(".telemetry-chart")).toBeVisible();
-  await page.getByLabel("Автооновлення", { exact: true }).selectOption("0");
+  await (await displaySettings(page)).selectOption("0");
 
   for (const label of ["Показник", "Період", "Інтервал"]) {
+    if (label === "Інтервал") await historyInterval(page);
     const select = page.getByLabel(label, { exact: true });
     await select.click();
     const options = select.getByRole("option");
@@ -57,7 +59,7 @@ for (const width of [320, 393]) test(`history filters and their open pickers fit
   await period.click();
   await period.getByRole("option", { name: "24 години", exact: true }).click();
   await expect(period).toHaveValue("86400");
-  const interval = page.getByLabel("Інтервал", { exact: true });
+  const interval = (await historyInterval(page));
   await interval.click();
   await expect(interval.getByRole("option", { name: "1 хв", exact: true })).toHaveJSProperty("disabled", true);
   await page.keyboard.press("End");

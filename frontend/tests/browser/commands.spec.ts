@@ -1,3 +1,4 @@
+import { displaySettings } from "../helpers/customer-details";
 import { expect, test, type Page, type Route } from "@playwright/test";
 import { commandFixture, commandId, controlOverview } from "../fixtures/commands";
 import type { Command, CommandInput } from "../../src/lib/api/commands";
@@ -34,7 +35,7 @@ test("default polling keeps a 15-second presence lease current and refreshes jou
   await mockOverview(page, () => { gets++; const data = controlOverview(); data.availability.timeout_seconds = 15; data.availability.seconds_since_seen = 0; return data; });
   await page.route(`${commandsUrl}?*`, async (route) => { if (await fulfillPreflight(route)) return; await fulfillJson(route, 200, records); });
   await page.goto(path);
-  await expect(page.getByLabel("Автооновлення", { exact: true })).toHaveValue("5");
+  await expect((await displaySettings(page))).toHaveValue("5");
   await expect(controls(page).getByRole("button", { name: "Запустити", exact: true })).toBeEnabled();
   for (let i = 0; i < 4; i++) {
     const before = gets; await page.clock.fastForward(5100); await expect.poll(() => gets).toBeGreaterThan(before);
@@ -45,7 +46,7 @@ test("default polling keeps a 15-second presence lease current and refreshes jou
   await page.getByRole("tab", { name: "Журнал", exact: true }).click();
   const journal = page.getByRole("table", { name: "Журнал команд пристрою" });
   await expect(journal).toContainText("Контролер повідомив про виконання");
-  await page.getByLabel("Автооновлення", { exact: true }).selectOption("0");
+  await (await displaySettings(page)).selectOption("0");
   records = []; const stopped = gets; await page.clock.fastForward(16000);
   expect(gets).toBe(stopped); await expect(journal).toBeVisible();
   await page.getByRole("tab", { name: "Панель", exact: true }).click();
@@ -211,9 +212,9 @@ test("manual mode and hidden tab pause selected command polling", async ({ page 
   await mockPost(page, async (route, body) => fulfillJson(route, 201, commandFixture(body)));
   await mockDetail(page, () => { gets++; return commandFixture(); });
   await page.goto(path); await confirm(page); await expect(detail(page)).toContainText("У черзі");
-  await page.getByLabel("Автооновлення", { exact: true }).selectOption("0"); const initial = gets;
+  await (await displaySettings(page)).selectOption("0"); const initial = gets;
   await page.clock.fastForward(11_000); expect(gets).toBe(initial);
-  await page.getByLabel("Автооновлення", { exact: true }).selectOption("30");
+  await (await displaySettings(page)).selectOption("30");
   await page.evaluate(() => { Object.defineProperty(document, "visibilityState", { configurable: true, value: "hidden" }); document.dispatchEvent(new Event("visibilitychange")); });
   await expect(detail(page).getByRole("button", { name: "Оновити стан команди" })).toBeDisabled(); const hidden = gets;
   await page.clock.fastForward(11_000); expect(gets).toBe(hidden);
@@ -224,7 +225,7 @@ for (const viewport of [{ width: 1280, height: 720 }, { width: 390, height: 844 
     await page.setViewportSize(viewport);
     await mockPost(page, async (route, body) => fulfillJson(route, 201, commandFixture(body)));
     await page.goto(path);
-    await page.getByLabel("Автооновлення", { exact: true }).selectOption("0");
+    await (await displaySettings(page)).selectOption("0");
     await confirm(page);
     const card = detail(page);
     await expect(card.locator(".status-badge")).toHaveText("У черзі");

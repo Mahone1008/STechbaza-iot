@@ -1,3 +1,4 @@
+import { historyInterval } from "../helpers/customer-details";
 import { expect, test, type Page } from "@playwright/test";
 import { stage14Workspace, tenants, feedPath, alarmPath, notificationPath } from "../helpers/stage14-workspace";
 import { fillLogin } from "./auth-fixtures";
@@ -22,9 +23,9 @@ for (const role of ["owner", "viewer"] as const) test(`${role} completes login, 
   await page.getByRole("tab", { name: "Графіки", exact: true }).click();
   await expect(page.locator(".telemetry-chart")).toBeVisible();
   await page.getByLabel("Період", { exact: true }).selectOption("21600");
-  await page.getByLabel("Інтервал", { exact: true }).selectOption("900");
+  await (await historyInterval(page)).selectOption("900");
   await page.reload(); await expect(page.getByLabel("Період", { exact: true })).toHaveValue("21600");
-  await expect(page.getByLabel("Інтервал", { exact: true })).toHaveValue("900");
+  await expect((await historyInterval(page))).toHaveValue("900");
   await page.getByRole("tab", { name: "Панель", exact: true }).click();
   if (role === "owner") {
     await page.getByRole("button", { name: "Зупинити", exact: true }).click();
