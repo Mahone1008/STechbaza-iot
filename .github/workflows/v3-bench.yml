@@ -27,6 +27,15 @@ jobs:
           python scripts/check-equipment-profiles.py
           g++ -std=c++17 -Wall -Wextra -Werror -fsanitize=address,undefined -I "$HOME/Arduino/libraries/ArduinoJson/src" firmware/kerumo_v3/src/core.cpp firmware/kerumo_v3/src/su600_driver.cpp firmware/tests/core_test.cpp -o /tmp/v3-core-test
           /tmp/v3-core-test
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Validate firmware timestamps against backend MQTT envelopes
+        run: |
+          python -m pip install --require-hashes -r backend/requirements.lock
+          g++ -std=c++17 -Wall -Wextra -Werror -fsanitize=address,undefined -I "$HOME/Arduino/libraries/ArduinoJson/src" firmware/tests/message_time_test.cpp -o /tmp/v3-message-time-test
+          /tmp/v3-message-time-test > /tmp/v3-wire-fixtures.jsonl
+          PYTHONPATH=backend python firmware/tests/check_message_time.py /tmp/v3-wire-fixtures.jsonl
       - name: Compile read-only firmware for ESP32-S3 N16R8
         run: arduino-cli compile --warnings all --fqbn esp32:esp32:esp32s3:CDCOnBoot=cdc,FlashSize=16M,PSRAM=opi,PartitionScheme=app3M_fat9M_16MB firmware/kerumo_v3
       - name: Compile read-only USB-UART variant for the original V3 serial port
