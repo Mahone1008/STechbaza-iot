@@ -4,6 +4,7 @@
 #include "src/esp32_storage.h"
 #include "src/esp32_provisioning.h"
 #include "src/journal_upgrade.h"
+#include "src/message_time.h"
 #include "src/protocol.h"
 #include "src/scoped_journal.h"
 #include "src/su600_driver.h"
@@ -42,7 +43,7 @@ static_assert(!KERUMO_ENABLE_REMOTE_OPERATION ||
 
 using namespace kerumo;
 namespace {
-constexpr char FirmwareVersion[] = "0.8.0";
+constexpr char FirmwareVersion[] = "0.8.1";
 EquipmentBinding equipment{};
 bool managedEquipment = false;
 Provisioning provisioning;
@@ -113,18 +114,6 @@ const char *resetReasonCode() {
   default:
     return "unknown";
   }
-}
-void timestamp(JsonVariant target, int64_t ms) {
-  if (!ms) {
-    target.set(nullptr);
-    return;
-  }
-  const time_t seconds = ms / 1000;
-  struct tm utc{};
-  gmtime_r(&seconds, &utc);
-  char text[32];
-  strftime(text, sizeof(text), "%Y-%m-%dT%H:%M:%SZ", &utc);
-  target.set(text);
 }
 NvsStorage storage(equipment, managedEquipment);
 Modbus bus(vfdSerial, KERUMO_ENABLE_CONTROL);
@@ -286,7 +275,7 @@ void envelope(JsonDocument &doc, uint64_t sequence, int64_t at) {
   doc["schema_version"] = 1;
   doc["message_id"] = message;
   doc["sequence"] = sequence;
-  timestamp(doc["sent_at"], at);
+  writeMessageTimestamp(doc, "sent_at", at);
 }
 bool sendRecord(const Record &r) {
   JsonDocument ack;
@@ -294,7 +283,7 @@ bool sendRecord(const Record &r) {
   ack["message_id"] = r.ackId;
   ack["command_id"] = r.command.id;
   ack["session_id"] = r.session;
-  timestamp(ack["sent_at"], r.acceptedMs);
+  writeMessageTimestamp(ack, "sent_at", r.acceptedMs);
   if (!publish("/commands/ack", ack))
     return false;
   if (r.outcome == Outcome::Pending || r.outcome == Outcome::Unknown)
@@ -304,7 +293,7 @@ bool sendRecord(const Record &r) {
   result["message_id"] = r.resultId;
   result["command_id"] = r.command.id;
   result["session_id"] = r.session;
-  timestamp(result["sent_at"], r.completedMs);
+  writeMessageTimestamp(result, "sent_at", r.completedMs);
   result["status"] = r.outcome == Outcome::Succeeded ? "succeeded" : "failed";
   auto data = result["result"].to<JsonObject>();
   if (programType(r.command.type)) {
