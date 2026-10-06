@@ -1,16 +1,13 @@
 "use client";
 import { DeviceSection } from "./panel-activity";
-import { SchedulePanel } from "./schedule-panel";
-import { DeviceEvents } from "./device-events";
+import dynamic from "next/dynamic";
 import { ProgramStatus } from "@/features/program-status";
 import { CommandControls } from "@/features/command-controls";
 import { ControllerDiagnostics } from "@/features/controller-diagnostics";
-import { EquipmentPassportPanel } from "@/features/equipment-passport";
 import { alarmsHref } from "@/features/alarm-shared";
-import { CommandDetail, CommandJournal } from "@/features/command-journal";
+import { CommandDetail } from "@/features/command-journal";
 import { usePanelQuery } from "@/features/use-panel-query";
 import { StableRegion } from "@/components/stable-region";
-import { TelemetryHistory } from "@/features/telemetry-history";
 import type { PollSeconds } from "@/lib/api/polling-policy";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -21,6 +18,7 @@ import { useAccessContext, type ReadyAccessSnapshot } from "@/features/access-co
 import { useAuthSession } from "@/features/auth-session";
 import { apiErrorDisplayMessage, apiQueryKeys, isApiError } from "@/lib/api";
 import { formatSeen } from "@/lib/api/inventory";
+import { deviceLifecycleLabel } from "@/lib/device-labels";
 import {
   channelLabel,
   channelSupported,
@@ -32,49 +30,96 @@ import {
   type Overview,
 } from "@/lib/api/overview";
 
-function OverviewContent({
+const SchedulePanel = dynamic(() => import("./schedule-panel").then((module) => module.SchedulePanel), {
+  loading: () => <p role="status">Завантажуємо розклади…</p>,
+});
+const TelemetryHistory = dynamic(() => import("./telemetry-history").then((module) => module.TelemetryHistory), {
+  loading: () => <p role="status">Завантажуємо графіки…</p>,
+});
+const DeviceEvents = dynamic(() => import("./device-events").then((module) => module.DeviceEvents));
+const EquipmentPassportPanel = dynamic(() =>
+  import("./equipment-passport").then((module) => module.EquipmentPassportPanel),
+);
+const CommandJournal = dynamic(() => import("./command-journal").then((module) => module.CommandJournal));
+
+function DeviceStatus({
   overview,
   receivedAt,
   timezone,
-  onViewProgram,
 }: {
   overview: Overview;
   receivedAt: number;
   timezone: string;
-  onViewProgram?: (() => void) | undefined;
 }) {
   const elapsed = useElapsedSeconds(receivedAt);
   const quality = effectiveQuality(overview.freshness.status, overview.freshness, elapsed);
   const presence = overview.availability;
-  const presenceExpired =
-    presence.seconds_since_seen === null || presence.seconds_since_seen + elapsed > presence.timeout_seconds;
+  const online =
+    presence.online &&
+    presence.seconds_since_seen !== null &&
+    presence.seconds_since_seen + elapsed <= presence.timeout_seconds;
+  const channels = overview.modules.flatMap((module) => module.channels);
+  const running = channels.find((channel) => channel.source === "state" && channel.key === "pump_running");
+  const fault = channels.find((channel) => channel.source === "state" && channel.key === "vfd_fault_code");
+  const confirmed =
+    online &&
+    running &&
+    effectiveQuality(running.status, overview.freshness, elapsed) === "fresh" &&
+    typeof running.value === "boolean";
+  const currentFault =
+    online &&
+    fault &&
+    effectiveQuality(fault.status, overview.freshness, elapsed) === "fresh" &&
+    typeof fault.value === "number" &&
+    fault.value !== 0;
+  const title = currentFault
+    ? "Помилка обладнання"
+    : confirmed
+      ? running.value
+        ? "Обладнання працює"
+        : "Обладнання зупинено"
+      : "Стан обладнання не підтверджено";
   return (
-    <>
-      <Card title="Зв’язок і якість даних">
-        <div className="ui-row">
-          <StatusBadge tone={presence.online && !presenceExpired ? "success" : "neutral"}>
+    <Card className={`device-status${currentFault ? " device-status-fault" : ""}`}>
+      <div className="device-status-heading">
+        <div>
+          <h2>{title}</h2>
+        </div>
+        <div className="device-status-badges">
+          <StatusBadge tone={online ? "success" : "warning"}>
             {presence.last_seen_at === null
               ? "Ще не було зв’язку"
-              : presence.online
-                ? presenceExpired
+              : online
+                ? "На зв’язку"
+                : presence.online
                   ? "Потрібно оновити зв’язок"
-                  : "На зв’язку"
-                : "Немає зв’язку"}
+                  : "Немає зв’язку"}
           </StatusBadge>
           <StatusBadge tone={quality === "fresh" ? "success" : "warning"}>{qualityLabels[quality]}</StatusBadge>
         </div>
-        <p>
+      </div>
+      {currentFault && (
+        <p className="device-status-warning" role="alert">
+          Частотник повідомив про помилку. Код: {String(fault.value)}. Перевірте обладнання перед запуском.
+        </p>
+      )}
+      {quality !== "fresh" && (
+        <p className="device-status-warning">
           {quality === "stale" && overview.freshness.reason === "recent"
             ? reasonLabels.timeout
             : reasonLabels[overview.freshness.reason]}
+          . Поточний стан потрібно перевірити.
         </p>
+      )}
+      <details className="device-connection-details">
+        <summary>Докладніше про зв’язок</summary>
         <dl className="overview-details">
           <div>
             <dt>Останній зв’язок</dt>
             <dd>{formatSeen(presence.last_seen_at, timezone)}</dd>
           </div>
           <div>
-            <dt>Телеметрію отримано</dt>
+            <dt>Показання отримано</dt>
             <dd>
               {overview.freshness.received_at ? formatSeen(overview.freshness.received_at, timezone) : "Немає даних"}
             </dd>
@@ -85,10 +130,72 @@ function OverviewContent({
           </div>
         </dl>
         <p className="help-copy">
-          Зв’язок із контролером не підтверджує роботу двигуна. Стан обладнання визначається окремими показаннями.
-          Частота автоматичного оновлення задається вище; доступна кнопка «Оновити панель».
+          Зв’язок із контролером не підтверджує роботу двигуна. Для цього потрібні актуальні показання обладнання.
         </p>
-      </Card>
+      </details>
+    </Card>
+  );
+}
+
+function OverviewContent({
+  overview,
+  receivedAt,
+  onViewProgram,
+}: {
+  overview: Overview;
+  receivedAt: number;
+  onViewProgram?: (() => void) | undefined;
+}) {
+  const elapsed = useElapsedSeconds(receivedAt);
+  const quality = effectiveQuality(overview.freshness.status, overview.freshness, elapsed);
+  const presence = overview.availability;
+  const presenceExpired =
+    presence.seconds_since_seen === null || presence.seconds_since_seen + elapsed > presence.timeout_seconds;
+  const channels = overview.modules.flatMap((module) => module.channels);
+  const detailKeys = new Set(["control_armed", "vfd_configuration_valid", "vfd_link"]);
+  const renderReading = (channel: Overview["modules"][number]["channels"][number]) => {
+    const label = channelLabel(channel.key) === channel.key ? "Додатковий показник" : channelLabel(channel.key);
+    if (!channelSupported(channel))
+      return (
+        <article className="notice" key={`${channel.source}:${channel.key}`}>
+          <h3>{label}</h3>
+          <p>Цей тип каналу поки не підтримується.</p>
+        </article>
+      );
+    const status = effectiveQuality(channel.status, overview.freshness, elapsed);
+    return (
+      <MetricCard
+        key={`${channel.source}:${channel.key}`}
+        label={label}
+        value={
+          channel.key === "pump_running" && typeof channel.value === "boolean"
+            ? channel.value
+              ? "Працює"
+              : "Зупинено"
+            : readingText(channel)
+        }
+        unit={channel.unit === "Hz" ? "Гц" : (channel.unit ?? "")}
+        meta={
+          status === "stale"
+            ? "Останнє відоме значення; не поточний стан"
+            : status === "missing"
+              ? "Показання ще не отримано"
+              : status === "invalid"
+                ? "Показання не пройшло перевірку"
+                : channel.key === "vfd_fault_code" && channel.value === 0
+                  ? "Помилок немає"
+                  : ""
+        }
+        status={
+          <StatusBadge tone={status === "fresh" ? "success" : status === "invalid" ? "danger" : "warning"}>
+            {qualityLabels[status]}
+          </StatusBadge>
+        }
+      />
+    );
+  };
+  return (
+    <>
       <ProgramStatus
         progress={overview.diagnostics?.program}
         fresh={quality === "fresh" && presence.online && !presenceExpired}
@@ -101,54 +208,19 @@ function OverviewContent({
             <p>Для пристрою немає увімкнених модулів.</p>
           </Card>
         ) : (
-          <div className="overview-modules">
-            {overview.modules
-              .filter((module) => module.channels.length > 0)
-              .map((module) => (
-                <Card key={module.assignmentId} title={module.name}>
-                  {!module.supported ? (
-                    <p>Цей модуль ще не підтримує відображення даних.</p>
-                  ) : (
-                    <div className="overview-widgets">
-                      {module.channels.map((channel) => {
-                        if (!channelSupported(channel))
-                          return (
-                            <article className="notice" key={`${channel.source}:${channel.key}`}>
-                              <h3>{channelLabel(channel.key)}</h3>
-                              <p>Цей тип каналу поки не підтримується.</p>
-                            </article>
-                          );
-                        const status = effectiveQuality(channel.status, overview.freshness, elapsed);
-                        return (
-                          <MetricCard
-                            key={`${channel.source}:${channel.key}`}
-                            label={channelLabel(channel.key)}
-                            value={readingText(channel)}
-                            unit={channel.unit ?? ""}
-                            meta={
-                              status === "stale"
-                                ? "Останнє відоме значення; не поточний стан"
-                                : status === "missing"
-                                  ? "Показання ще не отримано"
-                                  : status === "invalid"
-                                    ? "Показання не пройшло перевірку"
-                                    : "За останнім отриманим повідомленням"
-                            }
-                            status={
-                              <StatusBadge
-                                tone={status === "fresh" ? "success" : status === "invalid" ? "danger" : "warning"}
-                              >
-                                {qualityLabels[status]}
-                              </StatusBadge>
-                            }
-                          />
-                        );
-                      })}
-                    </div>
-                  )}
-                </Card>
-              ))}
-          </div>
+          <>
+            <div className="overview-widgets overview-readings">
+              {channels.filter((channel) => !detailKeys.has(channel.key)).map(renderReading)}
+            </div>
+            {channels.some((channel) => detailKeys.has(channel.key)) && (
+              <details className="overview-extra-readings">
+                <summary>Додаткові показники контролера</summary>
+                <div className="overview-widgets overview-readings">
+                  {channels.filter((channel) => detailKeys.has(channel.key)).map(renderReading)}
+                </div>
+              </details>
+            )}
+          </>
         )}
       </section>
     </>
@@ -244,7 +316,6 @@ function DevicePanel({ context }: { context: ReadyAccessSnapshot }) {
     <>
       <PageHeader
         title={device.name}
-        description={context.activeSite?.name ?? "Керування обладнанням"}
         actions={
           <>
             {context.access.permissions.includes("alarm.read") && (
@@ -306,48 +377,55 @@ function DevicePanel({ context }: { context: ReadyAccessSnapshot }) {
       </div>
       {!query.active && <p role="status">Автооновлення призупинено: вкладка прихована або немає мережі.</p>}
       <DeviceSection name="panel" active={section === "panel"}>
-        <CommandControls
-          onSchedules={() => navigate("schedules")}
-          context={context}
-          overview={query.isError ? null : (query.data?.overview ?? null)}
-          receivedAt={query.data?.receivedAt ?? 0}
-          active={query.active && section === "panel"}
-          refreshing={query.isFetching}
-          poll={poll}
-          onCreated={setSelectedCommand}
-        />
-        {section === "panel" && displayedCommand && context.access.permissions.includes("command.read") && (
-          <CommandDetail key={displayedCommand} context={context} id={displayedCommand} poll={poll} />
-        )}
-        <StableRegion className="overview-result-region" preserveHeight={query.isFetching || query.isError}>
-          {!canRead ? (
-            <section className="notice notice-warning" role="alert">
-              <h2>Недостатньо прав для панелі</h2>
-              <p>Потрібен доступ до модулів і телеметрії.</p>
-            </section>
-          ) : query.isFetching && !query.data ? (
-            <p role="status">Перевіряємо модулі та показання…</p>
-          ) : query.isError ? (
-            <section className="notice notice-warning" role="alert">
-              <h2>{denied ? "Дані більше недоступні" : "Не вдалося завантажити панель"}</h2>
-              <p>{apiErrorDisplayMessage(query.error)}</p>
-              <div className="ui-row">
-                <Button onClick={query.refresh}>Повторити</Button>
-                <Link className="button button-secondary" href="/organizations">
-                  Обрати організацію
-                </Link>
-              </div>
-            </section>
-          ) : query.data ? (
-            <OverviewContent
-              key={query.dataUpdatedAt}
+        <div className="device-panel-grid">
+          {canRead && query.data && !query.isError && (
+            <DeviceStatus
               overview={query.data.overview}
               receivedAt={query.data.receivedAt}
               timezone={context.activeSite?.timezone ?? "UTC"}
-              onViewProgram={onViewProgram}
             />
-          ) : null}
-        </StableRegion>
+          )}
+          <CommandControls
+            onSchedules={() => navigate("schedules")}
+            context={context}
+            overview={query.isError ? null : (query.data?.overview ?? null)}
+            receivedAt={query.data?.receivedAt ?? 0}
+            active={query.active && section === "panel"}
+            refreshing={query.isFetching}
+            poll={poll}
+            onCreated={setSelectedCommand}
+          />
+          <StableRegion className="overview-result-region" preserveHeight={query.isFetching || query.isError}>
+            {!canRead ? (
+              <section className="notice notice-warning" role="alert">
+                <h2>Недостатньо прав для панелі</h2>
+                <p>Потрібен доступ до модулів і телеметрії.</p>
+              </section>
+            ) : query.isFetching && !query.data ? (
+              <p role="status">Перевіряємо модулі та показання…</p>
+            ) : query.isError ? (
+              <section className="notice notice-warning" role="alert">
+                <h2>{denied ? "Дані більше недоступні" : "Не вдалося завантажити панель"}</h2>
+                <p>{apiErrorDisplayMessage(query.error)}</p>
+                <div className="ui-row">
+                  <Button onClick={query.refresh}>Повторити</Button>
+                  <Link className="button button-secondary" href="/organizations">
+                    Обрати організацію
+                  </Link>
+                </div>
+              </section>
+            ) : query.data ? (
+              <OverviewContent
+                overview={query.data.overview}
+                receivedAt={query.data.receivedAt}
+                onViewProgram={onViewProgram}
+              />
+            ) : null}
+          </StableRegion>
+        </div>
+        {section === "panel" && displayedCommand && context.access.permissions.includes("command.read") && (
+          <CommandDetail key={displayedCommand} context={context} id={displayedCommand} poll={poll} />
+        )}
       </DeviceSection>
       <DeviceSection name="charts" active={section === "charts"}>
         {visited.has("charts") &&
@@ -401,7 +479,7 @@ function DevicePanel({ context }: { context: ReadyAccessSnapshot }) {
                 </div>
                 <div>
                   <dt>Стан реєстрації</dt>
-                  <dd>{device.lifecycle_status}</dd>
+                  <dd>{deviceLifecycleLabel(device.lifecycle_status)}</dd>
                 </div>
               </dl>
               {query.isError ? (

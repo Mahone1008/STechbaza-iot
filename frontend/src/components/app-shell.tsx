@@ -309,7 +309,7 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
 
       <section className="workspace">
         <header className="topbar">
-          <span className="topbar-brand"><Brand compact /></span>
+          <span className="topbar-brand"><Brand compact={process.env.NEXT_PUBLIC_PORTAL_MODE === "staff"} /></span>
           <div className="topbar-context"><span>{organizationName}</span><span aria-hidden="true">/</span><strong>{routeLabel(pathname)}</strong></div>
           <div className="topbar-actions">
             {process.env.NEXT_PUBLIC_PORTAL_MODE === "staff" && <Link className="button button-small button-secondary" href={"/operations" as Route}>До кабінету</Link>}

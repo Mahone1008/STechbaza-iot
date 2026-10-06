@@ -298,10 +298,11 @@ export function CommandControls({
   const duration = plan?.steps.reduce((sum, step) => sum + step.duration_seconds, 0) ?? 0;
   return (
     <Card
+      className="device-controls"
       title={canExecute ? "Керування пристроєм" : "Перегляд режимів роботи"}
       description={
         canExecute
-          ? "Кожну команду потрібно підтвердити. Після втрати мережі запуск і частота автоматично не надсилаються."
+          ? "Кожна дія потребує підтвердження."
           : "Доступ лише до перегляду. Створення розкладів і керування потребують дозволу оператора."
       }
     >
@@ -311,6 +312,92 @@ export function CommandControls({
         <p>Для цього пристрою немає дозволених команд.</p>
       ) : (
         <>
+          {(mode === "timer" || mode === "program") && !programRunning && (
+            <p className="program-mode-notice">
+              <strong>{mode === "timer" ? "За таймером" : `За етапами · етапів: ${steps.length}`}</strong>
+              {programValid
+                ? ` · ${durationText(duration)} на заданих частотах; потім STOP.`
+                : " · перевірте частоти та тривалість у додаткових налаштуваннях."}
+            </p>
+          )}
+          {(mode === "timer" || mode === "program") && programSupported && !programReady && !programRunning && (
+            <p className="help-copy">Очікуємо свіжі дані та локальний дозвіл контролера.</p>
+          )}
+          {programRunning && (
+            <p role="status">
+              За останніми даними програма виконується або зупиняється.{" "}
+              {context.access.permissions.includes("command.read") &&
+                "План відкривається через «Переглянути етапи роботи» нижче. "}
+              Редагування, зміна частоти й новий запуск стануть доступними після зупинки.
+            </p>
+          )}
+          {(mode === "timer" || mode === "program") && !programRunning && !programStopped && (
+            <p className="help-copy">Перед запуском потрібна підтверджена зупинка частотника.</p>
+          )}
+          {canExecute && (
+            <>
+              <div className="ui-row device-control-actions">
+                {(mode === "timer" || mode === "program") && (
+                  <Button
+                    variant="primary"
+                    disabled={!enabled("vfd.program.start")}
+                    onClick={() =>
+                      setDialog({ kind: "new", type: "vfd.program.start", target: overview?.equipmentTarget ?? null })
+                    }
+                  >
+                    {mode === "timer"
+                      ? programValid
+                        ? `Запустити на ${durationText(duration)}`
+                        : "Запустити за таймером"
+                      : "Запустити за етапами"}
+                  </Button>
+                )}
+                {(["vfd.start", "vfd.stop"] as const)
+                  .filter(
+                    (type) => overview.allowedCommands.includes(type) && (mode === "manual" || type === "vfd.stop"),
+                  )
+                  .map((type) => (
+                    <Button
+                      key={type}
+                      variant={type === "vfd.stop" ? "danger" : "primary"}
+                      disabled={!enabled(type)}
+                      onClick={() => setDialog({ kind: "new", type, target: overview?.equipmentTarget ?? null })}
+                    >
+                      {commandLabel(type)}
+                    </Button>
+                  ))}
+              </div>
+              <div className="device-frequency-setting">
+                {mode === "manual" && !programRunning && overview.allowedCommands.includes("vfd.frequency.set") && (
+                  <>
+                    <TextField
+                      label="Задана частота, Гц"
+                      type="number"
+                      min={limits?.min_hz}
+                      max={limits?.max_hz}
+                      step="any"
+                      value={frequency}
+                      disabled={busy || !!uncertain || !limits}
+                      onChange={(event) => setFrequency(event.target.value)}
+                      hint={
+                        limits
+                          ? `Робочі межі пристрою: ${limits.min_hz}-${limits.max_hz} Гц.`
+                          : "Спочатку налаштуйте допустимі межі частоти обладнання."
+                      }
+                    />
+                    <Button
+                      disabled={!enabled("vfd.frequency.set")}
+                      onClick={() =>
+                        setDialog({ kind: "new", type: "vfd.frequency.set", target: overview.equipmentTarget ?? null })
+                      }
+                    >
+                      {commandLabel("vfd.frequency.set")}
+                    </Button>
+                  </>
+                )}
+              </div>
+            </>
+          )}
           <details
             className="command-settings"
             open={settingsOpen}
@@ -408,81 +495,6 @@ export function CommandControls({
                 />
               ))}
           </details>
-          {(mode === "timer" || mode === "program") && !programRunning && (
-            <p className="program-mode-notice">
-              <strong>{mode === "timer" ? "За таймером" : `За етапами · етапів: ${steps.length}`}</strong>
-              {programValid
-                ? ` · ${durationText(duration)} на заданих частотах; потім STOP.`
-                : " · перевірте частоти та тривалість у додаткових налаштуваннях."}
-            </p>
-          )}
-          {(mode === "timer" || mode === "program") && programSupported && !programReady && !programRunning && (
-            <p className="help-copy">Очікуємо свіжі дані та локальний дозвіл контролера.</p>
-          )}
-          {programRunning && (
-            <p role="status">
-              За останніми даними програма виконується або зупиняється.{" "}
-              {context.access.permissions.includes("command.read") &&
-                "План відкривається через «Переглянути етапи роботи» нижче. "}
-              Редагування, зміна частоти й новий запуск стануть доступними після зупинки.
-            </p>
-          )}
-          {(mode === "timer" || mode === "program") && !programRunning && !programStopped && (
-            <p className="help-copy">Перед запуском потрібна підтверджена зупинка частотника.</p>
-          )}
-          {canExecute && (
-            <>
-              <div className="history-controls">
-                {mode === "manual" && !programRunning && overview.allowedCommands.includes("vfd.frequency.set") && (
-                  <TextField
-                    label="Задана частота, Гц"
-                    type="number"
-                    min={limits?.min_hz}
-                    max={limits?.max_hz}
-                    step="any"
-                    value={frequency}
-                    disabled={busy || !!uncertain || !limits}
-                    onChange={(event) => setFrequency(event.target.value)}
-                    hint={
-                      limits
-                        ? `Робочі межі пристрою: ${limits.min_hz}-${limits.max_hz} Гц.`
-                        : "Спочатку налаштуйте допустимі межі частоти обладнання."
-                    }
-                  />
-                )}
-              </div>
-              <div className="ui-row">
-                {(mode === "timer" || mode === "program") && (
-                  <Button
-                    disabled={!enabled("vfd.program.start")}
-                    onClick={() =>
-                      setDialog({ kind: "new", type: "vfd.program.start", target: overview?.equipmentTarget ?? null })
-                    }
-                  >
-                    {mode === "timer"
-                      ? programValid
-                        ? `Запустити на ${durationText(duration)}`
-                        : "Запустити за таймером"
-                      : "Запустити за етапами"}
-                  </Button>
-                )}
-                {(["vfd.start", "vfd.stop", "vfd.frequency.set"] as const)
-                  .filter(
-                    (type) => overview.allowedCommands.includes(type) && (mode === "manual" || type === "vfd.stop"),
-                  )
-                  .map((type) => (
-                    <Button
-                      key={type}
-                      variant={type === "vfd.stop" ? "danger" : "primary"}
-                      disabled={!enabled(type)}
-                      onClick={() => setDialog({ kind: "new", type, target: overview?.equipmentTarget ?? null })}
-                    >
-                      {commandLabel(type)}
-                    </Button>
-                  ))}
-              </div>
-            </>
-          )}
           {!online && (
             <p>
               Запуск і зміна частоти недоступні без актуального зв’язку. Команда зупинки може чекати доставки до
