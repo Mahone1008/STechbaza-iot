@@ -330,7 +330,7 @@ void telemetry(const Sample &sample, uint64_t sequence) {
   auto state = doc["state"].to<JsonObject>();
   // Never re-label an old sample as current after a network stall.
   const bool fresh = static_cast<uint32_t>(millis() - sample.sampledMs) < 5000;
-  if (fresh && sample.storageOk)
+  if (fresh && sample.storageOk && sample.sampledUtcMs > 0)
     doc["command_sequence_floor"] = sample.commandSequence;
   const char *keys[] = {"vfd.set_frequency_hz", "vfd.frequency_hz", "vfd.current_a", "vfd.voltage_v"};
   const double readings[] = {sample.vfd.setHz, sample.vfd.outputHz, sample.vfd.currentA, sample.vfd.voltageV};
