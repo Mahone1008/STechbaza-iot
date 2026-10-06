@@ -55,6 +55,38 @@ html[data-theme="admin"] .modal-dialog {
   color: var(--text);
   background: var(--surface);
 }
+html[data-theme="admin"] .topbar {
+  background: var(--surface);
+}
+html[data-theme="admin"] .data-table tbody tr:hover {
+  background: var(--surface-subtle);
+}
+html[data-theme="admin"] .recovery-key {
+  color: var(--text);
+  background: var(--surface-subtle);
+}
+html[data-theme="admin"] .login-message p {
+  color: var(--text-secondary);
+}
+html[data-theme="admin"] .notice-info,
+html[data-theme="admin"] .login-alert-info {
+  color: var(--info);
+}
+html[data-theme="admin"] .notice-warning,
+html[data-theme="admin"] .login-alert-warning {
+  color: var(--warning);
+}
+html[data-theme="admin"] .notice-danger,
+html[data-theme="admin"] .login-alert-danger {
+  color: var(--danger);
+}
+html[data-theme="admin"] .notice-success,
+html[data-theme="admin"] .login-alert-success {
+  color: var(--success);
+}
+html[data-theme="admin"] .calendar-grid [aria-selected="true"] .calendar-day {
+  color: #172126;
+}
 .staff-shell {
   display: grid;
   grid-template-columns: 260px minmax(0, 1fr);

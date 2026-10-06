@@ -1,6 +1,6 @@
 # Поточний стан KERUMO
 
-06.10.2026, backend **0.50.0**, міграція **0027**: додано окремий службовий API/сайт, три оформлення, керування користувачами/ролями/доступом, журнал дій і стан сервісів. Клієнтський сайт не монтує staff/factory API. Підготовлено single-host deployment через VPN з окремими PostgreSQL credentials; VPN/SMTP/фізичний gateway налаштовуються на цільовому host. [Запуск і перевірки](staff-console-v1.md), [deployment](staff-pilot-deployment.md). All-existing demo reset з backup зберігає паролі й права та прибирає MFA/сесії/об’єкти/обладнання. Порожні організації лишаються для збереження членств.
+06.10.2026, backend **0.50.0**, міграція **0027**: додано окремий службовий API/сайт, три оформлення, керування користувачами/ролями/доступом, журнал дій і стан сервісів. Клієнтський сайт не монтує staff/factory API. Підготовлено single-host deployment через VPN з окремими PostgreSQL credentials; VPN/SMTP/фізичний gateway налаштовуються на цільовому host. [Запуск і перевірки](staff-console-v1.md), [deployment](staff-pilot-deployment.md). Dependency gate додатково оновив `source-map-js` до виправленої 1.2.2 (GHSA-68fv-2mgg-jv7q); npm audit не знаходить вразливостей. All-existing demo reset з backup зберігає паролі й права та прибирає MFA/сесії/об’єкти/обладнання. Порожні організації лишаються для збереження членств.
 
 Аудит якості 05.10.2026: розділено MQTT transport/ingress/diagnostics, account
 security API/service та browser session runtime; виправлено фільтрацію прав

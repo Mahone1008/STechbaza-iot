@@ -1,3 +1,4 @@
+import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 
 const adminId = "00000000-0000-4000-8000-000000000001";
@@ -287,3 +288,15 @@ test("mobile staff navigation, logout and tables stay inside the viewport", asyn
   await expect(page.getByRole("heading", { name: "Користувачі", exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
+
+for (const service of [false, true]) {
+  test(`staff overview meets accessibility requirements in the ${service ? "service" : "administrator"} palette`, async ({
+    page,
+  }) => {
+    await setup(page, service);
+    await login(page, service);
+    await expect(page.getByText("Наступні дії", { exact: true })).toBeVisible();
+    const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze();
+    expect(results.violations).toEqual([]);
+  });
+}
