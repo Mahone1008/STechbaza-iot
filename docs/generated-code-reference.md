@@ -8,14 +8,14 @@ CI звіряє його з tracked code. Це перелік реалізаці
 
 | Компонент | Значення з коду |
 |---|---|
-| Backend / OpenAPI / health | 0.49.0 |
-| Alembic head | `20261005_0026`; 26 міграцій |
+| Backend / OpenAPI / health | 0.50.0 |
+| Alembic head | `20261006_0027`; 27 міграцій |
 | Frontend package | 0.1.0 |
 | Node engine | `>=20.9.0` |
 | Package manager | `npm@10.9.2` |
 | Next.js / React | 16.3.6 / 19.2.8 |
 | Firmware V3 | 0.7.0 |
-| OpenAPI paths | 92 |
+| OpenAPI paths | 105 |
 
 ## Канали телеметрії
 
@@ -164,6 +164,19 @@ ACK/Result лишаються v1. Дозвіл API не замінює лока�
 | `/api/v1/sites/{site_id}` | GET |
 | `/api/v1/sites/{site_id}/devices` | GET, POST |
 | `/api/v1/sites/{site_id}/installations` | POST |
+| `/api/v1/staff/audit` | GET |
+| `/api/v1/staff/devices` | GET |
+| `/api/v1/staff/monitoring` | GET |
+| `/api/v1/staff/organizations/{organization_id}` | DELETE, PATCH |
+| `/api/v1/staff/organizations/{organization_id}/memberships` | POST |
+| `/api/v1/staff/organizations/{organization_id}/memberships/{membership_id}` | PATCH |
+| `/api/v1/staff/overview` | GET |
+| `/api/v1/staff/sites/{site_id}` | DELETE, PATCH |
+| `/api/v1/staff/users` | GET |
+| `/api/v1/staff/users/{user_id}` | PATCH |
+| `/api/v1/staff/users/{user_id}/security-reset` | POST |
+| `/api/v1/staff/users/{user_id}/sessions` | GET |
+| `/api/v1/staff/users/{user_id}/sessions/revoke` | POST |
 | `/command/reliability/status` | GET |
 | `/health` | GET |
 | `/health/db` | GET |

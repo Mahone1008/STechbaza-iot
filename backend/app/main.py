@@ -45,6 +45,9 @@ from app.services.system_alarm_worker import (
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    from app.security.plane import APP_PLANE
+    if APP_PLANE == "staff":
+        raise RuntimeError("Run staff_main for the staff plane")
     start_mqtt()
     start_command_reliability_worker()
     start_system_alarm_worker()
@@ -58,7 +61,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="TechBaza Backend",
-    version="0.49.0",
+    version="0.50.0",
     description="Backend API платформи TechBaza IoT Pump Control",
     lifespan=lifespan,
 )
@@ -74,6 +77,8 @@ app.add_middleware(
     expose_headers=["Retry-After"],
 )
 app.add_middleware(AuthNoStoreMiddleware)
+from app.services.platform_audit import RequestAuditMiddleware
+app.add_middleware(RequestAuditMiddleware)
 
 
 @app.exception_handler(AccountSecurityConflict)
@@ -122,7 +127,7 @@ def health() -> dict[str, str]:
     return {
         "status": "ok",
         "service": "techbaza-backend",
-        "version": "0.49.0",
+        "version": "0.50.0",
     }
 
 
@@ -223,3 +228,10 @@ def system_alarms() -> dict[str, Any]:
         "status": "ok",
         "worker": system_alarm_status(),
     }
+
+
+@app.get("/_internal/status", include_in_schema=False)
+def internal_status(request: Request):
+    from app.services.staff_monitoring import require_internal_probe, worker_snapshot
+    require_internal_probe(request)
+    return worker_snapshot()

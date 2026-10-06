@@ -53,6 +53,10 @@ class AuthSession(TimestampMixin, Base):
         nullable=True,
     )
 
+    audience: Mapped[str] = mapped_column(String(80), nullable=False, default="techbaza-api", server_default="techbaza-api")
+    client_ip: Mapped[str | None] = mapped_column(String(64))
+    user_agent: Mapped[str | None] = mapped_column(String(240))
+
     mfa_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     user: Mapped["User"] = relationship(

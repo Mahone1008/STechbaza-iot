@@ -100,7 +100,7 @@ function FactoryRegister() {
         body: { ...values, factory_test_passed: passed },
       });
       setSecrets(created);
-      setLabelUrl(`${window.location.origin}${created.qr_path}`);
+      setLabelUrl(`${process.env.NEXT_PUBLIC_CUSTOMER_URL || window.location.origin}${created.qr_path}`);
     });
   };
 

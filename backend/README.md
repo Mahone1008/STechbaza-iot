@@ -59,3 +59,7 @@ API lifespan запускає MQTT і фонові workers. Поточне ло�
 Перед оновленням наявної установки: [перенесення account keys](../docs/account-key-operations-v1.md).
 Поточні lock/static gate: [backend development](../docs/backend-development.md).
 Реалізована частина етапу 2: [buyer onboarding](../docs/buyer-onboarding-v1.md).
+
+## Службовий кабінет 0.50.0
+
+[Адміністратор/сервіс, два застосунки, три оформлення, reset та ручні перевірки](../docs/staff-console-v1.md). [Linux pilot через VPN](../docs/staff-pilot-deployment.md). Міграція 0027; staff API запускається як `app.staff_main:app`, обов’язкові окремий JWT secret/audience і `APP_PLANE=staff`.

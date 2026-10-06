@@ -139,3 +139,7 @@ CI вимагає zero diff. Повний [API contract](../docs/frontend-api-co
 
 `npm run test:unit` також перевіряє сумісність scoped заміни залежності Next
 ESLint, що прибирає вразливий `braces`. [Причина й правила оновлення override](../docs/development-standards.md).
+
+## Службовий кабінет 0.50.0
+
+[Адміністратор/сервіс, два застосунки, три оформлення, reset та ручні перевірки](../docs/staff-console-v1.md). [Linux pilot через VPN](../docs/staff-pilot-deployment.md). Міграція 0027; staff API запускається як `app.staff_main:app`, обов’язкові окремий JWT secret/audience і `APP_PLANE=staff`.

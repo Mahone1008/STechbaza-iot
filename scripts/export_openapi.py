@@ -25,6 +25,11 @@ from app.main import app  # noqa: E402
 def main() -> None:
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     payload = app.openapi()
+    # One generated SDK describes both applications; serving routes stays separate.
+    from app.staff_main import app as staff_app
+    private = staff_app.openapi()
+    payload["paths"].update({key: value for key, value in private["paths"].items() if key.startswith("/api/v1/staff/")})
+    payload["components"]["schemas"].update(private["components"]["schemas"])
     OUTPUT.write_text(
         json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",

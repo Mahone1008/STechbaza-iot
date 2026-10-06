@@ -27,12 +27,16 @@ export function AccountGate({ children, returnTo }: { children: ReactNode; retur
           <Link className="button button-primary" href={`/login?returnTo=${encodeURIComponent(returnTo)}` as Route}>
             Увійти
           </Link>
-          <Link className="button button-secondary" href="/register">
-            Створити обліковий запис
-          </Link>
-          <Link className="button button-secondary" href="/connect">
-            Активувати контролер за QR
-          </Link>
+          {process.env.NEXT_PUBLIC_PORTAL_MODE !== "staff" && (
+            <>
+              <Link className="button button-secondary" href="/register">
+                Створити обліковий запис
+              </Link>
+              <Link className="button button-secondary" href="/connect">
+                Активувати контролер за QR
+              </Link>
+            </>
+          )}
         </div>
       </Card>
     );

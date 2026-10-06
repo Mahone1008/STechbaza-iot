@@ -36,4 +36,10 @@ api_v1_router.include_router(personal_accounts_router)
 from app.api.v1.account_security import router as account_security_router
 from app.api.v1.onboarding import router as onboarding_router
 api_v1_router.include_router(account_security_router)
-api_v1_router.include_router(onboarding_router)
+from app.security.plane import APP_PLANE
+if APP_PLANE == "customer":
+    selected = APIRouter()
+    selected.routes = [route for route in onboarding_router.routes if not route.path.startswith("/factory/")]
+    api_v1_router.include_router(selected)
+else:
+    api_v1_router.include_router(onboarding_router)

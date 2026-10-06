@@ -20,7 +20,10 @@
     "test:browser:live": "playwright test --config playwright.live.config.ts",
     "browser:install": "playwright install chromium",
     "check": "npm run api:verify && npm run typecheck && npm run lint && npm run format:check && npm run test:unit && npm run build && npm run test:browser",
-    "format:check": "node ./scripts/check-format.mjs"
+    "format:check": "node ./scripts/check-format.mjs",
+    "build:staff": "node ./scripts/build-staff.mjs",
+    "check:budget:staff": "node ./scripts/check-build-budget.mjs .next-staff",
+    "test:staff": "playwright test --config playwright.staff.config.ts"
   },
   "dependencies": {
     "@tanstack/react-query": "5.104.0",

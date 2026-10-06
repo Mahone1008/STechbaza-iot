@@ -40,6 +40,7 @@ const ALLOWED_RETURN_PATHS = [
   "/connect",
   "/account",
   "/factory",
+  "/operations",
 ] as const;
 
 export function safeLoginReturnTo(value: string | null | undefined): Route {

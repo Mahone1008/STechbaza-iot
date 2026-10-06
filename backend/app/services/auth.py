@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 from app.models.user import User
+from app.security.plane import APP_PLANE, STAFF_ROLES
+from app.security.auth_config import AUTH_TOKEN_AUDIENCE
 from app.models.onboarding import AccountSecurity, FactoryController
 from app.security.account_keys import verify_stored_totp
 from app.services.label_accounts import create_label_account, label_session_valid
@@ -65,7 +67,7 @@ class AuthService:
         self._users = UserRepository(session)
         self._auth_sessions = AuthSessionRepository(session)
 
-    def login(self, payload: LoginRequest) -> TokenPair:
+    def login(self, payload: LoginRequest, *, client_ip: str | None = None, user_agent: str | None = None) -> TokenPair:
         login = str(payload.email or "").strip().lower()
         if payload.controller_id:
             factory = self._session.get(FactoryController, payload.controller_id)
@@ -76,7 +78,7 @@ class AuthService:
         user = self._session.scalar(
             select(User).where(or_(User.email == login, User.login_name == login)).with_for_update()
         )
-        if user is None:
+        if user is None and APP_PLANE != "staff":
             user = create_label_account(self._session, login, payload.password)
 
         if user is None:
@@ -85,6 +87,9 @@ class AuthService:
             raise InvalidCredentialsError
 
         if not verify_password(payload.password, user.password_hash):
+            raise InvalidCredentialsError
+
+        if (APP_PLANE == "staff" and user.platform_role not in STAFF_ROLES) or (APP_PLANE == "customer" and user.platform_role in STAFF_ROLES):
             raise InvalidCredentialsError
 
         if not user.is_active:
@@ -116,6 +121,9 @@ class AuthService:
             id=uuid.uuid4(),
             user_id=user.id,
             refresh_token_hash=refresh.token_hash,
+            audience=AUTH_TOKEN_AUDIENCE,
+            client_ip=(client_ip or "")[:64] or None,
+            user_agent=(user_agent or "")[:240] or None,
             expires_at=refresh.expires_at,
             mfa_verified_at=now if mfa_verified else None,
         )
@@ -149,7 +157,7 @@ class AuthService:
         token_hash = hash_refresh_token(refresh_token)
         auth_session = self._auth_sessions.get_by_refresh_hash_for_update(token_hash)
 
-        if auth_session is None:
+        if auth_session is None or auth_session.audience != AUTH_TOKEN_AUDIENCE:
             self._session.rollback()
             raise InvalidRefreshTokenError
 
@@ -164,7 +172,7 @@ class AuthService:
             self._session.rollback()
             raise InvalidRefreshTokenError
 
-        if not user.is_active:
+        if not user.is_active or (APP_PLANE == "staff" and user.platform_role not in STAFF_ROLES):
             auth_session.revoked_at = now
             self._session.commit()
             raise InactiveUserError
@@ -197,7 +205,7 @@ class AuthService:
         auth_session = self._auth_sessions.get_by_refresh_hash_for_update(token_hash)
 
         # Logout навмисно idempotent: unknown token не розкриває session state.
-        if auth_session is None:
+        if auth_session is None or auth_session.audience != AUTH_TOKEN_AUDIENCE:
             self._session.rollback()
             return
 

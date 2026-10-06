@@ -20,6 +20,9 @@
 
 ## Чинні контракти й інструкції
 
+- [Закриті кабінети адміністратора/сервісу, локальний запуск і ручне приймання](staff-console-v1.md)
+- [Приватне розгортання пілота через VPN](staff-pilot-deployment.md)
+
 - [Buyer onboarding: реалізована частина етапу 2 та відкриті функції](buyer-onboarding-v1.md)
 - [Особисті акаунти, добровільний Authenticator, запрошення та SMTP](personal-accounts-v1.md)
 - [Account keys: перенесення, ротація та backup](account-key-operations-v1.md)

@@ -6,6 +6,11 @@ on:
       - 'backend/**'
       - 'pyproject.toml'
       - 'infrastructure/mosquitto/**'
+      - 'infrastructure/staff/**'
+      - 'compose.staff.demo.yml'
+      - 'compose.pilot.yml'
+      - 'scripts/start-staff-demo.ps1'
+      - 'scripts/prepare-staff.ps1'
       - '.github/workflows/backend-checks.yml'
       - 'compose.demo.yml'
       - 'compose.acceptance.yml'
@@ -16,6 +21,11 @@ on:
       - 'backend/**'
       - 'pyproject.toml'
       - 'infrastructure/mosquitto/**'
+      - 'infrastructure/staff/**'
+      - 'compose.staff.demo.yml'
+      - 'compose.pilot.yml'
+      - 'scripts/start-staff-demo.ps1'
+      - 'scripts/prepare-staff.ps1'
       - '.github/workflows/backend-checks.yml'
       - 'compose.demo.yml'
       - 'scripts/check-stage8-op4.ps1'
@@ -88,6 +98,15 @@ jobs:
       - name: Run regression and integration checks
         working-directory: backend
         run: python -m app.tools.backend_check
+      - name: Verify private staff controls and database role boundaries
+        env:
+          APP_PLANE: staff
+          AUTH_ACCESS_TOKEN_SECRET: staff-ci-only-separate-access-token-secret-2026
+          AUTH_BROWSER_ORIGINS: http://127.0.0.1:3001
+          AUTH_COOKIE_SECURE: 'false'
+          ACCOUNT_KEY_SECRET: staff-ci-only-account-encryption-secret-2026
+        working-directory: backend
+        run: python -m unittest discover -s tests -p staff_checks.py -v
       - name: Install isolated browser test dependencies
         run: |
           python -m pip install -r backend/requirements-browser-tests.txt
@@ -179,6 +198,9 @@ jobs:
           ./scripts/reset-demo-review.ps1
           ./scripts/reset-demo-review.ps1 -Apply
           ./scripts/reset-demo-review.ps1 -Apply
+          ./scripts/reset-demo-review.ps1 -AllExisting
+          ./scripts/reset-demo-review.ps1 -AllExisting -Apply
+          ./scripts/reset-demo-review.ps1 -AllExisting -Apply
       - name: Demo logs on failure
         if: failure()
         run: docker compose -p techbaza-demo --env-file .env.demo -f compose.demo.yml logs --tail 120 backend simulator

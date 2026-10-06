@@ -101,6 +101,7 @@ class MembershipService:
         *,
         actor_user_id: uuid.UUID,
         actor_is_superadmin: bool,
+        commit: bool = True,
     ) -> OrganizationMembership:
         self._lock_and_authorize(organization_id, actor_user_id, actor_is_superadmin)
         user = self._users.get(payload.user_id)
@@ -138,7 +139,8 @@ class MembershipService:
 
         try:
             created = self._memberships.add(membership)
-            self._session.commit()
+            if commit:
+                self._session.commit()
             return self._memberships.get(created.id) or created
         except IntegrityError as exc:
             self._session.rollback()
@@ -152,6 +154,7 @@ class MembershipService:
         *,
         actor_user_id: uuid.UUID,
         actor_is_superadmin: bool,
+        commit: bool = True,
     ) -> OrganizationMembership:
         self._lock_and_authorize(organization_id, actor_user_id, actor_is_superadmin)
         membership = self._memberships.get_for_organization(
@@ -206,6 +209,8 @@ class MembershipService:
         membership.role = resulting_role
         membership.is_active = resulting_active
 
-        self._session.commit()
+        self._session.flush()
+        if commit:
+            self._session.commit()
         self._session.refresh(membership)
         return self._memberships.get(membership.id) or membership

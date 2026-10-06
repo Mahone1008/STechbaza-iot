@@ -1,0 +1,53 @@
+# Local acceptance overlay; do not expose these loopback ports to a public network.
+services:
+  backend:
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--no-proxy-headers", "--log-config", "/app/app/logging.json"]
+    environment:
+      APP_PLANE: customer
+      STAFF_DIAGNOSTICS_SECRET: ${STAFF_DIAGNOSTICS_SECRET:?Run scripts/prepare-staff.ps1}
+  staff-backend:
+    image: techbaza-demo-backend:local
+    restart: unless-stopped
+    command: ["uvicorn", "app.staff_main:app", "--host", "0.0.0.0", "--port", "8000", "--no-proxy-headers", "--log-config", "/app/app/logging.json"]
+    environment:
+      APP_PLANE: staff
+      DATABASE_URL: postgresql+psycopg://techbaza_demo:${DEMO_DB_PASSWORD:?Prepare demo}@postgres:5432/techbaza_demo
+      AUTH_ACCESS_TOKEN_SECRET: ${STAFF_JWT_SECRET:?Run scripts/prepare-staff.ps1}
+      AUTH_TOKEN_AUDIENCE: kerumo-staff-api
+      ACCOUNT_KEY_SECRET: ${DEMO_ACCOUNT_KEY_SECRET:?Prepare demo}
+      ACCOUNT_KEY_PREVIOUS_SECRETS: ${ACCOUNT_KEY_PREVIOUS_SECRETS:-[]}
+      AUTH_BROWSER_ORIGINS: http://127.0.0.1:3001,http://localhost:3001
+      AUTH_COOKIE_SECURE: 'false'
+      AUTH_REQUIRE_PRIVILEGED_MFA: 'true'
+      MQTT_HOST: mosquitto
+      MQTT_CLIENT_ID: kerumo-staff-publisher
+      TECHBAZA_DEMO_MODE: '1'
+      DEVICE_ONLINE_TIMEOUT_SECONDS: '15'
+      STAFF_WORKER_URL: http://backend:8000/_internal/status
+      STAFF_DIAGNOSTICS_SECRET: ${STAFF_DIAGNOSTICS_SECRET:?Run scripts/prepare-staff.ps1}
+      CONTROLLER_BROKER_ADMIN_HOST: controller-gateway
+      CONTROLLER_BROKER_ADMIN_PORT: '1884'
+      CONTROLLER_BROKER_ADMIN_PASSWORD: ${CONTROLLER_BROKER_ADMIN_PASSWORD:-}
+      CONTROLLER_MQTT_PUBLIC_HOST: ${CONTROLLER_HOST:-}
+      CONTROLLER_MQTT_PUBLIC_PORT: '8884'
+      MAIL_DELIVERY_MODE: ${MAIL_DELIVERY_MODE:-local}
+      MAIL_PUBLIC_URL: ${MAIL_PUBLIC_URL:-http://127.0.0.1:3000}
+      MAIL_LOCAL_DIRECTORY: /private/mail
+      MAIL_FROM: ${MAIL_FROM:-KERUMO <access@kerumo.example.com>}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURITY: ${SMTP_SECURITY:-starttls}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+    ports:
+      - "127.0.0.1:8002:8000"
+    volumes:
+      - ./.local/mail:/private/mail
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+      interval: 3s
+      timeout: 5s
+      retries: 20

@@ -76,7 +76,7 @@ null і fallback для невідомої timezone. Відсоток приск
 
 | Показник | Gate | Метод і межі |
 |---|---|---|
-| Усі build JS chunks gzip | ≤ 384 000 bytes (375 KiB) | Сума окремо gzip-стиснених `.next/static/**/*.js`; не transfer однієї сторінки |
+| Усі build JS chunks gzip | ≤ 419 840 bytes (410 KiB) | Сума окремо gzip-стиснених `.next/static/**/*.js`; не transfer однієї сторінки |
 | Найбільший JS chunk gzip | ≤ 122 880 bytes (120 KiB) | Той самий Node/zlib звіт |
 | Початкова панель | < 8 000 ms | Chromium, локальний production build, mocked API, до готового графіка |
 | Щільна історія | < 4 000 ms | Зміна інтервалу до 672 заповнених buckets, очікування DOM і двох animation frames |
@@ -115,3 +115,5 @@ Audit snapshot включає dev dependencies; gate блокує high/critical 
 запрошення й учасників збільшили суму gzip chunks приблизно на 20 KiB
 (348 460 → 368 301 bytes на локальному build). Це сума всіх routes,
 а не завантаження сторінки входу. Окремий chunk ceiling 120 KiB збережено.
+
+У 0.50.0 whole-build бюджет 410 KiB враховує три кабінети та їх routes у спільному source tree. Per-chunk 120 KiB збережено. `check:budget:staff` перевіряє окремий `.next-staff` build, звичайний `check:budget` клієнтський `.next`. Ці числа стосуються всіх build chunks, не завантаження однієї сторінки.

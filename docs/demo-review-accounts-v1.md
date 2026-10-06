@@ -112,7 +112,7 @@ frontend, підключений до demo API `http://127.0.0.1:8001`; окре
 
 ## Очистити готові приклади, зберігши паролі й права
 
-Після оновлення backend до 0.49.0 і міграції 0026 виконайте з кореня:
+Після оновлення backend до 0.50.0 і міграції 0027 виконайте з кореня:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\reset-demo-review.ps1
@@ -145,3 +145,5 @@ superadmin зможе налаштувати новий Authenticator для fac
 їх відкликання шлюзом. Недоступний шлюз зупиняє видалення БД. Сценарій
 враховує наявні `.env.v3`/`.env.controllers` overlays, щоб зберегти налаштування
 підключення backend. Перед reset фізичне обладнання має бути зупинене й DISARM.
+
+Для очищення **всіх** існуючих demo акаунтів, включно з власними email, і запуску трьох ролей використовуйте [новий приватний кабінет](staff-console-v1.md). `start-staff-demo.ps1 -ResetExisting` зберігає паролі/права і робить backup, але скидає MFA/recovery/сесії та всі прикладні об’єкти. Старий reset без `-AllExisting` обмежений вісьмома review emails.

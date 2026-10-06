@@ -237,7 +237,11 @@ function UserMenu({
           </div>
           <div className="user-menu-separator" />
           <Link className="user-menu-action" role="menuitem" href={"/account/security" as Route} onClick={() => setOpen(false)}><Icon name="security" /><span>Безпека облікового запису</span></Link>
-          <Link className="user-menu-action" role="menuitem" href={"/connect" as Route} onClick={() => setOpen(false)}><Icon name="devices" /><span>Додати контролер</span></Link>
+          {process.env.NEXT_PUBLIC_PORTAL_MODE === "staff" ? (
+            <Link className="user-menu-action" role="menuitem" href={"/operations" as Route} onClick={() => setOpen(false)}><Icon name="components" /><span>Службовий кабінет</span></Link>
+          ) : (
+            <Link className="user-menu-action" role="menuitem" href={"/connect" as Route} onClick={() => setOpen(false)}><Icon name="devices" /><span>Додати контролер</span></Link>
+          )}
           <button
             className="user-menu-action user-menu-action-danger"
             type="button"
@@ -308,6 +312,7 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
           <span className="topbar-brand"><Brand compact /></span>
           <div className="topbar-context"><span>{organizationName}</span><span aria-hidden="true">/</span><strong>{routeLabel(pathname)}</strong></div>
           <div className="topbar-actions">
+            {process.env.NEXT_PUBLIC_PORTAL_MODE === "staff" && <Link className="button button-small button-secondary" href={"/operations" as Route}>До кабінету</Link>}
             {presentation.connectionWarning && (
               <span className="connection-notice" role="status">З’єднання нестабільне</span>
             )}

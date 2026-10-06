@@ -25,6 +25,9 @@ MAX_DEVICE_SCHEDULES = 8
 
 def schedule_actor(session, schedule):
     user = session.get(User, schedule.author_user_id, populate_existing=True)
+    if user is None:
+        from app.security.actor_metadata import customer_actor_metadata
+        user = customer_actor_metadata(session, schedule.author_user_id)
     device = DeviceRepository(session).get(schedule.device_id)
     site = session.get(Site, device.site_id, populate_existing=True) if device else None
     org = session.get(Organization, schedule.organization_id, populate_existing=True)

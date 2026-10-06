@@ -76,6 +76,9 @@ export function AccessContextProvider({ children }: Readonly<{ children: ReactNo
         await cleared;
         controller.signal.throwIfAborted();
         profile = parseCurrentUserResponse(await get("/api/v1/auth/me"));
+        if (current() && process.env.NEXT_PUBLIC_PORTAL_MODE === "staff") {
+          document.documentElement.dataset.theme = profile.platform_role === "superadmin" ? "admin" : "service";
+        }
         if (!current()) return;
         if (!profile.is_active) { clearSession("revoked"); return; }
         scope = { userId: profile.id, sessionId: profile.auth_session_id };

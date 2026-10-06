@@ -41,3 +41,5 @@ Desktop.ini
 
 # Private database backups, clean checkouts and acceptance reports
 /backups/
+
+.next-staff/

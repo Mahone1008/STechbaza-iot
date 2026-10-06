@@ -24,9 +24,15 @@ export function proxy(request: NextRequest) {
   // Overwrite caller-supplied values; Next extracts the nonce from this header.
   requestHeaders.set("Content-Security-Policy", policy);
   const internalPreview = request.nextUrl.pathname === "/ui-kit" || request.nextUrl.pathname.startsWith("/ui-kit/");
+  const portal = process.env.NEXT_PUBLIC_PORTAL_MODE ?? "demo";
+  const path = request.nextUrl.pathname;
+  const hidden =
+    (portal !== "staff" && (path === "/operations" || path.startsWith("/operations/"))) ||
+    (portal === "customer" && (path === "/factory" || path.startsWith("/factory/"))) ||
+    (portal === "staff" && /^\/(register|connect|invite)(?:\/|$)/u.test(path));
   const notFoundUrl = new URL("/_not-found", request.url);
   const response =
-    internalPreview && process.env.KERUMO_UI_PREVIEW !== "1"
+    hidden || (internalPreview && process.env.KERUMO_UI_PREVIEW !== "1")
       ? NextResponse.rewrite(notFoundUrl, { status: 404, request: { headers: requestHeaders } })
       : NextResponse.next({ request: { headers: requestHeaders } });
   response.headers.set("Content-Security-Policy", policy);
