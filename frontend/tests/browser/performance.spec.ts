@@ -1,3 +1,4 @@
+import { displaySettings, historyInterval } from "../helpers/customer-details";
 import { expect, test, type Page } from "@playwright/test";
 import { writeFile } from "node:fs/promises";
 import { API_ORIGIN, fulfillJson, fulfillPreflight } from "./auth-fixtures";
@@ -30,11 +31,11 @@ test("device request and dense history rendering stay within baseline budgets", 
   });
   const started = Date.now(); await page.goto(`/devices/${tenants[0].device}`); await settled(page);
   const readyMs = Date.now() - started, initialRequests = [...requests];
-  await page.getByLabel("Автооновлення", { exact: true }).selectOption("0");
+  await (await displaySettings(page)).selectOption("0");
   await page.getByLabel("Період", { exact: true }).selectOption("604800");
   await expect(page.locator(".history-table tbody tr")).toHaveCount(168);
   const denseStarted = Date.now();
-  await page.getByLabel("Інтервал", { exact: true }).selectOption("900");
+  await (await historyInterval(page)).selectOption("900");
   await expect(page.locator(".history-table tbody tr")).toHaveCount(672); await settled(page);
   const denseMs = Date.now() - denseStarted;
   const nodes = await page.locator("*").count();

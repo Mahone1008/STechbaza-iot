@@ -1,3 +1,4 @@
+import { alarmTypeFilter } from "../helpers/customer-details";
 import { expect, test, type Page, type Route } from "@playwright/test";
 import { acknowledgedFixture, alarmFixture, alarmId, transitionFixture } from "../fixtures/alarms";
 import type { Alarm } from "../../src/lib/api/alarms";
@@ -43,7 +44,7 @@ test("state, severity and exact type filters go to the API and reset pagination"
   await page.getByLabel("Стан аварії", { exact: true }).selectOption("resolved"); await expect(table(page)).toContainText("Усунена");
   await page.getByLabel("Важливість", { exact: true }).selectOption("critical"); await expect(table(page)).toContainText("Критична");
   const before = queries.length;
-  await page.getByLabel("Тип аварії", { exact: true }).fill("custom.sensor.low"); expect(queries).toHaveLength(before);
+  await (await alarmTypeFilter(page)).fill("custom.sensor.low"); expect(queries).toHaveLength(before);
   await page.getByRole("button", { name: "Застосувати тип" }).click(); await expect(table(page)).toContainText("custom.sensor.low");
   expect(Object.fromEntries(queries.at(-1)!)).toEqual({ limit: "21", offset: "0", state: "resolved", severity: "critical", alarm_type: "custom.sensor.low" });
 });

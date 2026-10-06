@@ -1,3 +1,4 @@
+import { alarmTypeFilter } from "../helpers/customer-details";
 import { expect, test } from "@playwright/test";
 
 const VIEWER_EMAIL = process.env.KERUMO_VIEWER_EMAIL;
@@ -36,7 +37,7 @@ test("real viewer profile drives navigation and blocks command controls", async 
     expect(process.env.KERUMO_API_BASE_URL).toBe("http://127.0.0.1:8001");
     await page.goto("/alarms");
     await page.getByRole("link", { name: "DEMO: окремий датчик тиску", exact: true }).click();
-    await page.getByLabel("Тип аварії", { exact: true }).fill("demo.frontend.acknowledgement");
+    await (await alarmTypeFilter(page)).fill("demo.frontend.acknowledgement");
     await page.getByRole("button", { name: "Застосувати тип" }).click();
     await page.getByRole("link", { name: "DEMO: acknowledgement check", exact: true }).click();
     await expect(page.getByText("Ваша роль дозволяє перегляд, але не підтвердження аварій.")).toBeVisible();

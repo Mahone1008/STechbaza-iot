@@ -46,7 +46,7 @@ function Feed({ context }: { context: ReadyAccessSnapshot }) {
       <PageHeader
         title="Повідомлення"
         eyebrow={organization.name}
-        description="Події всіх пристроїв організації. Прочитання зберігається окремо для кожного користувача."
+        description="Події ваших пристроїв і непрочитані повідомлення."
         actions={
           <Link className="button button-secondary" href="/organizations">
             Обрати організацію
@@ -122,10 +122,14 @@ function Feed({ context }: { context: ReadyAccessSnapshot }) {
           busy={!query.active || query.isFetching}
           onPage={(page) => setSelection((old) => ({ ...old, page }))}
         />
-        <p className="help-copy">
-          До 20 записів на сторінці. Список і лічильник завантажуються окремо та можуть відрізнятися під час нових
-          подій. Нові повідомлення або прочитання можуть змінити склад сторінок; оновлення повертає першу сторінку.
-        </p>
+        <details className="customer-disclosure section-help">
+          <summary>Як працюють повідомлення</summary>
+          <p className="help-copy">
+            Прочитання зберігається окремо для кожного користувача. До 20 записів на сторінці. Список і лічильник
+            завантажуються окремо та можуть відрізнятися під час нових подій. Нові повідомлення або прочитання можуть
+            змінити склад сторінок; оновлення повертає першу сторінку.
+          </p>
+        </details>
       </Card>
     </>
   );

@@ -363,18 +363,6 @@ function DevicePanel({ context }: { context: ReadyAccessSnapshot }) {
           </button>
         ))}
       </div>
-      <div className="panel-refresh-controls">
-        <SelectField
-          label="Автооновлення"
-          value={poll}
-          onChange={(event) => setPoll(Number(event.target.value) as PollSeconds)}
-        >
-          <option value={5}>Панель: 5 с; історія: 60 с</option>
-          <option value={30}>Панель: 30 с; історія: 60 с</option>
-          <option value={60}>Щохвилини</option>
-          <option value={0}>Лише вручну</option>
-        </SelectField>
-      </div>
       {!query.active && <p role="status">Автооновлення призупинено: вкладка прихована або немає мережі.</p>}
       <DeviceSection name="panel" active={section === "panel"}>
         <div className="device-panel-grid">
@@ -497,6 +485,21 @@ function DevicePanel({ context }: { context: ReadyAccessSnapshot }) {
           </>
         )}
       </DeviceSection>
+      <details className="customer-disclosure panel-display-settings">
+        <summary>Налаштування відображення</summary>
+        <div className="panel-refresh-controls">
+          <SelectField
+            label="Автооновлення"
+            value={poll}
+            onChange={(event) => setPoll(Number(event.target.value) as PollSeconds)}
+          >
+            <option value={5}>Панель: 5 с; історія: 60 с</option>
+            <option value={30}>Панель: 30 с; історія: 60 с</option>
+            <option value={60}>Щохвилини</option>
+            <option value={0}>Лише вручну</option>
+          </SelectField>
+        </div>
+      </details>
     </>
   );
 }

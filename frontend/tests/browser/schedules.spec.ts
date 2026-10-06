@@ -1,3 +1,4 @@
+import { displaySettings } from "../helpers/customer-details";
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 import { commandFixture, commandId, programOverview } from "../fixtures/commands";
@@ -99,7 +100,7 @@ for (const width of [320, 393, 1280])
       if (!(await fulfillPreflight(route))) await fulfillJson(route, 200, []);
     });
     await page.goto(`/devices/${DEVICE_ID}`);
-    const refresh = page.getByRole("combobox", { name: "Автооновлення", exact: true });
+    const refresh = (await displaySettings(page));
     await refresh.click();
     for (const option of await refresh.getByRole("option").all()) {
       const box = await option.boundingBox();
@@ -560,7 +561,7 @@ test("manual and minute refresh apply to schedules, run history and command reco
   await openSchedules(page);
   await page.getByRole("button", { name: "Історія запусків", exact: true }).click();
   await expect(page.getByText("Запусків ще не було.", { exact: true })).toBeVisible();
-  const refresh = page.getByLabel("Автооновлення", { exact: true });
+  const refresh = (await displaySettings(page));
   await refresh.selectOption("0");
   const beforeManual = { ...counts };
   await page.clock.fastForward(61_000);

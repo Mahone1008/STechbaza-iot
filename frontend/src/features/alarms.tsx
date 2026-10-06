@@ -82,7 +82,7 @@ function DeviceChooser({ context }: { context: ReadyAccessSnapshot }) {
                   </Link>
                 ),
               },
-              { key: "uid", header: "UID", render: (device) => device.uid },
+              { key: "uid", header: "Номер контролера", render: (device) => device.uid },
             ]}
           />
         )}
@@ -179,17 +179,38 @@ function DeviceAlarms({ context }: { context: ReadyAccessSnapshot }) {
           <option value="critical">Критичні</option>
           <option value="warning">Попередження</option>
         </SelectField>
-        <TextField
-          label="Тип аварії"
-          aria-label="Тип аварії"
-          value={type}
-          maxLength={96}
-          placeholder="Усі типи"
-          onChange={(e) => setType(e.target.value)}
-          hint="Введіть код типу з деталей інциденту або залиште поле порожнім для всіх типів."
-        />
-        <Button type="submit">Застосувати тип</Button>
+        <details className="customer-disclosure alarm-type-filter">
+          <summary>Додаткові фільтри</summary>
+          <div className="disclosure-content">
+            <TextField
+              label="Тип аварії"
+              aria-label="Тип аварії"
+              value={type}
+              maxLength={96}
+              placeholder="Усі типи"
+              onChange={(e) => setType(e.target.value)}
+              hint="Введіть код типу з деталей інциденту або залиште поле порожнім для всіх типів."
+            />
+            <Button type="submit">Застосувати тип</Button>
+          </div>
+        </details>
       </form>
+      {selection.alarm_type && (
+        <div className="active-filter" role="status">
+          <span>
+            Фільтр за типом: <strong>{selection.alarm_type}</strong>
+          </span>
+          <Button
+            variant="ghost"
+            onClick={() => {
+              setType("");
+              change({ alarm_type: "" });
+            }}
+          >
+            Скинути тип
+          </Button>
+        </div>
+      )}
       <Card
         title="Інциденти"
         description="Стан на час завантаження. Оновлення повертає першу сторінку."
@@ -246,10 +267,13 @@ function DeviceAlarms({ context }: { context: ReadyAccessSnapshot }) {
           busy={!query.active || query.isFetching}
           onPage={(page) => setSelection((old) => ({ ...old, page }))}
         />
-        <p className="help-copy">
-          Показано до 20 записів. Нові аварії або зміни стану можуть змінити склад сторінок; для актуального списку
-          натисніть «Оновити аварії».
-        </p>
+        <details className="customer-disclosure section-help">
+          <summary>Як працює список аварій</summary>
+          <p className="help-copy">
+            Показано до 20 записів. Нові аварії або зміни стану можуть змінити склад сторінок; для актуального списку
+            натисніть «Оновити аварії».
+          </p>
+        </details>
       </Card>
     </>
   );

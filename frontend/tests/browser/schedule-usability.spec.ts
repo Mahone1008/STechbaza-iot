@@ -1,3 +1,4 @@
+import { displaySettings } from "../helpers/customer-details";
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 import type { ScheduleWrite } from "../../src/lib/api/schedules";
@@ -17,7 +18,7 @@ test.beforeEach(async ({ page }) => {
 });
 async function editor(page: Page) {
   await page.goto(`/devices/${DEVICE_ID}`);
-  await page.getByLabel("Автооновлення", { exact: true }).selectOption("0");
+  await (await displaySettings(page)).selectOption("0");
   await page.getByRole("tab", { name: "Розклади", exact: true }).click();
   await page.getByRole("button", { name: "Новий розклад", exact: true }).click();
   await page.getByLabel("Назва розкладу", { exact: true }).fill("Полив");
