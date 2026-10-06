@@ -25,12 +25,20 @@ try {
         if ($LASTEXITCODE -ne 0) { throw 'Could not stop demo writers.' }
         $directory = Join-Path $repoRoot ('.local/demo-reset/' + (Get-Date -Format 'yyyyMMdd-HHmmss'))
         New-Item -ItemType Directory -Path $directory -Force | Out-Null
+        if ([Environment]::OSVersion.Platform -eq [PlatformID]::Unix) {
+            & chmod 700 $directory
+            if ($LASTEXITCODE -ne 0) { throw 'Could not protect the backup directory; reset was not performed.' }
+        }
         & docker @dc exec -T postgres pg_dump -U techbaza_demo -d techbaza_demo -Fc -f /tmp/kerumo-review-before-reset.dump
         if ($LASTEXITCODE -ne 0) { throw 'Backup failed; reset was not performed.' }
         $containerId = & docker @dc ps -q postgres
         if ($LASTEXITCODE -ne 0 -or -not $containerId) { throw 'Cannot find demo database container.' }
         & docker cp "${containerId}:/tmp/kerumo-review-before-reset.dump" (Join-Path $directory 'before-reset.dump')
         if ($LASTEXITCODE -ne 0) { throw 'Could not save backup; reset was not performed.' }
+        if ([Environment]::OSVersion.Platform -eq [PlatformID]::Unix) {
+            & chmod 600 (Join-Path $directory 'before-reset.dump')
+            if ($LASTEXITCODE -ne 0) { throw 'Could not protect the backup file; reset was not performed.' }
+        }
         & docker @dc exec -T postgres rm -f /tmp/kerumo-review-before-reset.dump
         if ($LASTEXITCODE -ne 0) { throw 'Could not complete backup step.' }
         & docker @dc @arguments --apply

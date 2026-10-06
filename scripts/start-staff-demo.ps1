@@ -16,6 +16,10 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Backend build failed.' }
     & docker @dc up -d --wait postgres mosquitto
     if ($LASTEXITCODE -ne 0) { throw 'Database/broker startup failed.' }
+    if (Test-Path '.env.controllers') {
+        & docker @dc up -d --wait controller-gateway
+        if ($LASTEXITCODE -ne 0) { throw 'Controller gateway is not ready; no reset was performed.' }
+    }
     & docker @dc stop backend staff-backend simulator
     if ($LASTEXITCODE -ne 0) { throw 'Could not stop database writers.' }
     & docker @dc run --rm -T --no-deps backend alembic upgrade head

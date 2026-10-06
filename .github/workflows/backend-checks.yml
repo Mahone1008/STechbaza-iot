@@ -207,3 +207,26 @@ jobs:
       - name: Stop isolated CI demo
         if: always()
         run: docker compose -p techbaza-demo --env-file .env.demo -f compose.demo.yml down
+
+  pilot-config:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Validate private pilot environment and Compose configuration
+        run: |
+          python scripts/prepare-pilot.py --customer-host app.example.com --staff-url https://private.example.ts.net
+          docker compose --env-file .env.pilot -f compose.pilot.yml config --quiet
+      - name: Validate public Caddy configuration
+        run: >-
+          docker run --rm -e CUSTOMER_HOST=localhost
+          -v "$PWD/infrastructure/staff/Caddyfile:/etc/caddy/Caddyfile:ro"
+          caddy:2-alpine caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+      - name: Validate private Nginx configuration
+        run: >-
+          docker run --rm --add-host staff-backend:127.0.0.1 --add-host staff-web:127.0.0.1
+          -v "$PWD/infrastructure/staff/private-nginx.conf:/etc/nginx/conf.d/default.conf:ro"
+          nginx:1.28-alpine nginx -t
