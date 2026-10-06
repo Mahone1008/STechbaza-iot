@@ -178,6 +178,13 @@ class TelemetryService:
             saved_message = self._telemetry.add_message(message)
 
             if ordering.should_update:
+                # Same device row lock as command allocation: never regress a
+                # live counter or accept duplicates/old boots/delayed samples.
+                # Restoring a deleted server card must not erase ESP32 safety NVS.
+                if payload.command_sequence_floor is not None and payload.sent_at is not None:
+                    age = (server_received_at - payload.sent_at).total_seconds()
+                    if -2 <= age <= 10:
+                        device.command_sequence = max(device.command_sequence, payload.command_sequence_floor)
                 self._telemetry.save_state(
                     device_id=device.id,
                     telemetry_id=saved_message.id,

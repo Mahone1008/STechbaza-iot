@@ -519,7 +519,10 @@ void calendarWeekExecution() {
 }
 
 #include "equipment_test.h"
+#include "remote_operation_test.h"
 int main() {
+  remotePermissionAndLocalStop(); remoteGuardsAndReconnect(); remoteRestartRecovery(); remoteRunningInterlocks(); remoteProgramRestart();
+  puts("PASS: opt-in remote permission, fresh-command barrier, reconnect/restart STOP, guards and local DISARM");
   driverIndependence(); equipmentBindingAndJournal(); provisioningIdentity();
   calendarExecution(); calendarParsingAndMigration(); calendarWeekExecution();
   programExecution(); programCancellationAndRecovery(); programBoundaries(); programParsingAndMigration();

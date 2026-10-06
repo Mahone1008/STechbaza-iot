@@ -109,6 +109,7 @@ topic {topic}/commands in 1
     content = "#pragma once\n// Private local configuration. Never commit or share this file.\n"
     content += "".join(f"#define {key} {json.dumps(value, ensure_ascii=True)}\n" for key,value in definitions.items())
     content += "#define KERUMO_MQTT_PORT 8883\n#define KERUMO_ENABLE_CONTROL false\n"
+    content += "#define KERUMO_ENABLE_EXTENDED_TEST false\n#define KERUMO_ENABLE_REMOTE_OPERATION false\n"
     # Initial setup never overwrites a previously flashed controller configuration.
     path = root/"config.local.h"
     if path.exists():

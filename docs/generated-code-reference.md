@@ -14,7 +14,7 @@ CI звіряє його з tracked code. Це перелік реалізаці
 | Node engine | `>=20.9.0` |
 | Package manager | `npm@10.9.2` |
 | Next.js / React | 16.3.6 / 19.2.8 |
-| Firmware V3 | 0.7.0 |
+| Firmware V3 | 0.8.0 |
 | OpenAPI paths | 105 |
 
 ## Канали телеметрії

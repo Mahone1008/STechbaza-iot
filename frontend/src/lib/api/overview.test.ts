@@ -15,7 +15,7 @@ describe("module overview boundary", () => {
     const diagnostics = data.modules.at(-1)!;
     const withoutArm = diagnostics.channels.filter((channel) => channel.key !== "control_armed");
     const arm = diagnostics.channels.at(-1)!;
-    expect(controlBlockReason({ ...data, modules: [{ ...diagnostics, channels: [...withoutArm, { ...arm, value: false }] }] })).toContain("Локальний дозвіл");
+    expect(controlBlockReason({ ...data, modules: [{ ...diagnostics, channels: [...withoutArm, { ...arm, value: false }] }] })).toContain("Контролер ще не дозволив керування");
     expect(controlBlockReason({ ...data, modules: [{ ...diagnostics, channels: [...withoutArm, { ...arm, status: "missing", value: null }] }] })).toContain("свіжу діагностику");
     expect(controlBlockReason({ ...data, modules: [{ ...diagnostics, channels: withoutArm }] })).toContain("свіжу діагностику");
   });
