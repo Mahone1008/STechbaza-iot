@@ -13,13 +13,37 @@ type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   fullWidth?: boolean;
 };
 
-export function Button({ className, variant = "secondary", size = "default", fullWidth = false, type = "button", ...props }: ButtonProps) {
+export function Button({
+  className,
+  variant = "secondary",
+  size = "default",
+  fullWidth = false,
+  type = "button",
+  ...props
+}: ButtonProps) {
   return (
-    <button className={classNames("button", `button-${variant}`, size === "small" && "button-small", fullWidth && "button-full", className)} type={type} {...props} />
+    <button
+      className={classNames(
+        "button",
+        `button-${variant}`,
+        size === "small" && "button-small",
+        fullWidth && "button-full",
+        className,
+      )}
+      type={type}
+      {...props}
+    />
   );
 }
 
-type CardProps = { children: ReactNode; id?: string; className?: string; title?: string; description?: string; actions?: ReactNode };
+type CardProps = {
+  children: ReactNode;
+  id?: string;
+  className?: string;
+  title?: string;
+  description?: string;
+  actions?: ReactNode;
+};
 
 export function Card({ children, id, className, title, description, actions }: CardProps) {
   const hasHeader = Boolean(title || description || actions);
@@ -27,7 +51,10 @@ export function Card({ children, id, className, title, description, actions }: C
     <section id={id} className={classNames("card", className)}>
       {hasHeader ? (
         <header className="card-header">
-          <div>{title ? <h2 className="card-title">{title}</h2> : null}{description ? <p className="card-description">{description}</p> : null}</div>
+          <div>
+            {title ? <h2 className="card-title">{title}</h2> : null}
+            {description ? <p className="card-description">{description}</p> : null}
+          </div>
           {actions ? <div className="card-actions">{actions}</div> : null}
         </header>
       ) : null}
@@ -38,7 +65,12 @@ export function Card({ children, id, className, title, description, actions }: C
 
 export type StatusTone = "neutral" | "success" | "warning" | "danger" | "info";
 export function StatusBadge({ children, tone = "neutral" }: { children: ReactNode; tone?: StatusTone }) {
-  return <span className={`status-badge status-${tone}`}><span className="status-dot" aria-hidden="true" />{children}</span>;
+  return (
+    <span className={`status-badge status-${tone}`}>
+      <span className="status-dot" aria-hidden="true" />
+      {children}
+    </span>
+  );
 }
 
 type FieldBaseProps = { label: string; hint?: string; error?: string };
@@ -48,40 +80,139 @@ export function SelectField({ label, hint, error, id, className, children, ...pr
   const descriptionId = error ? `${fieldId}-error` : hint ? `${fieldId}-hint` : undefined;
   return (
     <label className="field" htmlFor={fieldId}>
-      <span className="field-label" id={`${fieldId}-label`}>{label}</span>
-      <select className={classNames("select", className)} id={fieldId} aria-labelledby={`${fieldId}-label`} aria-invalid={Boolean(error)} aria-describedby={descriptionId} {...props}>{children}</select>
-      {error ? <span className="field-error" id={descriptionId}>{error}</span> : hint ? <span className="field-hint" id={descriptionId}>{hint}</span> : null}
+      <span className="field-label" id={`${fieldId}-label`}>
+        {label}
+      </span>
+      <select
+        className={classNames("select", className)}
+        id={fieldId}
+        aria-labelledby={`${fieldId}-label`}
+        aria-invalid={Boolean(error)}
+        aria-describedby={descriptionId}
+        {...props}
+      >
+        {children}
+      </select>
+      {error ? (
+        <span className="field-error" id={descriptionId}>
+          {error}
+        </span>
+      ) : hint ? (
+        <span className="field-hint" id={descriptionId}>
+          {hint}
+        </span>
+      ) : null}
     </label>
   );
 }
 
 export type TableColumn<T> = { key: string; header: string; render: (row: T) => ReactNode };
-type DataTableProps<T extends { id: string }> = { rows: readonly T[]; columns: readonly TableColumn<T>[]; emptyMessage?: string; caption: string };
+type DataTableProps<T extends { id: string }> = {
+  rows: readonly T[];
+  columns: readonly TableColumn<T>[];
+  emptyMessage?: string;
+  caption: string;
+  mobileCards?: boolean;
+};
 
-export function DataTable<T extends { id: string }>({ rows, columns, emptyMessage = "Немає даних для відображення.", caption }: DataTableProps<T>) {
+export function DataTable<T extends { id: string }>({
+  rows,
+  columns,
+  emptyMessage = "Немає даних для відображення.",
+  caption,
+  mobileCards = false,
+}: DataTableProps<T>) {
   return (
-    <div className="table-shell"><div className="table-scroll" tabIndex={0} role="region" aria-label={`${caption}: прокручувана таблиця`}><table className="data-table">
-      <caption className="visually-hidden">{caption}</caption>
-      <thead><tr>{columns.map((column) => <th key={column.key} scope="col">{column.header}</th>)}</tr></thead>
-      <tbody>{rows.length ? rows.map((row) => <tr key={row.id}>{columns.map((column) => <td key={column.key}>{column.render(row)}</td>)}</tr>) : <tr><td className="table-empty" colSpan={columns.length}>{emptyMessage}</td></tr>}</tbody>
-    </table></div></div>
+    <div className={classNames("table-shell", mobileCards && "table-mobile-cards")}>
+      <div className="table-scroll" tabIndex={0} role="region" aria-label={`${caption}: прокручувана таблиця`}>
+        <table className="data-table" role={mobileCards ? "table" : undefined}>
+          <caption className="visually-hidden">{caption}</caption>
+          <thead role={mobileCards ? "rowgroup" : undefined}>
+            <tr role={mobileCards ? "row" : undefined}>
+              {columns.map((column) => (
+                <th key={column.key} scope="col" role={mobileCards ? "columnheader" : undefined}>
+                  {column.header}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody role={mobileCards ? "rowgroup" : undefined}>
+            {rows.length ? (
+              rows.map((row) => (
+                <tr key={row.id} role={mobileCards ? "row" : undefined}>
+                  {columns.map((column) => (
+                    <td key={column.key} role={mobileCards ? "cell" : undefined}>
+                      {mobileCards && (
+                        <span className="mobile-cell-label" aria-hidden="true">
+                          {column.header}
+                        </span>
+                      )}
+                      {column.render(row)}
+                    </td>
+                  ))}
+                </tr>
+              ))
+            ) : (
+              <tr role={mobileCards ? "row" : undefined}>
+                <td role={mobileCards ? "cell" : undefined} className="table-empty" colSpan={columns.length}>
+                  {emptyMessage}
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }
 
-export function PageHeader({ eyebrow, title, description, actions }: { eyebrow?: string; title: string; description?: string; actions?: ReactNode }) {
+export function PageHeader({
+  eyebrow,
+  title,
+  description,
+  actions,
+}: {
+  eyebrow?: string;
+  title: string;
+  description?: string;
+  actions?: ReactNode;
+}) {
   return (
-    <header className="page-header"><div className="page-header-copy">
-      {eyebrow ? <p className="eyebrow">{eyebrow}</p> : null}
-      <h1 className="page-title">{title}</h1>
-      {description ? <p className="page-description">{description}</p> : null}
-    </div>{actions ? <div className="page-actions">{actions}</div> : null}</header>
+    <header className="page-header">
+      <div className="page-header-copy">
+        {eyebrow ? <p className="eyebrow">{eyebrow}</p> : null}
+        <h1 className="page-title">{title}</h1>
+        {description ? <p className="page-description">{description}</p> : null}
+      </div>
+      {actions ? <div className="page-actions">{actions}</div> : null}
+    </header>
   );
 }
 
-export function MetricCard({ label, value, unit, meta, status }: { label: string; value: string; unit: string; meta: string; status?: ReactNode }) {
+export function MetricCard({
+  label,
+  value,
+  unit,
+  meta,
+  status,
+}: {
+  label: string;
+  value: string;
+  unit: string;
+  meta: string;
+  status?: ReactNode;
+}) {
   return (
-    <article className="card metric-card"><div className="metric-head"><span className="metric-label">{label}</span>{status}</div>
-      <div className="metric-value"><strong>{value}</strong><span>{unit}</span></div><div className="metric-meta">{meta}</div>
+    <article className="card metric-card">
+      <div className="metric-head">
+        <span className="metric-label">{label}</span>
+        {status}
+      </div>
+      <div className="metric-value">
+        <strong>{value}</strong>
+        <span>{unit}</span>
+      </div>
+      <div className="metric-meta">{meta}</div>
     </article>
   );
 }

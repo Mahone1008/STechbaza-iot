@@ -122,16 +122,17 @@ test("confirmation is keyboard-contained, Escape restores focus and never submit
   expect(writes.acknowledgements).toEqual([0, 0]);
 });
 
-test("narrow tables retain every column and allow keyboard horizontal scrolling", async ({ page }) => {
+test("mobile notifications retain every field without horizontal scrolling", async ({ page }) => {
   await stage14Workspace(page);
   await page.setViewportSize({ width: 320, height: 640 });
   await page.goto(feedPath());
   const table = page.getByRole("table", { name: "Повідомлення організації" });
-  await expect(table.getByRole("columnheader", { name: "Час події (UTC)" })).toBeVisible();
+  await expect(table.getByRole("columnheader", { name: "Час події (UTC)" })).toHaveCount(1);
   const scroll = page.getByRole("region", { name: "Повідомлення організації: прокручувана таблиця" });
   await scroll.focus();
-  await page.keyboard.press("ArrowRight");
-  await expect.poll(() => scroll.evaluate((el) => el.scrollLeft)).toBeGreaterThan(0);
+  await expect(table.getByRole("link", { name: "Повідомлення A", exact: true })).toBeVisible();
+  await expect(table.getByText("Час події (UTC)", { exact: true }).last()).toBeVisible();
+  expect(await scroll.evaluate((el) => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
   await noPageOverflow(page);
   await page.goto(`/devices/${tenants[0].device}`);
   await expect(page.locator('.mobile-nav a[aria-current="page"]')).toHaveText("Пристрої");

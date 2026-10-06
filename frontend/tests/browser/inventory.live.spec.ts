@@ -33,13 +33,16 @@ test("real organization and site selection shows API devices, presence and resto
   const rows = await response.json() as { id: string; uid: string; name: string }[];
   expect(rows).toHaveLength(5);
   for (const row of rows) {
-    await expect(page.getByRole("link", { name: row.name, exact: true })).toHaveAttribute("href", `/devices/${row.id}`);
-    await expect(page.getByText(row.uid, { exact: true })).toBeVisible();
+    const card = page.locator(".inventory-device-card").filter({ has: page.getByRole("link", { name: row.name, exact: true }) });
+    await expect(card.getByRole("link", { name: row.name, exact: true })).toHaveAttribute("href", `/devices/${row.id}`);
+    await expect(card.getByText(row.uid, { exact: true })).toBeHidden();
+    await card.getByText("Відомості про контролер", { exact: true }).click();
+    await expect(card.getByText(row.uid, { exact: true })).toBeVisible();
   }
   await expect(page.getByRole("button", { name: "Оновити зв’язок" })).toBeEnabled();
   await expect(page.getByText("Стан невідомий", { exact: true })).toHaveCount(0);
   await expect(page.getByText("TB-DEMO-OTHER", { exact: true })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Наступна" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Наступна" })).toHaveCount(0);
   await page.reload();
   await expect(page.getByRole("navigation", { name: "Шлях до об’єкта" })).toContainText("DEMO: тестовий майданчик A");
   await page.goto("/devices");
@@ -52,15 +55,16 @@ test("real organization and site selection shows API devices, presence and resto
   await expect(page.getByRole("button", { name: "Запустити", exact: true })).toBeVisible();
   const overview = await overviewPromise;
   expect(overview.modules.length).toBeGreaterThan(0);
-  for (const capabilityModule of overview.modules.filter((item) => item.channels.length > 0)) {
-    const capability = overview.capabilities.find((item) => item.id === capabilityModule.capability_id)!;
-    await expect(page.locator(".overview-modules").getByRole("heading", { name: capability.name, exact: true })).toBeVisible();
+  const channels = overview.modules.flatMap((module) => module.channels);
+  await expect(page.locator(".metric-card")).toHaveCount(channels.length);
+  if (channels.some((channel) => ["control_armed", "vfd_configuration_valid", "vfd_link"].includes(channel.key))) {
+    await page.getByText("Додаткові показники контролера", { exact: true }).click();
   }
+  for (const reading of await page.locator(".metric-card").all()) await expect(reading).toBeVisible();
   await page.getByRole("tab", { name: "Обладнання", exact: true }).click();
   await page.getByText("Технічні дані контролера", { exact: true }).click();
   await expect(page.getByText("TB-DEMO-PUMP", { exact: true })).toBeVisible();
   await page.getByRole("tab", { name: "Панель", exact: true }).click();
-  const channels = overview.modules.flatMap((module) => module.channels);
   await expect(page.locator(".metric-card")).toHaveCount(channels.length);
   await page.getByRole("button", { name: "Оновити панель" }).click();
   await expect(page.locator(".metric-card")).toHaveCount(channels.length);
@@ -130,7 +134,8 @@ test("real organization and site selection shows API devices, presence and resto
   const newOverview = await (await newOverviewResponse).json() as components["schemas"]["DeviceOverviewRead"];
   expect(newOverview.capabilities.map((item) => item.code)).toEqual(["water_level.read"]);
   await expect(page.getByRole("heading", { name: newDevice.name, exact: true })).toBeVisible();
-  await expect(page.locator(".overview-modules").getByRole("heading", { exact: true, name: newOverview.capabilities[0]!.name })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Показники обладнання", exact: true })).toBeVisible();
+  await expect(page.locator(".metric-label")).toHaveText("Рівень води");
   await expect(page.locator(".metric-card")).toHaveCount(1);
   await expect(page.locator(".metric-card")).toContainText("Немає даних");
   await expect(page.locator(".metric-card strong")).toHaveText("-");

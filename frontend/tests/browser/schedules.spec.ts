@@ -405,7 +405,8 @@ test("a running plan still allows calendar inspection and STOP but not another p
   await expect(mode.locator('option[value="timer"]')).toHaveJSProperty("disabled", true);
   await expect(mode.locator('option[value="program"]')).toHaveJSProperty("disabled", true);
   await expect(page.getByRole("button", { name: "Запустити", exact: true })).toBeDisabled();
-  await expect(page.getByRole("button", { name: "Задати частоту", exact: true })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Задати частоту", exact: true })).toHaveCount(0);
+  await expect(page.getByLabel("Задана частота, Гц", { exact: true })).toHaveCount(0);
 });
 
 test("preview is invalidated by edits and conflicts prevent saving", async ({ page }) => {

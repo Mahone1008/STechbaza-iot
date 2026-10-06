@@ -50,7 +50,7 @@ test("assigned numeric/state widgets preserve zero and false, with unsupported a
   await expect(page.getByRole("heading", { name: "Показники обладнання", exact: true })).toBeVisible();
   const pressure = page.locator(".metric-card").filter({ hasText: "Тиск" });
   await expect(pressure.locator("strong")).toHaveText("0"); await expect(pressure).toContainText("bar");
-  await expect(page.locator(".metric-card").filter({ hasText: "Стан роботи частотника" }).locator("strong")).toHaveText("Ні");
+  await expect(page.locator(".metric-card").filter({ hasText: "Стан роботи частотника" }).locator("strong")).toHaveText("Зупинено");
   await expect(page.locator(".metric-card").filter({ hasText: "Код помилки" }).locator("strong")).toHaveText("0");
   await expect(page.getByText("Цей модуль ще не підтримує відображення даних.")).toHaveCount(0);
   await expect(page.getByText(/Модуль керування без вимірювальних каналів/)).toHaveCount(0);

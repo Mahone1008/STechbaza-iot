@@ -47,10 +47,14 @@ export function useInputValidation(message = "") {
   };
   const onChange = () => setNativeError("");
   const onBlur = (element: HTMLInputElement, next: EventTarget | null) => {
-    // Showing a new error during pointer-down moves the submit button before
-    // pointer-up, swallowing the click. Native submit validation will report
-    // the same error and focus the field once that click has completed.
-    if (next instanceof HTMLButtonElement && next.type === "submit" && next.form === element.form) return;
+    // A new inline error between pointer-down and pointer-up can move a submit
+    // button or disclosure and swallow its click. Submit still validates; a
+    // disclosure only opens settings, and command guards retain range checks.
+    if (
+      (next instanceof HTMLButtonElement && next.type === "submit" && next.form === element.form) ||
+      (next instanceof HTMLElement && next.tagName === "SUMMARY")
+    )
+      return;
     validate(element);
   };
   return {

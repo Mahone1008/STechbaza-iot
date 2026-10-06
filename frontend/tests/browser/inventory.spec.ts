@@ -138,7 +138,9 @@ test("presence distinguishes offline, never connected and unavailable without fa
   await expect(page.getByText("Немає зв’язку", { exact: true })).toBeVisible();
   await expect(page.getByText("Ще не було зв’язку", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("Стан невідомий", { exact: true })).toBeVisible();
-  await expect(page.getByText(/Життєвий цикл: active/)).toHaveCount(4);
+  await expect(page.locator(".inventory-device-card")).toHaveCount(4);
+  await expect(page.getByText("Активний", { exact: true })).toHaveCount(4);
+  await expect(page.getByText(/modular_controller|Життєвий цикл: active/)).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Запустити" })).toHaveCount(0);
   await page.getByRole("link", { name: "Насосна станція №1" }).click();
   await expect(page.getByRole("heading", { name: "Насосна станція №1" })).toBeVisible();
@@ -240,7 +242,8 @@ test("mobile inventory preserves breadcrumbs, last-seen time and real device nav
   await page.goto(tenantPath);
   await expect(page.getByText("На зв’язку", { exact: true })).toBeVisible();
   await expect(page.getByRole("navigation", { name: "Шлях до об’єкта" })).toContainText("Тестовий об’єкт");
-  await expect(page.getByText(/Останній зв’язок:/u)).toBeVisible();
+  await page.getByText("Відомості про контролер", { exact: true }).click();
+  await expect(page.getByText("Останній зв’язок", { exact: true })).toBeVisible();
   await expect(page.getByRole("navigation", { name: "Мобільна навігація" })).toBeVisible();
   await page.getByRole("link", { name: "Насосна станція №1" }).click();
   await expect(page.getByRole("heading", { name: "Насосна станція №1" })).toBeVisible();

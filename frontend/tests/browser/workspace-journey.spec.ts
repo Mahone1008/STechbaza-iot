@@ -16,8 +16,8 @@ for (const role of ["owner", "viewer"] as const) test(`${role} completes login, 
   await page.goto("/login"); await fillLogin(page); await page.getByRole("button", { name: "Увійти" }).click();
   await expect(page.getByRole("heading", { name: "Пристрої", exact: true })).toBeVisible();
   await page.locator(".sidebar-nav").getByRole("link", { name: "Організації", exact: true }).click();
-  await page.getByRole("table").getByRole("link", { name: tenants[0].name, exact: true }).click();
-  await page.getByRole("table").getByRole("link", { name: "Об’єкт A", exact: true }).click();
+  await page.getByRole("list", { name: "Список організацій" }).getByRole("link", { name: tenants[0].name, exact: true }).click();
+  await page.getByRole("list", { name: "Список об’єктів" }).getByRole("link", { name: "Об’єкт A", exact: true }).click();
   await page.getByRole("link", { name: "Насос A", exact: true }).click();
   await page.getByRole("tab", { name: "Графіки", exact: true }).click();
   await expect(page.locator(".telemetry-chart")).toBeVisible();
