@@ -1,5 +1,6 @@
 from app.models.onboarding import FactoryController, FactoryAudit, PersonalWorkspace, AccountSecurity, ControllerCredential
 from app.models.account_link import AccountLink
+from app.models.platform_audit import PlatformAudit
 from app.models.alarm_rule_state import DeviceAlarmRuleState
 from app.models.auth_session import AuthSession
 from app.models.auth_rate_limit import AuthRateLimit
@@ -19,6 +20,7 @@ from app.models.equipment import PumpInstallation, EquipmentModule, EquipmentCon
 
 __all__ = [
     "AccountLink",
+    "PlatformAudit",
     "FactoryController", "FactoryAudit", "PersonalWorkspace", "AccountSecurity", "ControllerCredential",
     "PumpInstallation", "EquipmentModule", "EquipmentConfiguration",
     "AlarmNotification",

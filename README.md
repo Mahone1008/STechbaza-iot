@@ -10,6 +10,9 @@ ESP32 → MQTT → FastAPI/PostgreSQL → Next.js. Можливості конк
 
 ## Запуск
 
+- [Закриті кабінети адміністратора/сервісу та очищення прикладів](docs/staff-console-v1.md).
+- [Один сервер, два застосунки, доступ персоналу через VPN](docs/staff-pilot-deployment.md).
+
 - [Сайт і demo на Windows](frontend/README.md): UI `http://127.0.0.1:3000`, API `http://127.0.0.1:8001`.
 - [Окреме середовище розробки](docs/local-development.md): API на порту 8000.
 - [V3 ESP32-S3 / SU600](docs/v3-su600-bench.md): підготовка, читання й TLS gateway.

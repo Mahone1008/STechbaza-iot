@@ -6,6 +6,11 @@ on:
       - 'backend/**'
       - 'pyproject.toml'
       - 'infrastructure/mosquitto/**'
+      - 'infrastructure/staff/**'
+      - 'compose.staff.demo.yml'
+      - 'compose.pilot.yml'
+      - 'scripts/start-staff-demo.ps1'
+      - 'scripts/prepare-staff.ps1'
       - '.github/workflows/backend-checks.yml'
       - 'compose.demo.yml'
       - 'compose.acceptance.yml'
@@ -16,6 +21,11 @@ on:
       - 'backend/**'
       - 'pyproject.toml'
       - 'infrastructure/mosquitto/**'
+      - 'infrastructure/staff/**'
+      - 'compose.staff.demo.yml'
+      - 'compose.pilot.yml'
+      - 'scripts/start-staff-demo.ps1'
+      - 'scripts/prepare-staff.ps1'
       - '.github/workflows/backend-checks.yml'
       - 'compose.demo.yml'
       - 'scripts/check-stage8-op4.ps1'
@@ -88,6 +98,15 @@ jobs:
       - name: Run regression and integration checks
         working-directory: backend
         run: python -m app.tools.backend_check
+      - name: Verify private staff controls and database role boundaries
+        env:
+          APP_PLANE: staff
+          AUTH_ACCESS_TOKEN_SECRET: staff-ci-only-separate-access-token-secret-2026
+          AUTH_BROWSER_ORIGINS: http://127.0.0.1:3001
+          AUTH_COOKIE_SECURE: 'false'
+          ACCOUNT_KEY_SECRET: staff-ci-only-account-encryption-secret-2026
+        working-directory: backend
+        run: python -m unittest discover -s tests -p staff_checks.py -v
       - name: Install isolated browser test dependencies
         run: |
           python -m pip install -r backend/requirements-browser-tests.txt
@@ -179,9 +198,35 @@ jobs:
           ./scripts/reset-demo-review.ps1
           ./scripts/reset-demo-review.ps1 -Apply
           ./scripts/reset-demo-review.ps1 -Apply
+          ./scripts/reset-demo-review.ps1 -AllExisting
+          ./scripts/reset-demo-review.ps1 -AllExisting -Apply
+          ./scripts/reset-demo-review.ps1 -AllExisting -Apply
       - name: Demo logs on failure
         if: failure()
         run: docker compose -p techbaza-demo --env-file .env.demo -f compose.demo.yml logs --tail 120 backend simulator
       - name: Stop isolated CI demo
         if: always()
         run: docker compose -p techbaza-demo --env-file .env.demo -f compose.demo.yml down
+
+  pilot-config:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Validate private pilot environment and Compose configuration
+        run: |
+          python scripts/prepare-pilot.py --customer-host app.example.com --staff-url https://private.example.ts.net
+          docker compose --env-file .env.pilot -f compose.pilot.yml config --quiet
+      - name: Validate public Caddy configuration
+        run: >-
+          docker run --rm -e CUSTOMER_HOST=localhost
+          -v "$PWD/infrastructure/staff/Caddyfile:/etc/caddy/Caddyfile:ro"
+          caddy:2-alpine caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+      - name: Validate private Nginx configuration
+        run: >-
+          docker run --rm --add-host staff-backend:127.0.0.1 --add-host staff-web:127.0.0.1
+          -v "$PWD/infrastructure/staff/private-nginx.conf:/etc/nginx/conf.d/default.conf:ro"
+          nginx:1.28-alpine nginx -t

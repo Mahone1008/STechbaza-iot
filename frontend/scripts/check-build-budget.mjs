@@ -9,7 +9,9 @@ async function walk(path) {
     return entry.isDirectory() ? walk(file) : [file];
   }))).flat();
 }
-const files = (await walk(".next/static")).filter((file) => file.endsWith(".js"));
+const buildDir = process.argv[2] ?? ".next";
+if (![".next", ".next-staff"].includes(buildDir)) throw new Error("Unknown build directory");
+const files = (await walk(`${buildDir}/static`)).filter((file) => file.endsWith(".js"));
 if (!files.length) throw new Error("Build JavaScript is missing; run npm run build first.");
 const chunks = await Promise.all(files.map(async (file) => {
   const body = await readFile(file);
@@ -20,14 +22,14 @@ const largest = Math.max(...chunks.map((chunk) => chunk.gzipBytes));
 const report = {
   kind: "frontend-test-baseline", productionRelease: false,
   revision: execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim(),
-  node: process.version, buildId: (await readFile(".next/BUILD_ID", "utf8")).trim(),
+  node: process.version, buildId: (await readFile(`${buildDir}/BUILD_ID`, "utf8")).trim(),
   dependencies: JSON.parse(await readFile("package.json", "utf8")).dependencies,
   // Sum of independently gzipped chunks, not a browser transfer or backend load test.
   totalGzipBytes: total, largestGzipBytes: largest,
-  // Personal registration, invitation and organization-member routes add ~20 KiB
-  // to the cumulative build. This sum is not downloaded by any single page.
-  // Keep the individual chunk ceiling and a bounded 375 KiB whole-build budget.
-  budgets: { totalGzipBytes: 375 * 1024, largestGzipBytes: 120 * 1024 },
+  // 0.50 adds separate operations routes and two staff themes.
+  // The cumulative build includes all three portals, not one page download.
+  // Keep the 120 KiB single-chunk ceiling and a bounded 410 KiB whole build.
+  budgets: { totalGzipBytes: 410 * 1024, largestGzipBytes: 120 * 1024 },
   chunks: chunks.sort((a, b) => b.gzipBytes - a.gzipBytes),
 };
 await mkdir("artifacts/stage14", { recursive: true });

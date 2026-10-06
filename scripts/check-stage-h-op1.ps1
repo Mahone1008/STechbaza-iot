@@ -38,17 +38,17 @@ finally {
 }
 
 # Promote the exact tested image; keep demo database, users and simulator state.
-docker image tag techbaza-acceptance-backend:0.49.0 techbaza-demo-backend:local
+docker image tag techbaza-acceptance-backend:0.50.0 techbaza-demo-backend:local
 Assert-Step 'Promote H-01 image'
 Demo stop backend simulator
 Demo up -d --no-build --wait --wait-timeout 90 backend simulator
 Demo exec -T backend python -m app.demo.check --quick
 
 $health = Invoke-RestMethod 'http://127.0.0.1:8001/health' -TimeoutSec 10
-if ($health.status -ne 'ok' -or $health.version -ne '0.49.0') {
-    throw 'Expected demo backend 0.49.0 on port 8001'
+if ($health.status -ne 'ok' -or $health.version -ne '0.50.0') {
+    throw 'Expected demo backend 0.50.0 on port 8001'
 }
 $health | Format-Table
 Demo ps
-Write-Host 'PASS: H-01 acceptance; demo 0.49.0 is running. Send this result for operation closure.' -ForegroundColor Green
+Write-Host 'PASS: H-01 acceptance; demo 0.50.0 is running. Send this result for operation closure.' -ForegroundColor Green
 

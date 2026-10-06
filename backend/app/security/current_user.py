@@ -2,7 +2,9 @@ import uuid
 from dataclasses import dataclass
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
+from app.security.plane import APP_PLANE, STAFF_ROLES
+from app.security.auth_config import AUTH_TOKEN_AUDIENCE
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jwt.exceptions import InvalidTokenError
 from sqlalchemy.orm import Session
@@ -36,6 +38,7 @@ def _unauthorized() -> HTTPException:
 
 
 def get_current_user_context(
+    request: Request,
     credentials: Annotated[
         HTTPAuthorizationCredentials | None,
         Depends(_bearer_scheme),
@@ -68,6 +71,7 @@ def get_current_user_context(
     auth_session = AuthSessionRepository(session).get(auth_session_id)
     if (
         auth_session is None
+        or auth_session.audience != AUTH_TOKEN_AUDIENCE
         or auth_session.user_id != user_id
         or auth_session.revoked_at is not None
         or auth_session.expires_at <= utc_now()
@@ -75,7 +79,7 @@ def get_current_user_context(
         raise _unauthorized()
 
     user = UserRepository(session).get(user_id)
-    if user is None:
+    if user is None or (APP_PLANE == "staff" and user.platform_role not in STAFF_ROLES) or (APP_PLANE == "customer" and user.platform_role in STAFF_ROLES):
         raise _unauthorized()
     if not label_session_valid(session, user):
         raise _unauthorized()
@@ -86,6 +90,8 @@ def get_current_user_context(
             detail="Обліковий запис вимкнено",
         )
 
+    request.state.audit_user_id = user.id
+    request.state.audit_session_id = auth_session.id
     return CurrentUserContext(
         user=user,
         auth_session=auth_session,

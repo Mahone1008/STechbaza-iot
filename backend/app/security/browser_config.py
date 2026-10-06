@@ -38,7 +38,8 @@ if any(urlsplit(origin).hostname not in ("localhost", "127.0.0.1", "::1")
     "replace_with_a_long_random_secret_for_local_development",
 ):
     raise RuntimeError("Публічний браузерний origin потребує власного випадкового AUTH_ACCESS_TOKEN_SECRET")
-REFRESH_COOKIE_NAME = "techbaza_refresh"
+from app.security.plane import APP_PLANE
+REFRESH_COOKIE_NAME = "kerumo_staff_refresh" if APP_PLANE == "staff" else "techbaza_refresh"
 REFRESH_COOKIE_PATH = "/api/v1/auth/browser"
 CSRF_HEADER = "X-TechBaza-CSRF"
 

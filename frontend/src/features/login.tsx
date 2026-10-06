@@ -41,9 +41,12 @@ function loggedOutLocationSnapshot(): boolean {
   return new URLSearchParams(window.location.search).get("loggedOut") === "1";
 }
 
+const staffPortal = process.env.NEXT_PUBLIC_PORTAL_MODE === "staff";
+
 function currentLoginDestination(): Route {
   if (typeof window === "undefined") return "/devices";
-  return safeLoginReturnTo(new URLSearchParams(window.location.search).get("returnTo"));
+  const target = new URLSearchParams(window.location.search).get("returnTo");
+  return staffPortal && !target ? ("/operations" as Route) : safeLoginReturnTo(target);
 }
 
 export function LoginPanel() {
@@ -147,7 +150,7 @@ export function LoginPanel() {
         <Brand />
         <div className="login-message">
           <p className="eyebrow">Промисловий контроль без зайвого шуму</p>
-          <h1>Ваше обладнання під контролем.</h1>
+          <h1>{staffPortal ? "Спільна робота. Відповідальний контроль." : "Ваше обладнання під контролем."}</h1>
           <p>
             Стежте за роботою насосів, переглядайте показники та отримуйте повідомлення про аварії. Керуйте обладнанням
             і плануйте його роботу в одному кабінеті.
@@ -172,10 +175,11 @@ export function LoginPanel() {
       <section className="login-form-side">
         <div className="login-card">
           <Brand />
-          <h2>Вхід до кабінету</h2>
+          <h2>{staffPortal ? "Вхід для команди" : "Вхід до кабінету"}</h2>
           <p>
-            Увійдіть зі своєю поштою та особистим паролем. Для першого підключення створіть обліковий запис або
-            відкрийте QR на шильдику контролера.
+            {staffPortal
+              ? "Увійдіть із робочою поштою та паролем. Службові можливості доступні відповідно до вашої ролі."
+              : "Увійдіть зі своєю поштою та особистим паролем. Для першого підключення створіть обліковий запис або відкрийте QR на шильдику контролера."}
           </p>
 
           {loggedOutNotice && session.status === "anonymous" ? (
@@ -278,8 +282,12 @@ export function LoginPanel() {
           </form>
 
           <div className="login-support">
-            <Link href="/connect">Активувати контролер за QR</Link>
-            <Link href={registrationHref}>Створити обліковий запис</Link>
+            {!staffPortal && (
+              <>
+                <Link href="/connect">Активувати контролер за QR</Link>
+                <Link href={registrationHref}>Створити обліковий запис</Link>
+              </>
+            )}
             <Link href={`/recover?returnTo=${encodeURIComponent(returnTo)}` as Route}>Відновити доступ</Link>
           </div>
           <div className="login-security">

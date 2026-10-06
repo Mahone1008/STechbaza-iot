@@ -168,7 +168,8 @@ def _on_connect(client, userdata, connect_flags, reason_code, properties) -> Non
     with _lock:
         _connected = is_connected
 
-    if is_connected:
+    from app.security.plane import APP_PLANE
+    if is_connected and APP_PLANE != "staff":
         client.subscribe(MQTT_TEST_TOPIC, qos=0)
         client.subscribe(MQTT_TELEMETRY_TOPIC, qos=1)
         client.subscribe(MQTT_HEARTBEAT_TOPIC, qos=1)

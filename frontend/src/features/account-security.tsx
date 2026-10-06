@@ -1,6 +1,7 @@
 "use client";
 import { useAccountAction } from "./use-account-action";
 import Link from "next/link";
+import type { Route } from "next";
 import { useEffect, useRef, useState } from "react";
 import { ControllerQr } from "@/components/controller-qr";
 import { Button, Card, PageHeader, TextField } from "@/components/ui";
@@ -68,7 +69,9 @@ export function SecurityPage() {
         <SecuritySettings />
       </AccountGate>
       <div className="ui-row">
-        <Link href="/devices">До пристроїв</Link>
+        <Link href={(process.env.NEXT_PUBLIC_PORTAL_MODE === "staff" ? "/operations" : "/devices") as Route}>
+          До кабінету
+        </Link>
       </div>
     </main>
   );
@@ -290,8 +293,11 @@ function SecuritySettings() {
               </Button>
             )}
             <div className="ui-row">
-              <Link className="button button-secondary" href="/devices">
-                До пристроїв
+              <Link
+                className="button button-secondary"
+                href={(process.env.NEXT_PUBLIC_PORTAL_MODE === "staff" ? "/operations" : "/devices") as Route}
+              >
+                {process.env.NEXT_PUBLIC_PORTAL_MODE === "staff" ? "До службового кабінету" : "До пристроїв"}
               </Link>
               {profile?.platform_role === "superadmin" && (
                 <Link className="button button-primary" href="/factory">

@@ -23,6 +23,7 @@ from app.schemas.onboarding import (
 from app.security.account_keys import digest, new_key, secret_box, verify_digest, verify_stored_totp
 from app.security.current_user import CurrentUserContext
 from app.security.mfa_policy import privileged_mfa_required
+from app.security.plane import APP_PLANE, STAFF_ROLES
 from app.security.passwords import hash_password, verify_password
 from app.security.tokens import utc_now
 from app.services.label_accounts import permanent_login
@@ -123,6 +124,8 @@ class AccountSecurityService:
         if (
             user is None
             or not user.is_active
+            or (APP_PLANE == "staff" and user.platform_role not in STAFF_ROLES)
+            or (APP_PLANE == "customer" and user.platform_role in STAFF_ROLES)
             or row is None
             or not valid
             or (user.login_name and user.login_name.startswith("kr-"))

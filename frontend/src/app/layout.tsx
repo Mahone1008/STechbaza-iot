@@ -7,6 +7,7 @@ import { AppProviders } from "@/components/providers";
 import "./globals.css";
 import "./auth.css";
 import "./access.css";
+import "./staff.css";
 
 export const metadata: Metadata = {
   title: {
@@ -20,7 +21,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   // Each HTML response needs its own CSP nonce; no static/shared authenticated shell.
   await connection();
   return (
-    <html lang="uk">
+    <html lang="uk" data-portal={process.env.NEXT_PUBLIC_PORTAL_MODE ?? "demo"} data-theme={process.env.NEXT_PUBLIC_PORTAL_MODE === "staff" ? "admin" : "customer"}>
       <body><AppProviders>{children}</AppProviders></body>
     </html>
   );

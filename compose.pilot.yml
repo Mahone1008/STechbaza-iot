@@ -1,0 +1,154 @@
+# Private staff portal plus public customer portal on one host.
+# Apply migrations/runtime-roles.sql first; do not run APIs as the DB owner.
+name: kerumo-pilot
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: kerumo
+      POSTGRES_USER: kerumo_migrator
+      POSTGRES_PASSWORD: ${MIGRATOR_DB_PASSWORD:?Prepare .env.pilot}
+    volumes: ["pilot_db:/var/lib/postgresql/data"]
+    networks: [database]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kerumo_migrator -d kerumo"]
+      interval: 3s
+      timeout: 5s
+      retries: 20
+  mosquitto:
+    image: eclipse-mosquitto:2
+    restart: unless-stopped
+    volumes: ["./infrastructure/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro", "pilot_mqtt:/mosquitto/data"]
+    networks: [equipment]
+  migrator:
+    profiles: [tools]
+    build: ./backend
+    image: kerumo-backend:pilot
+    command: ["alembic", "upgrade", "head"]
+    environment:
+      CUSTOMER_DB_PASSWORD: ${CUSTOMER_DB_PASSWORD:?Prepare .env.pilot}
+      STAFF_DB_PASSWORD: ${STAFF_DB_PASSWORD:?Prepare .env.pilot}
+      DATABASE_URL: postgresql+psycopg://kerumo_migrator:${MIGRATOR_DB_PASSWORD:?Prepare .env.pilot}@postgres:5432/kerumo
+    volumes: ["./infrastructure/staff/runtime-roles.sql:/rules/runtime-roles.sql:ro", "./.local/pilot-bootstrap:/private"]
+    networks: [database]
+  backend:
+    image: kerumo-backend:pilot
+    restart: unless-stopped
+    user: '1000:1000'
+    read_only: true
+    tmpfs: [/tmp]
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips", "172.29.112.10", "--log-config", "/app/app/logging.json"]
+    environment: &customer_env
+      APP_PLANE: customer
+      DATABASE_URL: postgresql+psycopg://kerumo_customer:${CUSTOMER_DB_PASSWORD:?Prepare .env.pilot}@postgres:5432/kerumo
+      AUTH_ACCESS_TOKEN_SECRET: ${CUSTOMER_JWT_SECRET:?Prepare .env.pilot}
+      AUTH_BROWSER_ORIGINS: https://${CUSTOMER_HOST:?Prepare .env.pilot}
+      AUTH_COOKIE_SECURE: 'true'
+      ACCOUNT_KEY_SECRET: ${ACCOUNT_KEY_SECRET:?Prepare .env.pilot}
+      MQTT_HOST: mosquitto
+      MQTT_CLIENT_ID: kerumo-customer-worker
+      MAIL_DELIVERY_MODE: ${MAIL_DELIVERY_MODE:-disabled}
+      MAIL_PUBLIC_URL: https://${CUSTOMER_HOST:?Prepare .env.pilot}
+      MAIL_FROM: ${MAIL_FROM:-KERUMO <access@kerumo.example.com>}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURITY: ${SMTP_SECURITY:-starttls}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      STAFF_DIAGNOSTICS_SECRET: ${STAFF_DIAGNOSTICS_SECRET:?Prepare .env.pilot}
+      CONTROLLER_BROKER_ADMIN_HOST: ${CONTROLLER_BROKER_ADMIN_HOST:-controller-gateway}
+      CONTROLLER_BROKER_ADMIN_PORT: ${CONTROLLER_BROKER_ADMIN_PORT:-1884}
+      CONTROLLER_BROKER_ADMIN_PASSWORD: ${CONTROLLER_BROKER_ADMIN_PASSWORD:-}
+      CONTROLLER_MQTT_PUBLIC_HOST: ${CONTROLLER_MQTT_PUBLIC_HOST:-}
+      CONTROLLER_MQTT_PUBLIC_PORT: ${CONTROLLER_MQTT_PUBLIC_PORT:-8884}
+    networks: [database, equipment, customer]
+    depends_on:
+      postgres: {condition: service_healthy}
+      mosquitto: {condition: service_started}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    logging: &logging
+      driver: json-file
+      options: {max-size: '10m', max-file: '5'}
+  staff-backend:
+    image: kerumo-backend:pilot
+    restart: unless-stopped
+    user: '1000:1000'
+    read_only: true
+    tmpfs: [/tmp]
+    command: ["uvicorn", "app.staff_main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips", "172.29.113.10", "--log-config", "/app/app/logging.json"]
+    environment:
+      <<: *customer_env
+      APP_PLANE: staff
+      DATABASE_URL: postgresql+psycopg://kerumo_staff:${STAFF_DB_PASSWORD:?Prepare .env.pilot}@postgres:5432/kerumo
+      AUTH_ACCESS_TOKEN_SECRET: ${STAFF_JWT_SECRET:?Prepare .env.pilot}
+      AUTH_TOKEN_AUDIENCE: kerumo-staff-api
+      AUTH_BROWSER_ORIGINS: ${STAFF_PUBLIC_URL:?Prepare .env.pilot}
+      AUTH_REQUIRE_PRIVILEGED_MFA: 'true'
+      MQTT_CLIENT_ID: kerumo-staff-publisher
+      STAFF_WORKER_URL: http://backend:8000/_internal/status
+    networks: [database, equipment, staff]
+    depends_on:
+      backend: {condition: service_healthy}
+    logging: *logging
+  customer-web:
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_API_BASE_URL: https://${CUSTOMER_HOST:?Prepare .env.pilot}
+        NEXT_PUBLIC_PORTAL_MODE: customer
+        NEXT_PUBLIC_CUSTOMER_URL: https://${CUSTOMER_HOST:?Prepare .env.pilot}
+    restart: unless-stopped
+    read_only: true
+    tmpfs: [/tmp]
+    networks: [customer]
+    logging: *logging
+  staff-web:
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${STAFF_PUBLIC_URL:?Prepare .env.pilot}
+        NEXT_PUBLIC_PORTAL_MODE: staff
+        NEXT_PUBLIC_CUSTOMER_URL: https://${CUSTOMER_HOST:?Prepare .env.pilot}
+        BUILD_DIR: .next-staff
+    restart: unless-stopped
+    read_only: true
+    tmpfs: [/tmp]
+    networks: [staff]
+    logging: *logging
+  customer-edge:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      CUSTOMER_HOST: ${CUSTOMER_HOST:?Prepare .env.pilot}
+    ports: ['80:80', '443:443']
+    volumes: ["./infrastructure/staff/Caddyfile:/etc/caddy/Caddyfile:ro", "caddy_data:/data", "caddy_config:/config"]
+    networks:
+      customer: {ipv4_address: 172.29.112.10}
+    depends_on: [backend, customer-web]
+    logging: *logging
+  staff-edge:
+    image: nginx:1.28-alpine
+    restart: unless-stopped
+    ports: ['127.0.0.1:3001:8080']
+    volumes: ["./infrastructure/staff/private-nginx.conf:/etc/nginx/conf.d/default.conf:ro"]
+    networks:
+      staff: {ipv4_address: 172.29.113.10}
+    depends_on: [staff-backend, staff-web]
+    logging: *logging
+networks:
+  database: {internal: true}
+  equipment: {internal: true}
+  customer:
+    ipam: {config: [{subnet: 172.29.112.0/24}]}
+  staff:
+    ipam: {config: [{subnet: 172.29.113.0/24}]}
+volumes:
+  pilot_db:
+  pilot_mqtt:
+  caddy_data:
+  caddy_config:

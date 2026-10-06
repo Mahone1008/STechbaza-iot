@@ -5,6 +5,7 @@ coverage/
 playwright-report/
 test-results/
 test-results-live/
+test-results-staff/
 artifacts/
 .env*.local
 npm-debug.log*
@@ -13,3 +14,5 @@ yarn-error.log*
 pnpm-debug.log*
 
 *.tsbuildinfo
+
+.next-staff/

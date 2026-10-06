@@ -14,3 +14,7 @@ ESP32 підключається до окремого V3 gateway з TLS, пар
 Це локальні конфігурації. Production HTTPS/reverse proxy, provisioning/rotation,
 моніторинг, незалежний backup та масштабування ще потребують реалізації й приймання:
 [план продукту](../docs/product-readiness-plan-v1.md).
+
+## Службовий кабінет 0.50.0
+
+[Адміністратор/сервіс, два застосунки, три оформлення, reset та ручні перевірки](../docs/staff-console-v1.md). [Linux pilot через VPN](../docs/staff-pilot-deployment.md). Міграція 0027; staff API запускається як `app.staff_main:app`, обов’язкові окремий JWT secret/audience і `APP_PLANE=staff`.

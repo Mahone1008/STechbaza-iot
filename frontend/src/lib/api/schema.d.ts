@@ -1421,6 +1421,229 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/staff/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Audit List */
+        get: operations["audit_list_api_v1_staff_audit_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/staff/devices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Device Directory */
+        get: operations["device_directory_api_v1_staff_devices_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/staff/monitoring": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Monitoring */
+        get: operations["monitoring_api_v1_staff_monitoring_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/staff/organizations/{organization_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Org */
+        delete: operations["delete_org_api_v1_staff_organizations__organization_id__delete"];
+        options?: never;
+        head?: never;
+        /** Change Org */
+        patch: operations["change_org_api_v1_staff_organizations__organization_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/staff/organizations/{organization_id}/memberships": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add Member */
+        post: operations["add_member_api_v1_staff_organizations__organization_id__memberships_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/staff/organizations/{organization_id}/memberships/{membership_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Change Member */
+        patch: operations["change_member_api_v1_staff_organizations__organization_id__memberships__membership_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/staff/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Overview */
+        get: operations["overview_api_v1_staff_overview_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/staff/sites/{site_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Site */
+        delete: operations["delete_site_api_v1_staff_sites__site_id__delete"];
+        options?: never;
+        head?: never;
+        /** Change Site */
+        patch: operations["change_site_api_v1_staff_sites__site_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/staff/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Users */
+        get: operations["users_api_v1_staff_users_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/staff/users/{user_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Change User */
+        patch: operations["change_user_api_v1_staff_users__user_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/staff/users/{user_id}/security-reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reset Security */
+        post: operations["reset_security_api_v1_staff_users__user_id__security_reset_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/staff/users/{user_id}/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** User Sessions */
+        get: operations["user_sessions_api_v1_staff_users__user_id__sessions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/staff/users/{user_id}/sessions/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Revoke Sessions */
+        post: operations["revoke_sessions_api_v1_staff_users__user_id__sessions_revoke_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/command/reliability/status": {
         parameters: {
             query?: never;
@@ -1739,6 +1962,39 @@ export interface components {
              * @enum {string}
              */
             transition_type: "raised" | "repeated" | "acknowledged" | "resolved" | "reopened" | "severity_changed";
+        };
+        /** AuditRead */
+        AuditRead: {
+            /** Action */
+            action: string;
+            /** Actor Email */
+            actor_email?: string | null;
+            /** Actor User Id */
+            actor_user_id: string | null;
+            /** Client Ip */
+            client_ip: string | null;
+            /** Details */
+            details: {
+                [key: string]: unknown;
+            };
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Occurred At
+             * Format: date-time
+             */
+            occurred_at: string;
+            /** Request Id */
+            request_id: string;
+            /** Resource Id */
+            resource_id: string | null;
+            /** Resource Type */
+            resource_type: string;
+            /** Status */
+            status: number;
         };
         /** BootstrapConfiguration */
         BootstrapConfiguration: {
@@ -3148,6 +3404,21 @@ export interface components {
             permissions: components["schemas"]["Permission"][];
             platform_role: components["schemas"]["PlatformRole"];
         };
+        /** OrganizationChange */
+        OrganizationChange: {
+            /**
+             * Expected Updated At
+             * Format: date-time
+             */
+            expected_updated_at: string;
+            /** Is Active */
+            is_active: boolean;
+            /** Name */
+            name: string;
+            proof: components["schemas"]["SecurityProof"];
+            /** Reason */
+            reason: string;
+        };
         /**
          * OrganizationCreate
          * @description Дані для створення організації.
@@ -3595,6 +3866,21 @@ export interface components {
              */
             metric: "rssi" | "rsrp";
         };
+        /** SiteChange */
+        SiteChange: {
+            /**
+             * Expected Updated At
+             * Format: date-time
+             */
+            expected_updated_at: string;
+            /** Name */
+            name: string;
+            proof: components["schemas"]["SecurityProof"];
+            /** Reason */
+            reason: string;
+            /** Timezone */
+            timezone: string;
+        };
         /**
          * SiteCreate
          * @description Дані для створення фізичного об'єкта організації.
@@ -3639,6 +3925,174 @@ export interface components {
             organization_id: string;
             /** Timezone */
             timezone: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** StaffDeviceRead */
+        StaffDeviceRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Last Seen At */
+            last_seen_at: string | null;
+            /** Lifecycle Status */
+            lifecycle_status: string;
+            /** Name */
+            name: string;
+            /** Online */
+            online: boolean;
+            /**
+             * Organization Id
+             * Format: uuid
+             */
+            organization_id: string;
+            /** Organization Name */
+            organization_name: string;
+            /**
+             * Site Id
+             * Format: uuid
+             */
+            site_id: string;
+            /** Site Name */
+            site_name: string;
+            /** Uid */
+            uid: string;
+        };
+        /** StaffMembershipChange */
+        StaffMembershipChange: {
+            /**
+             * Expected Updated At
+             * Format: date-time
+             */
+            expected_updated_at: string;
+            /** Expires At */
+            expires_at?: string | null;
+            /** Is Active */
+            is_active: boolean;
+            proof: components["schemas"]["SecurityProof"];
+            /** Reason */
+            reason: string;
+            role: components["schemas"]["OrganizationRole"];
+            /** Site Ids */
+            site_ids?: string[] | null;
+        };
+        /** StaffMembershipCreate */
+        StaffMembershipCreate: {
+            /** Expires At */
+            expires_at?: string | null;
+            proof: components["schemas"]["SecurityProof"];
+            /** Reason */
+            reason: string;
+            role: components["schemas"]["OrganizationRole"];
+            /** Site Ids */
+            site_ids?: string[] | null;
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
+        };
+        /** StaffMonitorRead */
+        StaffMonitorRead: {
+            /** Container */
+            container: {
+                [key: string]: unknown;
+            };
+            /** Database */
+            database: {
+                [key: string]: unknown;
+            };
+            /** Worker */
+            worker: {
+                [key: string]: unknown;
+            };
+        };
+        /** StaffOverview */
+        StaffOverview: {
+            /** Active Alarms */
+            active_alarms: number;
+            /** Devices */
+            devices: number;
+            /** Login Failures 24H */
+            login_failures_24h: number | null;
+            /** Offline Devices */
+            offline_devices: number;
+            /** Organizations */
+            organizations: number;
+            /** Sites */
+            sites: number;
+            /** Users */
+            users: number | null;
+        };
+        /** StaffProof */
+        StaffProof: {
+            proof: components["schemas"]["SecurityProof"];
+            /** Reason */
+            reason: string;
+        };
+        /** StaffSessionRead */
+        StaffSessionRead: {
+            /** Audience */
+            audience: string;
+            /** Client Ip */
+            client_ip: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Last Used At */
+            last_used_at: string | null;
+            /** Mfa Verified At */
+            mfa_verified_at: string | null;
+            /** User Agent */
+            user_agent: string | null;
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
+        };
+        /** StaffUserRead */
+        StaffUserRead: {
+            /** Active Sessions */
+            active_sessions: number;
+            /** Display Name */
+            display_name: string;
+            /** Email */
+            email: string;
+            /** Email Verified */
+            email_verified: boolean;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Is Active */
+            is_active: boolean;
+            /** Last Login At */
+            last_login_at: string | null;
+            /** Login Name */
+            login_name: string | null;
+            /** Mfa Enabled */
+            mfa_enabled: boolean;
+            /** Platform Role */
+            platform_role: string;
             /**
              * Updated At
              * Format: date-time
@@ -3879,6 +4333,33 @@ export interface components {
             password: string;
             /** Qr Path */
             qr_path: string;
+        };
+        /** UserChange */
+        UserChange: {
+            /** Display Name */
+            display_name?: string | null;
+            /**
+             * Expected Updated At
+             * Format: date-time
+             */
+            expected_updated_at: string;
+            /** Is Active */
+            is_active?: boolean | null;
+            platform_role?: components["schemas"]["PlatformRole"] | null;
+            proof: components["schemas"]["SecurityProof"];
+            /** Reason */
+            reason: string;
+        };
+        /** UserSecurityReset */
+        UserSecurityReset: {
+            /**
+             * Include Recovery
+             * @default false
+             */
+            include_recovery: boolean;
+            proof: components["schemas"]["SecurityProof"];
+            /** Reason */
+            reason: string;
         };
         /** ValidationError */
         ValidationError: {
@@ -7120,6 +7601,489 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["InstallationRead"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    audit_list_api_v1_staff_audit_get: {
+        parameters: {
+            query?: {
+                action?: string;
+                actor?: string | null;
+                failed_only?: boolean;
+                limit?: number;
+                offset?: number;
+                request_id?: string | null;
+                since?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    device_directory_api_v1_staff_devices_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offline_only?: boolean;
+                offset?: number;
+                q?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffDeviceRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    monitoring_api_v1_staff_monitoring_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffMonitorRead"];
+                };
+            };
+        };
+    };
+    delete_org_api_v1_staff_organizations__organization_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StaffProof"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    change_org_api_v1_staff_organizations__organization_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OrganizationChange"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_member_api_v1_staff_organizations__organization_id__memberships_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StaffMembershipCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    change_member_api_v1_staff_organizations__organization_id__memberships__membership_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                membership_id: string;
+                organization_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StaffMembershipChange"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    overview_api_v1_staff_overview_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffOverview"];
+                };
+            };
+        };
+    };
+    delete_site_api_v1_staff_sites__site_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StaffProof"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    change_site_api_v1_staff_sites__site_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SiteChange"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SiteRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    users_api_v1_staff_users_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+                q?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffUserRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    change_user_api_v1_staff_users__user_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UserChange"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffUserRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reset_security_api_v1_staff_users__user_id__security_reset_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UserSecurityReset"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    user_sessions_api_v1_staff_users__user_id__sessions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffSessionRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    revoke_sessions_api_v1_staff_users__user_id__sessions_revoke_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StaffProof"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

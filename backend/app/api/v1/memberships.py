@@ -2,7 +2,7 @@ import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, object_session
 
 from app.db import get_db_session
 from app.models.organization_membership import OrganizationMembership
@@ -37,12 +37,17 @@ CurrentUser = Annotated[
 
 
 def _read(item: OrganizationMembership) -> MembershipRead:
+    user = item.user
+    session = object_session(item)
+    if user is None and session is not None:
+        from app.security.actor_metadata import customer_actor_metadata
+        user = customer_actor_metadata(session, item.user_id)
     return MembershipRead(
         id=item.id,
         organization_id=item.organization_id,
         user_id=item.user_id,
-        user_email=item.user.email,
-        user_display_name=item.user.display_name,
+        user_email=user.email if user else "Службовий учасник",
+        user_display_name=user.display_name if user else "Сервісний спеціаліст",
         role=item.role,
         is_active=item.is_active,
         site_ids=item.site_ids, expires_at=item.expires_at,

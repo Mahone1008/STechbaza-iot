@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig = {
+  output: "standalone",
+  distDir: process.env.NEXT_DIST_DIR ?? (process.env.NEXT_PUBLIC_PORTAL_MODE === "staff" ? ".next-staff" : ".next"),
   poweredByHeader: false,
   reactStrictMode: true,
   typedRoutes: true,

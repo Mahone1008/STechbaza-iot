@@ -80,7 +80,7 @@ def _login_pair(
 ):
     throttle_auth(request, session, email=str(payload.email or payload.controller_id))
     try:
-        pair = AuthService(session).login(payload)
+        pair = AuthService(session).login(payload, client_ip=request.client.host if request.client else None, user_agent=request.headers.get("user-agent"))
     except (MfaRequiredError, InvalidMfaCodeError) as exc:
         required = isinstance(exc, MfaRequiredError)
         raise HTTPException(
@@ -107,6 +107,10 @@ def _login_pair(
             detail="Обліковий запис вимкнено",
         ) from exc
 
+    from app.security.tokens import decode_access_token
+    claims = decode_access_token(pair.access_token)
+    request.state.audit_user_id = claims["sub"]
+    request.state.audit_session_id = claims["sid"]
     return pair
 
 

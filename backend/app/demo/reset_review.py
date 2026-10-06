@@ -196,14 +196,21 @@ def reset_review(passwords: dict[str, str], *, apply: bool = False):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--credentials", type=Path, required=True)
+    parser.add_argument("--credentials", type=Path)
+    parser.add_argument("--all-existing", action="store_true")
     parser.add_argument("--apply", action="store_true")
     args = parser.parse_args()
     try:
-        passwords = validate_reset_credentials(
-            json.loads(args.credentials.read_text(encoding="utf-8-sig"))
-        )
-        report = reset_review(passwords, apply=args.apply)
+        if args.all_existing:
+            from app.demo.reset_all import reset_all_existing
+            report = reset_all_existing(apply=args.apply)
+        else:
+            if not args.credentials:
+                raise ValueError("Потрібен файл чинних demo-паролів")
+            passwords = validate_reset_credentials(
+                json.loads(args.credentials.read_text(encoding="utf-8-sig"))
+            )
+            report = reset_review(passwords, apply=args.apply)
     except (OSError, ValueError, RuntimeError) as error:
         raise SystemExit(str(error)) from None
     except SQLAlchemyError:

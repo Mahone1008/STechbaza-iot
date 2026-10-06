@@ -90,6 +90,12 @@ jobs:
       - name: Mocked Chromium browser checks
         working-directory: frontend
         run: npm run test:browser
+      - name: Private staff production build and budget
+        working-directory: frontend
+        run: npm run build:staff && npm run check:budget:staff
+      - name: Private administrator and service browser checks
+        working-directory: frontend
+        run: npm run test:staff
       - name: Preserve cumulative report and accessibility attachments
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
@@ -98,6 +104,7 @@ jobs:
           path: |
             frontend/playwright-report
             frontend/test-results
+            frontend/test-results-staff
             frontend/artifacts/stage14
           if-no-files-found: ignore
           retention-days: 5
@@ -121,6 +128,7 @@ jobs:
           path: |
             frontend/playwright-report
             frontend/test-results
+            frontend/test-results-staff
           if-no-files-found: ignore
           retention-days: 5
 

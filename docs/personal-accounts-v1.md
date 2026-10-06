@@ -1,6 +1,6 @@
 # Особисті акаунти, запрошення та добровільний Authenticator
 
-Чинний контракт: backend **0.49.0**, Alembic **20261005_0026**, firmware **0.7.0**.
+Чинний контракт: backend **0.50.0**, Alembic **20261006_0027**, firmware **0.7.0**.
 Особистість користувача відокремлена від контролера. Старі акаунти, їхні
 паролі, права та історія зберігаються при міграції. Очищення demo є окремою
 явною операцією, описаною нижче.
@@ -148,7 +148,7 @@ proof не приймається. Новий registration лист скасов
 
 Migration 0026 створює лише account_links. Downgrade прибирає pending
 proof, не змінює users/passwords/MFA/memberships. Старі backup manifests
-збережено в allowlist; нові містять backend 0.49.0/schema 0026.
+збережено в allowlist; нові містять backend 0.50.0/schema 0027.
 Restore hardening також скасовує pending email proofs, щоб старий лист
 не повертав витрачену можливість після відновлення БД.
 Email password reset, production delivery/abuse tuning та окреме
@@ -168,3 +168,5 @@ Email password reset, production delivery/abuse tuning та окреме
 їх відкликання шлюзом. Недоступний шлюз зупиняє видалення БД. Сценарій
 враховує наявні `.env.v3`/`.env.controllers` overlays, щоб зберегти налаштування
 підключення backend. Перед reset фізичне обладнання має бути зупинене й DISARM.
+
+У 0.50.0 персонал входить в окремий [службовий кабінет](staff-console-v1.md). Клієнтський Authenticator лишається добровільним; персонал у private API підтверджує MFA до будь-яких службових операцій.

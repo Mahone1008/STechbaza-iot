@@ -6,6 +6,8 @@
 
 ## Групи та доступ
 
+У 0.50.0 public customer API й private staff API запускаються окремо. Production `/openapi.json` описує лише відповідний застосунок; committed SDK snapshot об’єднує контракт клієнта та `/staff/*` для генерації TypeScript. `/staff/*` працюють тільки у VPN-службовому API з MFA; users, audit, monitoring та адміністративні mutation wrappers потребують superadmin. [Приватний контракт і перевірки](staff-console-v1.md).
+
 | Група | Призначення | Доступ |
 |---|---|---|
 | `/auth/browser/*` | Browser login/refresh/logout | Exact Origin, CSRF header, HttpOnly cookie; login credentials |
@@ -13,6 +15,7 @@
 | `/auth/me` | User/session/memberships | Bearer JWT та активна server-side session |
 | `/auth/recover` | Відновлення за recovery key | Exact Origin/CSRF, throttle; вхід не потрібний |
 | `/auth/security/*`, `/auth/security`, `/auth/sessions*` | Постійний пароль/TOTP/recovery/власні сесії | Bearer; зміни ключів із password/OTP proof |
+| `/staff/*` | Користувачі, ролі, scope, сесії, audit і діагностика | Private API, platform role + MFA, sensitive changes: password/OTP/reason |
 | `/factory/controllers*` | Заводський реєстр, постачання, аудит | `superadmin` та MFA-verified session завжди |
 | `/connect/*` | Claim покупця, об'єкти й вибір обладнання | Bearer, заводський пароль, permanent password/TOTP при першій активації, tenant/scope guards |
 | `/bootstrap/{id}/contact` | Час контакту та версія контролера | Окремий bootstrap Bearer secret, throttle; не user JWT |

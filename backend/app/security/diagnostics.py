@@ -11,5 +11,8 @@ def require_diagnostics_access(
 ) -> None:
     """Глобальна діагностика містить дані різних tenant — лише для superadmin."""
 
+    from app.security.plane import APP_PLANE
+    if APP_PLANE == "customer":
+        raise HTTPException(status_code=404, detail="Не знайдено")
     if current.user.platform_role != PlatformRole.SUPERADMIN.value:
         raise HTTPException(status_code=403, detail="Недостатньо прав для діагностики")

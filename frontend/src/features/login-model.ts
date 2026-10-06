@@ -40,24 +40,27 @@ const ALLOWED_RETURN_PATHS = [
   "/connect",
   "/account",
   "/factory",
+  "/operations",
 ] as const;
 
 export function safeLoginReturnTo(value: string | null | undefined): Route {
+  const defaultDestination: Route =
+    process.env.NEXT_PUBLIC_PORTAL_MODE === "staff" ? "/operations" : DEFAULT_LOGIN_DESTINATION;
   if (!value || !value.startsWith("/") || value.startsWith("//") || value.includes("\\")) {
-    return DEFAULT_LOGIN_DESTINATION;
+    return defaultDestination;
   }
 
   try {
     const url = new URL(value, "http://kerumo.local");
     if (url.origin !== "http://kerumo.local" || url.pathname === "/login") {
-      return DEFAULT_LOGIN_DESTINATION;
+      return defaultDestination;
     }
     const allowed = ALLOWED_RETURN_PATHS.some(
       (prefix) => url.pathname === prefix || url.pathname.startsWith(`${prefix}/`),
     );
-    return allowed ? (`${url.pathname}${url.search}${url.hash}` as Route) : DEFAULT_LOGIN_DESTINATION;
+    return allowed ? (`${url.pathname}${url.search}${url.hash}` as Route) : defaultDestination;
   } catch {
-    return DEFAULT_LOGIN_DESTINATION;
+    return defaultDestination;
   }
 }
 
