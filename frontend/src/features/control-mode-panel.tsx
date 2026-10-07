@@ -129,7 +129,8 @@ export function ControlModePanel({
       )}
       {data.mode === "schedule" && data.next_start_at && (
         <p className="help-copy">
-          Найближчий запланований запуск: {formatScheduleTime(data.next_start_at, context.activeSite?.timezone ?? "UTC")}.
+          Найближчий запланований запуск:{" "}
+          {formatScheduleTime(data.next_start_at, context.activeSite?.timezone ?? "UTC")}.
         </p>
       )}
       {data.mode === "manual" && !data.next_start_at && (

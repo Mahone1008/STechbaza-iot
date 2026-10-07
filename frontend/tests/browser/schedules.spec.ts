@@ -116,10 +116,10 @@ for (const width of [320, 393, 1280])
     const mode = page.getByRole("combobox", { name: "Додаткові можливості", exact: true });
     await ttl.fill("57");
     for (const [value, description] of [
-      ["manual", "Ви самі запускаєте й зупиняєте насос"],
+      ["manual", "Запуск, зупинка та частота кнопками на панелі"],
       ["timer", "Робота на одній частоті від 10 с до 24 год"],
       ["program", "До 8 послідовних етапів"],
-      ["schedule", "Автоматичний запуск і зупинка у вибраний час"],
+      ["schedule", "Автоматична робота вмикається окремо в розділі «Режим запуску»"],
     ]) {
       await mode.selectOption(value!);
       await expect(mode).toHaveAccessibleDescription(new RegExp(description!));
