@@ -61,7 +61,7 @@ test("eight paused schedules block creation; confirmed deletion frees a slot and
   );
   await page.goto(`/devices/${DEVICE_ID}`);
   await openSchedules(page);
-  await expect(page.getByText(/Збережено 8 із 8/)).toBeVisible();
+  await expect(page.getByText(/8 із 8 розкладів/)).toBeVisible();
   await expect(page.getByRole("button", { name: "Новий розклад", exact: true })).toBeDisabled();
   await page.getByRole("button", { name: "Змінити", exact: true }).first().click();
   await expect(page.getByRole("heading", { name: "Редагування розкладу" })).toBeVisible();
@@ -79,7 +79,7 @@ test("eight paused schedules block creation; confirmed deletion frees a slot and
     button.click();
     button.click();
   });
-  await expect(page.getByText(/Збережено 7 із 8/)).toBeVisible();
+  await expect(page.getByText(/7 із 8 розкладів/)).toBeVisible();
   await expect(page.getByRole("button", { name: "Новий розклад", exact: true })).toBeEnabled();
   await expect(page.getByText(/Розклад видалено. Історію запусків збережено/)).toBeVisible();
   expect(deletes).toBe(1);
