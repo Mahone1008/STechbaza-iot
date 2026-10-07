@@ -55,12 +55,20 @@ export function TelemetryChart({ series, timezone }: { series: Series; timezone:
   const selectedIndex = series.buckets.findIndex((bucket) => bucket.start === selectedTime);
   const index = selectedIndex < 0 ? lastSample : selectedIndex;
   const selected = series.buckets[index]!;
+  const quantity = (value: number | null) => (value === null ? number(value) : `${number(value)} ${series.unit}`);
   const from = Date.parse(series.start),
     to = Date.parse(series.end);
+  const dateFormatter = new Intl.DateTimeFormat("uk-UA", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const crossesDate = dateFormatter.format(from) !== dateFormatter.format(to);
   const timeLabel = (time: number) =>
     new Intl.DateTimeFormat("uk-UA", {
       timeZone: timezone,
-      ...(series.end.slice(0, 10) !== series.start.slice(0, 10) ? { day: "2-digit", month: "2-digit" } : {}),
+      ...(crossesDate ? { day: "2-digit", month: "2-digit" } : {}),
       hour: "2-digit",
       minute: "2-digit",
     }).format(time);
@@ -144,7 +152,7 @@ export function TelemetryChart({ series, timezone }: { series: Series; timezone:
                 max={series.buckets.length - 1}
                 step={1}
                 value={index}
-                aria-valuetext={`${formatSeen(selected.start, timezone)}: ${number(selected.average)} ${series.unit}; ${bucketLabels[selected.status]}`}
+                aria-valuetext={`${formatSeen(selected.start, timezone)}: ${quantity(selected.average)}; ${bucketLabels[selected.status]}`}
                 onChange={(event) => setSelectedTime(series.buckets[Number(event.target.value)]!.start)}
               />
             </label>
@@ -155,21 +163,15 @@ export function TelemetryChart({ series, timezone }: { series: Series; timezone:
             <dl className="chart-selection-values">
               <div>
                 <dt>Середнє</dt>
-                <dd>
-                  {number(selected.average)} {series.unit}
-                </dd>
+                <dd>{quantity(selected.average)}</dd>
               </div>
               <div>
                 <dt>Мінімум</dt>
-                <dd>
-                  {number(selected.minimum)} {series.unit}
-                </dd>
+                <dd>{quantity(selected.minimum)}</dd>
               </div>
               <div>
                 <dt>Максимум</dt>
-                <dd>
-                  {number(selected.maximum)} {series.unit}
-                </dd>
+                <dd>{quantity(selected.maximum)}</dd>
               </div>
             </dl>
           </div>

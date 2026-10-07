@@ -25,3 +25,10 @@ it("keeps a constant nonzero series finite and exposes the actual value", () => 
   expect(html).toContain("40 bar");
   expect(html).toContain('type="range"');
 });
+
+it("labels a midnight crossing by the site date even within one UTC date", () => {
+  const data = seriesFixture(seriesWindow(3600, 60, Date.parse("2026-10-07T21:30:00Z")), undefined, undefined, true);
+  const html = renderToStaticMarkup(<TelemetryChart series={data} timezone="Europe/Kyiv" />);
+  expect(html).toContain(">07.10, 23:30</text>");
+  expect(html).toContain(">08.10, 00:30</text>");
+});

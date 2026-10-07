@@ -47,6 +47,7 @@ for (const status of [403, 409, 422, 503]) test(`history ${status} removes previ
   await expect(page.getByRole("heading", { name: "Історія недоступна" })).toBeVisible(); await expect(page.locator(".telemetry-chart")).toHaveCount(0);
   await populated(page); await (await refreshButton(page, "Оновити історію")).click();
   await expect(page.locator(".telemetry-chart")).toBeVisible();
+  await expect(page.locator(".refresh-settings").filter({ has: page.getByRole("button", { name: "Оновити історію", exact: true, includeHidden: true }) })).toHaveAttribute("open", "");
 });
 test("foreign history is rejected and disabled module removes history controls", async ({ page }) => {
   await page.route(seriesUrl, async (route) => { if (await fulfillPreflight(route)) return; await fulfillJson(route, 200, { device_id: "foreign" }); });
