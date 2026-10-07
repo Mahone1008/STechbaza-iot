@@ -64,7 +64,7 @@ class ProgramTests(unittest.TestCase):
             "steps": [{"frequency_hz": 40, "duration_seconds": 604800}]}
         self.assertEqual(result_timeout_seconds(SimpleNamespace(command_type="vfd.schedule.start", payload=payload, created_at=now)), 604980)
         boot = uuid.uuid4()
-        device = SimpleNamespace(id=uuid.uuid4(), last_observed_session_id=boot, control_mode="schedule")
+        device = SimpleNamespace(id=uuid.uuid4(), last_observed_session_id=boot)
         progress = self.state.program_progress()
         snapshot = SimpleNamespace(diagnostics={"program": progress}, state={"pump_running": False},
             last_received_at=now, last_reported_at=now, last_session_id=boot)

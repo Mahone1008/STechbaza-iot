@@ -11,7 +11,6 @@ from app.schemas.capability import CapabilityRead
 from app.schemas.device import DeviceRead
 from app.schemas.diagnostics import ControllerDiagnostics
 from app.schemas.command_profile import FrequencyLimits
-from app.schemas.control_mode import ControlModeRead
 from app.schemas.equipment import EquipmentConfigurationState, EquipmentTarget
 from app.schemas.telemetry import DeviceStateRead
 from app.schemas.telemetry_read import MetricReadingRead, StateReadingRead, TelemetryFreshnessRead
@@ -46,7 +45,6 @@ class DeviceModuleRead(BaseModel):
 
 
 class DeviceOverviewRead(BaseModel):
-    control_mode: ControlModeRead | None = None
     equipment_state: EquipmentConfigurationState = "legacy"
     equipment_target: EquipmentTarget | None = None
     diagnostics: ControllerDiagnostics | None = Field(

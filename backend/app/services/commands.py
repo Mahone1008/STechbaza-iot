@@ -84,7 +84,6 @@ class CommandService:
             and command.ttl_seconds == payload.ttl_seconds
             and command.supersedes_request_id == payload.supersedes_request_id
             and command.equipment_target == (payload.equipment_target.model_dump(mode="json") if payload.equipment_target else None)
-            and command.requested_control_mode_revision == payload.expected_control_mode_revision
             and command.actor_user_id == actor.user_id
         )
 
@@ -127,9 +126,6 @@ class CommandService:
             return existing, False
         if required_capability not in self._capabilities.get_enabled_codes_for_device(device_id):
             raise CommandCapabilityViolationError(required_capability)
-        if (payload.command_type != "vfd.stop" and payload.expected_control_mode_revision is not None
-                and payload.expected_control_mode_revision != device.control_mode_revision):
-            raise CommandProgramError("control_mode_changed")
         if payload.command_type == "vfd.frequency.set" and not frequency_allowed(self._session, device_id, payload.payload):
             raise CommandFrequencyProfileError
         rejection = program_rejection(self._session, device, payload.command_type, payload.payload, created_at)
@@ -143,13 +139,6 @@ class CommandService:
         if device.command_sequence > 9007199254740991:
             raise RuntimeError("Command sequence exhausted; re-enrollment required")
         superseded = self._commands.superseding_stop(device_id, payload.request_id, actor.user_id) is not None
-        if not superseded and payload.command_type in {"vfd.start", "vfd.stop", "vfd.program.start"}:
-            from app.services.control_mode import ControlModeConflict, set_control_mode
-            try:
-                set_control_mode(self._session, device, "manual", actor, created_at, reason="manual_command",
-                    stop=payload.command_type == "vfd.stop", force_revision=True)
-            except ControlModeConflict as exc:
-                raise CommandProgramError("control_mode_unavailable") from exc
         if payload.command_type == "vfd.stop" and not superseded:
             device.last_stop_requested_at = created_at
             for older in self._commands.pending_for_device(device_id):
@@ -161,8 +150,6 @@ class CommandService:
             device_id=device_id,
             command_type=payload.command_type,
             control_sequence=device.command_sequence,
-            control_mode_revision=device.control_mode_revision,
-            requested_control_mode_revision=payload.expected_control_mode_revision,
             equipment_target=target,
             supersedes_request_id=payload.supersedes_request_id,
             payload=payload.payload,

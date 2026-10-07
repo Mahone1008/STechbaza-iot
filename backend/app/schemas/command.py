@@ -29,7 +29,6 @@ class DeviceCommandCreate(BaseModel):
     )
     supersedes_request_id: uuid.UUID | None = None
     equipment_target: EquipmentTarget | None = None
-    expected_control_mode_revision: int | None = Field(default=None, strict=True, ge=0, le=2147483647)
     command_type: CommandType
     payload: dict[str, Any] = Field(default_factory=dict, max_length=32)
     ttl_seconds: int = Field(default=30, ge=5, le=300)
@@ -106,8 +105,6 @@ class DeviceCommandRead(BaseModel):
     device_id: uuid.UUID
     command_type: str
     control_sequence: int | None = None
-    control_mode_revision: int | None = None
-    requested_control_mode_revision: int | None = None
     equipment_target: EquipmentTarget | None = None
     schedule_id: uuid.UUID | None = None
     supersedes_request_id: uuid.UUID | None = None

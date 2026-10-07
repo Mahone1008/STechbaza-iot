@@ -41,7 +41,6 @@ class SchedulePostgresTests(unittest.TestCase):
             stop_time=(self.due + timedelta(minutes=2)).strftime("%H:%M"),
             stop_day_offset=int((self.due + timedelta(minutes=2)).date() != self.due.date()), frequency_hz=40)
         with SessionLocal() as session:
-            session.get(Device, self.devices[0]).control_mode = "schedule"
             session.get(Site, self.sites[0]).timezone = "UTC"
             for code in ("vfd.program", "vfd.schedule"):
                 created = session.scalar(insert(Capability).values(id=uuid.uuid4(), code=code, name="Schedule test")

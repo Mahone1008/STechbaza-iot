@@ -28,10 +28,10 @@ for (const width of [320, 393, 1280])
   test(`program editor is collapsed by default and fits ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 852 });
     await page.goto(`/devices/${DEVICE_ID}`);
-    await expect(page.getByRole("combobox", { name: "Додаткові можливості", exact: true })).not.toBeVisible();
+    await expect(page.getByRole("combobox", { name: "Режим роботи", exact: true })).not.toBeVisible();
     await expect(page.getByRole("button", { name: "Запустити", exact: true })).toBeVisible();
     await page.getByText("Додаткові налаштування команди", { exact: true }).click();
-    await page.getByRole("combobox", { name: "Додаткові можливості", exact: true }).selectOption("program");
+    await page.getByRole("combobox", { name: "Режим роботи", exact: true }).selectOption("program");
     await page.getByLabel("Частота етапу 1, Гц", { exact: true }).fill("40");
     await page.getByRole("button", { name: "Додати етап", exact: true }).click();
     await page.getByLabel("Частота етапу 2, Гц", { exact: true }).fill("50");
@@ -65,7 +65,7 @@ test("timer confirmation sends one complete plan with separate TTL and validates
   });
   await page.goto(`/devices/${DEVICE_ID}`);
   await page.getByText("Додаткові налаштування команди", { exact: true }).click();
-  await page.getByRole("combobox", { name: "Додаткові можливості", exact: true }).selectOption("timer");
+  await page.getByRole("combobox", { name: "Режим роботи", exact: true }).selectOption("timer");
   await page.getByLabel("Частота, Гц", { exact: true }).fill("40");
   await page.getByLabel("Години", { exact: true }).fill("2");
   await page.getByLabel("Хвилини", { exact: true }).fill("0");
@@ -83,7 +83,7 @@ test("timer confirmation sends one complete plan with separate TTL and validates
   await expect(
     page.getByText("Команду прийнято. Очікуємо результат від контролера.", { exact: true }),
   ).toBeVisible();
-  await page.getByRole("combobox", { name: "Додаткові можливості", exact: true }).selectOption("program");
+  await page.getByRole("combobox", { name: "Режим роботи", exact: true }).selectOption("program");
   await expect(
     page.getByText("Команду прийнято. Очікуємо результат від контролера.", { exact: true }),
   ).toHaveCount(0);
@@ -99,7 +99,7 @@ test("timer confirmation sends one complete plan with separate TTL and validates
 test("timer and stages have separate drafts, help and action labels", async ({ page }) => {
   await page.goto(`/devices/${DEVICE_ID}`);
   await page.getByText("Додаткові налаштування команди", { exact: true }).click();
-  const mode = page.getByRole("combobox", { name: "Додаткові можливості", exact: true });
+  const mode = page.getByRole("combobox", { name: "Режим роботи", exact: true });
   await mode.selectOption("program");
   await page.getByLabel("Частота етапу 1, Гц", { exact: true }).fill("30");
   await page.getByRole("button", { name: "Додати етап", exact: true }).click();
@@ -174,7 +174,7 @@ test("F5 restores every saved stage without issuing commands and leaves STOP ava
   await expect(page.getByText("Етап 2 з 3 · 40 Гц.", { exact: true })).toBeVisible();
   await expect(page.getByText("Залишок етапу за повідомленням контролера: 59 хв 40 с.", { exact: true })).toBeVisible();
   await page.getByText("Додаткові налаштування команди", { exact: true }).click();
-  await expect(page.getByRole("combobox", { name: "Додаткові можливості", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("combobox", { name: "Режим роботи", exact: true })).toHaveCount(0);
   await expect(page.getByRole("spinbutton", { name: /Частота|Задана частота/ })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Запустити", exact: true })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Зупинити", exact: true })).toBeEnabled();
@@ -265,12 +265,12 @@ test("an old firmware and stale status cannot enable a program", async ({ page }
   await page.goto(`/devices/${DEVICE_ID}`);
   await page.getByText("Додаткові налаштування команди", { exact: true }).click();
   await expect(
-    page.getByRole("combobox", { name: "Додаткові можливості", exact: true }).locator('option[value="timer"]'),
+    page.getByRole("combobox", { name: "Режим роботи", exact: true }).locator('option[value="timer"]'),
   ).toHaveJSProperty("disabled", true);
   data = programOverview();
   data.diagnostics!.program!.ready = false;
   await page.getByRole("button", { name: "Оновити панель", exact: true }).click();
-  await page.getByRole("combobox", { name: "Додаткові можливості", exact: true }).selectOption("timer");
+  await page.getByRole("combobox", { name: "Режим роботи", exact: true }).selectOption("timer");
   await page.getByLabel("Частота, Гц", { exact: true }).fill("40");
   await expect(page.getByRole("button", { name: "Запустити на 1 хв", exact: true })).toBeDisabled();
   data.diagnostics!.program!.ready = true;

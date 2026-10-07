@@ -18,8 +18,6 @@ def read_program_progress(snapshot):
 def program_rejection(session, device, command_type, payload, now, command_id=None):
     if command_type == "vfd.stop":
         return None
-    if command_type == "vfd.schedule.start" and device.control_mode != "schedule":
-        return "control_mode_manual"
     snapshot = TelemetryRepository(session).get_state(device.id)
     progress = read_program_progress(snapshot)
     # Активна програма керує частотою; повтор її власного запиту не запускає її знову.

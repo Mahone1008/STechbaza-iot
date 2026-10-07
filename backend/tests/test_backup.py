@@ -61,8 +61,8 @@ class BackupTests(unittest.TestCase):
 
     def test_patch_release_keeps_previous_backup_compatible(self):
         manifest = self.bundle()
-        self.assertEqual(manifest["backend"], "0.51.0")
-        self.assertEqual(manifest["migration"], "20261007_0028")
+        self.assertEqual(manifest["backend"], "0.52.0")
+        self.assertEqual(manifest["migration"], "20261007_0029")
         for version in ("0.37.0", "0.37.1", "0.37.2", "0.37.3"):
             manifest["backend"] = version
             manifest["migration"] = "20260926_0017"
@@ -84,6 +84,11 @@ class BackupTests(unittest.TestCase):
         manifest["migration"] = "20261005_0024"
         (self.root / "manifest.json").write_text(json.dumps(manifest))
         self.assertEqual(verify_bundle(self.root)["backend"], "0.47.0")
+        for version, migration in (("0.50.0", "20261006_0027"), ("0.51.0", "20261007_0028")):
+            manifest["backend"] = version
+            manifest["migration"] = migration
+            (self.root / "manifest.json").write_text(json.dumps(manifest))
+            self.assertEqual(verify_bundle(self.root)["backend"], version)
         manifest["backend"] = "0.36.0"
         (self.root / "manifest.json").write_text(json.dumps(manifest))
         with self.assertRaises(ValueError):
