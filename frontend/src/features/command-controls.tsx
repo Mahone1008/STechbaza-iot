@@ -195,7 +195,7 @@ export function CommandControls({
         intent.input.expected_control_mode_revision != null &&
         fresh.controlMode?.revision !== intent.input.expected_control_mode_revision
       )
-        throw new Error("Режим керування змінили. Оновіть панель і підтвердьте команду знову.");
+        throw new Error("Керування змінилося. Оновіть панель і підтвердьте команду знову.");
       if (!sameEquipmentTarget(fresh.equipmentTarget, intent.input.equipment_target))
         throw new Error("Обладнання або його конфігурація змінилися. Оновіть панель та підтвердьте нову команду.");
       if (!fresh.allowedCommands.includes(intent.input.command_type))

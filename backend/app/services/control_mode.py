@@ -30,10 +30,10 @@ def read_control_mode(session, device, now=None):
         enabled_schedule_count=len(rules), next_start_at=min(starts) if starts else None)
 
 
-def set_control_mode(session, device, mode, actor, now, *, event_id=None, request=None, reason="selection", stop=False):
+def set_control_mode(session, device, mode, actor, now, *, event_id=None, request=None, reason="selection", stop=False, force_revision=False):
     """Викликається лише під блокуванням Device; commit належить зовнішній операції."""
     previous = device.control_mode
-    if mode != previous:
+    if mode != previous or force_revision:
         if device.control_mode_revision >= 2147483647 and not stop:
             raise ControlModeConflict("Режим потребує перевірки сервісом. Зупинка залишається доступною.")
         device.control_mode = mode
@@ -47,6 +47,10 @@ def set_control_mode(session, device, mode, actor, now, *, event_id=None, reques
                 stop_delivery(session, command, now, code="control_mode_changed",
                     message="Режим змінено; подальшу доставку календарного запуску припинено")
     result = read_control_mode(session, device, now)
+    # Ручна дія вже має незмінний command audit. Не дублюємо її в журналі
+    # як вибір нового режиму, коли змінилася лише ревізія наміру.
+    if mode == previous and force_revision and request is None:
+        return result
     session.add(DeviceEvent(id=event_id or uuid.uuid4(), device_id=device.id,
         event_type="device.control_mode_changed", severity="info", source="device",
         occurred_at=now, received_at=now,

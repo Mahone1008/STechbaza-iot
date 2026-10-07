@@ -159,3 +159,24 @@ class ControlModePostgresTests(unittest.TestCase):
         with patch("app.services.command_dispatch.publish_command_message", return_value=(True, "published")):
             self.call(self.command_path, method="POST", body={"request_id": str(uuid.uuid4()), "command_type": "vfd.stop"}, expected=201)
         self.assertEqual(self.call(self.path)["mode"], "manual")
+        rejected = self.call(self.command_path, method="POST", body={"request_id": str(uuid.uuid4()),
+            "command_type": "vfd.start"}, expected=409)
+        self.assertIn("перевірки сервісом", rejected["detail"])
+
+    def test_delayed_mode_selection_cannot_follow_an_accepted_manual_action(self):
+        self.save_rule()
+        for kind in ("vfd.start", "vfd.stop"):
+            current = self.call(self.path)
+            old_selection = dict(request_id=str(uuid.uuid4()), mode="schedule", expected_revision=current["revision"])
+            with patch("app.services.command_dispatch.publish_command_message", return_value=(True, "published")):
+                accepted = self.call(self.command_path, method="POST", body={"request_id": str(uuid.uuid4()),
+                    "command_type": kind, "expected_control_mode_revision": current["revision"]}, expected=201)
+            updated = self.call(self.path)
+            self.assertEqual((updated["mode"], updated["revision"]), ("manual", current["revision"] + 1))
+            self.assertEqual(accepted["control_mode_revision"], updated["revision"])
+            self.call(self.path, method="PATCH", body=old_selection, expected=409)
+            self.assertEqual(self.call(self.path)["mode"], "manual")
+        with SessionLocal() as session:
+            changes = list(session.scalars(select(DeviceEvent).where(DeviceEvent.device_id == self.devices[0],
+                DeviceEvent.event_type == "device.control_mode_changed")))
+            self.assertEqual(changes, [])

@@ -118,6 +118,6 @@ test("a mode changed by another operator blocks the old manual confirmation befo
   await page.getByRole("button", { name: "Запустити", exact: true }).click();
   mode = { ...mode, mode: "manual", revision: 1 };
   await page.getByRole("dialog").getByRole("button", { name: "Надіслати команду" }).click();
-  await expect(page.getByText("Режим керування змінили. Оновіть панель і підтвердьте команду знову.", { exact: true })).toBeVisible();
+  await expect(page.getByText("Керування змінилося. Оновіть панель і підтвердьте команду знову.", { exact: true })).toBeVisible();
   expect(posts).toBe(0);
 });

@@ -143,10 +143,13 @@ class CommandService:
         if device.command_sequence > 9007199254740991:
             raise RuntimeError("Command sequence exhausted; re-enrollment required")
         superseded = self._commands.superseding_stop(device_id, payload.request_id, actor.user_id) is not None
-        if (not superseded and device.control_mode == "schedule"
-                and payload.command_type in {"vfd.start", "vfd.stop", "vfd.program.start"}):
-            from app.services.control_mode import set_control_mode
-            set_control_mode(self._session, device, "manual", actor, created_at, reason="manual_command", stop=payload.command_type == "vfd.stop")
+        if not superseded and payload.command_type in {"vfd.start", "vfd.stop", "vfd.program.start"}:
+            from app.services.control_mode import ControlModeConflict, set_control_mode
+            try:
+                set_control_mode(self._session, device, "manual", actor, created_at, reason="manual_command",
+                    stop=payload.command_type == "vfd.stop", force_revision=True)
+            except ControlModeConflict as exc:
+                raise CommandProgramError("control_mode_unavailable") from exc
         if payload.command_type == "vfd.stop" and not superseded:
             device.last_stop_requested_at = created_at
             for older in self._commands.pending_for_device(device_id):
