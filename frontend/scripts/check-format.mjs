@@ -2,6 +2,11 @@ import { spawnSync } from "node:child_process";
 
 // Extend this gate as older modules are touched; avoid unrelated formatting churn.
 const files = [
+  "src/features/device-events.tsx",
+  "src/components/refresh-settings.tsx",
+  "src/components/telemetry-chart.tsx",
+  "src/features/telemetry-preferences.ts",
+  "src/lib/api/telemetry-series.ts",
   "src/proxy.ts",
   "src/features/operations/shared.tsx",
   "src/features/operations/console.tsx",

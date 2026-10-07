@@ -1,3 +1,4 @@
+import { refreshButton } from "../helpers/customer-details";
 import { expect, test, type Page, type Route } from "@playwright/test";
 import { notificationFixture, notificationId } from "../fixtures/notifications";
 import type { Notification } from "../../src/lib/api/notifications";
@@ -40,7 +41,7 @@ test("unread filter, bounded pagination and refresh reset use server parameters"
   await page.getByLabel("Показати повідомлення", { exact: true }).selectOption("unread"); await expect(table(page)).toContainText("Подія 0");
   expect(Object.fromEntries(queries.at(-1)!)).toEqual({ limit: "21", offset: "0", unread_only: "true" });
   await page.getByRole("button", { name: "Наступна сторінка" }).click(); await expect(table(page)).toContainText("Подія 20");
-  await page.getByRole("button", { name: "Оновити повідомлення" }).click(); await expect(table(page)).toContainText("Подія 0");
+  await (await refreshButton(page, "Оновити повідомлення")).click(); await expect(table(page)).toContainText("Подія 0");
 });
 
 for (const endpoint of ["list", "count"]) test(`${endpoint} failure hides previous list and count until explicit recovery`, async ({ page }) => {
@@ -48,16 +49,16 @@ for (const endpoint of ["list", "count"]) test(`${endpoint} failure hides previo
   const url = endpoint === "list" ? `${feedUrl}?*` : `${feedUrl}/unread-count`;
   let fail = true, calls = 0;
   await page.route(url, async (route) => { if (await fulfillPreflight(route)) return; calls++; await fulfillJson(route, fail ? 403 : 200, fail ? { detail: "Access revoked" } : endpoint === "list" ? [notificationFixture()] : { unread_count: 1 }); });
-  await page.getByRole("button", { name: "Оновити повідомлення" }).click(); await expect(page.getByRole("heading", { name: "Повідомлення недоступні" })).toBeVisible();
+  await (await refreshButton(page, "Оновити повідомлення")).click(); await expect(page.getByRole("heading", { name: "Повідомлення недоступні" })).toBeVisible();
   await expect(table(page)).toHaveCount(0); await expect(page.getByText("Непрочитаних вами:")).toHaveCount(0); expect(calls).toBe(1);
-  fail = false; await page.getByRole("button", { name: "Оновити повідомлення" }).click(); await expect(table(page)).toBeVisible(); expect(calls).toBe(2);
+  fail = false; await (await refreshButton(page, "Оновити повідомлення")).click(); await expect(table(page)).toBeVisible(); expect(calls).toBe(2);
 });
 
 test("empty feed is explicit and foreign tenant snapshots are rejected", async ({ page }) => {
   let rows: Notification[] = []; await get(page, `${feedUrl}?*`, () => rows); await get(page, `${feedUrl}/unread-count`, () => ({ unread_count: 0 }));
   await page.goto(feedPath); await expect(page.getByText("За вибраним фільтром повідомлень немає.")).toBeVisible();
   rows = [notificationFixture({ organization_id: DEVICE_ID, title: "Foreign secret" })];
-  await page.getByRole("button", { name: "Оновити повідомлення" }).click(); await expect(page.getByRole("heading", { name: "Повідомлення недоступні" })).toBeVisible(); await expect(page.getByText("Foreign secret")).toHaveCount(0);
+  await (await refreshButton(page, "Оновити повідомлення")).click(); await expect(page.getByRole("heading", { name: "Повідомлення недоступні" })).toBeVisible(); await expect(page.getByText("Foreign secret")).toHaveCount(0);
 });
 
 test("notification permission gates explicit tenant routes before reads", async ({ page }) => {

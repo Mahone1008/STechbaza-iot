@@ -46,7 +46,7 @@ import {
   type RefreshReason,
   type SessionInvalidationReason,
 } from "./auth-session-runtime";
-export type { AuthSessionSnapshot, AuthenticatedSession, AuthorizedApiRequestOptions } from "./auth-session-runtime";
+export type { AuthSessionSnapshot } from "./auth-session-runtime";
 
 const AuthSessionContext = createContext<AuthSessionContextValue | null>(null);
 

@@ -1,3 +1,4 @@
+import { refreshButton } from "../helpers/customer-details";
 import { expect, test } from "@playwright/test";
 import { controlOverview } from "../fixtures/commands";
 import {
@@ -134,7 +135,7 @@ test("a stale or disconnected reading never claims a current running state", asy
   await page.goto(devicePath);
   await expect(page.getByRole("heading", { name: "Обладнання працює", exact: true })).toBeVisible();
   data = { ...data, availability: { ...data.availability, online: false, seconds_since_seen: 120 } };
-  await page.getByRole("button", { name: "Оновити панель", exact: true }).click();
+  await (await refreshButton(page, "Оновити панель")).click();
   await expect(page.getByRole("heading", { name: "Стан обладнання не підтверджено", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Запустити", exact: true })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Зупинити", exact: true })).toBeEnabled();
@@ -142,7 +143,7 @@ test("a stale or disconnected reading never claims a current running state", asy
   data.telemetry_freshness.status = "stale";
   data.telemetry_freshness.reason = "timeout";
   for (const reading of [...data.readings, ...data.state_readings]) reading.status = "stale";
-  await page.getByRole("button", { name: "Оновити панель", exact: true }).click();
+  await (await refreshButton(page, "Оновити панель")).click();
   await expect(page.getByText(/Перевищено час актуальності/)).toBeVisible();
   await expect(page.getByRole("heading", { name: "Обладнання працює", exact: true })).toHaveCount(0);
 });
@@ -157,11 +158,11 @@ test("connection details stay open across a refresh and a current fault is promi
   const details = page.locator(".device-connection-details");
   await expect(details).not.toHaveAttribute("open");
   await details.getByText("Докладніше про зв’язок", { exact: true }).click();
-  await page.getByRole("button", { name: "Оновити панель", exact: true }).click();
+  await (await refreshButton(page, "Оновити панель")).click();
   await expect(details).toHaveAttribute("open", "");
   data = controlOverview();
   data.state_readings[1]!.value = 7;
-  await page.getByRole("button", { name: "Оновити панель", exact: true }).click();
+  await (await refreshButton(page, "Оновити панель")).click();
   await expect(page.getByRole("heading", { name: "Помилка обладнання", exact: true })).toBeVisible();
   await expect(page.getByRole("alert").filter({ hasText: "Код: 7" })).toBeVisible();
 });

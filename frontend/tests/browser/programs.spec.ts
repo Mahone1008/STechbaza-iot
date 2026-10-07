@@ -1,3 +1,4 @@
+import { refreshButton } from "../helpers/customer-details";
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 import { commandFixture, commandId, programOverview } from "../fixtures/commands";
@@ -269,18 +270,18 @@ test("an old firmware and stale status cannot enable a program", async ({ page }
   ).toHaveJSProperty("disabled", true);
   data = programOverview();
   data.diagnostics!.program!.ready = false;
-  await page.getByRole("button", { name: "Оновити панель", exact: true }).click();
+  await (await refreshButton(page, "Оновити панель")).click();
   await page.getByRole("combobox", { name: "Режим роботи", exact: true }).selectOption("timer");
   await page.getByLabel("Частота, Гц", { exact: true }).fill("40");
   await expect(page.getByRole("button", { name: "Запустити на 1 хв", exact: true })).toBeDisabled();
   data.diagnostics!.program!.ready = true;
-  await page.getByRole("button", { name: "Оновити панель", exact: true }).click();
+  await (await refreshButton(page, "Оновити панель")).click();
   await expect(page.getByRole("button", { name: "Запустити на 1 хв", exact: true })).toBeEnabled();
   data.telemetry_freshness.status = "stale";
   data.telemetry_freshness.reason = "timeout";
   data.telemetry_freshness.received_age_seconds = 1000;
   for (const reading of [...data.readings, ...data.state_readings])
     if (reading.status === "fresh") reading.status = "stale";
-  await page.getByRole("button", { name: "Оновити панель", exact: true }).click();
+  await (await refreshButton(page, "Оновити панель")).click();
   await expect(page.getByRole("button", { name: "Запустити на 1 хв", exact: true })).toBeDisabled();
 });

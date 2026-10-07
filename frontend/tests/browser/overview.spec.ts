@@ -1,4 +1,4 @@
-import { displaySettings } from "../helpers/customer-details";
+import { refreshButton, displaySettings } from "../helpers/customer-details";
 import { expect, test, type Page } from "@playwright/test";
 import { diagnosticsFixture, overviewFixture } from "../fixtures/overview";
 import { API_ORIGIN, DEVICE_ID, ORGANIZATION_ID, SITE_ID, REFRESH_URL, devicePayload, fulfillJson, fulfillPreflight, mockAuthenticatedWorkspace, mockBrowserLogoutSuccess } from "./auth-fixtures";
@@ -26,12 +26,12 @@ test("diagnostics distinguish a requested stop from readback and transport-speci
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   data.diagnostics.connection = { transport: "cellular", signal: { metric: "rsrp", dbm: -105 } };
   data.diagnostics.last_stop!.confirmed = true;
-  await page.getByRole("button", { name: "Оновити панель" }).click();
+  await (await refreshButton(page, "Оновити панель")).click();
   await expect(page.getByText("RSRP: -105 dBm", { exact: true })).toBeVisible();
   await expect(page.getByText("STOP і 0 Гц підтверджено читанням частотника", { exact: true })).toBeVisible();
   await expect(page.getByText("RSSI: -67 dBm", { exact: true })).toHaveCount(0);
   data.diagnostics = null;
-  await page.getByRole("button", { name: "Оновити панель" }).click();
+  await (await refreshButton(page, "Оновити панель")).click();
   await expect(page.getByText("Розширена діагностика ще не надходила від контролера.")).toBeVisible();
   await expect(page.getByText("RSRP: -105 dBm", { exact: true })).toHaveCount(0);
 });
@@ -66,7 +66,7 @@ test("online and stale telemetry remain separate; missing and invalid never beco
   await mockOverview(page, () => data); await page.goto(path);
   await expect(page.getByText("На зв’язку", { exact: true })).toBeVisible();
   await expect(page.getByText(/Очікуємо дані після перезапуску контролера/)).toBeVisible();
-  await expect(page.locator(".metric-card").filter({ hasText: "Тиск" })).toContainText("Останнє відоме значення");
+  await expect(page.locator(".metric-card").filter({ hasText: "Тиск" })).toContainText("Останнє значення. Поточний стан невідомий.");
   await expect(page.locator(".metric-card").filter({ hasText: "Стан роботи частотника" }).locator("strong")).toHaveText("-");
   await expect(page.locator(".metric-card").filter({ hasText: "Код помилки" })).toContainText("Некоректні дані");
 });
@@ -75,17 +75,17 @@ test("refresh applies disable and enable atomically without reviving hidden snap
   let data = fixture(); await mockOverview(page, () => data); await page.goto(path);
   await expect(page.locator(".metric-card").filter({ hasText: "Тиск" })).toBeVisible();
   data = { ...data, capabilities: [], modules: [], readings: [], state_readings: [], command_types: [], allowed_commands: [] };
-  await page.getByRole("button", { name: "Оновити панель" }).click();
+  await (await refreshButton(page, "Оновити панель")).click();
   await expect(page.getByText("Для пристрою немає увімкнених модулів.")).toBeVisible();
   await expect(page.locator(".metric-card")).toHaveCount(0);
   data = fixture(); data.readings[0]!.value = 8.25;
-  await page.getByRole("button", { name: "Оновити панель" }).click();
+  await (await refreshButton(page, "Оновити панель")).click();
   await expect(page.locator(".metric-card").filter({ hasText: "Тиск" }).locator("strong")).toHaveText("8,25");
 });
 for (const status of [403, 404, 503]) test(`overview ${status} on refresh hides prior readings and allows explicit recovery`, async ({ page }) => {
   await page.goto(path); await expect(page.locator(".metric-card")).toHaveCount(3);
   await mockOverview(page, () => ({ detail: "Unavailable" }), status);
-  await page.getByRole("button", { name: "Оновити панель" }).click();
+  await (await refreshButton(page, "Оновити панель")).click();
   await expect(page.getByRole("alert").filter({ has: page.getByRole("heading", { name: /Дані більше недоступні|Не вдалося завантажити панель/ }) })).toBeVisible(); await expect(page.locator(".metric-card")).toHaveCount(0);
   await mockOverview(page, fixture); await page.getByRole("button", { name: "Повторити", exact: true }).click();
   await expect(page.locator(".metric-card")).toHaveCount(3);
@@ -122,7 +122,7 @@ test("revoked browser session removes the module panel", async ({ page }) => {
   await page.goto(path); await expect(page.locator(".metric-card")).toHaveCount(3);
   await mockOverview(page, () => ({ detail: "Expired" }), 401);
   await page.route(REFRESH_URL, async (route) => { if (await fulfillPreflight(route)) return; await fulfillJson(route, 401, { detail: "Expired" }); });
-  await page.getByRole("button", { name: "Оновити панель" }).click();
+  await (await refreshButton(page, "Оновити панель")).click();
   await expect(page.getByRole("heading", { name: "Вхід до кабінету" })).toBeVisible();
   await expect(page.locator(".metric-card")).toHaveCount(0);
 });
@@ -155,6 +155,6 @@ test("equipment diagnostics age in manual mode and disappear after a failed refr
   await page.clock.fastForward(130_000);
   await expect(diagnostics).toContainText("Остання відома діагностика; поточний стан не підтверджено.");
   await mockOverview(page, () => ({ detail: "Unavailable" }), 503);
-  await page.getByRole("button", { name: "Оновити панель", exact: true }).click();
+  await (await refreshButton(page, "Оновити панель")).click();
   await expect(page.getByRole("heading", { name: "Діагностика контролера", exact: true })).toHaveCount(0);
 });

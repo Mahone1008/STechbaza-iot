@@ -7,6 +7,7 @@ import { useState, type ReactNode } from "react";
 
 import { Button, Card, DataTable, PageHeader, StatusBadge, type TableColumn } from "@/components/ui";
 import { useAccessContext, type DirectoryAccessSnapshot, type ReadyAccessSnapshot } from "@/features/access-context";
+import { RefreshSettings } from "@/components/refresh-settings";
 import { useAuthSession } from "@/features/auth-session";
 import { apiErrorDisplayMessage, apiQueryKeys, isApiError } from "@/lib/api";
 import { parseOrganization } from "@/lib/api/access";
@@ -107,6 +108,7 @@ function Pagination({
 type DirectoryRow = { id: string; name: string; description: string; href: Route | null };
 function Directory({ context, sites }: { context: DirectoryAccessSnapshot | ReadyAccessSnapshot; sites: boolean }) {
   const { authorizedRequest } = useAuthSession();
+  const { hasPermission } = useAccessContext();
   const [page, setPage] = useState(0);
   const organizationId = sites && context.status === "ready" ? context.activeOrganization.id : null;
   const query = useQuery({
@@ -159,9 +161,11 @@ function Directory({ context, sites }: { context: DirectoryAccessSnapshot | Read
             : "Оберіть організацію, щоб перейти до її об’єктів та обладнання."
         }
         actions={
-          <Button disabled={query.isFetching} onClick={() => void query.refetch()}>
-            Оновити список
-          </Button>
+          sites && organizationId && hasPermission("membership.read") ? (
+            <Link className="button button-secondary" href={`/organizations/${organizationId}/members` as Route}>
+              Учасники організації
+            </Link>
+          ) : undefined
         }
       />
       {query.isFetching ? (
@@ -204,6 +208,11 @@ function Directory({ context, sites }: { context: DirectoryAccessSnapshot | Read
           emptyMessage={sites ? "У цій організації ще немає об’єктів." : "На цій сторінці немає доступних організацій."}
         />
       )}
+      <RefreshSettings error={query.isError}>
+        <Button disabled={query.isFetching} onClick={() => void query.refetch()}>
+          Оновити список
+        </Button>
+      </RefreshSettings>
       <Pagination
         page={page}
         hasNext={!query.isError && (query.data?.length ?? 0) > PAGE_SIZE}
@@ -221,25 +230,13 @@ export function OrganizationList() {
   ) : null;
 }
 export function SiteList() {
-  const { snapshot, hasPermission } = useAccessContext();
+  const { snapshot } = useAccessContext();
   return snapshot.status === "ready" ? (
-    <>
-      {hasPermission("membership.read") && (
-        <div className="ui-row">
-          <Link
-            className="button button-secondary"
-            href={`/organizations/${snapshot.activeOrganization.id}/members` as Route}
-          >
-            Учасники організації
-          </Link>
-        </div>
-      )}
-      <Directory
-        key={`${snapshot.scope.userId}:${snapshot.scope.sessionId}:${snapshot.activeOrganization.id}`}
-        context={snapshot}
-        sites
-      />
-    </>
+    <Directory
+      key={`${snapshot.scope.userId}:${snapshot.scope.sessionId}:${snapshot.activeOrganization.id}`}
+      context={snapshot}
+      sites
+    />
   ) : null;
 }
 
@@ -360,9 +357,6 @@ function PresenceTable({
         <span className="table-secondary">
           Показано: {devices.length}. Час об’єкта: {context.activeSite?.timezone ?? "UTC"}.
         </span>
-        <Button disabled={query.isFetching || devices.length === 0} onClick={() => void query.refetch()}>
-          Оновити зв’язок
-        </Button>
       </div>
       {customerPortal ? (
         devices.length ? (
@@ -434,6 +428,11 @@ function PresenceTable({
         Зв’язок показано на час останньої перевірки. Для поточних показників і стану обладнання відкрийте панель
         пристрою.
       </p>
+      <RefreshSettings label="Оновлення зв’язку">
+        <Button disabled={query.isFetching || devices.length === 0} onClick={() => void query.refetch()}>
+          Оновити зв’язок
+        </Button>
+      </RefreshSettings>
     </>
   );
 }
@@ -462,11 +461,6 @@ function DevicePageList({ context }: { context: ReadyAccessSnapshot }) {
         title="Пристрої"
         eyebrow={context.activeSite?.name ?? "Оберіть об’єкт"}
         description="Оберіть пристрій, щоб перевірити його стан або перейти до керування."
-        actions={
-          <Button disabled={!siteId || query.isFetching} onClick={() => void query.refetch()}>
-            Оновити список
-          </Button>
-        }
       />
       {!siteId ? (
         <Card title="Оберіть об’єкт">
@@ -487,6 +481,11 @@ function DevicePageList({ context }: { context: ReadyAccessSnapshot }) {
           version={query.dataUpdatedAt}
         />
       ) : null}
+      <RefreshSettings error={query.isError}>
+        <Button disabled={!siteId || query.isFetching} onClick={() => void query.refetch()}>
+          Оновити список
+        </Button>
+      </RefreshSettings>
       {siteId ? (
         <Pagination
           page={page}

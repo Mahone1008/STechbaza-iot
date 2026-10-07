@@ -1,3 +1,4 @@
+import { refreshButton } from "../helpers/customer-details";
 import { expect, test, type Page } from "@playwright/test";
 import {
   API_ORIGIN,
@@ -169,7 +170,7 @@ test("handover kit remains visible after passport refresh removes its old associ
   await page.route(`${API_ORIGIN}/api/v1/devices/${DEVICE_ID}/equipment`, async (route) => {
     if (!(await fulfillPreflight(route))) await fulfillJson(route, 503, { detail: "Перевірка мережевої відмови" });
   });
-  await page.getByRole("button", { name: "Оновити паспорт", exact: true }).click();
+  await (await refreshButton(page, "Оновити паспорт")).click();
   await expect(page.getByText("Сервіс тимчасово недоступний. Спробуйте пізніше.", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Завантажити комплект передачі" })).toBeVisible();
   const download = page.waitForEvent("download");
@@ -182,4 +183,27 @@ test("viewer can read passport without replacement or credential controls", asyn
   await expect(page.getByText("OLD-DRIVE", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Замінити частотник" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Керувати доступом" })).toHaveCount(0);
+});
+
+for (const width of [320, 1280]) test(`controller access actions have readable spacing at ${width}px`, async ({ page }) => {
+  await page.setViewportSize({ width, height: 852 });
+  await setup(page);
+  const section = page.locator('section[aria-label="Доступ і передача контролера"]');
+  const help = (await section.locator(":scope > .help-copy").boundingBox())!;
+  const toggle = section.getByRole("button", { name: "Керувати доступом", exact: true });
+  const box = (await toggle.boundingBox())!;
+  expect(box.y - (help.y + help.height)).toBeGreaterThanOrEqual(16);
+  await toggle.click();
+  const buttons = section.locator(":scope > .ui-row > .button");
+  await expect(buttons).toHaveCount(3);
+  const boxes = await Promise.all((await buttons.all()).map((button) => button.boundingBox()));
+  for (let i = 1; i < boxes.length; i++) {
+    const previous = boxes[i - 1]!, current = boxes[i]!;
+    const gap = Math.abs(current.y - previous.y) < 2
+      ? current.x - previous.x - previous.width
+      : current.y - previous.y - previous.height;
+    expect(gap).toBeGreaterThanOrEqual(10);
+  }
+  await expect(section.getByRole("button", { name: "Оновити стан доступу" })).toBeHidden();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });

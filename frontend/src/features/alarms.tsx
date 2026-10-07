@@ -1,4 +1,5 @@
 "use client";
+import { RefreshSettings } from "@/components/refresh-settings";
 import Link from "next/link";
 import type { Route } from "next";
 import { useState } from "react";
@@ -54,9 +55,11 @@ function DeviceChooser({ context }: { context: ReadyAccessSnapshot }) {
         title={site ? `Пристрої · ${site.name}` : "Оберіть об’єкт"}
         actions={
           site && (
-            <Button disabled={!query.active || query.isFetching} onClick={query.refresh}>
-              Оновити пристрої
-            </Button>
+            <RefreshSettings error={query.isError}>
+              <Button disabled={!query.active || query.isFetching} onClick={query.refresh}>
+                Оновити пристрої
+              </Button>
+            </RefreshSettings>
           )
         }
       >
@@ -215,15 +218,17 @@ function DeviceAlarms({ context }: { context: ReadyAccessSnapshot }) {
         title="Інциденти"
         description="Стан на час завантаження. Оновлення повертає першу сторінку."
         actions={
-          <Button
-            disabled={!query.active || query.isFetching}
-            onClick={() => {
-              if (!selection.page) query.refresh();
-              else setSelection((old) => ({ ...old, page: 0 }));
-            }}
-          >
-            Оновити аварії
-          </Button>
+          <RefreshSettings error={query.isError}>
+            <Button
+              disabled={!query.active || query.isFetching}
+              onClick={() => {
+                if (!selection.page) query.refresh();
+                else setSelection((old) => ({ ...old, page: 0 }));
+              }}
+            >
+              Оновити аварії
+            </Button>
+          </RefreshSettings>
         }
       >
         <StableRegion>

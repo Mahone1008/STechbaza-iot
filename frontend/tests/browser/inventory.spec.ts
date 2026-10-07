@@ -1,3 +1,4 @@
+import { refreshButton } from "../helpers/customer-details";
 import { expect, test, type Page } from "@playwright/test";
 import {
   API_ORIGIN, ORGANIZATION_ID, ORGANIZATIONS_URL, SITE_ID, SITES_URL, DEVICE_ID, DEVICES_URL,
@@ -44,7 +45,7 @@ test("organizations and sites use bounded pages including empty and inactive row
     const sites = Array.from({ length: 21 }, (_, index) => ({ ...sitePayload(), id: index === 20 ? SITE_ID : `739512a9-6ddb-4f8e-99e9-${String(index).padStart(12, "0")}`, name: `Об’єкт ${index}` }));
     await fulfillJson(route, 200, sites.slice(offset, offset + 21));
   });
-  await page.getByRole("button", { name: "Оновити список" }).click();
+  await (await refreshButton(page, "Оновити список")).click();
   await expect(page.getByRole("link", { name: "Об’єкт 19", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Наступна" }).click();
   await expect(page.getByRole("button", { name: "Наступна" })).toBeDisabled();

@@ -13,17 +13,29 @@ export function historyPreferencesKey(scope: SessionScope, organizationId: strin
 // Browser storage — недовірене джерело. Канали вже обмежені enabled modules.
 export function normalizeHistorySelection(raw: unknown, channels: readonly Channel[]): HistorySelection {
   const data = isRecord(raw) ? raw : {};
-  const period = periods.find((item) => item.seconds === data.seconds) ?? periods[0];
-  const bucket = historyBuckets.find((value) => value === data.bucket && Math.ceil(period.seconds / value) <= 1000) ?? period.bucket;
-  return { metric: channels.find((channel) => channel.key === data.metric)?.key ?? channels[0]?.key ?? "", seconds: period.seconds, bucket };
+  const period =
+    periods.find((item) => item.seconds === data.seconds) ?? periods.find((item) => item.seconds === 3600)!;
+  const bucket =
+    historyBuckets.find((value) => value === data.bucket && Math.ceil(period.seconds / value) <= 1000) ?? period.bucket;
+  return {
+    metric: channels.find((channel) => channel.key === data.metric)?.key ?? channels[0]?.key ?? "",
+    seconds: period.seconds,
+    bucket,
+  };
 }
 
 export function readHistorySelection(key: string, channels: readonly Channel[]): HistorySelection {
-  try { return normalizeHistorySelection(JSON.parse(sessionStorage.getItem(key) ?? "null"), channels); }
-  catch { return normalizeHistorySelection(null, channels); }
+  try {
+    return normalizeHistorySelection(JSON.parse(sessionStorage.getItem(key) ?? "null"), channels);
+  } catch {
+    return normalizeHistorySelection(null, channels);
+  }
 }
 
 export function saveHistorySelection(key: string, value: HistorySelection): void {
-  try { sessionStorage.setItem(key, JSON.stringify({ metric: value.metric, seconds: value.seconds, bucket: value.bucket })); }
-  catch { /* Заборона/quota storage не блокує графік; вибір залишається у React state. */ }
+  try {
+    sessionStorage.setItem(key, JSON.stringify({ metric: value.metric, seconds: value.seconds, bucket: value.bucket }));
+  } catch {
+    /* Заборона/quota storage не блокує графік; вибір залишається у React state. */
+  }
 }

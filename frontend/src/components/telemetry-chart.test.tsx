@@ -14,3 +14,21 @@ it("normalizes large finite values without overflowing SVG coordinates", () => {
   const html = renderToStaticMarkup(<TelemetryChart series={data} timezone="UTC" />);
   expect(html).not.toContain("NaN"); expect(html).not.toContain("Infinity");
 });
+
+it("keeps a constant nonzero series finite and exposes the actual value", () => {
+  const data = seriesFixture(seriesWindow(180, 60), undefined, undefined, true);
+  for (const bucket of data.buckets) if (bucket.average !== null)
+    Object.assign(bucket, { minimum: 40, maximum: 40, average: 40 });
+  const html = renderToStaticMarkup(<TelemetryChart series={data} timezone="Europe/Kyiv" />);
+  expect(html).not.toContain("NaN");
+  expect(html).not.toContain("Infinity");
+  expect(html).toContain("40 bar");
+  expect(html).toContain('type="range"');
+});
+
+it("labels a midnight crossing by the site date even within one UTC date", () => {
+  const data = seriesFixture(seriesWindow(3600, 60, Date.parse("2026-10-07T21:30:00Z")), undefined, undefined, true);
+  const html = renderToStaticMarkup(<TelemetryChart series={data} timezone="Europe/Kyiv" />);
+  expect(html).toMatch(/>07\.10<\/tspan><tspan[^>]*>23:30<\/tspan>/);
+  expect(html).toMatch(/>08\.10<\/tspan><tspan[^>]*>00:30<\/tspan>/);
+});

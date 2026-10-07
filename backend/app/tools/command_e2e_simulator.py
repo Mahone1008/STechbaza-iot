@@ -23,14 +23,6 @@ def _utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def _parse_datetime(value: str) -> datetime:
-    normalized = value.replace("Z", "+00:00")
-    parsed = datetime.fromisoformat(normalized)
-    if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=timezone.utc)
-    return parsed.astimezone(timezone.utc)
-
-
 def _build_success_result(command: dict[str, Any]) -> dict[str, Any]:
     command_type = command.get("command_type")
     payload = command.get("payload") or {}

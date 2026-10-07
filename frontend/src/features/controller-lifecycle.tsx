@@ -1,5 +1,6 @@
 "use client";
 import { useState, type FormEvent } from "react";
+import { RefreshSettings } from "@/components/refresh-settings";
 import { Button, TextField } from "@/components/ui";
 import { ControllerQr } from "@/components/controller-qr";
 import { apiErrorDisplayMessage, type components } from "@/lib/api";
@@ -96,7 +97,7 @@ export function ControllerLifecycle({
         Зміна власника створює нову прив’язку. Історія та розклади залишаються у вашому об’єкті.
       </p>
       <Button aria-expanded={open} disabled={busy} onClick={() => setOpen(!open)}>
-        {open ? "Згорнути дії з контролером" : "Керувати доступом"}
+        {open ? "Згорнути дії" : "Керувати доступом"}
       </Button>
       {open && (
         <>
@@ -117,9 +118,7 @@ export function ControllerLifecycle({
                   }[query.data.credential_state]
                 }
               </p>
-              <Button disabled={busy || query.isFetching} onClick={query.refresh}>
-                Оновити стан доступу
-              </Button>
+
               <div className="ui-row">
                 {(["rotate", "revoke", ...(owner ? ["release"] : [])] as Array<keyof typeof titles>).map((value) => (
                   <Button
@@ -135,6 +134,11 @@ export function ControllerLifecycle({
                   </Button>
                 ))}
               </div>
+              <RefreshSettings>
+                <Button disabled={busy || query.isFetching} onClick={query.refresh}>
+                  Оновити стан доступу
+                </Button>
+              </RefreshSettings>
             </>
           )}
           {operation && (
@@ -163,7 +167,7 @@ export function ControllerLifecycle({
                 onChange={(event) => setPassword(event.target.value)}
               />
               <TextField
-                label="Новий код автентифікатора, якщо ввімкнено MFA"
+                label="Код із застосунку, якщо ввімкнено двоетапний вхід"
                 inputMode="numeric"
                 autoComplete="one-time-code"
                 pattern="[0-9]{6}"
@@ -203,8 +207,9 @@ export function ControllerLifecycle({
               <ControllerQr url={url} />
               <p>{url}</p>
               <p>
-                Новий власник активує пристрій цим паролем, отримає постійні дані входу та підключить власну 2FA. Ваш
-                особистий кабінет і його захист залишаться у вас. Дані показано один раз; збережіть комплект.
+                Новий власник активує пристрій цим паролем, використовуючи свій обліковий запис. Двоетапний вхід він
+                може ввімкнути за бажанням. Ваш особистий кабінет і його захист залишаться у вас. Дані показано один
+                раз; збережіть комплект.
               </p>
               <p>
                 Логін: <code className="recovery-key">{transfer.login}</code>

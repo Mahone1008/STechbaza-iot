@@ -10,7 +10,7 @@ export type ScheduleSpec = Required<components["schemas"]["ScheduleSpec"]>;
 export type ScheduleWrite = components["schemas"]["ScheduleWrite"];
 export type SchedulePreview = components["schemas"]["SchedulePreview"];
 export type ScheduleRun = components["schemas"]["ScheduleRun"];
-export type ScheduleOccurrence = components["schemas"]["ScheduleOccurrenceRead"];
+type ScheduleOccurrence = components["schemas"]["ScheduleOccurrenceRead"];
 export const scheduleDayLabels = ["Того самого дня", "Наступного дня", "Через 2 дні", "Через 3 дні", "Через 4 дні", "Через 5 днів", "Через 6 днів", "Через 7 днів"] as const;
 const dayOffset = (value: unknown): value is number => typeof value === "number" && Number.isInteger(value) && value >= 0 && value <= MAX_SCHEDULE_DAYS;
 const path = "/api/v1/devices/schedules";

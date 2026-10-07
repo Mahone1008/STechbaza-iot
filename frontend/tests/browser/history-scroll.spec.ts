@@ -1,4 +1,4 @@
-import { displaySettings, historyInterval } from "../helpers/customer-details";
+import { refreshButton, displaySettings, historyInterval } from "../helpers/customer-details";
 import { expect, test, type Page } from "@playwright/test";
 import { diagnosticsFixture, overviewWithFrequencyFixture } from "../fixtures/overview";
 import { seriesFixture } from "../fixtures/series";
@@ -22,6 +22,7 @@ async function ready(page: Page, manual = true) {
   await page.goto(`/devices/${DEVICE_ID}`); await page.getByRole("tab", { name: "Графіки", exact: true }).click();
   await expect(page.locator(".telemetry-chart")).toBeVisible();
   if (manual) await (await displaySettings(page)).selectOption("0");
+  await refreshButton(page, "Оновити історію");
 }
 async function position(page: Page) {
   await page.getByLabel("Показник", { exact: true }).evaluate((el) => window.scrollTo(0, scrollY + el.getBoundingClientRect().top - 80));
@@ -36,7 +37,7 @@ async function stable(page: Page, y: number, clock = false) {
   expect(Math.abs(await page.evaluate(() => scrollY) - y)).toBeLessThanOrEqual(2);
 }
 async function refreshVisibleHistory(page: Page) {
-  const button = page.getByRole("button", { name: "Оновити історію" });
+  const button = (await refreshButton(page, "Оновити історію"));
   await expect(button).toBeEnabled();
   await expect(button).toBeInViewport({ ratio: 1 });
   const box = (await button.boundingBox())!;
@@ -73,7 +74,7 @@ for (const width of [1280, 393]) test(`settled diagnostics release unused panel 
   await expect(page.getByText("Зупинку ще не підтверджено", { exact: true })).toBeVisible();
   data.diagnostics.last_stop = null;
   data.diagnostics.uptime_ms = 3000;
-  await page.getByRole("button", { name: "Оновити панель" }).click();
+  await (await refreshButton(page, "Оновити панель")).click();
   await expect(page.getByText("Не зафіксовано", { exact: true })).toBeVisible();
   await page.getByRole("tab", { name: "Графіки", exact: true }).click();
   await expect.poll(() => gapBeforeHistory(page)).toBeLessThanOrEqual(24);
@@ -133,13 +134,13 @@ test("automatic refresh preserves scroll, keeps the chart and does not close the
     const y = await position(page);
     await page.clock.runFor(61000);
     // Only the visible history polls; inactive overview must not occupy space.
-    await expect(page.getByRole("button", { name: "Оновити панель" })).toBeEnabled();
+    await expect((await refreshButton(page, "Оновити панель"))).toBeEnabled();
     await expect(page.getByText("Оновлюємо історію…")).toBeVisible();
     await expect(page.locator(".telemetry-chart")).toBeVisible();
     await expect(page.getByRole("table")).toBeVisible();
     await stable(page, y, true);
     history.release();
-    await expect(page.getByRole("button", { name: "Оновити історію" })).toBeEnabled();
+    await expect((await refreshButton(page, "Оновити історію"))).toBeEnabled();
     await expect(page.locator(".telemetry-chart")).toBeVisible();
     await expect(page.getByRole("table")).toBeVisible();
     await stable(page, y, true);
@@ -220,7 +221,7 @@ test("current with missing measurements has an explanation and no retained chart
   await page.getByLabel("Показник", { exact: true }).selectOption("vfd.current_a");
   for (const period of ["3600", "21600"]) {
     await page.getByLabel("Період", { exact: true }).selectOption(period);
-    await expect(page.getByText(/Для цього показника надходили неповні або некоректні дані/)).toBeVisible();
+    await expect(page.getByText(/Надходили неповні або некоректні дані/)).toBeVisible();
     await expect(page.getByText(/Вимірювань для графіка: 0; повідомлень: 648/)).toBeVisible();
     await expect(page.locator(".telemetry-chart")).toHaveCount(0);
     await expect(page.getByRole("table")).toBeHidden();

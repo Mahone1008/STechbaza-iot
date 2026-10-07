@@ -62,7 +62,7 @@ export type AuthSessionContextValue = Readonly<{
   authorizedRequest: <T>(options: AuthorizedApiRequestOptions) => Promise<T>;
 }>;
 
-export type RefreshOutcome =
+type RefreshOutcome =
   | Readonly<{ kind: "peer"; snapshot: AuthSessionSnapshotMessage }>
   | Readonly<{ kind: "api"; response: BrowserLoginResponse; issuedAt: number }>;
 

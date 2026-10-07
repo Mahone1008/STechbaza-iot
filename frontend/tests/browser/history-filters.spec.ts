@@ -36,6 +36,7 @@ for (const width of [320, 393]) test(`history filters and their open pickers fit
     const options = select.getByRole("option");
     await expect(options.first()).toBeVisible();
     for (const option of await options.all()) {
+      await option.scrollIntoViewIfNeeded();
       const box = await option.boundingBox();
       expect(box).not.toBeNull();
       expect(box!.x).toBeGreaterThanOrEqual(0);

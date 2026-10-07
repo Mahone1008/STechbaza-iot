@@ -1,4 +1,4 @@
-import { displaySettings } from "../helpers/customer-details";
+import { refreshButton, displaySettings } from "../helpers/customer-details";
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 import { commandFixture, commandId, programOverview } from "../fixtures/commands";
@@ -61,7 +61,7 @@ test("eight paused schedules block creation; confirmed deletion frees a slot and
   );
   await page.goto(`/devices/${DEVICE_ID}`);
   await openSchedules(page);
-  await expect(page.getByText(/Збережено 8 із 8/)).toBeVisible();
+  await expect(page.getByText(/8 із 8 розкладів/)).toBeVisible();
   await expect(page.getByRole("button", { name: "Новий розклад", exact: true })).toBeDisabled();
   await page.getByRole("button", { name: "Змінити", exact: true }).first().click();
   await expect(page.getByRole("heading", { name: "Редагування розкладу" })).toBeVisible();
@@ -79,7 +79,7 @@ test("eight paused schedules block creation; confirmed deletion frees a slot and
     button.click();
     button.click();
   });
-  await expect(page.getByText(/Збережено 7 із 8/)).toBeVisible();
+  await expect(page.getByText(/7 із 8 розкладів/)).toBeVisible();
   await expect(page.getByRole("button", { name: "Новий розклад", exact: true })).toBeEnabled();
   await expect(page.getByText(/Розклад видалено. Історію запусків збережено/)).toBeVisible();
   expect(deletes).toBe(1);
@@ -571,7 +571,7 @@ test("manual and minute refresh apply to schedules, run history and command reco
     ["Оновити історію запусків", "histories"],
     ["Оновити панель", "overview"],
   ] as const) {
-    await page.getByRole("button", { name: label, exact: true }).click();
+    await (await refreshButton(page, label)).click();
     await expect.poll(() => counts[key]).toBe(beforeManual[key] + 1);
   }
   await page.getByRole("tab", { name: "Журнал", exact: true }).click();
@@ -581,12 +581,12 @@ test("manual and minute refresh apply to schedules, run history and command reco
     ["Оновити журнал", "journal"],
     ["Оновити стан команди", "detail"],
   ] as const) {
-    await page.getByRole("button", { name: label, exact: true }).click();
+    await (await refreshButton(page, label)).click();
     await expect.poll(() => counts[key]).toBe(beforeJournal[key] + 1);
   }
   await refresh.selectOption("60");
   await expect(page.getByRole("button", { name: "Оновити стан команди", exact: true })).toBeEnabled();
-  await expect(page.getByRole("button", { name: "Оновити журнал", exact: true })).toBeEnabled();
+  await expect((await refreshButton(page, "Оновити журнал"))).toBeEnabled();
   const beforeMinute = { ...counts };
   await page.clock.fastForward(31_000);
   expect(counts).toEqual(beforeMinute);
