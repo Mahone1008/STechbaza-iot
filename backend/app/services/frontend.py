@@ -21,7 +21,6 @@ from app.security.roles import Permission, role_has_permission
 from app.services.command_profile import configured_limits
 from app.services.equipment import configuration_state, configuration_target, desired_configuration
 from app.services.device_presence import DevicePresenceService
-from app.services.control_mode import read_control_mode
 from app.services.telemetry_quality import freshness, readings, state_readings, json_safe
 
 
@@ -120,7 +119,6 @@ class FrontendReadService:
             device_id=device_id, now=generated_at,
         )
         return DeviceOverviewRead(
-            control_mode=read_control_mode(self._session, context.device, generated_at),
             equipment_state=equipment_state,
             equipment_target=configuration_target(equipment_configuration),
             diagnostics=snapshot.diagnostics if snapshot else None,

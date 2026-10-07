@@ -8,14 +8,14 @@ CI звіряє його з tracked code. Це перелік реалізаці
 
 | Компонент | Значення з коду |
 |---|---|
-| Backend / OpenAPI / health | 0.51.0 |
-| Alembic head | `20261007_0028`; 28 міграцій |
+| Backend / OpenAPI / health | 0.52.0 |
+| Alembic head | `20261007_0029`; 29 міграцій |
 | Frontend package | 0.1.0 |
 | Node engine | `>=20.9.0` |
 | Package manager | `npm@10.9.2` |
 | Next.js / React | 16.3.6 / 19.2.8 |
 | Firmware V3 | 0.8.1 |
-| OpenAPI paths | 106 |
+| OpenAPI paths | 105 |
 
 ## Канали телеметрії
 
@@ -124,7 +124,6 @@ ACK/Result лишаються v1. Дозвіл API не замінює лока�
 | `/api/v1/devices/{device_id}/capabilities` | GET |
 | `/api/v1/devices/{device_id}/capabilities/{capability_id}` | PATCH, POST |
 | `/api/v1/devices/{device_id}/commands` | GET, POST |
-| `/api/v1/devices/{device_id}/control-mode` | GET, PATCH |
 | `/api/v1/devices/{device_id}/equipment` | GET |
 | `/api/v1/devices/{device_id}/equipment/commission` | POST |
 | `/api/v1/devices/{device_id}/equipment/configurations` | POST |

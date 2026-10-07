@@ -250,7 +250,6 @@ html[data-theme="customer"] .user-menu-action small {
 .device-panel-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
-  grid-template-rows: min-content 1fr;
   grid-template-areas: "status controls" "readings controls";
   gap: 24px;
   align-items: start;
@@ -538,7 +537,6 @@ html[data-theme="customer"] .login-card {
 @media (max-width: 1100px) {
   .device-panel-grid {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto;
     grid-template-areas: "status" "controls" "readings";
     gap: 20px;
   }

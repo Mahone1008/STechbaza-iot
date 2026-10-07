@@ -130,7 +130,6 @@ def check_module_contract(overview):
 def check_calendar(operator, owner):
     """Реальний календарний worker → MQTT → локальні межі симулятора → Result."""
     path = f"/api/v1/devices/{identity('device:pump')}/schedules"
-    mode_path = f"/api/v1/devices/{identity('device:pump')}/control-mode"
     site = owner.call("GET", f"/api/v1/sites/{identity('site:a')}")
     zone = ZoneInfo(site["timezone"])
     # Залишити щонайменше 15 с для preview/PUT, не змінювати годинник сервісів.
@@ -151,14 +150,6 @@ def check_calendar(operator, owner):
     try:
         ensure(operator.call("PUT", path + "/" + body["id"], body)["revision"] == 1,
                "Repeated calendar PUT created a revision")
-        current_mode = operator.call("GET", mode_path)
-        ensure(current_mode["mode"] == "manual", "Saving a calendar must not enable automatic starts")
-        selection = {"request_id": str(uuid.uuid4()), "mode": "schedule", "expected_revision": current_mode["revision"]}
-        selected = operator.call("PATCH", mode_path, selection)
-        ensure(selected["mode"] == "schedule" and selected["revision"] == current_mode["revision"] + 1,
-               "Calendar mode was not explicitly enabled")
-        ensure(operator.call("PATCH", mode_path, selection) == selected, "Mode selection did not deduplicate")
-        ensure(operator.call("GET", mode_path) == selected, "Mode selection was not persisted")
 
         def accepted():
             rows = operator.call("GET", path + "/" + body["id"] + "/runs")
@@ -183,12 +174,9 @@ def check_calendar(operator, owner):
         ensure(datetime.fromisoformat(result["completed_at"]) >= stop, "Calendar stopped before its boundary")
         wait_for("calendar stopped telemetry", lambda: owner.overview("pump")["snapshot"]["state"].get("pump_running") is False)
         ensure(len(operator.call("GET", path + "/" + body["id"] + "/runs")) == 1, "Calendar occurrence duplicated")
-        print("PASS: calendar preview, explicit persisted mode, idempotent save, due worker, real MQTT ACK/Result and fixed final STOP", flush=True)
+        print("PASS: calendar preview, idempotent save, due worker, real MQTT ACK/Result and fixed final STOP", flush=True)
     finally:
         operator.call("PUT", path + "/" + body["id"], {**body, "expected_revision": saved["revision"], "enabled": False})
-        current_mode = operator.call("GET", mode_path)
-        operator.call("PATCH", mode_path, {"request_id": str(uuid.uuid4()), "mode": "manual",
-                                           "expected_revision": current_mode["revision"]})
 
 
 def run(quick=False):
@@ -202,7 +190,7 @@ def run(quick=False):
             for key in ("pump", "pressure", "stale", "other"):
                 scenario(key, "normal")
         health = owner.call("GET", "/health")
-        ensure(health["version"] == "0.51.0" and health["status"] == "ok", "Expected demo backend 0.51.0")
+        ensure(health["version"] == "0.52.0" and health["status"] == "ok", "Expected demo backend 0.52.0")
         for key, client in clients.items():
             orgs = client.call("GET", "/api/v1/organizations")
             ensure([item["id"] for item in orgs] == [str(identity("org:" + ACCOUNTS[key][0]))], "Tenant list leak")

@@ -113,13 +113,13 @@ for (const width of [320, 393, 1280])
     await refresh.selectOption("0");
     await page.getByText("Додаткові налаштування команди", { exact: true }).click();
     const ttl = page.getByLabel("Час на прийняття команди, с", { exact: true });
-    const mode = page.getByRole("combobox", { name: "Додаткові можливості", exact: true });
+    const mode = page.getByRole("combobox", { name: "Режим роботи", exact: true });
     await ttl.fill("57");
     for (const [value, description] of [
-      ["manual", "Запуск, зупинка та частота кнопками на панелі"],
+      ["manual", "Ви самі запускаєте й зупиняєте насос"],
       ["timer", "Робота на одній частоті від 10 с до 24 год"],
       ["program", "До 8 послідовних етапів"],
-      ["schedule", "Автоматична робота вмикається окремо в розділі «Режим запуску»"],
+      ["schedule", "Автоматичний запуск і зупинка у вибраний час"],
     ]) {
       await mode.selectOption(value!);
       await expect(mode).toHaveAccessibleDescription(new RegExp(description!));
@@ -204,11 +204,7 @@ for (const width of [320, 393, 1280])
     await mockAuthenticatedWorkspace(page);
     const data = overview();
     await page.route(`${base}/overview`, async (route) => {
-      if (!(await fulfillPreflight(route))) await fulfillJson(route, 200, { ...data, control_mode: {
-        device_id: DEVICE_ID, mode: "manual", revision: 0, changed_at: null,
-        enabled_schedule_count: saved.filter((rule) => rule.enabled).length,
-        next_start_at: saved.find((rule) => rule.enabled)?.next_start_at ?? null,
-      } });
+      if (!(await fulfillPreflight(route))) await fulfillJson(route, 200, data);
     });
     const writes: ScheduleWrite[] = [],
       saved: Schedule[] = [];
@@ -249,7 +245,6 @@ for (const width of [320, 393, 1280])
       },
     );
     await page.goto(`/devices/${DEVICE_ID}`);
-    await (await displaySettings(page)).selectOption("0");
     await expect(page.locator(".schedule-panel")).toHaveCount(0);
     await openSchedules(page);
     await page.getByRole("button", { name: "Новий розклад", exact: true }).click();
@@ -273,7 +268,7 @@ for (const width of [320, 393, 1280])
     await page.getByRole("button", { name: "Перевірити розклад", exact: true }).click();
     await expect(page.getByRole("region", { name: "Попередній перегляд розкладу" })).toContainText("2076");
     await page.getByRole("button", { name: "Зберегти та увімкнути" }).click();
-    await expect(page.getByRole("dialog")).toContainText("Збереження цього правила не змінює режим");
+    await expect(page.getByRole("dialog")).toContainText("автоматичні запуски");
     await page
       .getByRole("button", { name: "Підтвердити розклад", exact: true })
       .evaluate((button: HTMLButtonElement) => {
@@ -281,10 +276,6 @@ for (const width of [320, 393, 1280])
         button.click();
       });
     await expect(page.locator(".schedule-list")).toContainText("Вечірній полив");
-    await expect(page.getByText("Розклад збережено й увімкнено.", { exact: false })).toContainText("Для автоматичних запусків оберіть «За розкладом»");
-    const selection = page.getByRole("region", { name: "Режим запуску" });
-    await expect(selection.getByRole("button", { name: "Ручне керування", exact: true })).toHaveAttribute("aria-pressed", "true");
-    await expect(selection.getByRole("button", { name: "За розкладом", exact: true })).toBeEnabled();
     expect(writes).toHaveLength(1);
     await page.reload();
     await openSchedules(page);
@@ -379,7 +370,7 @@ test("schedule tab preserves its draft and suspends every hidden request", async
   await expect(page.getByLabel("Назва розкладу", { exact: true })).toHaveValue("Незбережений полив");
   await page.getByRole("tab", { name: "Панель", exact: true }).click();
   await page.getByText("Додаткові налаштування команди", { exact: true }).click();
-  await page.getByRole("combobox", { name: "Додаткові можливості", exact: true }).selectOption("timer");
+  await page.getByRole("combobox", { name: "Режим роботи", exact: true }).selectOption("timer");
   await expect(page.getByText("Робота за таймером", { exact: true })).toBeVisible();
   const switchedReads = reads;
   await page.clock.fastForward(61_000);
@@ -411,7 +402,7 @@ test("a running plan still allows calendar inspection and STOP but not another p
   await page.getByRole("tab", { name: "Панель", exact: true }).click();
   await expect(page.getByRole("button", { name: "Зупинити", exact: true })).toBeEnabled();
   await page.getByText("Додаткові налаштування команди", { exact: true }).click();
-  const mode = page.getByRole("combobox", { name: "Додаткові можливості", exact: true });
+  const mode = page.getByRole("combobox", { name: "Режим роботи", exact: true });
   await expect(mode.locator('option[value="timer"]')).toHaveJSProperty("disabled", true);
   await expect(mode.locator('option[value="program"]')).toHaveJSProperty("disabled", true);
   await expect(page.getByRole("button", { name: "Запустити", exact: true })).toBeDisabled();

@@ -3,7 +3,6 @@ import { DeviceSection } from "./panel-activity";
 import dynamic from "next/dynamic";
 import { ProgramStatus } from "@/features/program-status";
 import { CommandControls } from "@/features/command-controls";
-import { ControlModePanel } from "./control-mode-panel";
 import { ControllerDiagnostics } from "@/features/controller-diagnostics";
 import { alarmsHref } from "@/features/alarm-shared";
 import { CommandDetail } from "@/features/command-journal";
@@ -375,7 +374,6 @@ function DevicePanel({ context }: { context: ReadyAccessSnapshot }) {
             />
           )}
           <CommandControls
-            onModeChanged={query.refresh}
             onSchedules={() => navigate("schedules")}
             context={context}
             overview={query.isError ? null : (query.data?.overview ?? null)}
@@ -428,25 +426,15 @@ function DevicePanel({ context }: { context: ReadyAccessSnapshot }) {
       <DeviceSection name="schedules" active={section === "schedules"}>
         {visited.has("schedules") &&
           (context.access.permissions.includes("command.read") && query.data ? (
-            <>
-              <ControlModePanel
-                context={context}
-                data={query.isError ? null : (query.data.overview.controlMode ?? null)}
-                blocked={query.isFetching || query.isError}
-                onChanged={query.refresh}
-              />
-              <SchedulePanel
-                context={context}
-                visible={section === "schedules"}
-                poll={poll}
-                limits={query.data.overview.frequencyLimits}
-                supported={query.data.overview.diagnostics?.program?.supports_schedule === true}
-                maxScheduleSeconds={query.data.overview.diagnostics?.program?.max_schedule_seconds}
-                modeSelectionAvailable={!!query.data.overview.controlMode}
-                onChanged={query.refresh}
-                onCommand={selectCommand}
-              />
-            </>
+            <SchedulePanel
+              context={context}
+              visible={section === "schedules"}
+              poll={poll}
+              limits={query.data.overview.frequencyLimits}
+              supported={query.data.overview.diagnostics?.program?.supports_schedule === true}
+              maxScheduleSeconds={query.data.overview.diagnostics?.program?.max_schedule_seconds}
+              onCommand={selectCommand}
+            />
           ) : (
             <p>Розклади недоступні: перевірте права та зв’язок із сервером.</p>
           ))}
