@@ -39,6 +39,12 @@ for (const width of [320, 393, 768, 1280]) test(`saved automation mode fits ${wi
   await expect(page.getByRole("button", { name: "Запустити", exact: true })).toBeEnabled();
   await expect(page.getByRole("button", { name: "Зупинити", exact: true })).toBeEnabled();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  if (width === 1280) {
+    const status = await page.locator(".device-status").boundingBox();
+    const readings = await page.locator(".overview-result-region").boundingBox();
+    expect(status).not.toBeNull(); expect(readings).not.toBeNull();
+    expect(readings!.y - status!.y - status!.height).toBeLessThanOrEqual(32);
+  }
   expect((await new AxeBuilder({ page }).include(".control-mode-panel").withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze()).violations).toEqual([]);
   await test.info().attach(`control-mode-${width}`, { body: await page.screenshot({ fullPage: true }), contentType: "image/png" });
 });
