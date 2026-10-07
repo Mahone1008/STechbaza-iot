@@ -155,6 +155,12 @@ test.describe("touch chart", () => {
     await page.touchscreen.tap(box.x + box.width * 0.8, box.y + box.height * 0.5);
     await expect(page.locator(".chart-selection-values")).toContainText("Немає даних");
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.getByLabel("Період", { exact: true }).selectOption("259200");
+    await expect(chart.locator(".chart-time-label tspan")).toHaveCount(6);
+    const labels = await Promise.all(
+      (await chart.locator(".chart-time-label").all()).map((label) => label.boundingBox()),
+    );
+    for (let i = 1; i < labels.length; i++) expect(labels[i - 1]!.x + labels[i - 1]!.width).toBeLessThan(labels[i]!.x);
     await test
       .info()
       .attach("touch-chart", { body: await page.screenshot({ fullPage: true }), contentType: "image/png" });

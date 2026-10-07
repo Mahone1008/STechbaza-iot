@@ -68,9 +68,14 @@ export function TelemetryChart({ series, timezone }: { series: Series; timezone:
   const timeLabel = (time: number) =>
     new Intl.DateTimeFormat("uk-UA", {
       timeZone: timezone,
-      ...(crossesDate ? { day: "2-digit", month: "2-digit" } : {}),
       hour: "2-digit",
       minute: "2-digit",
+    }).format(time);
+  const dayLabel = (time: number) =>
+    new Intl.DateTimeFormat("uk-UA", {
+      timeZone: timezone,
+      day: "2-digit",
+      month: "2-digit",
     }).format(time);
   const inspect = (event: PointerEvent<SVGSVGElement>) => {
     const bounds = event.currentTarget.getBoundingClientRect();
@@ -112,11 +117,26 @@ export function TelemetryChart({ series, timezone }: { series: Series; timezone:
             })}
             {Array.from({ length: axisSteps + 1 }, (_, i) => {
               const position = left + ((right - left) * i) / axisSteps;
+              const time = from + ((to - from) * i) / axisSteps;
               return (
                 <g key={i}>
                   <line x1={position} y1={top} x2={position} y2={bottom} className="chart-grid-line" />
-                  <text x={position} y={250} textAnchor={i === 0 ? "start" : i === axisSteps ? "end" : "middle"}>
-                    {timeLabel(from + ((to - from) * i) / axisSteps)}
+                  <text
+                    className="chart-time-label"
+                    x={position}
+                    y={250}
+                    textAnchor={i === 0 ? "start" : i === axisSteps ? "end" : "middle"}
+                  >
+                    {crossesDate ? (
+                      <>
+                        <tspan x={position}>{dayLabel(time)}</tspan>
+                        <tspan x={position} dy="16">
+                          {timeLabel(time)}
+                        </tspan>
+                      </>
+                    ) : (
+                      timeLabel(time)
+                    )}
                   </text>
                 </g>
               );
