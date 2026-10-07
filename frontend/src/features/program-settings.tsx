@@ -10,13 +10,13 @@ export const workModeLabels: Record<WorkMode, string> = {
   schedule: "За розкладом",
 };
 export const workModeDescriptions: Record<WorkMode, string> = {
-  manual: "Ви самі запускаєте й зупиняєте насос та змінюєте частоту кнопками нижче.",
+  manual: "Запуск, зупинка та частота кнопками на панелі.",
   timer:
     "Робота на одній частоті від 10 с до 24 год, потім автоматична зупинка. Відлік починається після досягнення частоти.",
   program:
     "До 8 послідовних етапів, від 10 с кожен, до 24 год сумарно. Відлік кожного етапу починається після досягнення його частоти.",
   schedule:
-    "Автоматичний запуск і зупинка у вибраний час, до 7 діб роботи. Створіть розклад, перевірте найближчі запуски та збережіть його.",
+    "Створіть розклад і перевірте найближчі запуски. Автоматична робота вмикається окремо в розділі «Режим запуску».",
 };
 export type ProgramDraft = { id: number; frequency: string; hours: string; minutes: string; seconds: string };
 export function emptyProgramStep(id: number): ProgramDraft {

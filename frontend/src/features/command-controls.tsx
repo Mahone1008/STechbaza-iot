@@ -29,6 +29,7 @@ import { durationText, parseProgramPlan, programActive, programWithinLimits } fr
 import { controlBlockReason, effectiveQuality, parseOverview, type Overview } from "@/lib/api/overview";
 import type { PollSeconds } from "@/lib/api/polling-policy";
 import { sameEquipmentTarget, type EquipmentTarget } from "@/lib/api/equipment";
+import { ControlModePanel } from "./control-mode-panel";
 
 const SchedulePanel = dynamic(() => import("./schedule-panel").then((module) => module.SchedulePanel), {
   loading: () => <p role="status">Завантажуємо розклади…</p>,
@@ -37,7 +38,7 @@ const SchedulePanel = dynamic(() => import("./schedule-panel").then((module) => 
 type Intent = Readonly<{ input: CommandInput; deadline: number }>;
 type Uncertain = Readonly<{ intent: Intent; retryAt: number; message: string }>;
 type Dialog =
-  | { kind: "new"; type: CommandType; target: EquipmentTarget | null }
+  | { kind: "new"; type: CommandType; target: EquipmentTarget | null; revision?: number | undefined }
   | { kind: "retry" }
   | { kind: "discard" };
 // Read only from event handlers/effects, never while rendering controls.
@@ -57,6 +58,7 @@ export function CommandControls({
   poll,
   onCreated,
   onSchedules,
+  onModeChanged,
 }: {
   context: ReadyAccessSnapshot;
   overview: Overview | null;
@@ -66,6 +68,7 @@ export function CommandControls({
   poll: PollSeconds;
   onCreated: (id: string) => void;
   onSchedules?: () => void;
+  onModeChanged?: () => void;
 }) {
   const sectionActive = usePanelActivity();
   const { authorizedRequest } = useAuthSession();
@@ -83,6 +86,7 @@ export function CommandControls({
   const programValid = !!plan && programWithinLimits(plan, overview?.frequencyLimits ?? null);
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const [busyType, setBusyType] = useState<CommandType | null>(null);
+  const [modeBusy, setModeBusy] = useState(false);
   const busy = busyType !== null;
   const [uncertain, setUncertain] = useState<Uncertain | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -144,6 +148,7 @@ export function CommandControls({
       ? busyType !== "vfd.stop"
       : !refreshing &&
         !busy &&
+        !modeBusy &&
         !uncertain &&
         validTtl &&
         (type !== "vfd.frequency.set" || frequencyValid) &&
@@ -185,6 +190,12 @@ export function CommandControls({
         timeoutMs: 10_000,
       });
       const fresh = parseOverview(raw, device, context.activeOrganization.id);
+      if (
+        intent.input.command_type !== "vfd.stop" &&
+        intent.input.expected_control_mode_revision != null &&
+        fresh.controlMode?.revision !== intent.input.expected_control_mode_revision
+      )
+        throw new Error("Керування змінилося. Оновіть панель і підтвердьте команду знову.");
       if (!sameEquipmentTarget(fresh.equipmentTarget, intent.input.equipment_target))
         throw new Error("Обладнання або його конфігурація змінилися. Оновіть панель та підтвердьте нову команду.");
       if (!fresh.allowedCommands.includes(intent.input.command_type))
@@ -230,6 +241,7 @@ export function CommandControls({
       if (!mounted.current || pending.current !== controller) return;
       setUncertain(null);
       setNotice("Команду прийнято. Очікуємо результат від контролера.");
+      onModeChanged?.();
       onCreated(command.id);
     } catch (error) {
       if (!mounted.current || pending.current !== controller) return;
@@ -272,6 +284,7 @@ export function CommandControls({
     if (!enabled(dialog.type)) return;
     const seconds = validTtl ? Number(ttl) : 30;
     const input = makeCommandInput(dialog.type, frequency, seconds, crypto.randomUUID(), plan);
+    if (dialog.revision !== undefined) input.expected_control_mode_revision = dialog.revision;
     if (dialog.target) input.equipment_target = dialog.target;
     if (dialog.type === "vfd.stop") {
       const prior = pendingIntent.current ?? uncertain?.intent;
@@ -312,6 +325,16 @@ export function CommandControls({
         <p>Для цього пристрою немає дозволених команд.</p>
       ) : (
         <>
+          {overview.modules.some((module) => module.code === "vfd.schedule") && (
+            <ControlModePanel
+              context={context}
+              data={overview.controlMode ?? null}
+              blocked={busy || !!uncertain || refreshing}
+              onBusy={setModeBusy}
+              onChanged={onModeChanged ?? (() => {})}
+              onSchedules={onSchedules}
+            />
+          )}
           {(mode === "timer" || mode === "program") && !programRunning && (
             <p className="program-mode-notice">
               <strong>{mode === "timer" ? "За таймером" : `За етапами · етапів: ${steps.length}`}</strong>
@@ -342,7 +365,12 @@ export function CommandControls({
                     variant="primary"
                     disabled={!enabled("vfd.program.start")}
                     onClick={() =>
-                      setDialog({ kind: "new", type: "vfd.program.start", target: overview?.equipmentTarget ?? null })
+                      setDialog({
+                        kind: "new",
+                        type: "vfd.program.start",
+                        target: overview?.equipmentTarget ?? null,
+                        revision: overview.controlMode?.revision,
+                      })
                     }
                   >
                     {mode === "timer"
@@ -353,22 +381,27 @@ export function CommandControls({
                   </Button>
                 )}
                 {(["vfd.start", "vfd.stop"] as const)
-                  .filter(
-                    (type) => overview.allowedCommands.includes(type) && (mode === "manual" || type === "vfd.stop"),
-                  )
+                  .filter((type) => overview.allowedCommands.includes(type))
                   .map((type) => (
                     <Button
                       key={type}
                       variant={type === "vfd.stop" ? "danger" : "primary"}
                       disabled={!enabled(type)}
-                      onClick={() => setDialog({ kind: "new", type, target: overview?.equipmentTarget ?? null })}
+                      onClick={() =>
+                        setDialog({
+                          kind: "new",
+                          type,
+                          target: overview?.equipmentTarget ?? null,
+                          revision: overview.controlMode?.revision,
+                        })
+                      }
                     >
                       {commandLabel(type)}
                     </Button>
                   ))}
               </div>
               <div className="device-frequency-setting">
-                {mode === "manual" && !programRunning && overview.allowedCommands.includes("vfd.frequency.set") && (
+                {!programRunning && overview.allowedCommands.includes("vfd.frequency.set") && (
                   <>
                     <TextField
                       label="Задана частота, Гц"
@@ -388,7 +421,12 @@ export function CommandControls({
                     <Button
                       disabled={!enabled("vfd.frequency.set")}
                       onClick={() =>
-                        setDialog({ kind: "new", type: "vfd.frequency.set", target: overview.equipmentTarget ?? null })
+                        setDialog({
+                          kind: "new",
+                          type: "vfd.frequency.set",
+                          target: overview.equipmentTarget ?? null,
+                          revision: overview.controlMode?.revision,
+                        })
                       }
                     >
                       {commandLabel("vfd.frequency.set")}
@@ -429,7 +467,7 @@ export function CommandControls({
             {(!programRunning || canReadSchedules) && (
               <div className="work-mode-settings">
                 <SelectField
-                  label="Режим роботи"
+                  label="Додаткові можливості"
                   value={mode}
                   hint={`${workModeLabels[mode]}: ${workModeDescriptions[mode]}`}
                   disabled={busy || !!uncertain}
@@ -448,7 +486,7 @@ export function CommandControls({
                     {workModeLabels.program}
                   </option>
                   <option value="schedule" disabled={!canReadSchedules}>
-                    {workModeLabels.schedule}
+                    Перегляд розкладів
                   </option>
                 </SelectField>
                 {canExecute && !programSupported && (
@@ -564,6 +602,10 @@ export function CommandControls({
               {dialog?.kind === "retry" ? uncertain?.intent.input.ttl_seconds : validTtl ? ttl : 30} с.
             </p>
             <p>Прийняття команди ще не означає її виконання. Результат з’явиться після відповіді контролера.</p>
+            {overview?.controlMode?.mode === "schedule" &&
+              ["vfd.start", "vfd.stop", "vfd.program.start"].includes(selectedType ?? "") && (
+                <p>Ця ручна команда призупинить майбутні запуски за розкладом. Самі розклади збережуться.</p>
+              )}
             {selectedType === "vfd.stop" && !online && (
               <p>
                 Немає зв’язку з пристроєм. Команда чекатиме доставки до завершення часу її прийняття. Зупинку ще не

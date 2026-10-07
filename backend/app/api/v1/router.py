@@ -15,6 +15,7 @@ from app.api.v1.telemetry import router as telemetry_router
 from app.api.v1.schedules import router as schedules_router
 from app.api.v1.equipment import router as equipment_router
 from app.api.v1.personal_accounts import router as personal_accounts_router
+from app.api.v1.control_mode import router as control_mode_router
 
 api_v1_router = APIRouter()
 api_v1_router.include_router(auth_router)
@@ -22,6 +23,7 @@ api_v1_router.include_router(organizations_router)
 api_v1_router.include_router(memberships_router)
 api_v1_router.include_router(sites_router)
 api_v1_router.include_router(devices_router)
+api_v1_router.include_router(control_mode_router)
 api_v1_router.include_router(capabilities_router)
 api_v1_router.include_router(telemetry_router)
 api_v1_router.include_router(events_router)

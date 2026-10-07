@@ -18,6 +18,7 @@ ESP32 → MQTT → FastAPI/PostgreSQL → Next.js. Можливості конк
 - [V3 ESP32-S3 / SU600](docs/v3-su600-bench.md): підготовка, читання й TLS gateway.
 - [Випробування з двигуном](docs/v3-su600-extended-test.md): EXTENDED, локальний дозвіл та зупинки.
 - [Календарні розклади](docs/control-schedules-v1.md): сезони, часові межі, приймання.
+- [Ручне керування / робота за розкладом](docs/manual-schedule-control-v1.md): збережений режим, ручний пріоритет і майбутні запуски.
 - [Таймер і етапи частоти](docs/control-programs-v1.md): оновлення backend/БД/firmware, контракт і приймання.
 - [Ключі облікових записів](docs/account-key-operations-v1.md): обов'язкове перенесення secret перед оновленням старої установки.
 

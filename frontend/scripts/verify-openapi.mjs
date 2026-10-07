@@ -4,7 +4,7 @@ const schemaUrl = new URL("../src/lib/api/openapi.json", import.meta.url);
 const typesUrl = new URL("../src/lib/api/schema.d.ts", import.meta.url);
 const schema = JSON.parse(await readFile(schemaUrl, "utf8"));
 const generatedTypes = await readFile(typesUrl, "utf8");
-const expectedVersion = process.env.EXPECTED_BACKEND_VERSION ?? "0.50.0";
+const expectedVersion = process.env.EXPECTED_BACKEND_VERSION ?? "0.51.0";
 
 const requiredPaths = [
   "/health",

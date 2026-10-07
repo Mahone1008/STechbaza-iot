@@ -59,6 +59,7 @@ export function parseCommand(raw: unknown, deviceId: string, organizationId: str
 }
 export function parseCommandReceipt(raw: unknown, deviceId: string, organizationId: string, userId: string, input: CommandInput): Command {
   const command = parseCommand(raw, deviceId, organizationId);
+  if ((command.requested_control_mode_revision ?? null) !== (input.expected_control_mode_revision ?? null)) invalidResponse(path, "matching control mode revision");
   if (!sameEquipmentTarget(command.equipment_target, input.equipment_target)) invalidResponse(path, "matching equipment target");
   if (command.request_id !== input.request_id || command.command_type !== input.command_type || command.ttl_seconds !== input.ttl_seconds || (command.supersedes_request_id ?? null) !== (input.supersedes_request_id ?? null) || command.actor_user_id !== userId || command.actor_organization_id !== organizationId || (input.command_type === "vfd.program.start" ? !sameProgram(command.payload, input.payload) : Object.keys(command.payload).length !== Object.keys(input.payload ?? {}).length || Object.entries(input.payload ?? {}).some(([key, value]) => command.payload[key] !== value))) invalidResponse(path, "matching command receipt");
   return command;

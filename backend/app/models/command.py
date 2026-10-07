@@ -65,6 +65,8 @@ class DeviceCommand(TimestampMixin, Base):
     )
     supersedes_request_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True, index=True)
     control_sequence: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    control_mode_revision: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    requested_control_mode_revision: Mapped[int | None] = mapped_column(Integer, nullable=True)
     equipment_target: Mapped[dict[str, Any] | None] = mapped_column(JSONB(none_as_null=True), nullable=True)
     payload: Mapped[dict[str, Any]] = mapped_column(
         JSONB,

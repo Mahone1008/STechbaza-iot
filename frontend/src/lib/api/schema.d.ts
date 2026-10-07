@@ -719,6 +719,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/devices/{device_id}/control-mode": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Control Mode */
+        get: operations["get_control_mode_api_v1_devices__device_id__control_mode_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Change Control Mode */
+        patch: operations["change_control_mode_api_v1_devices__device_id__control_mode_patch"];
+        trace?: never;
+    };
     "/api/v1/devices/{device_id}/equipment": {
         parameters: {
             query?: never;
@@ -2276,6 +2294,42 @@ export interface components {
             /** Last Contact At */
             last_contact_at: string | null;
         };
+        /** ControlModeRead */
+        ControlModeRead: {
+            /** Changed At */
+            changed_at: string | null;
+            /**
+             * Device Id
+             * Format: uuid
+             */
+            device_id: string;
+            /** Enabled Schedule Count */
+            enabled_schedule_count: number;
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "manual" | "schedule";
+            /** Next Start At */
+            next_start_at: string | null;
+            /** Revision */
+            revision: number;
+        };
+        /** ControlModeWrite */
+        ControlModeWrite: {
+            /** Expected Revision */
+            expected_revision: number;
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "manual" | "schedule";
+            /**
+             * Request Id
+             * Format: uuid
+             */
+            request_id: string;
+        };
         /** CurrentUserMembershipRead */
         CurrentUserMembershipRead: {
             /**
@@ -2488,6 +2542,8 @@ export interface components {
              */
             command_type: "vfd.start" | "vfd.stop" | "vfd.frequency.set" | "vfd.program.start" | "vfd.schedule.start";
             equipment_target?: components["schemas"]["EquipmentTarget"] | null;
+            /** Expected Control Mode Revision */
+            expected_control_mode_revision?: number | null;
             /** Payload */
             payload?: {
                 [key: string]: unknown;
@@ -2531,6 +2587,8 @@ export interface components {
             command_type: string;
             /** Completed At */
             completed_at: string | null;
+            /** Control Mode Revision */
+            control_mode_revision?: number | null;
             /** Control Sequence */
             control_sequence?: number | null;
             /**
@@ -2575,6 +2633,8 @@ export interface components {
              * Format: uuid
              */
             request_id: string;
+            /** Requested Control Mode Revision */
+            requested_control_mode_revision?: number | null;
             /** Result */
             result: {
                 [key: string]: unknown;
@@ -2711,6 +2771,7 @@ export interface components {
              * @description Підтримувані команди enabled capabilities, незалежно від ролі.
              */
             command_types: string[];
+            control_mode?: components["schemas"]["ControlModeRead"] | null;
             device: components["schemas"]["DeviceRead"];
             /** @description Діагностика того самого telemetry snapshot і boot session; має спільну telemetry_freshness. */
             diagnostics?: components["schemas"]["ControllerDiagnostics"] | null;
@@ -5951,6 +6012,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DeviceCommandRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_control_mode_api_v1_devices__device_id__control_mode_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                device_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ControlModeRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    change_control_mode_api_v1_devices__device_id__control_mode_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                device_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ControlModeWrite"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ControlModeRead"];
                 };
             };
             /** @description Validation Error */

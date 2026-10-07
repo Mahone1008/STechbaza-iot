@@ -59,6 +59,10 @@ def dispatch_rejection(session: Session, command: DeviceCommand, now: datetime) 
     enabled = CapabilityRepository(session).get_enabled_codes_for_device(command.device_id)
     if "vfd.control" not in enabled or COMMAND_REQUIRED_CAPABILITY[command.command_type] not in enabled:
         return "command_capability_disabled"
+    if command.command_type != "vfd.stop":
+        revision = command.control_mode_revision
+        if revision != device.control_mode_revision and not (revision is None and device.control_mode_revision == 0):
+            return "control_mode_changed"
     if command.command_type == "vfd.frequency.set" and not frequency_allowed(session, command.device_id, command.payload):
         return "command_frequency_profile_changed"
     rejection = equipment_rejection(session, device, command, now)
