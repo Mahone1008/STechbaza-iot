@@ -1,4 +1,4 @@
-export type ApiErrorKind =
+type ApiErrorKind =
   | "unauthorized"
   | "forbidden"
   | "not-found"
@@ -12,7 +12,7 @@ export type ApiErrorKind =
   | "invalid-response"
   | "unexpected";
 
-export type ApiErrorContext = Readonly<{
+type ApiErrorContext = Readonly<{
   kind: ApiErrorKind;
   status: number | null;
   method: string;

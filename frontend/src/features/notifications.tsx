@@ -1,4 +1,5 @@
 "use client";
+import { RefreshSettings } from "@/components/refresh-settings";
 import Link from "next/link";
 import { useState } from "react";
 import { Button, Card, DataTable, PageHeader, SelectField } from "@/components/ui";
@@ -67,15 +68,17 @@ function Feed({ context }: { context: ReadyAccessSnapshot }) {
       <Card
         title="Стрічка організації"
         actions={
-          <Button
-            disabled={!query.active || query.isFetching}
-            onClick={() => {
-              if (selection.page) setSelection((old) => ({ ...old, page: 0 }));
-              else query.refresh();
-            }}
-          >
-            Оновити повідомлення
-          </Button>
+          <RefreshSettings error={query.isError}>
+            <Button
+              disabled={!query.active || query.isFetching}
+              onClick={() => {
+                if (selection.page) setSelection((old) => ({ ...old, page: 0 }));
+                else query.refresh();
+              }}
+            >
+              Оновити повідомлення
+            </Button>
+          </RefreshSettings>
         }
       >
         <StableRegion>

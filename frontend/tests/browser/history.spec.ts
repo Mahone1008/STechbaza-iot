@@ -1,4 +1,4 @@
-import { displaySettings, historyInterval } from "../helpers/customer-details";
+import { refreshButton, displaySettings, historyInterval } from "../helpers/customer-details";
 import { expect, test, type Page } from "@playwright/test";
 import { seriesFixture } from "../fixtures/series";
 import { overviewFixture } from "../fixtures/overview";
@@ -14,7 +14,7 @@ async function populated(page: Page) {
   });
 }
 async function ready(page: Page) {
-  await page.goto(path); await page.getByRole("tab", { name: "Графіки", exact: true }).click(); await expect(page.getByRole("button", { name: "Оновити історію" })).toBeEnabled();
+  await page.goto(path); await page.getByRole("tab", { name: "Графіки", exact: true }).click(); await expect((await refreshButton(page, "Оновити історію"))).toBeEnabled();
   await expect(page.getByText("Завантажуємо історію…")).toHaveCount(0);
 }
 test.beforeEach(async ({ page }) => { await mockAuthenticatedWorkspace(page); });
@@ -43,9 +43,9 @@ test("period and bucket controls produce bounded UTC requests and empty history"
 for (const status of [403, 409, 422, 503]) test(`history ${status} removes previous chart and permits explicit recovery`, async ({ page }) => {
   await populated(page); await ready(page); await expect(page.locator(".telemetry-chart")).toBeVisible();
   await page.route(seriesUrl, async (route) => { if (await fulfillPreflight(route)) return; await fulfillJson(route, status, { detail: "Unavailable" }); });
-  await page.getByRole("button", { name: "Оновити історію" }).click();
+  await (await refreshButton(page, "Оновити історію")).click();
   await expect(page.getByRole("heading", { name: "Історія недоступна" })).toBeVisible(); await expect(page.locator(".telemetry-chart")).toHaveCount(0);
-  await populated(page); await page.getByRole("button", { name: "Оновити історію" }).click();
+  await populated(page); await (await refreshButton(page, "Оновити історію")).click();
   await expect(page.locator(".telemetry-chart")).toBeVisible();
 });
 test("foreign history is rejected and disabled module removes history controls", async ({ page }) => {
@@ -53,7 +53,7 @@ test("foreign history is rejected and disabled module removes history controls",
   await ready(page); await expect(page.getByRole("heading", { name: "Історія недоступна" })).toBeVisible();
   const data = overviewFixture(devicePayload()); data.modules = []; data.command_types = []; data.allowed_commands = []; data.capabilities = []; data.readings = []; data.state_readings = [];
   await page.route(`${API_ORIGIN}/api/v1/devices/${DEVICE_ID}/overview`, async (route) => { if (await fulfillPreflight(route)) return; await fulfillJson(route, 200, data); });
-  await page.getByRole("button", { name: "Оновити панель" }).click();
+  await (await refreshButton(page, "Оновити панель")).click();
   await expect(page.getByText("Для цього обладнання ще немає показників із доступною історією.")).toBeVisible(); await expect(page.getByLabel("Показник", { exact: true })).toHaveCount(0);
 });
 test("charts poll history without polling the inactive panel, and manual mode pauses both", async ({ page }) => {
@@ -88,8 +88,8 @@ test("Retry-After blocks manual retries and hidden resume; automatic retry recov
     if (calls === 1) { await route.fulfill({ status: 429, headers: { ...corsHeaders, "content-type": "application/json", "retry-after": "120" }, body: JSON.stringify({ detail: "Wait" }) }); return; }
     const u = new URL(route.request().url()); await fulfillJson(route, 200, seriesFixture({ start: u.searchParams.get("start")!, end: u.searchParams.get("end")!, bucket_seconds: Number(u.searchParams.get("bucket_seconds")) }));
   });
-  await page.getByRole("button", { name: "Оновити історію" }).click(); await expect(page.getByRole("heading", { name: "Історія недоступна" })).toBeVisible();
-  await page.getByRole("button", { name: "Оновити історію" }).click(); expect(calls).toBe(1);
+  await (await refreshButton(page, "Оновити історію")).click(); await expect(page.getByRole("heading", { name: "Історія недоступна" })).toBeVisible();
+  await (await refreshButton(page, "Оновити історію")).click(); expect(calls).toBe(1);
   await page.evaluate(() => { Object.defineProperty(document, "visibilityState", { configurable: true, value: "hidden" }); document.dispatchEvent(new Event("visibilitychange")); });
   await page.clock.runFor(61000); expect(calls).toBe(1);
   await page.evaluate(() => { Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" }); document.dispatchEvent(new Event("visibilitychange")); });
@@ -114,11 +114,11 @@ test("offline cancels refresh traffic; manual-only mode does not refresh on retu
   await ready(page); expect(requests).toBe(2);
   await (await displaySettings(page)).selectOption("0");
   await page.evaluate(() => { Object.defineProperty(navigator, "onLine", { configurable: true, value: false }); window.dispatchEvent(new Event("offline")); });
-  await expect(page.getByRole("button", { name: "Оновити панель" })).toBeDisabled();
+  await expect((await refreshButton(page, "Оновити панель"))).toBeDisabled();
   await page.clock.runFor(120000); expect(requests).toBe(2);
   await page.evaluate(() => { Object.defineProperty(navigator, "onLine", { configurable: true, value: true }); window.dispatchEvent(new Event("online")); });
-  await expect(page.getByRole("button", { name: "Оновити панель" })).toBeEnabled();
+  await expect((await refreshButton(page, "Оновити панель"))).toBeEnabled();
   await page.clock.runFor(61000); expect(requests).toBe(2);
-  await page.getByRole("button", { name: "Оновити панель" }).click();
+  await (await refreshButton(page, "Оновити панель")).click();
   await expect.poll(() => requests).toBe(3);
 });

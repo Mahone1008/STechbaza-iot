@@ -14,3 +14,14 @@ it("normalizes large finite values without overflowing SVG coordinates", () => {
   const html = renderToStaticMarkup(<TelemetryChart series={data} timezone="UTC" />);
   expect(html).not.toContain("NaN"); expect(html).not.toContain("Infinity");
 });
+
+it("keeps a constant nonzero series finite and exposes the actual value", () => {
+  const data = seriesFixture(seriesWindow(180, 60), undefined, undefined, true);
+  for (const bucket of data.buckets) if (bucket.average !== null)
+    Object.assign(bucket, { minimum: 40, maximum: 40, average: 40 });
+  const html = renderToStaticMarkup(<TelemetryChart series={data} timezone="Europe/Kyiv" />);
+  expect(html).not.toContain("NaN");
+  expect(html).not.toContain("Infinity");
+  expect(html).toContain("40 bar");
+  expect(html).toContain('type="range"');
+});

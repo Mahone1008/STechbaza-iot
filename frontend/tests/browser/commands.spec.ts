@@ -1,4 +1,4 @@
-import { displaySettings } from "../helpers/customer-details";
+import { refreshButton, displaySettings } from "../helpers/customer-details";
 import { expect, test, type Page, type Route } from "@playwright/test";
 import { commandFixture, commandId, controlOverview } from "../fixtures/commands";
 import type { Command, CommandInput } from "../../src/lib/api/commands";
@@ -59,7 +59,7 @@ test("background overview refresh retains readings and does not disable Stop", a
   let release!: () => void; const gate = new Promise<void>((resolve) => { release = resolve; }); let started = false;
   await page.route(overviewUrl, async (route) => { if (await fulfillPreflight(route)) return; started = true; await gate; await fulfillJson(route, 200, controlOverview()).catch(() => {}); });
   try {
-    await page.getByRole("button", { name: "Оновити панель" }).click(); await expect.poll(() => started).toBe(true);
+    await (await refreshButton(page, "Оновити панель")).click(); await expect.poll(() => started).toBe(true);
     await expect(page.locator(".metric-card").first()).toBeVisible();
     await expect(controls(page).getByRole("button", { name: "Зупинити", exact: true })).toBeEnabled();
   } finally { release(); }
@@ -195,8 +195,8 @@ test("cursor journal pages retain their boundary after insertion and reject fore
   await page.getByRole("button", { name: "Наступні команди", exact: true }).click(); await expect(table).toContainText("Actor 20"); await expect(table).not.toContainText("Actor 19");
   expect(queries.at(-1)!.get("before_id")).toBe(boundary.id); expect(queries.at(-1)!.get("offset")).toBeNull();
   await expect(page.getByRole("button", { name: "Наступні команди", exact: true })).toBeDisabled();
-  await page.getByRole("button", { name: "Оновити журнал", exact: true }).click(); await expect(table).toContainText("New actor");
-  foreign = true; await page.getByRole("button", { name: "Оновити журнал", exact: true }).click(); await expect(table).toHaveCount(0);
+  await (await refreshButton(page, "Оновити журнал")).click(); await expect(table).toContainText("New actor");
+  foreign = true; await (await refreshButton(page, "Оновити журнал")).click(); await expect(table).toHaveCount(0);
 });
 
 test("browser offline during confirmation blocks sending and reconnection does not submit", async ({ page, context }) => {

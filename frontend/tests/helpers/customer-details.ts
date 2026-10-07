@@ -22,3 +22,14 @@ export const securityPasswordProof = (page: Page) =>
   fieldInSection(page, "Зміна пароля", "Поточний пароль для зміни пароля");
 export const recoveryPasswordProof = (page: Page) =>
   fieldInSection(page, "Створення нового ключа", "Поточний пароль для оновлення ключа");
+
+// Refresh actions are secondary, but remain reachable through native disclosures.
+export async function refreshButton(page: Page, name: string) {
+  const button = page.getByRole("button", { name, exact: true, includeHidden: true });
+  const parents = button.locator("xpath=ancestor::details");
+  for (const details of await parents.all()) {
+    if (!(await details.evaluate((element) => (element as HTMLDetailsElement).open)))
+      await details.locator(":scope > summary").click();
+  }
+  return button;
+}

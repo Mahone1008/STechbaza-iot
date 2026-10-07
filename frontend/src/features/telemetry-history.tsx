@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { RefreshSettings } from "@/components/refresh-settings";
 import { Button, Card, SelectField } from "@/components/ui";
 import { StableRegion } from "@/components/stable-region";
 import { TelemetryChart } from "@/components/telemetry-chart";
@@ -60,14 +61,14 @@ function HistoryData({
   const status = isApiError(query.error) ? query.error.status : null;
   return (
     <StableRegion className="history-result-region" preserveHeight={query.isFetching || query.isPending}>
-      <div className="ui-row">
+      <p className="help-copy history-refresh-status" role="status">
+        {query.isFetching && query.data ? "Оновлюємо історію…" : ""}
+      </p>
+      <RefreshSettings error={query.isError} label="Оновлення історії">
         <Button disabled={query.isFetching || !query.active} onClick={query.refresh}>
           Оновити історію
         </Button>
-        <span className="help-copy" role="status">
-          {query.isFetching && query.data ? "Оновлюємо історію…" : ""}
-        </span>
-      </div>
+      </RefreshSettings>
       {!query.active && <p role="status">Оновлення призупинено: вкладка прихована або немає мережі.</p>}
       {query.isError ? (
         <section role="alert" className="notice notice-warning">
@@ -131,11 +132,13 @@ export function TelemetryHistory({
                 change({ seconds: period.seconds, bucket: period.bucket });
               }}
             >
-              {periods.map((p) => (
-                <option key={p.seconds} value={p.seconds}>
-                  {p.label}
-                </option>
-              ))}
+              {[...periods]
+                .sort((a, b) => a.seconds - b.seconds)
+                .map((p) => (
+                  <option key={p.seconds} value={p.seconds}>
+                    {p.label}
+                  </option>
+                ))}
             </SelectField>
           </div>
           <details className="customer-disclosure history-display-settings">

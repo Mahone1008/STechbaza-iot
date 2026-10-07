@@ -153,6 +153,23 @@ function OverviewContent({
     presence.seconds_since_seen === null || presence.seconds_since_seen + elapsed > presence.timeout_seconds;
   const channels = overview.modules.flatMap((module) => module.channels);
   const detailKeys = new Set(["control_armed", "vfd_configuration_valid", "vfd_link"]);
+  const readingOrder = [
+    "vfd.set_frequency_hz",
+    "vfd.frequency_hz",
+    "vfd.current_a",
+    "vfd.voltage_v",
+    "vfd_fault_code",
+    "pump_running",
+  ];
+  const readings = channels
+    .filter((channel) => !detailKeys.has(channel.key))
+    .sort((a, b) => {
+      const rank = (key: string) => {
+        const index = readingOrder.indexOf(key);
+        return index < 0 ? readingOrder.length : index;
+      };
+      return rank(a.key) - rank(b.key);
+    });
   const renderReading = (channel: Overview["modules"][number]["channels"][number]) => {
     const label = channelLabel(channel.key) === channel.key ? "Додатковий показник" : channelLabel(channel.key);
     if (!channelSupported(channel))
@@ -177,7 +194,7 @@ function OverviewContent({
         unit={channel.unit === "Hz" ? "Гц" : (channel.unit ?? "")}
         meta={
           status === "stale"
-            ? "Останнє відоме значення; не поточний стан"
+            ? "Останнє значення. Поточний стан невідомий."
             : status === "missing"
               ? "Показання ще не отримано"
               : status === "invalid"
@@ -209,9 +226,7 @@ function OverviewContent({
           </Card>
         ) : (
           <>
-            <div className="overview-widgets overview-readings">
-              {channels.filter((channel) => !detailKeys.has(channel.key)).map(renderReading)}
-            </div>
+            <div className="overview-widgets overview-readings">{readings.map(renderReading)}</div>
             {channels.some((channel) => detailKeys.has(channel.key)) && (
               <details className="overview-extra-readings">
                 <summary>Додаткові показники контролера</summary>
@@ -323,9 +338,6 @@ function DevicePanel({ context }: { context: ReadyAccessSnapshot }) {
                 Аварії пристрою
               </Link>
             )}
-            <Button disabled={!canRead || query.isFetching || !query.active} onClick={query.refresh}>
-              Оновити панель
-            </Button>
           </>
         }
       />
@@ -498,6 +510,11 @@ function DevicePanel({ context }: { context: ReadyAccessSnapshot }) {
             <option value={60}>Щохвилини</option>
             <option value={0}>Лише вручну</option>
           </SelectField>
+          <div className="ui-row">
+            <Button disabled={!canRead || query.isFetching || !query.active} onClick={query.refresh}>
+              Оновити панель
+            </Button>
+          </div>
         </div>
       </details>
     </>

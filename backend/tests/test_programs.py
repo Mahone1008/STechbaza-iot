@@ -76,7 +76,11 @@ class ProgramTests(unittest.TestCase):
             del progress["max_schedule_seconds"]
             self.assertEqual(ProgramProgress.model_validate(progress).max_schedule_seconds, 86400)
             self.assertEqual(program_rejection(None, device, "vfd.schedule.start", payload, now), "schedule_duration_unsupported")
-        self.state.command("pump", self.command("vfd.schedule.start", payload))
+        # Use the schedule clock explicitly; suite load must not consume the first second.
+        request = self.command("vfd.schedule.start", payload)
+        request["issued_at"] = now.isoformat()
+        request["expires_at"] = (now + timedelta(seconds=30)).isoformat()
+        self.state.command("pump", request, now=now)
         ProgramProgress.model_validate(self.state.program_progress())
         self.t += 604799; self.state.tick_program()
         self.assertTrue(self.state.device("pump")["running"])

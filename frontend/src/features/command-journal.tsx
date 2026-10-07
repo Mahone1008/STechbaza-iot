@@ -1,4 +1,5 @@
 "use client";
+import { RefreshSettings } from "@/components/refresh-settings";
 import { ProgramPlanSummary } from "./program-settings";
 import { parseScheduleRun } from "@/lib/api/schedules";
 import { ScheduleRunSummary } from "./schedule-summary";
@@ -229,18 +230,20 @@ export function CommandJournal({
       title="Журнал команд"
       description="Останні дії, їхні автори та результати."
       actions={
-        <Button
-          disabled={!query.active || query.isFetching}
-          onClick={() => {
-            if (pages.length === 1) query.refresh();
-            else {
-              setPages([null]);
-              setRevision((value) => value + 1);
-            }
-          }}
-        >
-          Оновити журнал
-        </Button>
+        <RefreshSettings error={query.isError}>
+          <Button
+            disabled={!query.active || query.isFetching}
+            onClick={() => {
+              if (pages.length === 1) query.refresh();
+              else {
+                setPages([null]);
+                setRevision((value) => value + 1);
+              }
+            }}
+          >
+            Оновити журнал
+          </Button>
+        </RefreshSettings>
       }
     >
       <StableRegion>

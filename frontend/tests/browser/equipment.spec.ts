@@ -1,3 +1,4 @@
+import { refreshButton } from "../helpers/customer-details";
 import { expect, test } from "@playwright/test";
 import { API_ORIGIN, DEVICE_ID, devicePayload, fulfillJson, fulfillPreflight, mockAuthenticatedWorkspace } from "./auth-fixtures";
 
@@ -18,7 +19,7 @@ test("passport loads only when opened, stays open across panel refresh and fits 
   await page.getByRole("tab", { name: "Обладнання", exact: true }).click();
   await expect(page.getByText("Обладнання ще не внесено в паспорт.", { exact: false })).toBeVisible();
   expect(requests).toBe(1);
-  await page.getByRole("button", { name: "Оновити панель", exact: true }).click();
+  await (await refreshButton(page, "Оновити панель")).click();
   await expect(page.getByRole("tab", { name: "Обладнання", exact: true })).toHaveAttribute("aria-selected", "true");
   expect(requests).toBe(1);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);

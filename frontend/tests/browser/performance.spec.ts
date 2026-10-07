@@ -1,4 +1,4 @@
-import { displaySettings, historyInterval } from "../helpers/customer-details";
+import { refreshButton, displaySettings, historyInterval } from "../helpers/customer-details";
 import { expect, test, type Page } from "@playwright/test";
 import { writeFile } from "node:fs/promises";
 import { API_ORIGIN, fulfillJson, fulfillPreflight } from "./auth-fixtures";
@@ -8,7 +8,7 @@ import { seriesFixture } from "../fixtures/series";
 async function settled(page: Page) {
   await page.getByRole("tab", { name: "Графіки", exact: true }).click();
   await expect(page.locator(".telemetry-chart")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Оновити історію" })).toBeEnabled();
+  await expect((await refreshButton(page, "Оновити історію"))).toBeEnabled();
   await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
 }
 async function attach(name: string, report: unknown) {

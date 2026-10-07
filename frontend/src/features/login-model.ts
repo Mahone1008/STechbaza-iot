@@ -2,7 +2,7 @@ import type { Route } from "next";
 
 import { apiErrorDisplayMessage, isApiError } from "@/lib/api";
 
-export type LoginFormValues = Readonly<{
+type LoginFormValues = Readonly<{
   email: string;
   password: string;
   otp?: string;
@@ -14,12 +14,12 @@ export type LoginFieldErrors = Readonly<{
   otp?: string;
 }>;
 
-export type LoginValidationResult = Readonly<{
+type LoginValidationResult = Readonly<{
   normalizedEmail: string;
   errors: LoginFieldErrors;
 }>;
 
-export type LoginErrorPresentation = Readonly<{
+type LoginErrorPresentation = Readonly<{
   summary: string;
   fieldErrors: LoginFieldErrors;
   retryAfterSeconds: number;

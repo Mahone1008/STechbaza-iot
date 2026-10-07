@@ -1,4 +1,4 @@
-import { historyInterval } from "../helpers/customer-details";
+import { refreshButton, historyInterval } from "../helpers/customer-details";
 import { expect, test, type Page } from "@playwright/test";
 import { overviewFixture, overviewWithFrequencyFixture } from "../fixtures/overview";
 import { seriesFixture } from "../fixtures/series";
@@ -10,7 +10,7 @@ const overviewUrl = `${API_ORIGIN}/api/v1/devices/${DEVICE_ID}/overview`;
 async function ready(page: Page) {
   if (await page.getByRole("tab", { name: "Графіки", exact: true }).getAttribute("aria-selected") !== "true") await page.getByRole("tab", { name: "Графіки", exact: true }).click();
   await expect(page.locator(".telemetry-chart")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Оновити історію" })).toBeEnabled();
+  await expect((await refreshButton(page, "Оновити історію"))).toBeEnabled();
 }
 async function choose(page: Page) {
   await page.getByLabel("Показник", { exact: true }).selectOption("vfd.frequency_hz");

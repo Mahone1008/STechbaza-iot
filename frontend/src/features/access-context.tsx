@@ -24,7 +24,7 @@ export type ReadyAccessSnapshot = IdentitySnapshot & Readonly<{
   activeDevice: Device | null;
   access: OrganizationAccessResponse;
 }>;
-export type AccessSnapshot =
+type AccessSnapshot =
   | Readonly<{ status: "idle" | "resolving" }>
   | DirectoryAccessSnapshot
   | ReadyAccessSnapshot

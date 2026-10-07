@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { RefreshSettings } from "@/components/refresh-settings";
 import { Button, StatusBadge } from "@/components/ui";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { apiErrorDisplayMessage, apiQueryKeys, isApiError } from "@/lib/api";
@@ -81,9 +82,11 @@ function ScheduleHistory({
   return (
     <section aria-label={`Запуски ${item.spec.name}`}>
       <h3>Останні запуски: {item.spec.name}</h3>
-      <Button disabled={query.isFetching || !query.active} onClick={query.refresh}>
-        Оновити історію запусків
-      </Button>
+      <RefreshSettings error={query.isError}>
+        <Button disabled={query.isFetching || !query.active} onClick={query.refresh}>
+          Оновити історію запусків
+        </Button>
+      </RefreshSettings>
       {query.isError ? (
         <p role="alert">{errorText(query.error)}</p>
       ) : !query.data ? (
@@ -250,10 +253,10 @@ export function SchedulePanel({
       <h3 id={titleId} ref={heading} tabIndex={-1}>
         {draft ? (draft.expected_revision === 0 ? "Новий розклад" : "Редагування розкладу") : "Збережені розклади"}
       </h3>
-      <p className="help-copy">Час об’єкта: {timezone}. Дати й години розкладу відповідають цьому часовому поясу.</p>
+      <p className="help-copy">Час розкладів: {timezone}. Усі дати й години в цьому часовому поясі.</p>
       {query.data && (
         <p className="help-copy">
-          Збережено {query.data.length} із {MAX_DEVICE_SCHEDULES} розкладів. Призупинені також займають місце.
+          {query.data.length} із {MAX_DEVICE_SCHEDULES} розкладів. Призупинені також враховуються.
           {atLimit ? " Щоб створити новий, видаліть один із наявних. Змінювати збережені розклади можна." : ""}
         </p>
       )}
@@ -277,15 +280,12 @@ export function SchedulePanel({
       )}
       {!draft && (
         <>
-          <div className="ui-row">
+          <div className="ui-row schedule-list-actions">
             {canWrite && (
               <Button disabled={actionDisabled || !query.data || atLimit} onClick={() => edit()}>
                 Новий розклад
               </Button>
             )}
-            <Button disabled={!canRead || query.isFetching || !visible || !query.active} onClick={query.refresh}>
-              Оновити розклади
-            </Button>
           </div>
           {query.isError ? null : canRead && !query.data ? (
             <p role="status">Завантажуємо розклади…</p>
@@ -352,6 +352,13 @@ export function SchedulePanel({
             <ScheduleHistory key={history.id} context={context} item={history} poll={poll} onCommand={onCommand} />
           )}
         </>
+      )}
+      {!draft && (
+        <RefreshSettings error={query.isError}>
+          <Button disabled={!canRead || query.isFetching || !visible || !query.active} onClick={query.refresh}>
+            Оновити розклади
+          </Button>
+        </RefreshSettings>
       )}
       {draft && (
         <form

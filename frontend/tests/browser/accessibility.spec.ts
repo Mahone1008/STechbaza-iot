@@ -1,3 +1,4 @@
+import { refreshButton } from "../helpers/customer-details";
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 import { stage14Workspace, tenants, feedPath, notificationPath, alarmPath } from "../helpers/stage14-workspace";
@@ -166,7 +167,7 @@ test("empty and denied notification states stay accessible without stale rows", 
   await expect(page.getByText("За вибраним фільтром повідомлень немає.")).toBeVisible();
   await audit(page, "empty");
   denied = true;
-  await page.getByRole("button", { name: "Оновити повідомлення" }).click();
+  await (await refreshButton(page, "Оновити повідомлення")).click();
   await expect(page.getByRole("heading", { name: "Повідомлення недоступні" })).toBeVisible();
   await expect(page.getByRole("table")).toHaveCount(0);
   await audit(page, "denied");

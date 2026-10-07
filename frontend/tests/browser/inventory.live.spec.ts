@@ -1,4 +1,4 @@
-import { alarmTypeFilter } from "../helpers/customer-details";
+import { refreshButton, alarmTypeFilter } from "../helpers/customer-details";
 import { checkNotificationIncident } from "../helpers/notification-incident";
 import type { components } from "../../src/lib/api/schema";
 import { expect, test } from "@playwright/test";
@@ -40,7 +40,7 @@ test("real organization and site selection shows API devices, presence and resto
     await card.getByText("Відомості про контролер", { exact: true }).click();
     await expect(card.getByText(row.uid, { exact: true })).toBeVisible();
   }
-  await expect(page.getByRole("button", { name: "Оновити зв’язок" })).toBeEnabled();
+  await expect((await refreshButton(page, "Оновити зв’язок"))).toBeEnabled();
   await expect(page.getByText("Стан невідомий", { exact: true })).toHaveCount(0);
   await expect(page.getByText("TB-DEMO-OTHER", { exact: true })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Наступна" })).toHaveCount(0);
@@ -67,14 +67,14 @@ test("real organization and site selection shows API devices, presence and resto
   await expect(page.getByText("TB-DEMO-PUMP", { exact: true })).toBeVisible();
   await page.getByRole("tab", { name: "Панель", exact: true }).click();
   await expect(page.locator(".metric-card")).toHaveCount(channels.length);
-  await page.getByRole("button", { name: "Оновити панель" }).click();
+  await (await refreshButton(page, "Оновити панель")).click();
   await expect(page.locator(".metric-card")).toHaveCount(channels.length);
   // Перевіряємо реальний series без додаткового login та навантаження rate limit.
   await page.getByRole("tab", { name: "Графіки", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Оновити історію" })).toBeEnabled();
+  await expect((await refreshButton(page, "Оновити історію"))).toBeEnabled();
   const historyPromise = page.waitForResponse((response) => response.request().method() === "GET" && response.url().includes("/telemetry/series?"))
     .then(async (response) => { expect(response.status()).toBe(200); return await response.json() as components["schemas"]["TelemetrySeriesRead"]; });
-  await page.getByRole("button", { name: "Оновити історію" }).click();
+  await (await refreshButton(page, "Оновити історію")).click();
   const history = await historyPromise;
   expect(history.device_id).toBe(overview.device.id);
   expect(history.time_basis).toBe("server_received_at");
@@ -99,7 +99,7 @@ test("real organization and site selection shows API devices, presence and resto
     await details.getByText("Автор та виконання", { exact: true }).click();
     await expect(details).not.toContainText(command.request_id); await expect(details).toContainText(email);
     await page.getByRole("tab", { name: "Журнал", exact: true }).click();
-    await page.getByRole("button", { name: "Оновити журнал", exact: true }).click();
+    await (await refreshButton(page, "Оновити журнал")).click();
     await expect(page.getByRole("table", { name: "Журнал команд пристрою" })).toContainText("Контролер повідомив про виконання");
   }
   // Лише явно підготовлений demo incident; не підтверджуємо реальні аварії.

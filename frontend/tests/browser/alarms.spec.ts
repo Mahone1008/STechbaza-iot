@@ -1,4 +1,4 @@
-import { alarmTypeFilter } from "../helpers/customer-details";
+import { refreshButton, alarmTypeFilter } from "../helpers/customer-details";
 import { expect, test, type Page, type Route } from "@playwright/test";
 import { acknowledgedFixture, alarmFixture, alarmId, transitionFixture } from "../fixtures/alarms";
 import type { Alarm } from "../../src/lib/api/alarms";
@@ -55,7 +55,7 @@ test("list has bounded previous/next pages and refresh returns to page one", asy
   await page.goto(listPath); await expect(table(page)).toContainText("Інцидент 19"); await expect(table(page).getByRole("link", { name: "Інцидент 20", exact: true })).toHaveCount(0);
   await page.getByRole("button", { name: "Наступна сторінка" }).click(); await expect(table(page)).toContainText("Інцидент 20");
   await expect(page.getByRole("button", { name: "Наступна сторінка" })).toBeDisabled();
-  await page.getByRole("button", { name: "Оновити аварії" }).click(); await expect(table(page)).toContainText("Інцидент 0");
+  await (await refreshButton(page, "Оновити аварії")).click(); await expect(table(page)).toContainText("Інцидент 0");
   await expect(page.getByRole("button", { name: "Попередня сторінка" })).toBeDisabled();
 });
 
@@ -63,15 +63,15 @@ for (const status of [403, 404, 503]) test(`list ${status} hides previous data a
   let error = false, calls = 0;
   await page.route(`${listUrl}?*`, async (route) => { if (await fulfillPreflight(route)) return; calls++; await fulfillJson(route, error ? status : 200, error ? { detail: `Alarm error ${status}` } : [alarmFixture()]); });
   await page.goto(listPath); await expect(table(page)).toContainText("Низький тиск"); error = true;
-  await page.getByRole("button", { name: "Оновити аварії" }).click(); await expect(page.getByRole("alert").filter({ has: page.getByRole("heading", { name: /Аварії недоступні|Не вдалося завантажити аварії/ }) })).toContainText(status === 403 ? "Недостатньо прав" : status === 404 ? "Дані не знайдено" : "Сервіс тимчасово недоступний"); await expect(table(page)).toHaveCount(0);
-  expect(calls).toBe(2); error = false; await page.getByRole("button", { name: "Оновити аварії" }).click(); await expect(table(page)).toContainText("Низький тиск"); expect(calls).toBe(3);
+  await (await refreshButton(page, "Оновити аварії")).click(); await expect(page.getByRole("alert").filter({ has: page.getByRole("heading", { name: /Аварії недоступні|Не вдалося завантажити аварії/ }) })).toContainText(status === 403 ? "Недостатньо прав" : status === 404 ? "Дані не знайдено" : "Сервіс тимчасово недоступний"); await expect(table(page)).toHaveCount(0);
+  expect(calls).toBe(2); error = false; await (await refreshButton(page, "Оновити аварії")).click(); await expect(table(page)).toContainText("Низький тиск"); expect(calls).toBe(3);
 });
 
 test("empty and foreign-device results are not substituted by demo incidents", async ({ page }) => {
   let rows: Alarm[] = []; await mockGet(page, `${listUrl}?*`, () => rows);
   await page.goto(listPath); await expect(page.getByText("За вибраними фільтрами аварій немає.")).toBeVisible();
   rows = [alarmFixture({ device_id: ORGANIZATION_ID, title: "Foreign incident" })];
-  await page.getByRole("button", { name: "Оновити аварії" }).click(); await expect(page.getByRole("heading", { name: "Не вдалося завантажити аварії" })).toBeVisible();
+  await (await refreshButton(page, "Оновити аварії")).click(); await expect(page.getByRole("heading", { name: "Не вдалося завантажити аварії" })).toBeVisible();
   await expect(page.getByText("Foreign incident")).toHaveCount(0);
 });
 

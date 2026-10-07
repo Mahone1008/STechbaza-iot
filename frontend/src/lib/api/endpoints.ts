@@ -3,7 +3,7 @@ import { apiRequest } from "./client";
 import { buildApiUrl } from "./config";
 import { ApiError } from "./errors";
 
-export type HealthResponse = paths["/health"]["get"]["responses"][200]["content"]["application/json"];
+type HealthResponse = paths["/health"]["get"]["responses"][200]["content"]["application/json"];
 export type BrowserLoginRequest = components["schemas"]["LoginRequest"];
 export type BrowserLoginResponse = components["schemas"]["BrowserTokenResponse"];
 

@@ -1,8 +1,8 @@
 import { isUuid } from "@/lib/api/inventory";
 import type { SessionScope } from "@/lib/api";
 
-export type InventoryTarget = Readonly<{ organizationId?: string; siteId?: string; deviceId?: string; directory?: boolean; invalid?: boolean }>;
-export type SavedContext = Readonly<{ organizationId: string; siteId: string | null }>;
+type InventoryTarget = Readonly<{ organizationId?: string; siteId?: string; deviceId?: string; directory?: boolean; invalid?: boolean }>;
+type SavedContext = Readonly<{ organizationId: string; siteId: string | null }>;
 const PREFIX = "kerumo.context.v1:";
 export function contextStorageKey(scope: SessionScope): string { return `${PREFIX}${scope.userId}:${scope.sessionId}`; }
 
