@@ -113,7 +113,7 @@ for (const width of [320, 393, 1280])
     await refresh.selectOption("0");
     await page.getByText("Додаткові налаштування команди", { exact: true }).click();
     const ttl = page.getByLabel("Час на прийняття команди, с", { exact: true });
-    const mode = page.getByRole("combobox", { name: "Режим роботи", exact: true });
+    const mode = page.getByRole("combobox", { name: "Додаткові можливості", exact: true });
     await ttl.fill("57");
     for (const [value, description] of [
       ["manual", "Ви самі запускаєте й зупиняєте насос"],
@@ -370,7 +370,7 @@ test("schedule tab preserves its draft and suspends every hidden request", async
   await expect(page.getByLabel("Назва розкладу", { exact: true })).toHaveValue("Незбережений полив");
   await page.getByRole("tab", { name: "Панель", exact: true }).click();
   await page.getByText("Додаткові налаштування команди", { exact: true }).click();
-  await page.getByRole("combobox", { name: "Режим роботи", exact: true }).selectOption("timer");
+  await page.getByRole("combobox", { name: "Додаткові можливості", exact: true }).selectOption("timer");
   await expect(page.getByText("Робота за таймером", { exact: true })).toBeVisible();
   const switchedReads = reads;
   await page.clock.fastForward(61_000);
@@ -402,7 +402,7 @@ test("a running plan still allows calendar inspection and STOP but not another p
   await page.getByRole("tab", { name: "Панель", exact: true }).click();
   await expect(page.getByRole("button", { name: "Зупинити", exact: true })).toBeEnabled();
   await page.getByText("Додаткові налаштування команди", { exact: true }).click();
-  const mode = page.getByRole("combobox", { name: "Режим роботи", exact: true });
+  const mode = page.getByRole("combobox", { name: "Додаткові можливості", exact: true });
   await expect(mode.locator('option[value="timer"]')).toHaveJSProperty("disabled", true);
   await expect(mode.locator('option[value="program"]')).toHaveJSProperty("disabled", true);
   await expect(page.getByRole("button", { name: "Запустити", exact: true })).toBeDisabled();

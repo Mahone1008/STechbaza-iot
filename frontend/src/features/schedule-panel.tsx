@@ -37,6 +37,8 @@ const errorText = (error: unknown) =>
       ? error.message
       : "Не вдалося виконати дію.";
 const reasonLabels: Record<string, string> = {
+  control_mode_manual: "Пропущено: обрано ручне керування",
+  control_mode_changed: "Режим змінили; цей запуск не відновлюється",
   schedule_missed: "Час запуску пропущено",
   device_offline: "Контролер був offline",
   device_busy: "Пристрій був зайнятий",

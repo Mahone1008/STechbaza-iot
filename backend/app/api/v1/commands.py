@@ -88,6 +88,8 @@ def create_command(
         raise HTTPException(status_code=409, detail="Частота поза налаштованими межами або профіль обладнання ще не задано") from exc
     except CommandProgramError as exc:
         messages = {
+            "control_mode_changed": "Режим керування змінили. Оновіть панель і підтвердьте команду знову.",
+            "control_mode_manual": "Ручне керування: автоматичні запуски призупинено.",
             "schedule_requires_calendar": "Календарний запуск створюється лише через збережений розклад.",
             "schedule_firmware_unavailable": "Контролер ще не підтримує календарні запуски.",
             "schedule_window_expired": "Календарне вікно запуску минуло.",

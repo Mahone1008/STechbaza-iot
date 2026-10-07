@@ -55,6 +55,10 @@ def process_schedule(session, schedule_id, *, now=None):
         occurrence.reason = "schedule_missed"
     elif device.last_stop_requested_at is not None and device.last_stop_requested_at >= due:
         occurrence.reason = "stop_before_dispatch"
+    elif device.control_mode != "schedule":
+        occurrence.reason = "control_mode_manual"
+    elif device.control_mode_changed_at is not None and due <= device.control_mode_changed_at:
+        occurrence.reason = "control_mode_changed"
     elif repo.busy(item.device_id):
         occurrence.reason = "device_busy"
     elif not DevicePresenceService(session).get_availability(device_id=item.device_id, now=now).online:

@@ -628,6 +628,13 @@ p { text-wrap: pretty; }
 .program-settings, .work-mode-settings, .command-delivery-settings { max-width: 42rem; margin-block: 1rem; }
 .work-mode-label { color: var(--text-soft); font-size: .875rem; }
 .command-settings { margin-bottom: 1rem; }
+.control-mode-panel { min-width: 0; margin-block: 0 1.25rem; padding: 1rem; border: 1px solid var(--border); border-radius: .75rem; background: var(--surface-muted); }
+.control-mode-heading { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: .5rem 1rem; }
+.control-mode-heading h3, .control-mode-panel > p { margin-block: 0 .75rem; }
+.control-mode-heading > strong { color: var(--brand); }
+.control-mode-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); gap: .5rem; margin-bottom: .75rem; }
+.control-mode-options .button { white-space: normal; min-height: 48px; }
+.control-mode-options .button[aria-pressed="true"]:disabled { opacity: 1; cursor: default; }
 .schedule-panel { min-width: 0; margin-block: 1rem; padding-block: 1rem; border-top: 1px solid var(--border); }
 .schedule-panel > h3 { scroll-margin-block-start: 6rem; }
 .schedule-window { min-width: 0; margin: 0; padding: 1rem; border: 1px solid var(--border); border-radius: .75rem; display: grid; gap: .75rem; }

@@ -1037,6 +1037,100 @@
         "title": "ConnectionRead",
         "type": "object"
       },
+      "ControlModeRead": {
+        "properties": {
+          "changed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Changed At"
+          },
+          "device_id": {
+            "format": "uuid",
+            "title": "Device Id",
+            "type": "string"
+          },
+          "enabled_schedule_count": {
+            "maximum": 50.0,
+            "minimum": 0.0,
+            "title": "Enabled Schedule Count",
+            "type": "integer"
+          },
+          "mode": {
+            "enum": [
+              "manual",
+              "schedule"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "next_start_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Start At"
+          },
+          "revision": {
+            "maximum": 2147483647.0,
+            "minimum": 0.0,
+            "title": "Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "device_id",
+          "mode",
+          "revision",
+          "changed_at",
+          "enabled_schedule_count",
+          "next_start_at"
+        ],
+        "title": "ControlModeRead",
+        "type": "object"
+      },
+      "ControlModeWrite": {
+        "additionalProperties": false,
+        "properties": {
+          "expected_revision": {
+            "maximum": 2147483647.0,
+            "minimum": 0.0,
+            "title": "Expected Revision",
+            "type": "integer"
+          },
+          "mode": {
+            "enum": [
+              "manual",
+              "schedule"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "request_id": {
+            "format": "uuid",
+            "title": "Request Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "request_id",
+          "mode",
+          "expected_revision"
+        ],
+        "title": "ControlModeWrite",
+        "type": "object"
+      },
       "ControllerDiagnostics": {
         "additionalProperties": false,
         "properties": {
@@ -1668,6 +1762,19 @@
               }
             ]
           },
+          "expected_control_mode_revision": {
+            "anyOf": [
+              {
+                "maximum": 2147483647.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Control Mode Revision"
+          },
           "payload": {
             "additionalProperties": true,
             "maxProperties": 32,
@@ -1818,6 +1925,17 @@
             ],
             "title": "Completed At"
           },
+          "control_mode_revision": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Control Mode Revision"
+          },
           "control_sequence": {
             "anyOf": [
               {
@@ -1929,6 +2047,17 @@
             "format": "uuid",
             "title": "Request Id",
             "type": "string"
+          },
+          "requested_control_mode_revision": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requested Control Mode Revision"
           },
           "result": {
             "additionalProperties": true,
@@ -2246,6 +2375,16 @@
             },
             "title": "Command Types",
             "type": "array"
+          },
+          "control_mode": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ControlModeRead"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "device": {
             "$ref": "#/components/schemas/DeviceRead"
@@ -6651,7 +6790,7 @@
   "info": {
     "description": "Backend API платформи TechBaza IoT Pump Control",
     "title": "TechBaza Backend",
-    "version": "0.50.0"
+    "version": "0.51.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -9015,6 +9154,110 @@
         "summary": "Create Command",
         "tags": [
           "commands"
+        ]
+      }
+    },
+    "/api/v1/devices/{device_id}/control-mode": {
+      "get": {
+        "operationId": "get_control_mode_api_v1_devices__device_id__control_mode_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "device_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Device Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControlModeRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Control Mode",
+        "tags": [
+          "control-mode"
+        ]
+      },
+      "patch": {
+        "operationId": "change_control_mode_api_v1_devices__device_id__control_mode_patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "device_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Device Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ControlModeWrite"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControlModeRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Change Control Mode",
+        "tags": [
+          "control-mode"
         ]
       }
     },
