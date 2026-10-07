@@ -121,6 +121,8 @@ export function SchedulePanel({
   limits,
   supported,
   maxScheduleSeconds = MAX_PROGRAM_SECONDS,
+  modeSelectionAvailable = false,
+  onChanged,
   onCommand,
 }: {
   context: ReadyAccessSnapshot;
@@ -129,6 +131,8 @@ export function SchedulePanel({
   limits: { min_hz: number; max_hz: number } | null;
   supported: boolean;
   maxScheduleSeconds?: number | undefined;
+  modeSelectionAvailable?: boolean;
+  onChanged?: () => void;
   onCommand: (id: string) => void;
 }) {
   const { authorizedRequest } = useAuthSession();
@@ -219,6 +223,7 @@ export function SchedulePanel({
       if (kind === "preview") setPreview(parseSchedulePreview(raw));
       else if (kind === "delete") {
         query.refresh();
+        onChanged?.();
         setNotice("Розклад видалено. Історію запусків збережено. Для вже прийнятого запуску використайте STOP.");
       } else {
         const saved = parseSchedule(raw, device.id, context.activeOrganization.id);
@@ -227,9 +232,12 @@ export function SchedulePanel({
         setDraft(null);
         setPreview(null);
         query.refresh();
+        onChanged?.();
         setNotice(
           saved.enabled
-            ? "Розклад збережено й увімкнено. Контролер запуститься автоматично у вказаний час. Стан запуску можна переглянути в історії."
+            ? modeSelectionAvailable
+              ? "Розклад збережено й увімкнено. Для автоматичних запусків оберіть «За розкладом» у розділі «Режим запуску». Результати з’являться в історії."
+              : "Розклад збережено й увімкнено. Контролер запуститься автоматично у вказаний час. Стан запуску можна переглянути в історії."
             : "Майбутні запуски призупинено. Уже прийнятий запуск зупиняється окремою кнопкою STOP.",
         );
       }
@@ -477,7 +485,9 @@ export function SchedulePanel({
         </p>
         <p>
           {confirmation?.enabled
-            ? "Розклад дозволяє автоматичні запуски в обрані дати навіть після закриття сайту або виходу з облікового запису. Втрата зв’язку чи перезапуск контролера переривають роботу без автоматичного продовження."
+            ? modeSelectionAvailable
+              ? "Автоматичні запуски виконуються, коли в розділі «Режим запуску» обрано «За розкладом». Збереження цього правила не змінює режим. Втрата зв’язку чи перезапуск контролера переривають роботу без автоматичного продовження."
+              : "Розклад дозволяє автоматичні запуски в обрані дати навіть після закриття сайту або виходу з облікового запису. Втрата зв’язку чи перезапуск контролера переривають роботу без автоматичного продовження."
             : "Це припиняє майбутні запуски. Для вже прийнятого запуску використайте STOP."}
         </p>
         {confirmation && (

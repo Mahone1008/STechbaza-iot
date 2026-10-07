@@ -204,7 +204,11 @@ for (const width of [320, 393, 1280])
     await mockAuthenticatedWorkspace(page);
     const data = overview();
     await page.route(`${base}/overview`, async (route) => {
-      if (!(await fulfillPreflight(route))) await fulfillJson(route, 200, data);
+      if (!(await fulfillPreflight(route))) await fulfillJson(route, 200, { ...data, control_mode: {
+        device_id: DEVICE_ID, mode: "manual", revision: 0, changed_at: null,
+        enabled_schedule_count: saved.filter((rule) => rule.enabled).length,
+        next_start_at: saved.find((rule) => rule.enabled)?.next_start_at ?? null,
+      } });
     });
     const writes: ScheduleWrite[] = [],
       saved: Schedule[] = [];
@@ -245,6 +249,7 @@ for (const width of [320, 393, 1280])
       },
     );
     await page.goto(`/devices/${DEVICE_ID}`);
+    await (await displaySettings(page)).selectOption("0");
     await expect(page.locator(".schedule-panel")).toHaveCount(0);
     await openSchedules(page);
     await page.getByRole("button", { name: "Новий розклад", exact: true }).click();
@@ -268,7 +273,7 @@ for (const width of [320, 393, 1280])
     await page.getByRole("button", { name: "Перевірити розклад", exact: true }).click();
     await expect(page.getByRole("region", { name: "Попередній перегляд розкладу" })).toContainText("2076");
     await page.getByRole("button", { name: "Зберегти та увімкнути" }).click();
-    await expect(page.getByRole("dialog")).toContainText("автоматичні запуски");
+    await expect(page.getByRole("dialog")).toContainText("Збереження цього правила не змінює режим");
     await page
       .getByRole("button", { name: "Підтвердити розклад", exact: true })
       .evaluate((button: HTMLButtonElement) => {
@@ -276,6 +281,10 @@ for (const width of [320, 393, 1280])
         button.click();
       });
     await expect(page.locator(".schedule-list")).toContainText("Вечірній полив");
+    await expect(page.getByText("Розклад збережено й увімкнено.", { exact: false })).toContainText("Для автоматичних запусків оберіть «За розкладом»");
+    const selection = page.getByRole("region", { name: "Режим запуску" });
+    await expect(selection.getByRole("button", { name: "Ручне керування", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await expect(selection.getByRole("button", { name: "За розкладом", exact: true })).toBeEnabled();
     expect(writes).toHaveLength(1);
     await page.reload();
     await openSchedules(page);

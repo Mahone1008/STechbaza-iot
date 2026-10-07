@@ -442,6 +442,8 @@ function DevicePanel({ context }: { context: ReadyAccessSnapshot }) {
                 limits={query.data.overview.frequencyLimits}
                 supported={query.data.overview.diagnostics?.program?.supports_schedule === true}
                 maxScheduleSeconds={query.data.overview.diagnostics?.program?.max_schedule_seconds}
+                modeSelectionAvailable={!!query.data.overview.controlMode}
+                onChanged={query.refresh}
                 onCommand={selectCommand}
               />
             </>
