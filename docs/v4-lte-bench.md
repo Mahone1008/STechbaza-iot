@@ -31,6 +31,19 @@ LTE: PPP address=...; waiting for ESP32 UTC synchronization
 читанням нульових параметрів. Холодний старт, тривалий прогін і керування
 через LTE цим доказом не закриваються.
 
+Наступний журнал із діагностикою 0.9.1 показав `MQTT: reconnect failed (-2)`
+і RS485 `requests=2 valid=0 no_reply=2 invalid=0 last_reg=0x0002 rx=0`.
+У поточному коді MQTT спроба можлива лише після придатного UTC; окрема
+строка успішної синхронізації у цьому фрагменті не показана. SU600 не дав
+жодного UART RX байта за дві зафіксовані спроби, причина ще відкрита.
+Read-only Python probe на ПК пройшов verified TLS до локального gateway
+`127.0.0.1:8883`, а для зовнішнього Pinggy hostname отримав `Name does not resolve`.
+Google і Cloudflare DNS незалежно повернули NXDOMAIN для цього тимчасового
+імені. Потрібне поновлення TCP endpoint; успішний TLS з ESP32 цим не доведено.
+Локальні з'єднання в gateway logs приблизно кожні 5 с відповідають TLS healthcheck,
+який закриває сокет без MQTT CONNECT; EOF/Broken pipe цих з'єднань самі по собі
+не доводять відмову сертифіката, зокрема при успішному verified TLS probe.
+
 ## Вихідний стан і транспорт
 
 Досьє `KERUMO_V4_Dossier.docx` від 08.10.2026 описує успішні AT, реєстрацію
