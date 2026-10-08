@@ -1,8 +1,10 @@
 # V4: SU600 через LTE на наявному сервері Windows
 
 Firmware **0.9.0** додає програмну основу, **0.9.1** уточнює запуск SNTP
-і діагностику RS485. На фізичному A7670E підтверджено AT, packet attach
-і отримання PPP IP; приймання UTC/TLS/MQTT залишається відкритим.
+і діагностику RS485. На фізичному A7670E підтверджено AT, packet attach,
+PPP IP/DNS, UTC і MQTT-підключення з verified TLS на 0.9.1, потім читання
+конфігурації та показань SU600 після виправлення підключень. Приймання
+поточних повідомлень у backend/на сайті та керування ще відкрите.
 V4 є стендом; V5 буде окремим виробом.
 Наявний сайт і протокол збережено, нові екрани моніторингу не додаються.
 
@@ -24,8 +26,8 @@ LTE: PPP address=...; waiting for ESP32 UTC synchronization
 ```
 
 Це підтверджує UART GPIO4/5, AT-відповідь зазначеної ревізії, packet attach
-і PPP IP у цьому запуску. Строки успішного UTC або `MQTT CONNECTED / TLS`
-ще не надано. У тому самому журналі SU600 має `read=0` і `READ ... MISSING`;
+і PPP IP у цьому запуску. У цьому фрагменті немає строк успішного UTC або
+`MQTT CONNECTED / TLS`. У тому самому журналі SU600 має `read=0` і `READ ... MISSING`;
 оператор підтвердив увімкнений дисплей SU600. Причина відсутності Modbus
 відповідей ще не встановлена. Показані `F*=0` за `read=0` не є підтвердженим
 читанням нульових параметрів. Холодний старт, тривалий прогін і керування
@@ -43,6 +45,38 @@ Google і Cloudflare DNS незалежно повернули NXDOMAIN для �
 Локальні з'єднання в gateway logs приблизно кожні 5 с відповідають TLS healthcheck,
 який закриває сокет без MQTT CONNECT; EOF/Broken pipe цих з'єднань самі по собі
 не доводять відмову сертифіката, зокрема при успішному verified TLS probe.
+
+Після поновлення endpoint оператор надав новий запуск 0.9.1:
+
+```text
+LTE: AT ready; firmware=+CGMR: A011B05A7670M7_F
+LTE: packet service attached; starting PPP
+LTE: PPP address=...; waiting for ESP32 UTC synchronization
+LTE: DNS main=... backup=...
+LTE: ESP32 UTC synchronized; connecting to MQTT with verified TLS
+MQTT CONNECTED / TLS: ESP32 IP=..., host=...:...
+```
+
+Wi-Fi вимкнено за конфігурацією LTE. У цьому запуску підтверджено фізичний
+шлях UART/PPP/LTE → TCP tunnel → authenticated MQTT і subscription із
+перевіркою CA/hostname/time. `MQTT CONNECTED` у коді друкується лише після
+успішних connect/subscribe, але не доводить приймання telemetry у backend/БД
+або показань на сайті. RS485 має `requests=1 valid=0 no_reply=1 rx=0`;
+оператор підтвердив підключені 3V3/GND та світний індикатор перетворювача.
+Точна напруга, UART/A/B і поточні F6 параметри ще не перевірені.
+ReadOnly/storage=OK збережено. Команди двигуну та повне приймання не виконувалися.
+
+Наступний журнал після зміни підключень має `read=1 profile=1 config=1`,
+`guards_read=1 ready=1`, `F5.00=1001 (raw=4097)`, `F4.08=0`, `armed=0`.
+Усі шість READ мають `OK`: fault=0, state=1290, set/output=0 Гц, I/U=0.
+За SU600-драйвером стан 1290 і вихід 0 відповідають зупиненому приводу.
+Підтверджено конфігураційні F0/F6 читання та поточні регістрові показання
+у цьому фрагменті, але не незалежне вимірювання фізичного руху двигуна.
+Оператор припустив переплутаний GPIO; точна початкова помилка монтажу
+не задокументована. `last_stop=configuration_mismatch` зберігає причину
+попередньої зупинки й не спростовує свіжі `config=1`/`READ ... OK`.
+Потрібен read-only `check-v4.ps1` для кореляції нових cellular повідомлень,
+session/message_id і свіжого snapshot у PostgreSQL, потім звірка сайту.
 
 ## Вихідний стан і транспорт
 
