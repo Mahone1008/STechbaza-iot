@@ -31,6 +31,18 @@
 #if __has_include("factory_config.local.h")
 #include "factory_config.local.h"
 #endif
+#if __has_include("lte_config.local.h")
+#include "lte_config.local.h"
+#endif
+#ifndef KERUMO_USE_LTE
+#define KERUMO_USE_LTE false
+#endif
+#if KERUMO_USE_LTE
+#include "src/esp32_cellular.h"
+#ifdef KERUMO_FACTORY_CONTROLLER_ID
+#error "V4 LTE bench uses a pre-registered identity; factory LTE enrollment is not implemented"
+#endif
+#endif
 #ifndef KERUMO_ENABLE_EXTENDED_TEST
 #define KERUMO_ENABLE_EXTENDED_TEST false
 #endif
@@ -43,7 +55,7 @@ static_assert(!KERUMO_ENABLE_REMOTE_OPERATION ||
 
 using namespace kerumo;
 namespace {
-constexpr char FirmwareVersion[] = "0.8.1";
+constexpr char FirmwareVersion[] = "0.9.0";
 EquipmentBinding equipment{};
 bool managedEquipment = false;
 Provisioning provisioning;
@@ -66,6 +78,10 @@ String baseTopic;
 WiFiClientSecure transport;
 MqttClient mqtt(transport);
 HardwareSerial vfdSerial(1);
+#if KERUMO_USE_LTE
+A7670Port cellularPort;
+CellularLink cellularLink(cellularPort, KERUMO_MODEM_APN);
+#endif
 
 void uuid(char *target) {
   uint8_t bytes[16];
@@ -336,10 +352,17 @@ void telemetry(const Sample &sample, uint64_t sequence) {
   state["vfd_configuration_valid"] = fresh && sample.configOk;
   state["control_armed"] = fresh && sample.armed && sample.storageOk;
   if (fresh) {
+#if KERUMO_USE_LTE
+    int16_t rssi = 0;
+    const bool measured = cellularPort.signal(rssi);
+    const char *channel = "cellular";
+#else
     const int32_t rssi = WiFi.RSSI();
     const bool measured = WiFi.status() == WL_CONNECTED && rssi >= -127 && rssi < 0;
+    const char *channel = "wifi";
+#endif
     writeDiagnostics(doc["diagnostics"].to<JsonObject>(), sample, FirmwareVersion, resetReasonCode(),
-                     {"wifi", measured ? "rssi" : nullptr, static_cast<int16_t>(measured ? rssi : 0)});
+                     {channel, measured ? "rssi" : nullptr, static_cast<int16_t>(measured ? rssi : 0)});
     if (managedEquipment)
       writeEquipment(doc["diagnostics"]["equipment"].to<JsonObject>(), equipment,
                      sample.configOk && sample.storageOk && locallyConfirmed.load());
@@ -394,11 +417,16 @@ void setup() {
   }
   sntp_set_time_sync_notification_cb(synchronized);
   configTime(0, 0, "pool.ntp.org", "time.cloudflare.com");
+#if KERUMO_USE_LTE
+  WiFi.mode(WIFI_OFF);
+  Serial.println("V4 LTE: UART2 TX=4 RX=5; PPP, ESP32 SNTP and verified TLS; Wi-Fi off");
+#else
   if (!provisioning.enabled) {
     WiFi.mode(WIFI_STA);
     WiFi.setAutoReconnect(true);
     WiFi.begin(KERUMO_WIFI_SSID, KERUMO_WIFI_PASSWORD);
   }
+#endif
   transport.setCACert(KERUMO_MQTT_CA);
   transport.setHandshakeTimeout(5);
   transport.setTimeout(2000);
@@ -476,8 +504,23 @@ void loop() {
       networkReady.store(false); mqtt.stop(); delay(20); return;
     }
   }
-  if (WiFi.status() != WL_CONNECTED || !deviceClock.utcMs()) {
+#if KERUMO_USE_LTE
+  if (!cellularPort.online())
     networkReady.store(false);
+  const bool linkUp = cellularLink.tick(millis());
+  static bool previouslyUp = false;
+  if (linkUp && !previouslyUp) {
+    PPP.setDefault();
+    Serial.printf("LTE: PPP address=%s; waiting for ESP32 UTC synchronization\n",
+                  PPP.localIP().toString().c_str());
+  }
+  previouslyUp = linkUp;
+#else
+  const bool linkUp = WiFi.status() == WL_CONNECTED;
+#endif
+  if (!linkUp || !deviceClock.utcMs()) {
+    networkReady.store(false);
+    mqtt.stop();
     delay(20);
     return;
   }
@@ -494,7 +537,12 @@ void loop() {
       mqtt.stop();
       return;
     }
-    Serial.printf("MQTT CONNECTED / TLS: ESP32 IP=%s, host=%s:%d\n", WiFi.localIP().toString().c_str(),
+#if KERUMO_USE_LTE
+    const String localIp = PPP.localIP().toString();
+#else
+    const String localIp = WiFi.localIP().toString();
+#endif
+    Serial.printf("MQTT CONNECTED / TLS: ESP32 IP=%s, host=%s:%d\n", localIp.c_str(),
                   mqttHost(), mqttPort());
     for (auto &record : delivered)
       record = Record{};
