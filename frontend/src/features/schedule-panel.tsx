@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
-import { RefreshSettings } from "@/components/refresh-settings";
+import { RefreshAction } from "./refresh-actions";
 import { Button, StatusBadge } from "@/components/ui";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { apiErrorDisplayMessage, apiQueryKeys, isApiError } from "@/lib/api";
@@ -82,11 +82,7 @@ function ScheduleHistory({
   return (
     <section aria-label={`Запуски ${item.spec.name}`}>
       <h3>Останні запуски: {item.spec.name}</h3>
-      <RefreshSettings error={query.isError}>
-        <Button disabled={query.isFetching || !query.active} onClick={query.refresh}>
-          Оновити історію запусків
-        </Button>
-      </RefreshSettings>
+      <RefreshAction disabled={query.isFetching || !query.active} error={query.isError} onRefresh={query.refresh} />
       {query.isError ? (
         <p role="alert">{errorText(query.error)}</p>
       ) : !query.data ? (
@@ -273,11 +269,6 @@ export function SchedulePanel({
         </p>
       )}
       {query.isError && <p role="alert">{errorText(query.error)}</p>}
-      {draft && query.isError && (
-        <Button disabled={query.isFetching || !visible || !query.active} onClick={query.refresh}>
-          Оновити розклади
-        </Button>
-      )}
       {!draft && (
         <>
           <div className="ui-row schedule-list-actions">
@@ -353,13 +344,12 @@ export function SchedulePanel({
           )}
         </>
       )}
-      {!draft && (
-        <RefreshSettings error={query.isError}>
-          <Button disabled={!canRead || query.isFetching || !visible || !query.active} onClick={query.refresh}>
-            Оновити розклади
-          </Button>
-        </RefreshSettings>
-      )}
+      <RefreshAction
+        available={canRead}
+        disabled={busy || query.isFetching || !visible || !query.active}
+        error={query.isError}
+        onRefresh={query.refresh}
+      />
       {draft && (
         <form
           className="schedule-editor"

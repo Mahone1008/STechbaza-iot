@@ -4,6 +4,7 @@ import { spawnSync } from "node:child_process";
 const files = [
   "src/features/device-events.tsx",
   "src/components/refresh-settings.tsx",
+  "src/features/refresh-actions.tsx",
   "src/components/telemetry-chart.tsx",
   "src/features/telemetry-preferences.ts",
   "src/lib/api/telemetry-series.ts",

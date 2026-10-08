@@ -1,5 +1,5 @@
 "use client";
-import { RefreshSettings } from "@/components/refresh-settings";
+import { RefreshAction } from "./refresh-actions";
 import { ProgramPlanSummary } from "./program-settings";
 import { parseScheduleRun } from "@/lib/api/schedules";
 import { ScheduleRunSummary } from "./schedule-summary";
@@ -69,15 +69,8 @@ export function CommandDetail({ context, id, poll }: { context: ReadyAccessSnaps
   const time = (value: string | null) =>
     value ? formatSeen(value, context.activeSite?.timezone ?? "UTC") : "Ще немає";
   return (
-    <Card
-      title="Стан вибраної команди"
-      description="Результат вибраної дії та підтвердження контролера."
-      actions={
-        <Button disabled={!query.active || query.isFetching} onClick={query.refresh}>
-          Оновити стан команди
-        </Button>
-      }
-    >
+    <Card title="Стан вибраної команди" description="Результат вибраної дії та підтвердження контролера.">
+      <RefreshAction disabled={!query.active || query.isFetching} error={query.isError} onRefresh={query.refresh} />
       <StableRegion>
         {query.isError ? (
           <p role="alert">{apiErrorDisplayMessage(query.error)}</p>
@@ -200,7 +193,6 @@ export function CommandJournal({
 }) {
   const { authorizedRequest } = useAuthSession();
   const [pages, setPages] = useState<(CommandCursor | null)[]>([null]);
-  const [revision, setRevision] = useState(0);
   const cursor = pages.at(-1)!;
   const device = context.activeDevice!;
   const query = usePanelQuery({
@@ -208,7 +200,6 @@ export function CommandJournal({
       ...apiQueryKeys.deviceCommands(context.scope, device.id, pages.length),
       context.activeOrganization.id,
       cursor,
-      revision,
     ],
     intervalMs: pages.length === 1 ? poll * 1000 : 0,
     queryFn: async (signal) =>
@@ -226,26 +217,8 @@ export function CommandJournal({
   });
   const rows = query.isError ? [] : (query.data?.slice(0, 20) ?? []);
   return (
-    <Card
-      title="Журнал команд"
-      description="Останні дії, їхні автори та результати."
-      actions={
-        <RefreshSettings error={query.isError}>
-          <Button
-            disabled={!query.active || query.isFetching}
-            onClick={() => {
-              if (pages.length === 1) query.refresh();
-              else {
-                setPages([null]);
-                setRevision((value) => value + 1);
-              }
-            }}
-          >
-            Оновити журнал
-          </Button>
-        </RefreshSettings>
-      }
-    >
+    <Card title="Журнал команд" description="Останні дії, їхні автори та результати.">
+      <RefreshAction disabled={!query.active || query.isFetching} error={query.isError} onRefresh={query.refresh} />
       <StableRegion>
         {query.isFetching && !query.data ? (
           <p role="status">Завантажуємо журнал…</p>

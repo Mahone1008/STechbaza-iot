@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
-import { RefreshSettings } from "@/components/refresh-settings";
-import { Button, Card, SelectField } from "@/components/ui";
+import { RefreshAction } from "./refresh-actions";
+import { Card, SelectField } from "@/components/ui";
 import { StableRegion } from "@/components/stable-region";
 import { TelemetryChart } from "@/components/telemetry-chart";
 import { useAuthSession } from "@/features/auth-session";
@@ -64,11 +64,7 @@ function HistoryData({
       <p className="help-copy history-refresh-status" role="status">
         {query.isFetching && query.data ? "Оновлюємо історію…" : ""}
       </p>
-      <RefreshSettings error={query.isError} label="Оновлення історії">
-        <Button disabled={query.isFetching || !query.active} onClick={query.refresh}>
-          Оновити історію
-        </Button>
-      </RefreshSettings>
+      <RefreshAction disabled={query.isFetching || !query.active} error={query.isError} onRefresh={query.refresh} />
       {!query.active && <p role="status">Оновлення призупинено: вкладка прихована або немає мережі.</p>}
       {query.isError ? (
         <section role="alert" className="notice notice-warning">
