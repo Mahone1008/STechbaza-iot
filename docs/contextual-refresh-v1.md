@@ -42,6 +42,12 @@
 
 ## Перевірка
 
+Під час CI dependency gate виявлено нові advisories Next.js, включно з
+[Image Optimization SSRF](https://github.com/advisories/GHSA-cjq9-62q9-8jv4).
+Next.js та узгоджений ESLint preset оновлені з 16.3.6 до виправленої 16.3.8.
+Scoped override для glob tooling збережено для нової версії плагіна;
+зафіксований lock перевіряється через `npm ci` та `npm audit`.
+
 Browser-регресії перевіряють склад GET-запитів після відвідування всіх вкладок,
 відкритий/закритий доступ контролера, відсутність повторних availability
 запитів, збереження періоду/таблиці й cursor журналу. Наявні перевірки
