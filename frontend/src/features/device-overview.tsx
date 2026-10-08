@@ -1,5 +1,6 @@
 "use client";
 import { DeviceSection } from "./panel-activity";
+import { DisplaySettings, RefreshAction, RefreshButton, RefreshProvider } from "./refresh-actions";
 import dynamic from "next/dynamic";
 import { ProgramStatus } from "@/features/program-status";
 import { CommandControls } from "@/features/command-controls";
@@ -341,6 +342,12 @@ function DevicePanel({ context }: { context: ReadyAccessSnapshot }) {
           </>
         }
       />
+      <RefreshAction
+        available={section === "panel" && canRead}
+        disabled={query.isFetching || !query.active}
+        error={query.isError}
+        onRefresh={query.refresh}
+      />
       <div className="device-tabs" role="tablist" aria-label="Розділи пристрою">
         {sections.map(([id, label], index) => (
           <button
@@ -497,26 +504,30 @@ function DevicePanel({ context }: { context: ReadyAccessSnapshot }) {
           </>
         )}
       </DeviceSection>
-      <details className="customer-disclosure panel-display-settings">
-        <summary>Налаштування відображення</summary>
-        <div className="panel-refresh-controls">
-          <SelectField
-            label="Автооновлення"
-            value={poll}
-            onChange={(event) => setPoll(Number(event.target.value) as PollSeconds)}
-          >
-            <option value={5}>Панель: 5 с; історія: 60 с</option>
-            <option value={30}>Панель: 30 с; історія: 60 с</option>
-            <option value={60}>Щохвилини</option>
-            <option value={0}>Лише вручну</option>
-          </SelectField>
-          <div className="ui-row">
-            <Button disabled={!canRead || query.isFetching || !query.active} onClick={query.refresh}>
-              Оновити панель
-            </Button>
-          </div>
+      <DisplaySettings error={query.isError}>
+        <SelectField
+          label="Автооновлення"
+          value={poll}
+          onChange={(event) => setPoll(Number(event.target.value) as PollSeconds)}
+        >
+          <option value={5}>Панель: 5 с; історія: 60 с</option>
+          <option value={30}>Панель: 30 с; історія: 60 с</option>
+          <option value={60}>Щохвилини</option>
+          <option value={0}>Лише вручну</option>
+        </SelectField>
+        <div className="ui-row">
+          {section === "panel" ? (
+            <RefreshButton label="Оновити панель" />
+          ) : (
+            <>
+              <Button disabled={!canRead || query.isFetching || !query.active} onClick={query.refresh}>
+                Оновити панель
+              </Button>
+              <RefreshButton />
+            </>
+          )}
         </div>
-      </details>
+      </DisplaySettings>
     </>
   );
 }
@@ -524,9 +535,10 @@ export function DeviceOverview() {
   const { snapshot } = useAccessContext();
   if (snapshot.status !== "ready" || !snapshot.activeDevice) return null;
   return (
-    <DevicePanel
+    <RefreshProvider
       key={`${snapshot.scope.userId}:${snapshot.scope.sessionId}:${snapshot.activeOrganization.id}:${snapshot.activeDevice.id}`}
-      context={snapshot}
-    />
+    >
+      <DevicePanel context={snapshot} />
+    </RefreshProvider>
   );
 }

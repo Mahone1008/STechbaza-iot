@@ -178,7 +178,7 @@ test("selected lifecycle polls ACK separately from result, stops on unknown and 
   status = "acknowledged"; await page.clock.fastForward(5100); await expect(detail(page).locator(".status-badge")).toHaveText("Контролер підтвердив прийом");
   status = "result_unknown"; await page.clock.fastForward(5100); await expect(detail(page).locator(".status-badge")).toHaveText("Результат невідомий");
   const stopped = gets; await page.clock.fastForward(11_000); expect(gets).toBe(stopped);
-  status = "succeeded"; await detail(page).getByRole("button", { name: "Оновити стан команди" }).click();
+  status = "succeeded"; await (await refreshButton(page, "Оновити стан команди")).click();
   await expect(detail(page).locator(".status-badge")).toHaveText("Контролер повідомив про виконання");
 });
 
@@ -195,7 +195,10 @@ test("cursor journal pages retain their boundary after insertion and reject fore
   await page.getByRole("button", { name: "Наступні команди", exact: true }).click(); await expect(table).toContainText("Actor 20"); await expect(table).not.toContainText("Actor 19");
   expect(queries.at(-1)!.get("before_id")).toBe(boundary.id); expect(queries.at(-1)!.get("offset")).toBeNull();
   await expect(page.getByRole("button", { name: "Наступні команди", exact: true })).toBeDisabled();
-  await (await refreshButton(page, "Оновити журнал")).click(); await expect(table).toContainText("New actor");
+  await (await refreshButton(page, "Оновити журнал")).click(); await expect(table).toContainText("Actor 20");
+  await expect(table).not.toContainText("New actor");
+  expect(queries.at(-1)!.get("before_id")).toBe(boundary.id);
+  await expect(page.getByText("Сторінка 2", { exact: true })).toBeVisible();
   foreign = true; await (await refreshButton(page, "Оновити журнал")).click(); await expect(table).toHaveCount(0);
 });
 
@@ -216,7 +219,7 @@ test("manual mode and hidden tab pause selected command polling", async ({ page 
   await page.clock.fastForward(11_000); expect(gets).toBe(initial);
   await (await displaySettings(page)).selectOption("30");
   await page.evaluate(() => { Object.defineProperty(document, "visibilityState", { configurable: true, value: "hidden" }); document.dispatchEvent(new Event("visibilitychange")); });
-  await expect(detail(page).getByRole("button", { name: "Оновити стан команди" })).toBeDisabled(); const hidden = gets;
+  await expect(await refreshButton(page, "Оновити стан команди")).toBeDisabled(); const hidden = gets;
   await page.clock.fastForward(11_000); expect(gets).toBe(hidden);
 });
 
@@ -242,11 +245,11 @@ for (const viewport of [{ width: 1280, height: 720 }, { width: 390, height: 844 
     }
     // Collapsed geometry is also the new reserve when a request fails.
     await page.route(detailUrl, async (route) => { if (await fulfillPreflight(route)) return; await fulfillJson(route, 503, { detail: "Command unavailable" }); });
-    await card.getByRole("button", { name: "Оновити стан команди" }).click();
+    await (await refreshButton(page, "Оновити стан команди")).click();
     await expect(card.getByRole("alert")).toContainText("Сервіс тимчасово недоступний");
     await expect.poll(async () => Math.abs(await height() - collapsedHeight)).toBeLessThanOrEqual(2);
     await mockDetail(page);
-    await card.getByRole("button", { name: "Оновити стан команди" }).click();
+    await (await refreshButton(page, "Оновити стан команди")).click();
     await expect(card.locator(".status-badge")).toHaveText("У черзі");
     await expect.poll(async () => Math.abs(await height() - collapsedHeight)).toBeLessThanOrEqual(2);
   });

@@ -1,6 +1,6 @@
 "use client";
 import { useState, type FormEvent } from "react";
-import { RefreshSettings } from "@/components/refresh-settings";
+import { RefreshAction } from "./refresh-actions";
 import { Button, TextField } from "@/components/ui";
 import { ControllerQr } from "@/components/controller-qr";
 import { apiErrorDisplayMessage, type components } from "@/lib/api";
@@ -101,6 +101,12 @@ export function ControllerLifecycle({
       </Button>
       {open && (
         <>
+          <RefreshAction
+            available={!transfer}
+            disabled={busy || !query.active || query.isFetching}
+            error={query.isError}
+            onRefresh={query.refresh}
+          />
           {query.isError && !transfer && (
             <p role="alert">
               {apiErrorDisplayMessage(query.error)} <Button onClick={query.refresh}>Повторити</Button>
@@ -134,11 +140,6 @@ export function ControllerLifecycle({
                   </Button>
                 ))}
               </div>
-              <RefreshSettings>
-                <Button disabled={busy || query.isFetching} onClick={query.refresh}>
-                  Оновити стан доступу
-                </Button>
-              </RefreshSettings>
             </>
           )}
           {operation && (

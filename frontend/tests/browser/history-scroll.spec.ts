@@ -39,6 +39,7 @@ async function stable(page: Page, y: number, clock = false) {
 async function refreshVisibleHistory(page: Page) {
   const button = (await refreshButton(page, "Оновити історію"));
   await expect(button).toBeEnabled();
+  await button.scrollIntoViewIfNeeded();
   await expect(button).toBeInViewport({ ratio: 1 });
   const box = (await button.boundingBox())!;
   // Натискання користувача без locator.click(), який сам викликає scrollIntoView.
@@ -160,7 +161,9 @@ test("collapsing the measurements table releases its space but keeps the collaps
   const response = gate();
   await page.route(seriesUrl, async (route) => { if (await fulfillPreflight(route)) return; await response.promise; await fulfillJson(route, 200, series(route.request().url())).catch(() => {}); });
   try {
-    const y = await position(page);
+    const button = await refreshButton(page, "Оновити історію");
+    await button.scrollIntoViewIfNeeded();
+    const y = await page.evaluate(() => scrollY);
     await refreshVisibleHistory(page);
     await expect(page.getByText("Оновлюємо історію…")).toBeVisible();
     await expect.poll(async () => Math.abs(await height() - collapsedHeight)).toBeLessThanOrEqual(2);

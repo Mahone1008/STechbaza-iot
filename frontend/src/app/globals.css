@@ -677,7 +677,7 @@ p { text-wrap: pretty; }
 .refresh-settings > summary { display: list-item; width: fit-content; max-width: 100%; min-height: 44px; padding-block: 10px; cursor: pointer; font-size: 14px; font-weight: 600; }
 .refresh-settings-content { padding-block: 8px; gap: 12px; }
 .panel-refresh-controls { display: grid; gap: 16px; }
-.panel-refresh-controls > .ui-row { justify-content: flex-end; }
+.panel-refresh-controls > .ui-row { justify-content: flex-end; gap: 12px; }
 .schedule-list-actions { margin-block: 20px; }
 .schedule-panel > .help-copy + .help-copy { margin-top: 6px; }
 .schedule-list > li > .ui-row:last-child { margin-top: 20px; gap: 12px; }

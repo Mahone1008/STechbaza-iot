@@ -566,26 +566,20 @@ test("manual and minute refresh apply to schedules, run history and command reco
   const beforeManual = { ...counts };
   await page.clock.fastForward(61_000);
   expect(counts).toEqual(beforeManual);
-  for (const [label, key] of [
-    ["Оновити розклади", "lists"],
-    ["Оновити історію запусків", "histories"],
-    ["Оновити панель", "overview"],
-  ] as const) {
-    await (await refreshButton(page, label)).click();
+  await (await refreshButton(page, "Оновити розклади")).click();
+  for (const key of ["lists", "histories"] as const)
     await expect.poll(() => counts[key]).toBe(beforeManual[key] + 1);
-  }
+  expect(counts.overview).toBe(beforeManual.overview);
+  await (await refreshButton(page, "Оновити панель")).click();
+  await expect.poll(() => counts.overview).toBe(beforeManual.overview + 1);
   await page.getByRole("tab", { name: "Журнал", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Оновити стан команди", exact: true })).toBeEnabled();
+  await expect(await refreshButton(page, "Оновити стан команди")).toBeEnabled();
   const beforeJournal = { ...counts };
-  for (const [label, key] of [
-    ["Оновити журнал", "journal"],
-    ["Оновити стан команди", "detail"],
-  ] as const) {
-    await (await refreshButton(page, label)).click();
+  await (await refreshButton(page, "Оновити журнал")).click();
+  for (const key of ["journal", "detail"] as const)
     await expect.poll(() => counts[key]).toBe(beforeJournal[key] + 1);
-  }
   await refresh.selectOption("60");
-  await expect(page.getByRole("button", { name: "Оновити стан команди", exact: true })).toBeEnabled();
+  await expect(await refreshButton(page, "Оновити стан команди")).toBeEnabled();
   await expect((await refreshButton(page, "Оновити журнал"))).toBeEnabled();
   const beforeMinute = { ...counts };
   await page.clock.fastForward(31_000);

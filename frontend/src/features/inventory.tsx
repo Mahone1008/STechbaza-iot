@@ -1,13 +1,14 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useIsFetching, useQuery } from "@tanstack/react-query";
 import type { Route } from "next";
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
 
 import { Button, Card, DataTable, PageHeader, StatusBadge, type TableColumn } from "@/components/ui";
 import { useAccessContext, type DirectoryAccessSnapshot, type ReadyAccessSnapshot } from "@/features/access-context";
-import { RefreshSettings } from "@/components/refresh-settings";
+import { DisplaySettings, RefreshAction, RefreshButton, RefreshProvider } from "./refresh-actions";
+import { StableRegion } from "@/components/stable-region";
 import { useAuthSession } from "@/features/auth-session";
 import { apiErrorDisplayMessage, apiQueryKeys, isApiError } from "@/lib/api";
 import { parseOrganization } from "@/lib/api/access";
@@ -168,51 +169,60 @@ function Directory({ context, sites }: { context: DirectoryAccessSnapshot | Read
           ) : undefined
         }
       />
-      {query.isFetching ? (
-        <p role="status">Завантажуємо {sites ? "об’єкти" : "організації"}…</p>
-      ) : query.isError ? (
-        <ErrorState error={query.error} retry={() => void query.refetch()} />
-      ) : customerPortal ? (
-        rows.length ? (
-          <ul className="inventory-card-list" aria-label={sites ? "Список об’єктів" : "Список організацій"}>
-            {rows.map((row) => (
-              <li key={row.id}>
-                {row.href ? (
-                  <Link className="inventory-directory-card" href={row.href} aria-label={row.name}>
-                    <span className="inventory-card-kind">{sites ? "Об’єкт" : "Організація"}</span>
-                    <h2>{row.name}</h2>
-                    <p>{row.description}</p>
-                    <span className="inventory-card-open">
-                      Відкрити <span aria-hidden="true">→</span>
-                    </span>
-                  </Link>
-                ) : (
-                  <div className="inventory-directory-card inventory-card-inactive">
-                    <h2>{row.name}</h2>
-                    <p>{row.description}</p>
-                  </div>
-                )}
-              </li>
-            ))}
-          </ul>
+      <StableRegion preserveHeight={query.isFetching || query.isError}>
+        {query.isFetching ? (
+          <p role="status">Завантажуємо {sites ? "об’єкти" : "організації"}…</p>
+        ) : query.isError ? (
+          <ErrorState error={query.error} retry={() => void query.refetch()} />
+        ) : customerPortal ? (
+          rows.length ? (
+            <ul className="inventory-card-list" aria-label={sites ? "Список об’єктів" : "Список організацій"}>
+              {rows.map((row) => (
+                <li key={row.id}>
+                  {row.href ? (
+                    <Link className="inventory-directory-card" href={row.href} aria-label={row.name}>
+                      <span className="inventory-card-kind">{sites ? "Об’єкт" : "Організація"}</span>
+                      <h2>{row.name}</h2>
+                      <p>{row.description}</p>
+                      <span className="inventory-card-open">
+                        Відкрити <span aria-hidden="true">→</span>
+                      </span>
+                    </Link>
+                  ) : (
+                    <div className="inventory-directory-card inventory-card-inactive">
+                      <h2>{row.name}</h2>
+                      <p>{row.description}</p>
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <Card>
+              <p>{sites ? "У цій організації ще немає об’єктів." : "На цій сторінці немає доступних організацій."}</p>
+            </Card>
+          )
         ) : (
-          <Card>
-            <p>{sites ? "У цій організації ще немає об’єктів." : "На цій сторінці немає доступних організацій."}</p>
-          </Card>
-        )
-      ) : (
-        <DataTable
-          caption={sites ? "Список об’єктів" : "Список організацій"}
-          rows={rows}
-          columns={columns}
-          emptyMessage={sites ? "У цій організації ще немає об’єктів." : "На цій сторінці немає доступних організацій."}
-        />
-      )}
-      <RefreshSettings error={query.isError}>
-        <Button disabled={query.isFetching} onClick={() => void query.refetch()}>
-          Оновити список
-        </Button>
-      </RefreshSettings>
+          <DataTable
+            caption={sites ? "Список об’єктів" : "Список організацій"}
+            rows={rows}
+            columns={columns}
+            emptyMessage={
+              sites ? "У цій організації ще немає об’єктів." : "На цій сторінці немає доступних організацій."
+            }
+          />
+        )}
+      </StableRegion>
+      <RefreshAction
+        disabled={query.isFetching}
+        error={query.isError}
+        onRefresh={() => void query.refetch({ cancelRefetch: false })}
+      />
+      <DisplaySettings>
+        <div className="ui-row">
+          <RefreshButton />
+        </div>
+      </DisplaySettings>
       <Pagination
         page={page}
         hasNext={!query.isError && (query.data?.length ?? 0) > PAGE_SIZE}
@@ -226,17 +236,17 @@ function Directory({ context, sites }: { context: DirectoryAccessSnapshot | Read
 export function OrganizationList() {
   const { snapshot } = useAccessContext();
   return snapshot.status === "directory" ? (
-    <Directory key={`${snapshot.scope.userId}:${snapshot.scope.sessionId}`} context={snapshot} sites={false} />
+    <RefreshProvider key={`${snapshot.scope.userId}:${snapshot.scope.sessionId}`}>
+      <Directory context={snapshot} sites={false} />
+    </RefreshProvider>
   ) : null;
 }
 export function SiteList() {
   const { snapshot } = useAccessContext();
   return snapshot.status === "ready" ? (
-    <Directory
-      key={`${snapshot.scope.userId}:${snapshot.scope.sessionId}:${snapshot.activeOrganization.id}`}
-      context={snapshot}
-      sites
-    />
+    <RefreshProvider key={`${snapshot.scope.userId}:${snapshot.scope.sessionId}:${snapshot.activeOrganization.id}`}>
+      <Directory context={snapshot} sites />
+    </RefreshProvider>
   ) : null;
 }
 
@@ -428,11 +438,6 @@ function PresenceTable({
         Зв’язок показано на час останньої перевірки. Для поточних показників і стану обладнання відкрийте панель
         пристрою.
       </p>
-      <RefreshSettings label="Оновлення зв’язку">
-        <Button disabled={query.isFetching || devices.length === 0} onClick={() => void query.refetch()}>
-          Оновити зв’язок
-        </Button>
-      </RefreshSettings>
     </>
   );
 }
@@ -441,6 +446,10 @@ function DevicePageList({ context }: { context: ReadyAccessSnapshot }) {
   const { authorizedRequest } = useAuthSession();
   const [page, setPage] = useState(0);
   const siteId = context.activeSite?.id;
+  const presenceFetching =
+    useIsFetching({
+      queryKey: apiQueryKeys.inventory(context.scope, context.activeOrganization.id, siteId ?? null, "presence"),
+    }) > 0;
   const query = useQuery({
     queryKey: apiQueryKeys.inventory(context.scope, context.activeOrganization.id, siteId ?? null, "devices", page),
     enabled: Boolean(siteId),
@@ -462,30 +471,38 @@ function DevicePageList({ context }: { context: ReadyAccessSnapshot }) {
         eyebrow={context.activeSite?.name ?? "Оберіть об’єкт"}
         description="Оберіть пристрій, щоб перевірити його стан або перейти до керування."
       />
-      {!siteId ? (
-        <Card title="Оберіть об’єкт">
-          <p>Оберіть об’єкт, щоб переглянути його пристрої.</p>
-          <Link className="button button-secondary" href={sitesHref(context.activeOrganization.id)}>
-            Переглянути об’єкти
-          </Link>
-        </Card>
-      ) : query.isFetching ? (
-        <p role="status">Завантажуємо пристрої…</p>
-      ) : query.isError ? (
-        <ErrorState error={query.error} retry={() => void query.refetch()} />
-      ) : query.data ? (
-        <PresenceTable
-          key={`${page}:${query.dataUpdatedAt}`}
-          devices={query.data.slice(0, PAGE_SIZE)}
-          context={context}
-          version={query.dataUpdatedAt}
-        />
-      ) : null}
-      <RefreshSettings error={query.isError}>
-        <Button disabled={!siteId || query.isFetching} onClick={() => void query.refetch()}>
-          Оновити список
-        </Button>
-      </RefreshSettings>
+      <StableRegion preserveHeight={query.isFetching || query.isError}>
+        {!siteId ? (
+          <Card title="Оберіть об’єкт">
+            <p>Оберіть об’єкт, щоб переглянути його пристрої.</p>
+            <Link className="button button-secondary" href={sitesHref(context.activeOrganization.id)}>
+              Переглянути об’єкти
+            </Link>
+          </Card>
+        ) : query.isFetching ? (
+          <p role="status">Завантажуємо пристрої…</p>
+        ) : query.isError ? (
+          <ErrorState error={query.error} retry={() => void query.refetch()} />
+        ) : query.data ? (
+          <PresenceTable
+            key={`${page}:${query.dataUpdatedAt}`}
+            devices={query.data.slice(0, PAGE_SIZE)}
+            context={context}
+            version={query.dataUpdatedAt}
+          />
+        ) : null}
+      </StableRegion>
+      <RefreshAction
+        available={!!siteId}
+        disabled={query.isFetching || presenceFetching}
+        error={query.isError}
+        onRefresh={() => void query.refetch({ cancelRefetch: false })}
+      />
+      <DisplaySettings>
+        <div className="ui-row">
+          <RefreshButton />
+        </div>
+      </DisplaySettings>
       {siteId ? (
         <Pagination
           page={page}
@@ -500,9 +517,10 @@ function DevicePageList({ context }: { context: ReadyAccessSnapshot }) {
 export function DeviceList() {
   const { snapshot } = useAccessContext();
   return snapshot.status === "ready" ? (
-    <DevicePageList
+    <RefreshProvider
       key={`${snapshot.scope.userId}:${snapshot.scope.sessionId}:${snapshot.activeOrganization.id}:${snapshot.activeSite?.id}`}
-      context={snapshot}
-    />
+    >
+      <DevicePageList context={snapshot} />
+    </RefreshProvider>
   ) : null;
 }

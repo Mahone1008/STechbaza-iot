@@ -2,7 +2,7 @@
 import { EquipmentActions } from "./equipment-actions";
 import { ControllerLifecycle } from "./controller-lifecycle";
 import { useState } from "react";
-import { RefreshSettings } from "@/components/refresh-settings";
+import { RefreshAction } from "./refresh-actions";
 import { Button, Card, StatusBadge } from "@/components/ui";
 import { useAuthSession } from "@/features/auth-session";
 import type { ReadyAccessSnapshot } from "@/features/access-context";
@@ -176,11 +176,7 @@ export function EquipmentPassportPanel({
               </>
             )
           )}
-          <RefreshSettings error={query.isError}>
-            <Button disabled={!query.active || query.isFetching} onClick={query.refresh}>
-              Оновити паспорт
-            </Button>
-          </RefreshSettings>
+          <RefreshAction disabled={!query.active || query.isFetching} error={query.isError} onRefresh={query.refresh} />
           {knownControllerId && (
             <ControllerLifecycle context={context} controllerId={knownControllerId} onSaved={query.refresh} />
           )}

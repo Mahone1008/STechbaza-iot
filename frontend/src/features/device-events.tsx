@@ -1,5 +1,5 @@
 "use client";
-import { RefreshSettings } from "@/components/refresh-settings";
+import { RefreshAction } from "./refresh-actions";
 import Link from "next/link";
 import { useState } from "react";
 import { Button, Card, SelectField } from "@/components/ui";
@@ -97,11 +97,7 @@ export function DeviceEvents({ context, poll }: { context: ReadyAccessSnapshot; 
               Наступні події
             </Button>
           </div>
-          <RefreshSettings error={query.isError}>
-            <Button onClick={query.refresh} disabled={!query.active || query.isFetching}>
-              Оновити події
-            </Button>
-          </RefreshSettings>
+          <RefreshAction onRefresh={query.refresh} disabled={!query.active || query.isFetching} error={query.isError} />
         </>
       )}
     </Card>

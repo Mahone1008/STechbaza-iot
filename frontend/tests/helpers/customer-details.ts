@@ -23,9 +23,32 @@ export const securityPasswordProof = (page: Page) =>
 export const recoveryPasswordProof = (page: Page) =>
   fieldInSection(page, "Створення нового ключа", "Поточний пароль для оновлення ключа");
 
-// Refresh actions are secondary, but remain reachable through native disclosures.
+// Device and directory refreshes share the display settings of the current view.
 export async function refreshButton(page: Page, name: string) {
-  const button = page.getByRole("button", { name, exact: true, includeHidden: true });
+  let button = page.getByRole("button", { name, exact: true, includeHidden: true });
+  const contextual = [
+    "Оновити історію",
+    "Оновити розклади",
+    "Оновити історію запусків",
+    "Оновити журнал",
+    "Оновити паспорт",
+    "Оновити стан доступу",
+    "Оновити події",
+    "Оновити стан команди",
+    "Оновити список",
+    "Оновити зв’язок",
+  ];
+  if (
+    contextual.includes(name) &&
+    (await button.count()) === 0 &&
+    (await page.locator(".panel-display-settings").count())
+  ) {
+    const settings = page.locator(".panel-display-settings");
+    button = settings.getByRole("button", { name: "Оновити дані", exact: true, includeHidden: true });
+    if (name === "Оновити стан команди" && (await button.count()) === 0)
+      button = settings.getByRole("button", { name: "Оновити панель", exact: true, includeHidden: true });
+  }
+  await button.waitFor({ state: "attached" });
   const parents = button.locator("xpath=ancestor::details");
   for (const details of await parents.all()) {
     if (!(await details.evaluate((element) => (element as HTMLDetailsElement).open)))
