@@ -3,8 +3,9 @@
 Firmware **0.9.0** додає програмну основу, **0.9.1** уточнює запуск SNTP
 і діагностику RS485. На фізичному A7670E підтверджено AT, packet attach,
 PPP IP/DNS, UTC і MQTT-підключення з verified TLS на 0.9.1, потім читання
-конфігурації та показань SU600 після виправлення підключень. Приймання
-поточних повідомлень у backend/на сайті та керування ще відкрите.
+конфігурації та показань SU600 після виправлення підключень. Фізичний
+read-only probe підтвердив нові cellular повідомлення та свіжий snapshot
+у PostgreSQL. Відображення на сайті, керування й recovery ще не прийнято.
 V4 є стендом; V5 буде окремим виробом.
 Наявний сайт і протокол збережено, нові екрани моніторингу не додаються.
 
@@ -75,8 +76,30 @@ ReadOnly/storage=OK збережено. Команди двигуну та по�
 Оператор припустив переплутаний GPIO; точна початкова помилка монтажу
 не задокументована. `last_stop=configuration_mismatch` зберігає причину
 попередньої зупинки й не спростовує свіжі `config=1`/`READ ... OK`.
-Потрібен read-only `check-v4.ps1` для кореляції нових cellular повідомлень,
-session/message_id і свіжого snapshot у PostgreSQL, потім звірка сайту.
+На цьому етапі наступною перевіркою був read-only `check-v4.ps1` для
+кореляції нових cellular повідомлень, session/message_id і snapshot у PostgreSQL.
+
+Оператор запустив `scripts/check-v4.ps1` і надав успішний результат:
+
+```text
+transport: cellular
+message_id: a6d28286-c1d4-49e8-b092-cb5e72df000c
+values: set_frequency_hz=0, frequency_hz=0, current_a=0, voltage_v=0
+state: vfd_fault_code=0, pump_running=false, vfd_link=true,
+       vfd_configuration_valid=true, control_armed=false
+PASS: live LTE heartbeat + SU600 measurements accepted by backend.
+```
+
+UID — наявний `KERUMO-V3-SU600-001`. За контрактом probe цей PASS означає
+нові non-retained heartbeat/telemetry зі спільною boot session, cellular transport,
+UTC віком до 30 с, чотири скінченні показання й VFD readback; точний message_id
+знайдено для цього Device у PostgreSQL, а поточний snapshot свіжий та read-only.
+Фізично підтверджено шлях SU600 → RS485 → ESP32 → UART/PPP/LTE → TLS/MQTT
+gateway → backend → PostgreSQL у цьому запуску. Нулі є прочитаними значеннями
+зупиненого приводу, а не заміною MISSING. Probe не публікує команди;
+START/STOP/частота/ACK/Result і UI/API відображення не доводяться цим PASS.
+Наступні перевірки: сайт, потім дозволений режим керування й фізичні результати,
+холодний старт, втрати зв'язку без самопуску та тривалий прогін.
 
 ## Вихідний стан і транспорт
 

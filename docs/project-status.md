@@ -7,7 +7,9 @@ A7670E A011B05A7670M7_F із 0.9.0. У 0.9.1 виправлено порядок
 підтверджено PPP/DNS/UTC та authenticated MQTT із verified TLS/subscription.
 Після зміни підключень підтверджено `read/profile/config=1`, guards і всі
 READ=OK, fault=0, зупинений SU600, `armed=0`. Початковий переплутаний GPIO
-оператор лише припустив. Backend/сайт, керування та recovery ще відкриті.
+оператор лише припустив. `check-v4.ps1` пройшов на фізичному стенді:
+нові cellular heartbeat/telemetry, точний message_id і свіжий read-only snapshot
+з чотирма показаннями знайдено в PostgreSQL. Сайт, керування та recovery ще відкриті.
 
 08.10.2026: [спільне оновлення поточного розділу](contextual-refresh-v1.md):
 ручні дії зібрані в «Налаштування відображення», приховані вкладки не
@@ -116,7 +118,7 @@ Firmware 0.8.1 виправляє відсутній `sent_at`, через як�
 | V3 читання | ESP32-S3 N16R8 → SU600 → Wi-Fi/TLS → API/UI підтверджено | Це конкретний SU600 profile, не всі SUSWE/RS485 моделі |
 | V3 керування | Частота 20→30 Гц, START/STOP, повторний пуск; оператор підтвердив обертання/зупинку | Не прийнято повний діапазон/навантаження/польові умови |
 | V3 зупинки | Gateway loss, Serial DISARM, знеструмлення ESP32; повернення без самозапуску в описаних циклах | Wi-Fi radio loss, RS485 fault matrix і точні затримки окремо не виміряні |
-| V4 | Оператор підтвердив LTE HTTP; на A7670E A011B05A7670M7_F / 0.9.1 — AT/PPP/IP/DNS/UTC, authenticated MQTT із verified TLS/subscription, потім конфігурацію і READ=OK SU600 після зміни підключень | [Backend/сайт, керування й recovery приймання](v4-lte-bench.md) ще відкрите; V4 — стенд, V5 — майбутній виріб |
+| V4 | На A7670E A011B05A7670M7_F / 0.9.1 підтверджено AT/PPP/IP/DNS/UTC/TLS/MQTT, READ=OK SU600 та фізичний PASS read-only probe із новими cellular повідомленнями й snapshot у PostgreSQL | [Сайт, керування й recovery приймання](v4-lte-bench.md) ще відкрите; V4 — стенд, V5 — майбутній виріб |
 | Діагностика | Базове фізичне приймання 0.2.2 від 01.10: версія/uptime/RSSI, штатний STOP, F5, RESET/EN та короткий gateway reconnect; оператор підтвердив зупинку і відсутність самозапуску | Повна матриця причин STOP/reset і довгий soak окремо; LTE-адаптер 0.9.0 програмно додано; фізичне приймання відкрите |
 
 Докази: [читання](dossier-v3-su600-read-only-bench.md),
@@ -175,7 +177,7 @@ Firmware 0.8.1 виправляє відсутній `sent_at`, через як�
 | CODE-01 | Locks/Ruff/поступовий mypy та поділ adapters виконано; автоматичний аудит Python dependencies на відомі CVE ще не налаштовано | Додати перевірку Python advisories у CI; розширювати типізацію разом зі змінами модулів |
 | STAGE2-01 | Програмний цикл QR/B2B, Wi-Fi, credentials/configuration, заміни й передачі завершено | Залишилося фізичне наскрізне приймання ESP32/SU600 0.7.0 за [чеклістом](stage2-acceptance.md); автоматичні перевірки не підміняють його |
 | NEXT-01 | Плавні часові ramp-профілі/шаблони, service editor F-параметрів, синхронізація LOCAL/REMOTE switch ↔ сайт | Узгоджений protocol/config/RBAC/safety design; таймер і ступінчасті програми вже реалізовано |
-| V4-01 | PPP/DNS/UTC і verified TLS/MQTT підключення підтверджено; повний round trip ще не прийнято | Backend/сайт, читання SU600, ACK/Result, холодний старт і відновлення; [процедура](v4-lte-bench.md) |
+| V4-01 | Фізичний read-only шлях SU600 → LTE/TLS/MQTT → backend/PostgreSQL підтверджено `check-v4.ps1`; керування ще не прийнято | Сайт, START/STOP/частота/ACK/Result, холодний старт, втрати мережі й відновлення; [процедура](v4-lte-bench.md) |
 
 V3-01 не закрито успішним gateway-тестом: це різні сценарії.
 Не знижуємо захист UTC/TTL для маскування невстановленої причини Offline.
