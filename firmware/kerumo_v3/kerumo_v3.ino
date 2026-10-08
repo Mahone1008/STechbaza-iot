@@ -55,7 +55,7 @@ static_assert(!KERUMO_ENABLE_REMOTE_OPERATION ||
 
 using namespace kerumo;
 namespace {
-constexpr char FirmwareVersion[] = "0.9.0";
+constexpr char FirmwareVersion[] = "0.9.1";
 EquipmentBinding equipment{};
 bool managedEquipment = false;
 Provisioning provisioning;
@@ -226,6 +226,14 @@ void deviceTask(void *) {
           sample.vfd.state.raw, sample.vfd.ok[2] ? "OK" : "MISSING", sample.vfd.setHz,
           sample.vfd.ok[3] ? "OK" : "MISSING", sample.vfd.outputHz, sample.vfd.ok[4] ? "OK" : "MISSING",
           sample.vfd.currentA, sample.vfd.ok[5] ? "OK" : "MISSING", sample.vfd.voltageV);
+      if (!c.readOk) {
+        const auto &io = bus.diagnostics();
+        Serial.printf("RS485: UART1 TX=17 RX=18 9600/8N1 slave=1; requests=%lu valid=%lu "
+                      "no_reply=%lu invalid=%lu last_reg=0x%04X rx=%u\n",
+                      static_cast<unsigned long>(io.requests), static_cast<unsigned long>(io.valid),
+                      static_cast<unsigned long>(io.noReply), static_cast<unsigned long>(io.invalid),
+                      static_cast<unsigned>(io.lastRegister), static_cast<unsigned>(io.lastReceived));
+      }
     }
     if (action == 3 || static_cast<uint32_t>(now - lastReplay) >= 10000) {
       controller.replay();
@@ -416,11 +424,13 @@ void setup() {
       delay(1000);
   }
   sntp_set_time_sync_notification_cb(synchronized);
-  configTime(0, 0, "pool.ntp.org", "time.cloudflare.com");
+  // The clock lease is one hour; Arduino's three-hour default would expire it.
+  sntp_set_sync_interval(30 * 60 * 1000);
 #if KERUMO_USE_LTE
   WiFi.mode(WIFI_OFF);
   Serial.println("V4 LTE: UART2 TX=4 RX=5; PPP, ESP32 SNTP and verified TLS; Wi-Fi off");
 #else
+  configTime(0, 0, "pool.ntp.org", "time.cloudflare.com");
   if (!provisioning.enabled) {
     WiFi.mode(WIFI_STA);
     WiFi.setAutoReconnect(true);
@@ -509,12 +519,34 @@ void loop() {
     networkReady.store(false);
   const bool linkUp = cellularLink.tick(millis());
   static bool previouslyUp = false;
+  static bool clockWasValid = false;
+  static uint32_t clockRequestedAt = 0;
   if (linkUp && !previouslyUp) {
-    PPP.setDefault();
+    if (!PPP.setDefault()) {
+      networkReady.store(false);
+      mqtt.stop();
+      Serial.println("LTE: could not select PPP as the default route; retrying");
+      delay(1000);
+      return;
+    }
+    // Start fresh DNS/SNTP requests after PPP has an address and a route.
+    configTime(0, 0, "pool.ntp.org", "time.cloudflare.com");
+    clockRequestedAt = millis();
     Serial.printf("LTE: PPP address=%s; waiting for ESP32 UTC synchronization\n",
                   PPP.localIP().toString().c_str());
+    Serial.printf("LTE: DNS main=%s backup=%s\n", PPP.dnsIP().toString().c_str(),
+                  PPP.dnsIP(1).toString().c_str());
   }
   previouslyUp = linkUp;
+  const bool clockValid = deviceClock.utcMs() != 0;
+  if (linkUp && clockValid && !clockWasValid)
+    Serial.println("LTE: ESP32 UTC synchronized; connecting to MQTT with verified TLS");
+  if (linkUp && !clockValid && static_cast<uint32_t>(millis() - clockRequestedAt) >= 60000) {
+    Serial.println("LTE: UTC unavailable; retrying SNTP (check cellular DNS and UDP port 123)");
+    configTime(0, 0, "pool.ntp.org", "time.cloudflare.com");
+    clockRequestedAt = millis();
+  }
+  clockWasValid = linkUp && clockValid;
 #else
   const bool linkUp = WiFi.status() == WL_CONNECTED;
 #endif

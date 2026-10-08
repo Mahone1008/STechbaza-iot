@@ -26,6 +26,8 @@ jobs:
         run: |
           g++ -std=c++17 -Wall -Wextra -Werror -fsanitize=address,undefined firmware/tests/cellular_test.cpp -o /tmp/v4-cellular-test
           /tmp/v4-cellular-test
+          g++ -std=c++17 -Wall -Wextra -Werror -fsanitize=address,undefined -I firmware/tests/stubs firmware/tests/modbus_adapter_test.cpp firmware/kerumo_v3/src/core.cpp -o /tmp/v4-modbus-test
+          /tmp/v4-modbus-test
       - name: Compile read-only LTE firmware for the original USB-UART port
         run: |
           cp firmware/kerumo_v3/lte_config.example.h firmware/kerumo_v3/lte_config.local.h
