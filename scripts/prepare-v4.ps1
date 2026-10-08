@@ -31,8 +31,17 @@ if (!$BrokerPort) { $BrokerPort = [int](Read-Host 'External TCP tunnel port') }
 if ($BrokerPort -lt 1 -or $BrokerPort -gt 65535) { throw 'Expected a port from 1 to 65535.' }
 $local = Join-Path $repo '.local/v4'
 New-Item -ItemType Directory -Force -Path $local | Out-Null
-$compose = @('compose', '-p', 'techbaza-demo', '--env-file', '.env.demo', '-f', 'compose.demo.yml', '-f', 'compose.v4.yml')
+$compose = @('compose', '-p', 'techbaza-demo', '--env-file', '.env.demo', '-f', 'compose.demo.yml')
+foreach ($overlay in @('v3', 'controllers')) {
+    if (Test-Path ".env.$overlay") { $compose += @('--env-file', ".env.$overlay", '-f', "compose.$overlay.yml") }
+}
+if (Test-Path '.env.staff') { $compose += @('--env-file', '.env.staff', '-f', 'compose.staff.demo.yml') }
+$compose += @('-f', 'compose.v4.yml')
 Docker-Checked info --format '{{.OSType}}'
+# Never recreate a customer API as the combined demo if its private overlay was lost.
+$staffContainer = & docker ps -aq --filter 'label=com.docker.compose.project=techbaza-demo' --filter 'label=com.docker.compose.service=staff-backend'
+if ($LASTEXITCODE -ne 0) { throw 'Could not inspect the existing staff service.' }
+if ($staffContainer -and !(Test-Path '.env.staff')) { throw 'Existing staff service requires its retained .env.staff before preparing LTE.' }
 Docker-Checked @compose build backend v4-gateway
 $request = @{host=$BrokerHost; port=$BrokerPort; apn=$Apn; control_mode=$ControlMode; renew_endpoint=[bool]$RenewEndpoint} | ConvertTo-Json -Compress
 [IO.File]::WriteAllText((Join-Path $local 'setup.json'), $request, (New-Object Text.UTF8Encoding($false)))

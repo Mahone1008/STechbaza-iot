@@ -42,6 +42,9 @@ Kyivstar та HTTP 200/254 байти через USB і UART ESP32. Нове ф�
 зареєстрований стенд і Windows OpenSSH Client. Скрипт не запускає seed/reset,
 не стирає NVS, акаунти або історію. ReadOnly вимикає control/program/schedule
 capabilities тільки цього стенда. Змінена прив'язка не переноситься автоматично.
+Наявні `.env.v3`, `.env.controllers` та `.env.staff` автоматично підключаються:
+customer/staff API зберігають розділення. Якщо staff service уже існує, а його
+`.env.staff` втрачено, підготовка зупиняється до перебудови сервера.
 
 Після злиття зміни оновіть репозиторій. У першому PowerShell відкрийте tunnel:
 
