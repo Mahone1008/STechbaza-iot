@@ -59,6 +59,6 @@ if ($ControlMode -eq 'ReadOnly') {
 }
 # Recreate only this gateway so a renewed certificate is loaded.
 Docker-Checked @compose up -d --no-deps --force-recreate v4-gateway
-Write-Host "READY: local TLS gateway 127.0.0.1:8884; external endpoint ${BrokerHost}:$BrokerPort; $ControlMode." -ForegroundColor Green
+Write-Host "READY: local TLS gateway 127.0.0.1:8885; external endpoint ${BrokerHost}:$BrokerPort; $ControlMode." -ForegroundColor Green
 Write-Host 'Upload firmware/kerumo_v3/kerumo_v3.ino. UART2: TX4/RX5; SU600: TX17/RX18. Keep the terminal with the TCP tunnel running.'
 Write-Host 'Existing Wi-Fi config, NVS, accounts and telemetry history are retained. See docs/v4-lte-bench.md.'

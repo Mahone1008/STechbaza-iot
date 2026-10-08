@@ -49,10 +49,11 @@ customer/staff API зберігають розділення. Якщо staff ser
 Після злиття зміни оновіть репозиторій. У першому PowerShell відкрийте tunnel:
 
 ```powershell
-ssh -p 443 -o ExitOnForwardFailure=yes -o ServerAliveInterval=15 -R0:127.0.0.1:8884 tcp@free.pinggy.io
+ssh -p 443 -o ExitOnForwardFailure=yes -o ServerAliveInterval=15 -R0:127.0.0.1:8885 tcp@free.pinggy.io
 ```
 
-Це raw TCP tunnel до **127.0.0.1:8884**; TLS завершується на вашому gateway.
+Це raw TCP tunnel до **127.0.0.1:8885**; TLS завершується на вашому gateway.
+Порт 8885 відокремлено від наявного factory gateway 8884.
 Залиште термінал відкритим і збережіть адресу `tcp://hostname:port`.
 [Pinggy](https://pinggy.io/) обмежує free tunnel 60 хвилинами й змінює адресу
 після перепідключення; довгий прогін потребує стабільного endpoint.

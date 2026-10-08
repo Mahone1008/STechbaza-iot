@@ -1,4 +1,4 @@
-# LTE bench overlay for the existing PC demo. A TCP tunnel targets 127.0.0.1:8884.
+# LTE bench overlay for the existing PC demo. A TCP tunnel targets 127.0.0.1:8885.
 services:
   v4-gateway:
     image: kerumo-v4-gateway:local
@@ -6,7 +6,7 @@ services:
       context: ./infrastructure/v3
     restart: unless-stopped
     ports:
-      - "127.0.0.1:8884:8883"
+      - "127.0.0.1:8885:8883"
     volumes:
       - ./.local/v4:/work:ro
     command: ["mosquitto", "-c", "/work/mosquitto.conf"]
