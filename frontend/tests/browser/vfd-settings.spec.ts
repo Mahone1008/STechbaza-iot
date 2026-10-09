@@ -34,7 +34,7 @@ test("source confirmation sends one immutable CAS command and waits for actual t
   await page.goto(`/devices/${DEVICE_ID}`);
   const section = page.getByRole("region", { name: "Джерело керування" });
   await section.getByRole("button", { name: "Місцеве керування", exact: true }).click();
-  await expect(page.getByRole("dialog")).toContainText("кнопками панелі частотника");
+  await expect(page.getByRole("dialog")).toContainText("частота — її крутилкою");
   expect(
     (await new AxeBuilder({ page }).include("dialog[open]").withTags(["wcag2a", "wcag2aa"]).analyze()).violations,
   ).toEqual([]);
@@ -73,33 +73,50 @@ test("changed source during confirmation fails before POST; local mode blocks RU
   await page.goto(`/devices/${DEVICE_ID}`);
   await page.getByRole("button", { name: "Місцеве керування", exact: true }).click();
   data.diagnostics!.vfd_settings!.run_source = 0;
-  data.diagnostics!.vfd_settings!.frequency_source = 1;
+  data.diagnostics!.vfd_settings!.frequency_source = 0;
   await page.getByRole("dialog").getByRole("button", { name: "Підтвердити зміну", exact: true }).click();
   await expect(page.getByText("Стан змінився. Оновіть показання та підтвердьте нову дію.")).toBeVisible();
   expect(posts).toBe(0);
   await page.reload();
-  await expect(page.getByRole("region", { name: "Джерело керування" })).toContainText("Місцеве · панель частотника");
+  await expect(page.getByRole("region", { name: "Джерело керування" })).toContainText("Місцеве · крутилка панелі");
   await expect(page.getByRole("button", { name: "Запустити", exact: true })).toBeDisabled();
 });
 
-test("uncertain POST is checked by request ID without repeating the write", async ({ page }) => {
+test("uncertain POST automatically recovers after a missing receipt without repeating the write", async ({ page }) => {
   await mockAuthenticatedWorkspace(page);
   const data = settingsOverview();
   let posts = 0;
   let reads = 0;
+  let input: CommandInput | null = null;
   await page.route(`${url}/overview`, async (route) => {
     if (!(await fulfillPreflight(route))) await fulfillJson(route, 200, data);
   });
   await page.route(`${url}/commands`, async (route) => {
     if (!(await fulfillPreflight(route))) {
       posts++;
+      input = route.request().postDataJSON();
       await route.abort();
     }
   });
   await page.route(`${url}/commands/by-request/*`, async (route) => {
     if (!(await fulfillPreflight(route))) {
       reads++;
-      await fulfillJson(route, 404, { detail: "Команду не знайдено" });
+      if (reads === 1 || !input) {
+        await fulfillJson(route, 404, { detail: "Команду не знайдено" });
+        return;
+      }
+      if (reads === 2) {
+        await fulfillJson(route, 200, commandFixture({ ...input, status: "result_unknown" }));
+        return;
+      }
+      data.diagnostics!.vfd_settings!.run_source = 0;
+      data.diagnostics!.vfd_settings!.frequency_source = 0;
+      data.diagnostics!.vfd_settings!.command_sequence = 1;
+      await fulfillJson(
+        route,
+        200,
+        commandFixture({ ...input, status: "succeeded", completed_at: new Date().toISOString() }),
+      );
     }
   });
   await page.goto(`/devices/${DEVICE_ID}`);
@@ -107,9 +124,35 @@ test("uncertain POST is checked by request ID without repeating the write", asyn
   await page.getByRole("dialog").getByRole("button", { name: "Підтвердити зміну", exact: true }).click();
   await expect(page.getByText("Доставку не підтверджено.", { exact: false })).toBeVisible();
   await expect.poll(() => reads).toBeGreaterThan(0);
-  await page.getByRole("button", { name: "Перевірити результат", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Перевірити результат", exact: true })).toHaveCount(0);
+  const section = page.getByRole("region", { name: "Джерело керування" });
+  await expect(section).toContainText("Результат невідомий", { timeout: 15000 });
+  await expect(section).toContainText("Контролер повідомив про виконання", { timeout: 15000 });
+  await expect(section).toContainText("Місцеве · крутилка панелі");
+  await expect(section.getByRole("button", { name: "Місцеве керування", exact: true })).toBeDisabled();
   expect(posts).toBe(1);
 });
+
+for (const source of [0, 1])
+  test(`local source ${source} keeps telemetry and offers the correct target`, async ({ page }) => {
+    await mockAuthenticatedWorkspace(page);
+    const data = settingsOverview();
+    data.diagnostics!.vfd_settings!.run_source = 0;
+    data.diagnostics!.vfd_settings!.frequency_source = source;
+    await page.route(`${url}/overview`, async (route) => {
+      if (!(await fulfillPreflight(route))) await fulfillJson(route, 200, data);
+    });
+    await page.goto(`/devices/${DEVICE_ID}`);
+    const section = page.getByRole("region", { name: "Джерело керування" });
+    await expect(section).toContainText(source === 0 ? "Місцеве · крутилка панелі" : "Місцеве · кнопки панелі");
+    if (source === 0)
+      await expect(section.getByRole("button", { name: "Місцеве керування", exact: true })).toBeDisabled();
+    else await expect(section.getByRole("button", { name: "Місцеве керування", exact: true })).toBeEnabled();
+    await expect(section.getByRole("button", { name: "Дистанційне керування", exact: true })).toBeEnabled();
+    await expect(page.getByRole("button", { name: "Запустити", exact: true })).toBeDisabled();
+    await expect(page.getByRole("tab", { name: "Графіки", exact: true })).toBeEnabled();
+    await expect(page.getByRole("tab", { name: "Журнал", exact: true })).toBeEnabled();
+  });
 
 test("viewer never offers source writes; customers have no F editor", async ({ page }) => {
   await mockAuthenticatedWorkspace(page, { role: "viewer", permissions: viewerPermissions });

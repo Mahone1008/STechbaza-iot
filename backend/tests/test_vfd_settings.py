@@ -90,6 +90,20 @@ class VfdSettingsTests(unittest.TestCase):
         self.assertEqual(self.rejection(), "vfd_settings_unavailable")
         self.assertEqual(self.rejection("vfd.start", {}), "vfd_local_control")
 
+    def test_local_knob_and_legacy_keys_keep_readback_but_block_remote_motion(self):
+        for frequency_source in (0, 1):
+            with self.subTest(frequency_source=frequency_source):
+                self.snapshot.diagnostics["vfd_settings"].update(run_source=0, frequency_source=frequency_source)
+                for kind in ("vfd.start", "vfd.frequency.set", "vfd.program.start", "vfd.schedule.start"):
+                    self.assertEqual(self.rejection(kind, {}), "vfd_local_control")
+                self.assertIsNone(self.rejection("vfd.stop", {}))
+                self.assertIsNone(self.rejection("vfd.source.set", {
+                    "source": "remote", "expected_run_source": 0, "expected_frequency_source": frequency_source,
+                }))
+                self.assertIsNone(self.rejection("vfd.parameter.set", {
+                    "code": "F0.10", "expected_raw": 75, "value_raw": 100,
+                }))
+
     def test_final_result_still_waits_for_post_operation_telemetry(self):
         latest = SimpleNamespace(id=uuid.uuid4(), control_sequence=11, created_at=self.now)
         self.session.scalars.return_value.first.return_value = latest

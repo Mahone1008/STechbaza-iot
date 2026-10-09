@@ -29,7 +29,8 @@ export function parseVfdSettings(raw: unknown): VfdSettings | null {
 export function sourceLabel(settings: VfdSettings | null | undefined): string {
   if (!settings || settings.run_source === null || settings.frequency_source === null) return "Не підтверджено";
   if (settings.run_source === 2 && settings.frequency_source === 6) return "Дистанційне";
-  if (settings.run_source === 0 && [0, 1].includes(settings.frequency_source)) return "Місцеве · панель частотника";
+  if (settings.run_source === 0 && settings.frequency_source === 0) return "Місцеве · крутилка панелі";
+  if (settings.run_source === 0 && settings.frequency_source === 1) return "Місцеве · кнопки панелі";
   if (settings.run_source === 1) return "Місцеве · клеми установки";
   return "Джерела запуску та частоти відрізняються";
 }

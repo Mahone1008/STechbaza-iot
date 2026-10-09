@@ -21,7 +21,8 @@ struct TestClock : Clock {
 };
 struct TestBus : Bus {
   TestClock& clock; unsigned readDelay=0; bool readable=true,apply=true,echo=true,stopWorks=true,followTarget=true;
-  uint16_t ignoredAddress=0xFFFF; bool dropLinkAfterWrite=false,localSetpoint=false,crashAfterWrite=false;
+  uint16_t ignoredAddress=0xFFFF,dropLinkAddress=0xFFFF,crashAddress=0xFFFF;
+  bool dropLinkAfterWrite=false,localSetpoint=false,crashAfterWrite=false,settingEcho=true;
   std::map<uint16_t,uint16_t> registers{{2,2},{3,6},{4,500},{5,500},{6,0},{0x600,1},{0x601,0},
     {0x602,0},{0x603,5},{0x604,100},{0x605,0},{0x2100,0},{0x2101,2},{0x2102,1000},{0x2103,0},{0x2104,0},{0x2106,0}};
   std::vector<std::pair<uint16_t,uint16_t>> writes;
@@ -39,9 +40,9 @@ struct TestBus : Bus {
       if (address<0x1000) registers[address]=value;
       if (address==0x2001) { registers[0x2102]=value/2; if(followTarget && runningForward(registers[0x2101])) registers[0x2103]=value/2; }
     }
-    if (dropLinkAfterWrite) clock.linkValid=false;
-    if (crashAfterWrite) throw 1; // Model a power cut after physical I/O, before returning to core.
-    return echo;
+    if (dropLinkAfterWrite || address==dropLinkAddress) clock.linkValid=false;
+    if (crashAfterWrite || address==crashAddress) throw 1; // Power cut after I/O, before returning to core.
+    return echo && (address>=0x1000 || settingEcho);
   }
 };
 struct TestStorage : Storage {

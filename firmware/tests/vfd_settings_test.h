@@ -24,27 +24,30 @@ void vfdSettingsTests() {
     f.controller.tick(true, true);
     auto local = f.command(1, Type::Source);
     local.setting.expectedRun=2; local.setting.expectedFrequency=6;
-    f.bus.echo=false; // Source changes are confirmed by independent reads.
+    f.bus.settingEcho=false; // Source changes are confirmed by independent reads after echoed STOP/zero.
     f.receive(local);
     assert(f.events.records.back().outcome == Outcome::Succeeded);
-    assert(f.bus.registers[2] == 0 && f.bus.registers[3] == 1);
+    assert(f.bus.registers[2] == 0 && f.bus.registers[3] == 0);
     assert(!f.controller.isArmed() && !f.controller.journal().motionPossible);
-    assert(f.bus.writes.size() == 2 && f.bus.writes[0].first == 3 && f.bus.writes[1].first == 2);
+    assert(f.bus.writes.size() == 4);
+    assert(f.bus.writes[0].first==0x2000 && f.bus.writes[0].second==1);
+    assert(f.bus.writes[1].first==0x2001 && f.bus.writes[1].second==0);
+    assert(f.bus.writes[2].first==3 && f.bus.writes[2].second==0 && f.bus.writes[3].first==2);
     f.clock.ms += 3001;
     f.controller.tick(true, true);
     assert(!f.controller.isArmed() && f.controller.sample().settingsReady);
     const auto writes = f.bus.writes.size();
     f.receive(local); assert(f.bus.writes.size() == writes); // Durable duplicate never writes.
     auto remote = f.command(2, Type::Source);
-    remote.setting.remote=true; remote.setting.expectedRun=0; remote.setting.expectedFrequency=1;
-    f.bus.echo=true; f.bus.localSetpoint=true; // Panel setpoint remains nonzero until F0.03 switches.
+    remote.setting.remote=true; remote.setting.expectedRun=0; remote.setting.expectedFrequency=0;
+    f.bus.echo=true; f.bus.localSetpoint=true; // Knob stays turned up until F0.03 switches away from it.
     f.receive(remote);
     assert(f.events.records.back().outcome == Outcome::Succeeded);
     assert(f.bus.registers[2] == 2 && f.bus.registers[3] == 6 && f.bus.registers[0x2102] == 0);
     assert(!f.controller.isArmed() && !f.controller.journal().motionPossible);
     for (const auto& write : f.bus.writes) assert(write.first != 0x2000 || write.second == 1); // Never RUN.
-    assert(f.bus.writes[2].first==0x2000 && f.bus.writes[3].first==0x2001);
-    assert(f.bus.writes[4].first==3 && f.bus.writes[5].first==2);
+    assert(f.bus.writes[4].first==0x2000 && f.bus.writes[5].first==0x2001);
+    assert(f.bus.writes[6].first==3 && f.bus.writes[7].first==2);
     auto oldStart = f.command(3);
     f.clock.ms += 3001; f.controller.tick(true, true);
     assert(f.controller.isArmed());
@@ -93,17 +96,17 @@ void vfdSettingsTests() {
   for (bool lostLink : {false,true}) {
     Fixture f; remoteProfile(f); f.controller.tick(true,true);
     auto c=f.command(1,Type::Source); c.setting.expectedRun=2; c.setting.expectedFrequency=6;
-    if (lostLink) f.bus.dropLinkAfterWrite=true;
+    if (lostLink) f.bus.dropLinkAddress=3;
     else f.bus.ignoredAddress=2;
     f.receive(c);
     assert(f.events.records.back().outcome==Outcome::Failed);
     assert(f.events.records.back().error==Error::Unconfirmed);
-    assert(f.bus.registers[3]==1 && f.bus.registers[2]==2);
+    assert(f.bus.registers[3]==0 && f.bus.registers[2]==2);
     assert(!f.controller.isArmed() && !f.controller.journal().motionPossible);
     const size_t writes=f.bus.writes.size(); f.receive(c); assert(f.bus.writes.size()==writes);
     assert(f.events.records.back().settingResult.sourceKnown);
-    assert(f.events.records.back().settingResult.runSource==2 && f.events.records.back().settingResult.frequencySource==1);
-    assert(f.bus.writes.size()==(lostLink?1:2));
+    assert(f.events.records.back().settingResult.runSource==2 && f.events.records.back().settingResult.frequencySource==0);
+    assert(f.bus.writes.size()==(lostLink?3:4));
   }
   {
     Fixture f; remoteProfile(f); f.bus.registers[2]=0; f.bus.registers[3]=1;
@@ -115,12 +118,12 @@ void vfdSettingsTests() {
     assert(f.events.records.back().outcome==Outcome::Failed); // Lost preparation echo cannot enable remote RUN.
   }
   {
-    Fixture f; remoteProfile(f); f.controller.tick(true,true); f.bus.crashAfterWrite=true;
+    Fixture f; remoteProfile(f); f.controller.tick(true,true); f.bus.crashAddress=3;
     auto c=f.command(1,Type::Source); c.setting.expectedRun=2; c.setting.expectedFrequency=6;
     try { f.receive(c); assert(false); } catch (int) {}
     assert(f.storage.saved.records[0].settingResult.attempted);
-    assert(f.bus.registers[3]==1 && f.bus.registers[2]==2);
-    f.bus.crashAfterWrite=false;
+    assert(f.bus.registers[3]==0 && f.bus.registers[2]==2);
+    f.bus.crashAddress=0xFFFF;
     Controller reboot(f.driver,f.storage,f.clock,f.events,true); assert(reboot.begin("test-device"));
     const size_t writes=f.bus.writes.size(); reboot.tick(true,true);
     assert(f.bus.writes.size()==writes && reboot.journal().records[0].outcome==Outcome::Unknown);
@@ -162,5 +165,38 @@ void vfdSettingsTests() {
     reboot.tick(true,true); assert(f.bus.writes.empty());
     assert(reboot.journal().records[0].outcome==Outcome::Unknown);
   }
-  puts("PASS: source/parameter CAS, readback, lost echo, stopped/permission/expiry guards, no RUN, duplicate and NVS upgrades");
+  for (uint16_t localSource : {0, 1}) {
+    Fixture f; remoteProfile(f); f.bus.registers[2]=0; f.bus.registers[3]=localSource;
+    f.bus.localSetpoint=true;
+    f.controller.tick(true,true);
+    auto remote=f.command(1,Type::Source); remote.setting.remote=true;
+    remote.setting.expectedRun=0; remote.setting.expectedFrequency=localSource;
+    f.receive(remote);
+    assert(f.events.records.back().outcome==Outcome::Succeeded);
+    assert(f.bus.registers[2]==2 && f.bus.registers[3]==6 && f.bus.registers[0x2102]==0);
+    assert(!f.controller.isArmed() && !f.controller.journal().motionPossible);
+    for (const auto& write : f.bus.writes) assert(write.first!=0x2000 || write.second==1);
+  }
+  {
+    Fixture f; remoteProfile(f); f.controller.tick(true,true); f.bus.echo=false;
+    auto local=f.command(1,Type::Source); local.setting.expectedRun=2; local.setting.expectedFrequency=6;
+    f.receive(local);
+    assert(f.events.records.back().outcome==Outcome::Failed);
+    assert(f.bus.writes.size()==1 && f.bus.writes[0].first==0x2000);
+    assert(f.bus.registers[2]==2 && f.bus.registers[3]==6); // Never expose the knob with an uncleared RUN word.
+  }
+  {
+    Fixture f; remoteProfile(f); f.bus.registers[2]=0; f.bus.registers[3]=0;
+    f.bus.registers[0x000A]=75; f.bus.registers[0x000B]=75;
+    f.controller.tick(true,true);
+    assert(f.controller.sample().settingsReady && f.controller.sample().bindingCompatible);
+    for (bool ok : f.controller.sample().vfd.ok) assert(ok); // Telemetry remains available with the knob.
+    auto parameter=f.command(1,Type::Parameter); std::strcpy(parameter.setting.code,"F0.10");
+    parameter.setting.expected=75; parameter.setting.value=100;
+    f.receive(parameter);
+    assert(f.events.records.back().outcome==Outcome::Succeeded);
+    assert(f.bus.registers[2]==0 && f.bus.registers[3]==0);
+    assert(f.bus.writes.size()==1 && f.bus.writes[0].first==0x000A);
+  }
+  puts("PASS: knob/keypad sources, CAS, readback, lost echo, stopped/permission/expiry guards, no RUN, duplicate and NVS upgrades");
 }

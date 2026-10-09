@@ -15,7 +15,12 @@ describe("model-specific VFD settings", () => {
   it("keeps absence compatible and never guesses a source", () => {
     expect(parseVfdSettings(null)).toBeNull();
     expect(sourceLabel(parseVfdSettings(fixture))).toBe("Дистанційне");
-    expect(sourceLabel(parseVfdSettings({ ...fixture, run_source: 0, frequency_source: 1 }))).toContain("Місцеве");
+    expect(sourceLabel(parseVfdSettings({ ...fixture, run_source: 0, frequency_source: 0 }))).toBe(
+      "Місцеве · крутилка панелі",
+    );
+    expect(sourceLabel(parseVfdSettings({ ...fixture, run_source: 0, frequency_source: 1 }))).toBe(
+      "Місцеве · кнопки панелі",
+    );
     expect(sourceLabel(parseVfdSettings({ ...fixture, run_source: null }))).toBe("Не підтверджено");
     expect(sourceLabel(parseVfdSettings({ ...fixture, run_source: 2, frequency_source: 1 }))).toContain(
       "відрізняються",

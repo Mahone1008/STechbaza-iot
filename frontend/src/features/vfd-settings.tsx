@@ -8,7 +8,7 @@ import { usePanelQuery } from "./use-panel-query";
 import { useElapsedSeconds } from "./use-elapsed-seconds";
 import type { ReadyAccessSnapshot } from "./access-context";
 import { apiErrorDisplayMessage, isApiError } from "@/lib/api";
-import { commandPending, parseCommandReceipt, statusLabels, type CommandInput } from "@/lib/api/commands";
+import { commandPending, parseCommandReceipt, statusLabels, type Command, type CommandInput } from "@/lib/api/commands";
 import { effectiveQuality, parseOverview, type Overview } from "@/lib/api/overview";
 import { sameEquipmentTarget } from "@/lib/api/equipment";
 import { parameterWord, sourceLabel } from "@/lib/api/vfd-settings";
@@ -37,24 +37,33 @@ function useSettingsChange(props: Props) {
   const [sending, setSending] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const running = useRef(false);
+  const notifiedCommand = useRef<string | null>(null);
   const abort = useRef<AbortController | null>(null);
   const device = context.activeDevice!;
-  const query = usePanelQuery({
+  const query = usePanelQuery<Command | null>({
     queryKey: ["vfd-setting-command", context.scope, device.id, intent?.request_id],
     enabled: !!intent && context.access.permissions.includes("command.read"),
     intervalMs: 5000,
-    pollWhile: commandPending,
-    queryFn: async (signal) =>
-      parseCommandReceipt(
-        await authorizedRequest({
-          path: `/api/v1/devices/${device.id}/commands/by-request/${intent!.request_id}`,
-          signal,
-        }),
-        device.id,
-        context.activeOrganization.id,
-        context.scope.userId,
-        intent!,
-      ),
+    pollWhile: (command) => command === null || commandPending(command) || command.status === "result_unknown",
+    queryFn: async (signal) => {
+      try {
+        return parseCommandReceipt(
+          await authorizedRequest({
+            path: `/api/v1/devices/${device.id}/commands/by-request/${intent!.request_id}`,
+            signal,
+          }),
+          device.id,
+          context.activeOrganization.id,
+          context.scope.userId,
+          intent!,
+        );
+      } catch (error) {
+        // The receipt may not exist yet while an uncertain POST is still completing.
+        // Continue GET polling; never replay the mutation to recover its response.
+        if (isApiError(error) && error.kind === "not-found") return null;
+        throw error;
+      }
+    },
   });
   const settled = !!query.data && !commandPending(query.data);
   const canAct =
@@ -66,15 +75,23 @@ function useSettingsChange(props: Props) {
     !!overview.diagnostics?.vfd_settings?.ready &&
     context.access.permissions.includes("command.execute");
   const refresh = useRef(onRefresh);
+  const created = useRef(onCreated);
   useEffect(() => {
     refresh.current = onRefresh;
-  }, [onRefresh]);
+    created.current = onCreated;
+  }, [onRefresh, onCreated]);
+  useEffect(() => {
+    if (query.data && notifiedCommand.current !== query.data.id) {
+      notifiedCommand.current = query.data.id;
+      created.current(query.data.id);
+    }
+  }, [query.data]);
   useEffect(() => {
     onBusy?.(sending || (!!intent && !settled));
   }, [sending, intent, settled, onBusy]);
   useEffect(() => {
     if (settled) refresh.current?.();
-  }, [settled]);
+  }, [settled, query.data?.status]);
   useEffect(() => () => abort.current?.abort(), []);
   const busy = sending || (!!intent && !settled);
   const open = (
@@ -143,7 +160,10 @@ function useSettingsChange(props: Props) {
         context.scope.userId,
         input,
       );
-      onCreated(command.id);
+      if (notifiedCommand.current !== command.id) {
+        notifiedCommand.current = command.id;
+        onCreated(command.id);
+      }
       setNotice("Команду прийнято. Очікуємо перевірку налаштувань контролером.");
       query.refresh();
     } catch (error) {
@@ -153,9 +173,7 @@ function useSettingsChange(props: Props) {
         setIntent(null);
         setNotice(error instanceof Error ? error.message : apiErrorDisplayMessage(error));
       } else
-        setNotice(
-          "Доставку не підтверджено. Перевірте результат і свіжі показання перед новою зміною. Повторний запис не надсилається.",
-        );
+        setNotice("Доставку не підтверджено. Автоматично перевіряємо статус команди. Повторний запис не надсилається.");
     } finally {
       running.current = false;
       setSending(false);
@@ -165,11 +183,6 @@ function useSettingsChange(props: Props) {
     <>
       {notice && !settled && <p role="status">{notice}</p>}
       {query.data && <p role="status">{statusLabels[query.data.status]}</p>}
-      {intent && (
-        <Button size="small" disabled={query.isFetching || !query.active} onClick={query.refresh}>
-          Перевірити результат
-        </Button>
-      )}
       {query.isError && <p role="alert">{apiErrorDisplayMessage(query.error)}</p>}
       <ConfirmDialog
         open={!!dialog}
@@ -219,7 +232,7 @@ export function VfdSourceControl(props: Props) {
                 change.busy ||
                 (source === "remote"
                   ? settings.run_source === 2 && settings.frequency_source === 6
-                  : settings.run_source === 0 && settings.frequency_source === 1)
+                  : settings.run_source === 0 && settings.frequency_source === 0)
               }
               onClick={() =>
                 change.open(
@@ -231,7 +244,7 @@ export function VfdSourceControl(props: Props) {
                   false,
                   source === "local" ? "Увімкнути місцеве керування" : "Увімкнути дистанційне керування",
                   source === "local"
-                    ? "Запуск та частота задаватимуться кнопками панелі частотника."
+                    ? "Запуск і зупинка — кнопками панелі частотника, частота — її крутилкою."
                     : "Запуск та частота задаватимуться із сайту. Задана дистанційна частота спочатку стане 0 Гц.",
                 )
               }

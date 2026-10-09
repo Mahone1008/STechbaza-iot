@@ -55,7 +55,7 @@ static_assert(!KERUMO_ENABLE_REMOTE_OPERATION ||
 
 using namespace kerumo;
 namespace {
-constexpr char FirmwareVersion[] = "0.10.0";
+constexpr char FirmwareVersion[] = "0.10.1";
 EquipmentBinding equipment{};
 bool managedEquipment = false;
 Provisioning provisioning;

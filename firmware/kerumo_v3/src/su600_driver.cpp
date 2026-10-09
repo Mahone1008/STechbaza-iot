@@ -118,6 +118,6 @@ bool Su600Driver::writeSetting(const char* code, uint16_t value) {
   return false;
 }
 bool Su600Driver::writeSourcePart(bool run, bool remote) {
-  return settingsReady() && bus_.write(run ? 0x0002 : 0x0003, run ? (remote ? 2 : 0) : (remote ? 6 : 1));
+  return settingsReady() && bus_.write(run ? 0x0002 : 0x0003, run ? (remote ? 2 : 0) : (remote ? 6 : 0));
 }
 } // namespace kerumo

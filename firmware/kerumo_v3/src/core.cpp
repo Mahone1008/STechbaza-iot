@@ -788,17 +788,16 @@ void Controller::executeSetting(Record& record) {
     verified = result.actualKnown && result.actual == c.setting.value;
   } else {
     const uint16_t targetRun = c.setting.remote ? 2 : 0;
-    const uint16_t targetFrequency = c.setting.remote ? 6 : 1;
-    // A local stop does not prove the old communication RUN word is cleared.
-    // Require STOP/zero echoes before changing sources. The active setpoint is
-    // only meaningful for that zero after frequency source becomes communication.
-    if (c.setting.remote) {
-      if (!permitted()) { finish(record, Outcome::Failed, Error::Expired); return; }
-      if (!beforeWrite()) return;
-      verified = driver_.stop();
-      if (verified && permitted()) verified = driver_.clearRemoteFrequency();
-      else verified = false;
-    }
+    const uint16_t targetFrequency = c.setting.remote ? 6 : 0;
+    // A stopped sample does not prove the old communication RUN word is cleared.
+    // Clear it before either transition: the panel knob may already be turned up
+    // while RUN still comes from communication during the first source write.
+    // The active setpoint is only zero once frequency becomes communication.
+    if (!permitted()) { finish(record, Outcome::Failed, Error::Expired); return; }
+    if (!beforeWrite()) return;
+    verified = driver_.stop();
+    if (verified && permitted()) verified = driver_.clearRemoteFrequency();
+    else verified = false;
     for (unsigned part = 0; part < 2 && verified; ++part) {
       const bool run = part == 1; // RUN source changes only after frequency is prepared.
       driver_.refreshConfig();
