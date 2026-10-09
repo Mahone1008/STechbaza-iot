@@ -36,7 +36,7 @@ const char *errorCode(Error error) {
                                 "restart_during_execution",
                                 "program_cancelled",
                                 "program_transition_timeout",
-                                "program_invalid"};
+                                "program_invalid", "setting_changed", "setting_invalid"};
   return codes[static_cast<unsigned>(error)];
 }
 uint32_t checksum(const Journal &value) {
@@ -73,7 +73,10 @@ bool sameCommand(const Command &a, const Command &b) {
   return std::strcmp(a.id, b.id) == 0 && std::strcmp(a.requestId, b.requestId) == 0 &&
          a.sequence == b.sequence && a.issuedMs == b.issuedMs && a.expiresMs == b.expiresMs &&
          a.ttl == b.ttl && a.type == b.type && a.hz == b.hz && a.scheduledStartMs == b.scheduledStartMs &&
-         a.scheduledStopMs == b.scheduledStopMs;
+         a.scheduledStopMs == b.scheduledStopMs && std::strcmp(a.setting.code, b.setting.code) == 0 &&
+         a.setting.expected == b.setting.expected && a.setting.value == b.setting.value &&
+         a.setting.expectedRun == b.setting.expectedRun && a.setting.expectedFrequency == b.setting.expectedFrequency &&
+         a.setting.remote == b.setting.remote;
 }
 // Strict UTC RFC3339, accepting Z / +00:00 and up to six fractional digits.
 bool parseUtcMs(const char *s, int64_t &result) {
@@ -170,7 +173,7 @@ bool Controller::begin(const char *uid) {
     std::strncpy(journal_.uid, uid, 96);
     if (!save())
       return false;
-  } else if (journal_.magic != 0x4B563303 || journal_.checksum != checksum(journal_) ||
+  } else if (journal_.magic != 0x4B563305 || journal_.checksum != checksum(journal_) ||
              journal_.next >= LedgerSize || std::strncmp(journal_.uid, uid, sizeof(journal_.uid)) != 0 ||
              journal_.highest > MaxSequence) {
     clearJournal(journal_);
@@ -196,6 +199,10 @@ bool Controller::begin(const char *uid) {
       } else {
         record.outcome = Outcome::Unknown;
         record.error = Error::Restarted;
+        if (settingsType(record.command.type)) {
+          record.settingResult.actualKnown = false;
+          record.settingResult.sourceKnown = false;
+        }
       }
     }
   if (!save())
@@ -335,7 +342,7 @@ void Controller::receive(const Command &c, const char *session, const char *ackI
     incoming.outcome = Outcome::Failed;
     incoming.error = Error::ReadOnly;
     incoming.completedMs = now;
-  } else if (c.type != Type::Stop &&
+  } else if (!settingsType(c.type) && c.type != Type::Stop &&
              (!armed_ || (remotePermissionUtcMs_ && c.issuedMs < remotePermissionUtcMs_))) {
     incoming.outcome = Outcome::Failed;
     incoming.error = Error::NotArmed;
@@ -355,6 +362,10 @@ void Controller::receive(const Command &c, const char *session, const char *ackI
   events_.emit(record);
   if (record.outcome != Outcome::Pending)
     return;
+  if (settingsType(c.type)) {
+    executeSetting(record);
+    return;
+  }
   driver_.refreshConfig();
   lastConfigRead_ = clock_.monotonicMs();
   if (!(c.type == Type::Stop ? driver_.profileOk() : sessionConfigOk())) {
@@ -614,6 +625,8 @@ void Controller::tickProgram() {
   }
 }
 void Controller::tick(bool networkConnected, bool remoteOperation) {
+  networkConnected_ = networkConnected;
+  remoteOperation_ = remoteOperation;
   const uint32_t now = clock_.monotonicMs();
   if (!networkConnected && (armed_ || journal_.motionPossible))
     disarm(StopReason::Network);
@@ -712,7 +725,114 @@ Sample Controller::sample() {
   sample.program = program_;
   sample.program.ready = controls_ && storageOk_ && armed_ && mode_ == SessionMode::ExtendedTest;
   sample.programReason = programReason_;
+  sample.settings = driver_.settings();
+  sample.bindingCompatible = sample.configOk || driver_.settingsReady();
+  sample.settingsReady = controls_ && storageOk_ && networkConnected_ && clock_.utcMs() &&
+      remoteOperation_ && clock_.controlLinkValid() && !remoteInhibited_ && driver_.settingsReady() &&
+      !journal_.motionPossible && !stopping_ && pending_ < 0 && programSlot_ < 0 &&
+      sample.vfd.ok[0] && sample.vfd.fault == 0 && sample.vfd.ok[1] && sample.vfd.ok[3] &&
+      confirmedStopped(sample.vfd.state, sample.vfd.outputHz);
   return sample;
+}
+bool Controller::settingsStopped() {
+  DriveState state{};
+  double output{};
+  uint16_t fault{};
+  return controls_ && storageOk_ && networkConnected_ && clock_.utcMs() &&
+      remoteOperation_ && clock_.controlLinkValid() && !remoteInhibited_ && !journal_.motionPossible &&
+      !stopping_ && programSlot_ < 0 && driver_.settingsReady() &&
+      driver_.readState(state) && driver_.readOutputHz(output) && driver_.readFault(fault) &&
+      fault == 0 && confirmedStopped(state, output);
+}
+void Controller::executeSetting(Record& record) {
+  const auto& c = record.command;
+  auto& result = record.settingResult;
+  driver_.refreshConfig();
+  lastConfigRead_ = clock_.monotonicMs();
+  if (!settingsStopped()) { finish(record, Outcome::Failed, Error::Busy); return; }
+  const auto before = driver_.settings();
+  result.sourceKnown = before.readOk;
+  result.runSource = before.runSource;
+  result.frequencySource = before.frequencySource;
+  if (c.type == Type::Source) {
+    if (before.runSource != c.setting.expectedRun || before.frequencySource != c.setting.expectedFrequency) {
+      finish(record, Outcome::Failed, Error::SettingChanged); return;
+    }
+    if (!driver_.sourceAllowed(c.setting.remote)) { finish(record, Outcome::Failed, Error::Config); return; }
+  } else {
+    result.beforeKnown = driver_.readSetting(c.setting.code, result.before);
+    if (!result.beforeKnown || c.setting.value < 1 || c.setting.value > 9999) {
+      finish(record, Outcome::Failed, Error::SettingInvalid); return;
+    }
+    if (result.before != c.setting.expected) { finish(record, Outcome::Failed, Error::SettingChanged); return; }
+  }
+  // Persist the intent and snapshot before any drive write. Pending settings are
+  // never replayed after boot, including a power loss between the two sources.
+  if (!save()) return;
+  auto beforeWrite = [&]() {
+    if (result.attempted) return true;
+    result.attempted = true;
+    return save(); // Persist possible I/O before it; a reboot cannot claim no write.
+  };
+  auto permitted = [&]() {
+    return settingsStopped() && clock_.utcMs() && clock_.utcMs() < c.expiresMs;
+  };
+  bool verified = true;
+  if (c.type == Type::Parameter) {
+    if (!permitted()) { finish(record, Outcome::Failed, Error::Expired); return; }
+    if (result.before != c.setting.value) {
+      if (!beforeWrite()) return;
+      driver_.writeSetting(c.setting.code, c.setting.value); // One write, even if FC06 echo is lost.
+    }
+    result.actualKnown = driver_.readSetting(c.setting.code, result.actual);
+    verified = result.actualKnown && result.actual == c.setting.value;
+  } else {
+    const uint16_t targetRun = c.setting.remote ? 2 : 0;
+    const uint16_t targetFrequency = c.setting.remote ? 6 : 1;
+    // A local stop does not prove the old communication RUN word is cleared.
+    // Require STOP/zero echoes before changing sources. The active setpoint is
+    // only meaningful for that zero after frequency source becomes communication.
+    if (c.setting.remote) {
+      if (!permitted()) { finish(record, Outcome::Failed, Error::Expired); return; }
+      if (!beforeWrite()) return;
+      verified = driver_.stop();
+      if (verified && permitted()) verified = driver_.clearRemoteFrequency();
+      else verified = false;
+    }
+    for (unsigned part = 0; part < 2 && verified; ++part) {
+      const bool run = part == 1; // RUN source changes only after frequency is prepared.
+      driver_.refreshConfig();
+      const auto current = driver_.settings();
+      if (!current.readOk || !permitted()) { verified = false; break; }
+      const uint16_t target = run ? targetRun : targetFrequency;
+      if ((run ? current.runSource : current.frequencySource) != target) {
+        if (!beforeWrite()) return;
+        driver_.writeSourcePart(run, c.setting.remote);
+      }
+      driver_.refreshConfig();
+      const auto observed = driver_.settings();
+      verified = observed.readOk && (run ? observed.runSource : observed.frequencySource) == target;
+      if (verified && c.setting.remote && !run) {
+        double setpoint{};
+        verified = driver_.readSetHz(setpoint) && setpoint == 0;
+      }
+    }
+    driver_.refreshConfig();
+    const auto actual = driver_.settings();
+    result.sourceKnown = actual.readOk;
+    result.runSource = actual.runSource;
+    result.frequencySource = actual.frequencySource;
+    verified = verified && actual.readOk && actual.runSource == targetRun && actual.frequencySource == targetFrequency && settingsStopped();
+  }
+  driver_.refreshConfig();
+  // Settings writes revoke motion permission. Remote opt-in must validate a
+  // new STOP snapshot and clock after this operation; queued old RUN is rejected.
+  armed_ = false;
+  mode_ = SessionMode::Bench;
+  remotePermissionUtcMs_ = clock_.utcMs();
+  remoteCheckStarted_ = true;
+  lastRemoteCheck_ = clock_.monotonicMs();
+  finish(record, verified ? Outcome::Succeeded : Outcome::Failed, verified ? Error::None : Error::Unconfirmed);
 }
 void Controller::replay() const {
   if (storageOk_)

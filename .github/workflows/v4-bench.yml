@@ -39,7 +39,7 @@ jobs:
       - name: Parse Windows preparation and physical probe scripts
         shell: pwsh
         run: |
-          foreach ($name in @('prepare-v4.ps1', 'check-v4.ps1')) {
+          foreach ($name in @('prepare-v4.ps1', 'check-v4.ps1', 'update-vfd-service.ps1')) {
             $parseErrors = $null
             [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $PWD "scripts/$name"), [ref]$null, [ref]$parseErrors) | Out-Null
             if ($parseErrors) { throw ($parseErrors | Out-String) }

@@ -15,6 +15,7 @@ from app.security.current_user import (
 from app.security.roles import Permission
 from app.services.command_dispatch import CommandDispatchService
 from app.services.equipment import EquipmentConflict
+from app.services.vfd_settings import MESSAGES, STAFF_ROLES
 from app.services.commands import (
     CommandActorSnapshot,
     CommandCapabilityViolationError,
@@ -52,6 +53,10 @@ def create_command(
         device_id,
         Permission.COMMAND_EXECUTE,
     )
+    if payload.command_type == "vfd.parameter.set":
+        if current.user.platform_role not in STAFF_ROLES:
+            raise HTTPException(status_code=403, detail=MESSAGES["vfd_settings_staff_only"])
+        access.require_device_context(device_id, Permission.CAPABILITY_MANAGE)
 
     actor = CommandActorSnapshot(
         user_id=current.user.id,
@@ -88,6 +93,7 @@ def create_command(
         raise HTTPException(status_code=409, detail="Частота поза налаштованими межами або профіль обладнання ще не задано") from exc
     except CommandProgramError as exc:
         messages = {
+            **MESSAGES,
             "schedule_requires_calendar": "Календарний запуск створюється лише через збережений розклад.",
             "schedule_firmware_unavailable": "Контролер ще не підтримує календарні запуски.",
             "schedule_window_expired": "Календарне вікно запуску минуло.",
@@ -115,6 +121,20 @@ def create_command(
     # спроба фіксується до мережевого виклику та не губиться при збої процесу.
     dispatch = CommandDispatchService(session).dispatch(command.id)
     return DeviceCommandRead.model_validate(dispatch.command)
+
+
+@router.get(
+    "/devices/{device_id}/commands/by-request/{request_id}",
+    response_model=DeviceCommandRead,
+)
+def get_command_by_request(device_id: uuid.UUID, request_id: uuid.UUID,
+                           session: DbSession, current: CurrentUser) -> DeviceCommandRead:
+    from app.repositories.commands import CommandRepository
+    AccessControl(session, current).require_device(device_id, Permission.COMMAND_READ)
+    command = CommandRepository(session).get_by_request_id(request_id)
+    if command is None or command.device_id != device_id:
+        raise HTTPException(status_code=404, detail="Команду не знайдено")
+    return DeviceCommandRead.model_validate(command)
 
 
 @router.get(

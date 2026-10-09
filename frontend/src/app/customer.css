@@ -718,3 +718,15 @@ html[data-theme="customer"] .login-card {
     font-size: 11px;
   }
 }
+.vfd-source-control {
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+.vfd-parameter {
+  margin: 20px 0;
+}
+.vfd-parameter .field {
+  max-width: 320px;
+  margin-bottom: 12px;
+}

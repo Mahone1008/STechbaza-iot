@@ -19,6 +19,7 @@ ESP32 → MQTT → FastAPI/PostgreSQL → Next.js. Можливості конк
 - [Випробування з двигуном](docs/v3-su600-extended-test.md): EXTENDED, локальний дозвіл та зупинки.
 - [Календарні розклади](docs/control-schedules-v1.md): сезони, часові межі, приймання.
 - [Таймер і етапи частоти](docs/control-programs-v1.md): оновлення backend/БД/firmware, контракт і приймання.
+- [Місцеве/дистанційне керування та F0.10/F0.11 для SU600](docs/vfd-settings-v1.md): оновлення сайтів та firmware 0.10.0.
 - [Ключі облікових записів](docs/account-key-operations-v1.md): обов'язкове перенесення secret перед оновленням старої установки.
 
 30.09.2026 на V3 через Wi-Fi підтверджені читання, START/STOP, зміна частоти,

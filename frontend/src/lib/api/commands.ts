@@ -6,7 +6,7 @@ export type Command = components["schemas"]["DeviceCommandRead"];
 export type CommandType = components["schemas"]["DeviceCommandCreate"]["command_type"];
 export type CommandInput = components["schemas"]["DeviceCommandCreate"];
 export type CommandCursor = Readonly<{ before_created_at: string; before_id: string }>;
-const commandLabels: Record<CommandType, string> = { "vfd.start": "Запустити", "vfd.stop": "Зупинити", "vfd.frequency.set": "Задати частоту", "vfd.program.start": "Запустити за етапами", "vfd.schedule.start": "Запуск за розкладом" };
+const commandLabels: Record<CommandType, string> = { "vfd.start": "Запустити", "vfd.stop": "Зупинити", "vfd.frequency.set": "Задати частоту", "vfd.program.start": "Запустити за етапами", "vfd.schedule.start": "Запуск за розкладом", "vfd.source.set": "Змінити джерело керування", "vfd.parameter.set": "Змінити параметр частотника" };
 export const statusLabels: Record<string, string> = { queued: "У черзі", published: "Розпочато доставку", acknowledged: "Контролер підтвердив прийом", succeeded: "Контролер повідомив про виконання", failed: "Помилка виконання", cancelled: "Доставку скасовано", expired: "Строк доставки минув", result_unknown: "Результат невідомий" };
 export function commandWorkMode(command: Pick<Command, "command_type" | "payload">): "timer" | "program" | "schedule" | null {
   if (command.command_type === "vfd.schedule.start") return "schedule";
@@ -15,6 +15,8 @@ export function commandWorkMode(command: Pick<Command, "command_type" | "payload
   return plan ? plan.steps.length === 1 ? "timer" : "program" : null;
 }
 export function commandLabel(type: string, payload?: unknown) {
+  if (type === "vfd.source.set" && isRecord(payload)) return payload.source === "local" ? "Увімкнути місцеве керування" : payload.source === "remote" ? "Увімкнути дистанційне керування" : commandLabels[type];
+  if (type === "vfd.parameter.set" && isRecord(payload) && ["F0.10", "F0.11"].includes(String(payload.code))) return `${commandLabels[type]} · ${payload.code}`;
   if (type === "vfd.program.start" && parseProgramPlan(payload)?.steps.length === 1) return "Запуск за таймером";
   return Object.hasOwn(commandLabels, type) ? commandLabels[type as CommandType] : type;
 }

@@ -28,6 +28,17 @@ public:
       if (prefs.getBytes("journal", &previous, sizeof(previous)) != sizeof(previous) || !validScope(previous))
         return -1;
       value = previous.journal;
+    } else if (size == sizeof(ScopedCalendarV4)) {
+      ScopedCalendarV4 legacy{};
+      if (prefs.getBytes("journal", &legacy, sizeof(legacy)) != sizeof(legacy) ||
+          !upgradeScope(legacy, previous)) return -1;
+      previous.checksum = scopeChecksum(previous);
+      value = previous.journal;
+    } else if (size == sizeof(CalendarJournalV5)) {
+      CalendarJournalV5 legacy{};
+      if (prefs.getBytes("journal", &legacy, sizeof(legacy)) != sizeof(legacy) ||
+          !upgradeJournal(legacy, value)) return -1;
+      previous = wrapJournal(value, "");
     } else if (size == sizeof(ProgramJournalV3)) {
       ProgramJournalV3 legacy{};
       if (prefs.getBytes("journal", &legacy, sizeof(legacy)) != sizeof(legacy) ||

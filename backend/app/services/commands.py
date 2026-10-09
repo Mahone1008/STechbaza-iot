@@ -15,6 +15,7 @@ from app.services.command_profile import frequency_allowed
 from app.services.command_outcomes import stop_delivery
 from app.services.program_policy import program_rejection
 from app.services.equipment import EquipmentConflict, command_target
+from app.services.vfd_settings import settings_rejection, STAFF_ROLES
 
 
 @dataclass(frozen=True)
@@ -126,6 +127,11 @@ class CommandService:
             return existing, False
         if required_capability not in self._capabilities.get_enabled_codes_for_device(device_id):
             raise CommandCapabilityViolationError(required_capability)
+        if payload.command_type == "vfd.parameter.set" and actor.platform_role not in STAFF_ROLES:
+            raise CommandProgramError("vfd_settings_staff_only")
+        rejection = settings_rejection(self._session, device, payload.command_type, payload.payload, created_at)
+        if rejection:
+            raise CommandProgramError(rejection)
         if payload.command_type == "vfd.frequency.set" and not frequency_allowed(self._session, device_id, payload.payload):
             raise CommandFrequencyProfileError
         rejection = program_rejection(self._session, device, payload.command_type, payload.payload, created_at)

@@ -3,6 +3,7 @@ import { DeviceSection } from "./panel-activity";
 import { DisplaySettings, RefreshAction, RefreshButton, RefreshProvider } from "./refresh-actions";
 import dynamic from "next/dynamic";
 import { ProgramStatus } from "@/features/program-status";
+import { VfdServiceParameters } from "./vfd-settings";
 import { CommandControls } from "@/features/command-controls";
 import { ControllerDiagnostics } from "@/features/controller-diagnostics";
 import { alarmsHref } from "@/features/alarm-shared";
@@ -504,6 +505,13 @@ function DevicePanel({ context }: { context: ReadyAccessSnapshot }) {
         {visited.has("equipment") && (
           <>
             <EquipmentPassportPanel context={context} expanded />
+            <VfdServiceParameters
+              context={context}
+              overview={query.isError ? null : (query.data?.overview ?? null)}
+              receivedAt={query.data?.receivedAt ?? 0}
+              onCreated={selectCommand}
+              onRefresh={query.refresh}
+            />
             <details>
               <summary>Технічні дані контролера</summary>
               <dl className="overview-details">

@@ -6,6 +6,7 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from app.schemas.program import ProgramProgress
 from app.schemas.equipment import EquipmentReport
+from app.schemas.vfd_settings import VfdSettings
 
 UptimeMs = Annotated[int, Field(strict=True, ge=0, le=2**53 - 1)]
 StopReason = Literal[
@@ -69,6 +70,7 @@ class ControllerDiagnostics(DiagnosticModel):
     last_stop: StopDiagnostics | None = None
     program: ProgramProgress | None = None
     equipment: EquipmentReport | None = None
+    vfd_settings: VfdSettings | None = None
 
     @field_validator("version", mode="before")
     @classmethod
