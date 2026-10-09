@@ -44,7 +44,7 @@ html[data-theme="customer"] .card-header {
 html[data-theme="customer"] .card-body {
   padding: 24px;
 }
-html[data-theme="customer"] .card-body > :last-child {
+html[data-theme="customer"] .card-body > :last-child:not(.dialog) {
   margin-bottom: 0;
 }
 html[data-theme="customer"] .button {
@@ -250,9 +250,17 @@ html[data-theme="customer"] .user-menu-action small {
 .device-panel-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
-  grid-template-areas: "status controls" "readings controls";
+  grid-template-areas: "overview controls";
   gap: 24px;
   align-items: start;
+}
+.device-overview-column {
+  grid-area: overview;
+  display: grid;
+  grid-template-areas: "status" "readings";
+  align-content: start;
+  gap: 24px;
+  min-width: 0;
 }
 .device-status {
   grid-area: status;
@@ -431,7 +439,7 @@ html[data-theme="customer"] .disclosure-content {
 html[data-theme="customer"] .disclosure-content > :first-child {
   margin-top: 0;
 }
-html[data-theme="customer"] .disclosure-content > :last-child {
+html[data-theme="customer"] .disclosure-content > :last-child:not(.dialog) {
   margin-bottom: 0;
 }
 html[data-theme="customer"] .panel-display-settings {
@@ -536,6 +544,9 @@ html[data-theme="customer"] .login-card {
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas: "status" "controls" "readings";
     gap: 20px;
+  }
+  .device-overview-column {
+    display: contents;
   }
   .device-frequency-setting {
     grid-template-columns: minmax(0, 1fr) auto;

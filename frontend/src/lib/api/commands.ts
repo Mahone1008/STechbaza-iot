@@ -8,7 +8,16 @@ export type CommandInput = components["schemas"]["DeviceCommandCreate"];
 export type CommandCursor = Readonly<{ before_created_at: string; before_id: string }>;
 const commandLabels: Record<CommandType, string> = { "vfd.start": "Запустити", "vfd.stop": "Зупинити", "vfd.frequency.set": "Задати частоту", "vfd.program.start": "Запустити за етапами", "vfd.schedule.start": "Запуск за розкладом" };
 export const statusLabels: Record<string, string> = { queued: "У черзі", published: "Розпочато доставку", acknowledged: "Контролер підтвердив прийом", succeeded: "Контролер повідомив про виконання", failed: "Помилка виконання", cancelled: "Доставку скасовано", expired: "Строк доставки минув", result_unknown: "Результат невідомий" };
-export function commandLabel(type: string) { return Object.hasOwn(commandLabels, type) ? commandLabels[type as CommandType] : type; }
+export function commandWorkMode(command: Pick<Command, "command_type" | "payload">): "timer" | "program" | "schedule" | null {
+  if (command.command_type === "vfd.schedule.start") return "schedule";
+  if (command.command_type !== "vfd.program.start") return null;
+  const plan = parseProgramPlan(command.payload);
+  return plan ? plan.steps.length === 1 ? "timer" : "program" : null;
+}
+export function commandLabel(type: string, payload?: unknown) {
+  if (type === "vfd.program.start" && parseProgramPlan(payload)?.steps.length === 1) return "Запуск за таймером";
+  return Object.hasOwn(commandLabels, type) ? commandLabels[type as CommandType] : type;
+}
 export function commandPending(command: Command) { return ["queued", "published", "acknowledged"].includes(command.status); }
 export function validFrequency(text: string): number | null {
   if (!text.trim()) return null;

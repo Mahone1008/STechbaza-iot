@@ -1,0 +1,21 @@
+# LTE bench overlay for the existing PC demo. A TCP tunnel targets 127.0.0.1:8885.
+services:
+  v4-gateway:
+    image: kerumo-v4-gateway:local
+    build:
+      context: ./infrastructure/v3
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8885:8883"
+    volumes:
+      - ./.local/v4:/work:ro
+    command: ["mosquitto", "-c", "/work/mosquitto.conf"]
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import socket,ssl; c=ssl.create_default_context(cafile='/work/ca.crt'); s=c.wrap_socket(socket.create_connection(('127.0.0.1',8883),timeout=3),server_hostname='127.0.0.1'); s.close()"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 5s
+    depends_on:
+      mosquitto:
+        condition: service_started

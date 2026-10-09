@@ -72,6 +72,18 @@ export function LoginPanel() {
   const loggedOutNotice = useSyncExternalStore(subscribeToLocationChange, loggedOutLocationSnapshot, () => false);
   const sessionBusy = session.status === "restoring" || session.status === "logging-out";
 
+  useEffect(() => {
+    if (!loggedOutNotice || session.status !== "anonymous") return;
+    const timer = window.setTimeout(() => {
+      const url = new URL(window.location.href);
+      if (url.searchParams.get("loggedOut") !== "1") return;
+      url.searchParams.delete("loggedOut");
+      window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    }, 10_000);
+    return () => window.clearTimeout(timer);
+  }, [loggedOutNotice, session.status]);
+
   useEffect(() => () => abortControllerRef.current?.abort(), []);
 
   useEffect(() => {

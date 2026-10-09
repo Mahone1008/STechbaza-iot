@@ -405,7 +405,7 @@ p { text-wrap: pretty; }
 .ui-stack { display: grid; gap: 12px; }
 .ui-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 
-.dialog { width: min(92vw, 480px); max-height: calc(100dvh - 24px); overflow-y: auto; overscroll-behavior: contain; border: 0; border-radius: var(--radius-lg); background: var(--surface); color: var(--text); padding: 0; box-shadow: var(--shadow-md); }
+.dialog { position: fixed; inset: 0; margin: auto; width: min(92vw, 480px); max-height: calc(100dvh - 24px); overflow-y: auto; overscroll-behavior: contain; border: 0; border-radius: var(--radius-lg); background: var(--surface); color: var(--text); padding: 0; box-shadow: var(--shadow-md); }
 .dialog::backdrop { background: rgb(23 33 38 / 48%); backdrop-filter: blur(2px); }
 .dialog-header { padding: 22px 22px 0; }
 .dialog-title { margin-bottom: 7px; font-size: 21px; }

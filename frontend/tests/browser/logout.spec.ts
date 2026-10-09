@@ -267,3 +267,19 @@ test("logout lock failure leaves a recoverable state and sends no uncoordinated 
   await expect(page).toHaveURL(/\/login\?loggedOut=1$/u);
   expect(logoutCalls).toBe(1);
 });
+
+test("logout confirmation expires after ten seconds and leaves returnTo intact", async ({ page }) => {
+  await page.clock.install();
+  await page.route(REFRESH_URL, async (route) => {
+    if (await fulfillPreflight(route)) return;
+    await route.fulfill({ status: 401, headers: { ...corsHeaders, "content-type": "application/json" }, body: JSON.stringify({ detail: "Сесію завершено" }) });
+  });
+  await page.goto("/login?loggedOut=1&returnTo=%2Fdevices");
+  await expect(page.getByText("Сесію завершено", { exact: true })).toBeVisible();
+  await page.clock.fastForward(11_000);
+  await expect(page.getByText("Сесію завершено", { exact: true })).toHaveCount(0);
+  await expect(page).toHaveURL(/\/login\?returnTo=%2Fdevices$/);
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "Вхід до кабінету", exact: true })).toBeVisible();
+  await expect(page.getByText("Сесію завершено", { exact: true })).toHaveCount(0);
+});

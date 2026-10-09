@@ -79,7 +79,7 @@ export function CommandDetail({ context, id, poll }: { context: ReadyAccessSnaps
         ) : (
           <>
             <p>
-              <strong>{commandLabel(command.command_type)}</strong>
+              <strong>{commandLabel(command.command_type, command.payload)}</strong>
               {typeof command.payload.frequency_hz === "number" ? ` · ${command.payload.frequency_hz} Гц` : ""}
             </p>
             {scheduled ? (
@@ -242,12 +242,12 @@ export function CommandJournal({
                 header: "Команда",
                 render: (row) => (
                   <>
-                    {commandLabel(row.command_type)}
+                    {commandLabel(row.command_type, row.payload)}
                     {typeof row.payload.frequency_hz === "number" ? ` · ${row.payload.frequency_hz} Гц` : ""}{" "}
                     <a
                       className="button button-ghost button-small"
                       href="#selected-command"
-                      aria-label={`Переглянути команду ${commandLabel(row.command_type)}`}
+                      aria-label={`Переглянути команду ${commandLabel(row.command_type, row.payload)}`}
                       onClick={() => onSelect(row.id)}
                     >
                       Деталі
