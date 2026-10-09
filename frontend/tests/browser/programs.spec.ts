@@ -243,12 +243,15 @@ for (const canReadCommands of [true, false])
       );
     });
     await page.goto(`/devices/${DEVICE_ID}`);
-    await expect(page.getByText("Етап 1 з 1 · 20 Гц.", { exact: true })).toBeVisible();
     if (canReadCommands) {
+      await expect(page.getByRole("heading", { name: "Робота за таймером", exact: true })).toBeVisible();
+      await expect(page.getByText("Робота на заданій частоті · 20 Гц.", { exact: true })).toBeVisible();
       await expect(page.locator("#device-section-panel .program-summary li")).toHaveText(["20 Гц · 1 хв"]);
-      await expect(page.getByRole("link", { name: "Переглянути етапи роботи", exact: true })).toBeVisible();
+      await expect(page.getByRole("link", { name: "Переглянути таймер", exact: true })).toBeVisible();
       expect(reads).toBeGreaterThan(0);
     } else {
+      await expect(page.getByRole("heading", { name: "Виконання роботи", exact: true })).toBeVisible();
+      await expect(page.getByText("Етап 1 з 1 · 20 Гц.", { exact: true })).toBeVisible();
       await expect(page.getByRole("link", { name: "Переглянути етапи роботи", exact: true })).toHaveCount(0);
       await expect(page.locator("#device-section-panel .program-summary")).toHaveCount(0);
       expect(reads).toBe(0);
@@ -284,4 +287,48 @@ test("an old firmware and stale status cannot enable a program", async ({ page }
     if (reading.status === "fresh") reading.status = "stale";
   await (await refreshButton(page, "Оновити панель")).click();
   await expect(page.getByRole("button", { name: "Запустити на 1 хв", exact: true })).toBeDisabled();
+});
+
+for (const kind of ["timer", "schedule"] as const) {
+  test(`F5 restores ${kind} status independently of the editor mode`, async ({ page }) => {
+    const data = programOverview();
+    data.diagnostics!.program = { ...data.diagnostics!.program!, command_id: commandId, state: "holding", step_index: 1, step_count: 1, target_frequency_hz: 20, remaining_seconds: 38 };
+    const command = commandFixture({ command_type: kind === "timer" ? "vfd.program.start" : "vfd.schedule.start", status: "acknowledged", payload: { version: 1, steps: [{ frequency_hz: 20, duration_seconds: 60 }], ...(kind === "schedule" ? { starts_at: "2026-10-09T09:00:00Z", stops_at: "2026-10-09T09:01:00Z" } : {}) } });
+    await page.route(`${url}/overview`, async (route) => { if (!(await fulfillPreflight(route))) await fulfillJson(route, 200, data); });
+    await page.route(`${API_ORIGIN}/api/v1/commands/${commandId}`, async (route) => { if (!(await fulfillPreflight(route))) await fulfillJson(route, 200, command); });
+    await page.goto(`/devices/${DEVICE_ID}`);
+    await expect(page.getByRole("heading", { name: kind === "timer" ? "Робота за таймером" : "Робота за розкладом", exact: true })).toBeVisible();
+    await expect(page.getByText(`${kind === "timer" ? "Залишок таймера" : "Залишок інтервалу"} за повідомленням контролера: 38 с.`, { exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Виконання етапів", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: kind === "timer" ? "Переглянути таймер" : "Переглянути запуск за розкладом", exact: true })).toBeVisible();
+    await page.reload();
+    await expect(page.getByRole("heading", { name: kind === "timer" ? "Робота за таймером" : "Робота за розкладом", exact: true })).toBeVisible();
+  });
+}
+
+test("desktop readings stay below status when stages grow and confirmation stays centered", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(`/devices/${DEVICE_ID}`);
+  const readings = page.locator(".overview-result-region");
+  await expect(readings).toBeVisible();
+  const before = await readings.boundingBox();
+  await page.getByText("Додаткові налаштування команди", { exact: true }).click();
+  await page.getByRole("combobox", { name: "Режим роботи", exact: true }).selectOption("program");
+  for (let stage = 1; stage <= 4; stage++) {
+    if (stage > 1) await page.getByRole("button", { name: "Додати етап", exact: true }).click();
+    await page.getByLabel(`Частота етапу ${stage}, Гц`, { exact: true }).fill("40");
+  }
+  const after = await readings.boundingBox();
+  const scroll = await page.evaluate(() => scrollY);
+  expect(before).not.toBeNull(); expect(after).not.toBeNull();
+  expect(Math.abs(after!.y + scroll - before!.y)).toBeLessThan(3);
+  await page.getByRole("button", { name: "Запустити за етапами", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toBeVisible();
+  const box = await dialog.boundingBox();
+  expect(box).not.toBeNull();
+  expect(Math.abs(box!.y + box!.height / 2 - 450)).toBeLessThan(3);
+  expect(box!.y).toBeGreaterThanOrEqual(12);
+  expect(box!.y + box!.height).toBeLessThanOrEqual(888);
+  await test.info().attach("desktop-stages-and-centered-confirmation", { body: await page.screenshot(), contentType: "image/png" });
 });

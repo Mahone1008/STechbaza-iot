@@ -1,11 +1,23 @@
 import { describe, expect, it } from "vitest";
 import { commandFixture, controlOverview } from "../../../tests/fixtures/commands";
 import { overviewDevice, overviewOrg } from "../../../tests/fixtures/overview";
-import { commandCursor, commandPending, makeCommandInput, parseCommand, parseCommandPage, parseCommandReceipt, validFrequency } from "./commands";
+import { commandCursor, commandLabel, commandWorkMode, commandPending, makeCommandInput, parseCommand, parseCommandPage, parseCommandReceipt, validFrequency } from "./commands";
 import { parseOverview } from "./overview";
 const row = commandFixture();
 const parse = (raw: unknown) => parseCommand(raw, row.device_id, overviewOrg);
 describe("command trust and intent boundaries", () => {
+  it("restores timer, stages and schedule labels from the saved command rather than the editor", () => {
+    const timer = commandFixture({ command_type: "vfd.program.start", payload: { version: 1, steps: [{ frequency_hz: 20, duration_seconds: 60 }] } });
+    const stages = commandFixture({ ...timer, payload: { version: 1, steps: [{ frequency_hz: 20, duration_seconds: 60 }, { frequency_hz: 40, duration_seconds: 30 }] } });
+    const schedule = commandFixture({ command_type: "vfd.schedule.start" });
+    expect(commandWorkMode(timer)).toBe("timer");
+    expect(commandLabel(timer.command_type, timer.payload)).toBe("Запуск за таймером");
+    expect(commandWorkMode(stages)).toBe("program");
+    expect(commandLabel(stages.command_type, stages.payload)).toBe("Запустити за етапами");
+    expect(commandWorkMode(schedule)).toBe("schedule");
+    expect(commandLabel(schedule.command_type, schedule.payload)).toBe("Запуск за розкладом");
+    expect(commandWorkMode(commandFixture({ command_type: "vfd.program.start", payload: {} }))).toBeNull();
+  });
   it("validates zero, upper bound, blank and nonfinite frequency without coercing to zero", () => {
     expect(validFrequency("0")).toBe(0); expect(validFrequency("100")).toBe(100); expect(validFrequency("49.5")).toBe(49.5);
     for (const value of ["", " ", "NaN", "Infinity", "-0.1", "100.01", "false"]) expect(validFrequency(value)).toBeNull();

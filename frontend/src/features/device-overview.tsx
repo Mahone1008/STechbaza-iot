@@ -7,6 +7,7 @@ import { CommandControls } from "@/features/command-controls";
 import { ControllerDiagnostics } from "@/features/controller-diagnostics";
 import { alarmsHref } from "@/features/alarm-shared";
 import { CommandDetail } from "@/features/command-journal";
+import { parseCommand } from "@/lib/api/commands";
 import { usePanelQuery } from "@/features/use-panel-query";
 import { StableRegion } from "@/components/stable-region";
 import type { PollSeconds } from "@/lib/api/polling-policy";
@@ -141,12 +142,33 @@ function DeviceStatus({
 function OverviewContent({
   overview,
   receivedAt,
+  context,
   onViewProgram,
 }: {
   overview: Overview;
   receivedAt: number;
+  context: ReadyAccessSnapshot;
   onViewProgram?: (() => void) | undefined;
 }) {
+  const { authorizedRequest } = useAuthSession();
+  const device = context.activeDevice!;
+  const programCommandId = overview.diagnostics?.program?.command_id ?? null;
+  const programCommandQuery = usePanelQuery({
+    queryKey: [
+      ...apiQueryKeys.command(context.scope, programCommandId ?? ""),
+      context.activeOrganization.id,
+      device.id,
+    ],
+    enabled: !!programCommandId && context.access.permissions.includes("command.read"),
+    intervalMs: 0,
+    queryFn: async (signal) =>
+      parseCommand(
+        await authorizedRequest({ path: `/api/v1/commands/${programCommandId}`, signal, timeoutMs: 10_000 }),
+        device.id,
+        context.activeOrganization.id,
+        programCommandId!,
+      ),
+  });
   const elapsed = useElapsedSeconds(receivedAt);
   const quality = effectiveQuality(overview.freshness.status, overview.freshness, elapsed);
   const presence = overview.availability;
@@ -216,6 +238,7 @@ function OverviewContent({
     <>
       <ProgramStatus
         progress={overview.diagnostics?.program}
+        command={programCommandQuery.isError ? null : programCommandQuery.data}
         fresh={quality === "fresh" && presence.online && !presenceExpired}
         onViewProgram={onViewProgram}
       />
@@ -318,6 +341,7 @@ function DevicePanel({ context }: { context: ReadyAccessSnapshot }) {
   });
   const denied = isApiError(query.error) && ["forbidden", "not-found"].includes(query.error.kind);
   const programCommandId = query.isError ? null : (query.data?.overview.diagnostics?.program?.command_id ?? null);
+
   // Після F5 відновлюємо серверний план за ID із телеметрії, а не чернетку форми.
   const displayedCommand = selectedCommand ?? programCommandId;
   const selectCommand = (id: string) => {
@@ -385,13 +409,43 @@ function DevicePanel({ context }: { context: ReadyAccessSnapshot }) {
       {!query.active && <p role="status">Автооновлення призупинено: вкладка прихована або немає мережі.</p>}
       <DeviceSection name="panel" active={section === "panel"}>
         <div className="device-panel-grid">
-          {canRead && query.data && !query.isError && (
-            <DeviceStatus
-              overview={query.data.overview}
-              receivedAt={query.data.receivedAt}
-              timezone={context.activeSite?.timezone ?? "UTC"}
-            />
-          )}
+          <div className="device-overview-column">
+            {canRead && query.data && !query.isError && (
+              <DeviceStatus
+                overview={query.data.overview}
+                receivedAt={query.data.receivedAt}
+                timezone={context.activeSite?.timezone ?? "UTC"}
+              />
+            )}
+            <StableRegion className="overview-result-region" preserveHeight={query.isFetching || query.isError}>
+              {!canRead ? (
+                <section className="notice notice-warning" role="alert">
+                  <h2>Недостатньо прав для панелі</h2>
+                  <p>Потрібен доступ до модулів і телеметрії.</p>
+                </section>
+              ) : query.isFetching && !query.data ? (
+                <p role="status">Перевіряємо модулі та показання…</p>
+              ) : query.isError ? (
+                <section className="notice notice-warning" role="alert">
+                  <h2>{denied ? "Дані більше недоступні" : "Не вдалося завантажити панель"}</h2>
+                  <p>{apiErrorDisplayMessage(query.error)}</p>
+                  <div className="ui-row">
+                    <Button onClick={query.refresh}>Повторити</Button>
+                    <Link className="button button-secondary" href="/organizations">
+                      Обрати організацію
+                    </Link>
+                  </div>
+                </section>
+              ) : query.data ? (
+                <OverviewContent
+                  overview={query.data.overview}
+                  receivedAt={query.data.receivedAt}
+                  context={context}
+                  onViewProgram={onViewProgram}
+                />
+              ) : null}
+            </StableRegion>
+          </div>
           <CommandControls
             onSchedules={() => navigate("schedules")}
             context={context}
@@ -402,33 +456,6 @@ function DevicePanel({ context }: { context: ReadyAccessSnapshot }) {
             poll={poll}
             onCreated={setSelectedCommand}
           />
-          <StableRegion className="overview-result-region" preserveHeight={query.isFetching || query.isError}>
-            {!canRead ? (
-              <section className="notice notice-warning" role="alert">
-                <h2>Недостатньо прав для панелі</h2>
-                <p>Потрібен доступ до модулів і телеметрії.</p>
-              </section>
-            ) : query.isFetching && !query.data ? (
-              <p role="status">Перевіряємо модулі та показання…</p>
-            ) : query.isError ? (
-              <section className="notice notice-warning" role="alert">
-                <h2>{denied ? "Дані більше недоступні" : "Не вдалося завантажити панель"}</h2>
-                <p>{apiErrorDisplayMessage(query.error)}</p>
-                <div className="ui-row">
-                  <Button onClick={query.refresh}>Повторити</Button>
-                  <Link className="button button-secondary" href="/organizations">
-                    Обрати організацію
-                  </Link>
-                </div>
-              </section>
-            ) : query.data ? (
-              <OverviewContent
-                overview={query.data.overview}
-                receivedAt={query.data.receivedAt}
-                onViewProgram={onViewProgram}
-              />
-            ) : null}
-          </StableRegion>
         </div>
         {section === "panel" && displayedCommand && context.access.permissions.includes("command.read") && (
           <CommandDetail key={displayedCommand} context={context} id={displayedCommand} poll={poll} />
