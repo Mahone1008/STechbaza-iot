@@ -1107,6 +1107,16 @@
             "const": 1,
             "title": "Version",
             "type": "integer"
+          },
+          "vfd_settings": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VfdSettings"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -1653,7 +1663,9 @@
               "vfd.stop",
               "vfd.frequency.set",
               "vfd.program.start",
-              "vfd.schedule.start"
+              "vfd.schedule.start",
+              "vfd.source.set",
+              "vfd.parameter.set"
             ],
             "title": "Command Type",
             "type": "string"
@@ -6639,6 +6651,88 @@
         ],
         "title": "ValidationError",
         "type": "object"
+      },
+      "VfdSettings": {
+        "additionalProperties": false,
+        "properties": {
+          "command_sequence": {
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Command Sequence",
+            "type": "integer"
+          },
+          "driver_id": {
+            "const": "su600",
+            "title": "Driver Id",
+            "type": "string"
+          },
+          "frequency_source": {
+            "anyOf": [
+              {
+                "maximum": 7.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Frequency Source"
+          },
+          "parameters": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "propertyNames": {
+              "enum": [
+                "F0.10",
+                "F0.11"
+              ]
+            },
+            "title": "Parameters",
+            "type": "object"
+          },
+          "ready": {
+            "title": "Ready",
+            "type": "boolean"
+          },
+          "run_source": {
+            "anyOf": [
+              {
+                "maximum": 2.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Source"
+          },
+          "version": {
+            "const": 1,
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version",
+          "driver_id",
+          "ready",
+          "command_sequence",
+          "run_source",
+          "frequency_source",
+          "parameters"
+        ],
+        "title": "VfdSettings",
+        "type": "object"
       }
     },
     "securitySchemes": {
@@ -6651,7 +6745,7 @@
   "info": {
     "description": "Backend API платформи TechBaza IoT Pump Control",
     "title": "TechBaza Backend",
-    "version": "0.52.0"
+    "version": "0.53.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -9013,6 +9107,64 @@
           }
         ],
         "summary": "Create Command",
+        "tags": [
+          "commands"
+        ]
+      }
+    },
+    "/api/v1/devices/{device_id}/commands/by-request/{request_id}": {
+      "get": {
+        "operationId": "get_command_by_request_api_v1_devices__device_id__commands_by_request__request_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "device_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Device Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "request_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Request Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceCommandRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Command By Request",
         "tags": [
           "commands"
         ]

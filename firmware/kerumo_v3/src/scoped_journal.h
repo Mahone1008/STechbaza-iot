@@ -1,13 +1,27 @@
 #pragma once
 #include "equipment.h"
+#include "journal_upgrade.h"
 
 namespace kerumo {
-// Wrapper keeps the v0.5 Journal ABI and both historical upgrades intact.
+// Versioned wrapper; old scoped/calendar records migrate without resetting sequence.
 struct ScopedJournal {
-  uint32_t magic{0x4B563304}, checksum{};
+  uint32_t magic{0x4B563306}, checksum{};
   char configurationHash[65]{};
   Journal journal{};
 };
+struct ScopedCalendarV4 {
+  uint32_t magic{0x4B563304}, checksum{};
+  char configurationHash[65]{};
+  CalendarJournalV5 journal{};
+};
+inline bool upgradeScope(const ScopedCalendarV4& old, ScopedJournal& next) {
+  if (old.magic != 0x4B563304 || old.checksum != legacyChecksum(old) ||
+      old.configurationHash[64] != 0 ||
+      (old.configurationHash[0] && !validHash(old.configurationHash)) ||
+      !upgradeJournal(old.journal, next.journal)) return false;
+  std::memcpy(next.configurationHash, old.configurationHash, sizeof(old.configurationHash));
+  return true;
+}
 inline uint32_t scopeChecksum(const ScopedJournal& value) {
   const auto* bytes=reinterpret_cast<const uint8_t*>(&value);
   uint32_t crc=0xFFFFFFFFU;
@@ -19,11 +33,11 @@ inline uint32_t scopeChecksum(const ScopedJournal& value) {
   return ~crc;
 }
 inline bool validJournal(const Journal& value) {
-  return value.magic==0x4B563303 && value.checksum==checksum(value) &&
+  return value.magic==0x4B563305 && value.checksum==checksum(value) &&
     value.highest<=MaxSequence && value.next<LedgerSize && std::memchr(value.uid,0,sizeof(value.uid));
 }
 inline bool validScope(const ScopedJournal& value) {
-  return value.magic==0x4B563304 && value.checksum==scopeChecksum(value) &&
+  return value.magic==0x4B563306 && value.checksum==scopeChecksum(value) &&
     value.configurationHash[64]==0 && (value.configurationHash[0]==0 || validHash(value.configurationHash)) && validJournal(value.journal);
 }
 inline ScopedJournal wrapJournal(const Journal& journal, const char* hash) {

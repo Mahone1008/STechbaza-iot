@@ -39,6 +39,22 @@ inline void writeDiagnostics(JsonObject target, const Sample& sample,
     signal["metric"]=connection.metric;
     signal["dbm"]=connection.dbm;
   } else link["signal"]=nullptr;
+  if (sample.settings.supported) {
+    auto settings = target["vfd_settings"].to<JsonObject>();
+    settings["version"] = 1;
+    settings["driver_id"] = "su600";
+    settings["ready"] = sample.settingsReady;
+    settings["command_sequence"] = sample.commandSequence;
+    if (sample.settings.readOk && sample.settings.runSource <= 2 && sample.settings.frequencySource <= 7) {
+      settings["run_source"] = sample.settings.runSource;
+      settings["frequency_source"] = sample.settings.frequencySource;
+    } else { settings["run_source"] = nullptr; settings["frequency_source"] = nullptr; }
+    auto parameters = settings["parameters"].to<JsonObject>();
+    if (sample.settings.accelerationOk) parameters["F0.10"] = sample.settings.acceleration;
+    else parameters["F0.10"] = nullptr;
+    if (sample.settings.decelerationOk) parameters["F0.11"] = sample.settings.deceleration;
+    else parameters["F0.11"] = nullptr;
+  }
   if (sample.lastStop.reason==StopReason::None) { target["last_stop"]=nullptr; return; }
   auto stop=target["last_stop"].to<JsonObject>();
   stop["reason"]=stopReasonCode(sample.lastStop.reason);

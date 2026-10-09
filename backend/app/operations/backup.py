@@ -39,7 +39,7 @@ def create_manifest(directory, revision):
         files[name] = {"sha256": file_hash(path), "bytes": path.stat().st_size}
     value = {
         "format": 1,
-        "backend": "0.52.0",
+        "backend": "0.53.0",
         "migration": "20261007_0029",
         "postgres_major": 16,
         "git_revision": revision,
@@ -67,6 +67,7 @@ def verify_bundle(directory):
     versions["0.50.0"] = "20261006_0027"
     versions["0.51.0"] = "20261007_0028"
     versions["0.52.0"] = "20261007_0029"
+    versions["0.53.0"] = "20261007_0029"
     if (
         value.get("format") != 1
         or value.get("backend") not in versions

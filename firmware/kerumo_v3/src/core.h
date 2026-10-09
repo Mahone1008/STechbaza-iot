@@ -11,12 +11,14 @@ constexpr uint32_t AutoStopMs = 60000;
 enum class SessionMode : uint8_t { Bench, ExtendedTest };
 enum class StopReason : uint8_t { None, Command, LocalDisarm, BenchTimer, Network, Link, Fault, Config, Storage, Unconfirmed, Restart, ProgramCompleted };
 const char* stopReasonCode(StopReason reason);
-enum class Type : uint8_t { Start, Stop, Frequency, Program, Schedule };
+enum class Type : uint8_t { Start, Stop, Frequency, Program, Schedule, Source, Parameter };
+inline bool settingsType(Type type) { return type == Type::Source || type == Type::Parameter; }
 inline bool programType(Type type) { return type==Type::Program || type==Type::Schedule; }
 enum class Outcome : uint8_t { Empty, Pending, Succeeded, Failed, Unknown };
 enum class Error : uint8_t {
   None, ReadOnly, NotArmed, Clock, Expired, Stale, Config, Fault,
-  Frequency, Busy, Storage, Unconfirmed, Restarted, ProgramCancelled, ProgramTimeout, ProgramInvalid
+  Frequency, Busy, Storage, Unconfirmed, Restarted, ProgramCancelled, ProgramTimeout, ProgramInvalid,
+  SettingChanged, SettingInvalid
 };
 const char* errorCode(Error error);
 struct Command {
@@ -29,6 +31,7 @@ struct Command {
   double hz{};
   ProgramPlan program{};
   int64_t scheduledStartMs{}, scheduledStopMs{};
+  SettingRequest setting{};
 };
 struct Record {
   Command command{};
@@ -39,10 +42,11 @@ struct Record {
   double actualHz{};
   uint8_t stepsCompleted{};
   bool programStopConfirmed{};
+  SettingResult settingResult{};
 };
 // One committed NVS blob contains the sequence, intent, responses and run latch.
 struct Journal {
-  uint32_t magic{0x4B563303};
+  uint32_t magic{0x4B563305};
   uint32_t checksum{};
   char uid[97]{};
   uint64_t highest{};
@@ -69,6 +73,7 @@ struct Clock {
   virtual uint32_t monotonicMs() const = 0;
   virtual uint64_t uptimeMs() const = 0; // діагностика переживає переповнення 32-бітного millis()
   virtual int64_t utcMs() const = 0; // zero if UTC has not been synchronized recently
+  virtual bool controlLinkValid() const { return true; }
 };
 struct Events {
   virtual ~Events() = default;
@@ -90,6 +95,8 @@ struct Sample {
   StopDiagnostic lastStop{};
   ProgramProgress program{};
   StopReason programReason{StopReason::None};
+  DriveSettings settings{};
+  bool settingsReady{}, bindingCompatible{};
 };
 class Controller {
  public:
@@ -116,11 +123,14 @@ class Controller {
   void beginProgramStep();
   void tickProgram();
   void completeProgram(bool stopConfirmed);
+  bool settingsStopped();
+  void executeSetting(Record& record);
   VfdDriver& driver_; Storage& storage_; Clock& clock_; Events& events_;
   const bool controls_;
   Journal journal_{};
   bool storageOk_{}, armed_{}, stopping_{};
   bool remoteInhibited_{}, remoteCheckStarted_{};
+  bool remoteOperation_{}, networkConnected_{};
   uint32_t lastRemoteCheck_{};
   int64_t remotePermissionUtcMs_{}; // Reject commands issued before automatic permission.
   SessionMode mode_{SessionMode::Bench}; // RAM only; remote mode revalidates after reboot.

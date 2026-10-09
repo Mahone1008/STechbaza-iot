@@ -30,10 +30,29 @@ inline bool parseCommand(const char* bytes,size_t length,Command& out,const Equi
   else if (std::strcmp(type,"vfd.frequency.set")==0) out.type=Type::Frequency;
   else if (std::strcmp(type,"vfd.program.start")==0) out.type=Type::Program;
   else if (std::strcmp(type,"vfd.schedule.start")==0) out.type=Type::Schedule;
+  else if (std::strcmp(type,"vfd.source.set")==0) out.type=Type::Source;
+  else if (std::strcmp(type,"vfd.parameter.set")==0) out.type=Type::Parameter;
   else return false;
   if (!doc["payload"].is<JsonObject>()) return false;
   auto payload=doc["payload"].as<JsonObject>();
-  if (out.type==Type::Frequency) {
+  if (out.type==Type::Source) {
+    if (payload.size()!=3 || !payload["expected_run_source"].is<uint16_t>() ||
+        !payload["expected_frequency_source"].is<uint16_t>()) return false;
+    const char* source=payload["source"] | "";
+    if (std::strcmp(source,"local")!=0 && std::strcmp(source,"remote")!=0) return false;
+    out.setting.remote=std::strcmp(source,"remote")==0;
+    out.setting.expectedRun=payload["expected_run_source"].as<uint16_t>();
+    out.setting.expectedFrequency=payload["expected_frequency_source"].as<uint16_t>();
+    if (out.setting.expectedRun>2 || out.setting.expectedFrequency>7) return false;
+  } else if (out.type==Type::Parameter) {
+    if (payload.size()!=3 || !payload["expected_raw"].is<uint16_t>() || !payload["value_raw"].is<uint16_t>()) return false;
+    const char* code=payload["code"] | "";
+    if (std::strcmp(code,"F0.10")!=0 && std::strcmp(code,"F0.11")!=0) return false;
+    std::strncpy(out.setting.code,code,5);
+    out.setting.expected=payload["expected_raw"].as<uint16_t>();
+    out.setting.value=payload["value_raw"].as<uint16_t>();
+    if (out.setting.expected>9999 || out.setting.value<1 || out.setting.value>9999) return false;
+  } else if (out.type==Type::Frequency) {
     if (payload.size()!=1 || !payload["frequency_hz"].is<double>() || payload["frequency_hz"].is<bool>()) return false;
     out.hz=payload["frequency_hz"].as<double>();
     if (!std::isfinite(out.hz) || out.hz<0 || out.hz>100) return false;

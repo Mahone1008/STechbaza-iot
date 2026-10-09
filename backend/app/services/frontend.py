@@ -81,7 +81,9 @@ class FrontendReadService:
             modules.append(DeviceModuleRead(
                 assignment_id=assignment.id, capability_id=assignment.capability_id, code=code,
                 supported=bool(channels or commands), channels=channels, command_types=commands,
-                allowed_commands=commands if can_execute else [],
+                allowed_commands=[command for command in commands if command != "vfd.parameter.set" or
+                    (self._current.user.platform_role in {"superadmin", "service_admin"} and
+                     Permission.CAPABILITY_MANAGE in access.permissions)] if can_execute else [],
             ))
         channels = [channel for module in modules for channel in module.channels]
         value_keys = sorted(channel.key for channel in channels if channel.source == "values")

@@ -55,7 +55,7 @@ static_assert(!KERUMO_ENABLE_REMOTE_OPERATION ||
 
 using namespace kerumo;
 namespace {
-constexpr char FirmwareVersion[] = "0.9.1";
+constexpr char FirmwareVersion[] = "0.10.1";
 EquipmentBinding equipment{};
 bool managedEquipment = false;
 Provisioning provisioning;
@@ -100,6 +100,10 @@ class DeviceClock : public Clock {
 public:
   uint32_t monotonicMs() const override { return millis(); }
   uint64_t uptimeMs() const override { return static_cast<uint64_t>(esp_timer_get_time()) / 1000; }
+  bool controlLinkValid() const override {
+    return !configurationRestartPending.load() && networkReady.load() &&
+        static_cast<uint32_t>(millis() - networkCheckedMs.load()) < 8000;
+  }
   int64_t utcMs() const override {
     const int64_t epoch = syncEpochMs.load(), age = esp_timer_get_time() / 1000 - syncMonoMs.load();
     return epoch > 1704067200000LL && age >= 0 && age < 3600000 ? epoch + age : 0;
@@ -325,8 +329,21 @@ bool sendRecord(const Record &r) {
     data["step_count"] = r.command.program.count;
     data["stop_confirmed"] = r.programStopConfirmed;
   }
+  if (settingsType(r.command.type)) {
+    const auto& setting = r.settingResult;
+    data["write_attempted"] = setting.attempted;
+    if (r.command.type == Type::Parameter) {
+      data["code"] = r.command.setting.code;
+      if (setting.beforeKnown) data["before_raw"] = setting.before; else data["before_raw"] = nullptr;
+      if (setting.actualKnown) data["actual_raw"] = setting.actual; else data["actual_raw"] = nullptr;
+    }
+    if (setting.sourceKnown) {
+      data["run_source"] = setting.runSource;
+      data["frequency_source"] = setting.frequencySource;
+    } else { data["run_source"] = nullptr; data["frequency_source"] = nullptr; }
+  }
   if (r.outcome == Outcome::Succeeded) {
-    data["frequency_hz"] = r.actualHz;
+    if (!settingsType(r.command.type)) data["frequency_hz"] = r.actualHz;
     result["error_code"] = nullptr;
     result["error_message"] = nullptr;
   } else {
@@ -373,7 +390,7 @@ void telemetry(const Sample &sample, uint64_t sequence) {
                      {channel, measured ? "rssi" : nullptr, static_cast<int16_t>(measured ? rssi : 0)});
     if (managedEquipment)
       writeEquipment(doc["diagnostics"]["equipment"].to<JsonObject>(), equipment,
-                     sample.configOk && sample.storageOk && locallyConfirmed.load());
+                     sample.bindingCompatible && sample.storageOk && locallyConfirmed.load());
   }
   publish("/telemetry", doc);
 }
