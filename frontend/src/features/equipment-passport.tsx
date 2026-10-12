@@ -8,8 +8,17 @@ import { useAuthSession } from "@/features/auth-session";
 import type { ReadyAccessSnapshot } from "@/features/access-context";
 import { usePanelQuery } from "@/features/use-panel-query";
 import { apiErrorDisplayMessage } from "@/lib/api";
-import { equipmentStateLabels, parseEquipmentPassport } from "@/lib/api/equipment";
+import { equipmentStateLabels, parseEquipmentPassport, type EquipmentState } from "@/lib/api/equipment";
 import { formatSeen } from "@/lib/api/inventory";
+
+const passportTitles: Record<EquipmentState, string> = {
+  legacy: "Потрібно налаштувати підключення",
+  awaiting: "Очікуємо підтвердження контролера",
+  mismatch: "Потрібно звірити обладнання",
+  stale: "Потрібно оновити підтвердження",
+  incompatible: "Потрібна перевірка сумісності",
+  verified: "Паспорт підтверджено контролером",
+};
 
 export function EquipmentPassportPanel({
   context,
@@ -59,10 +68,10 @@ export function EquipmentPassportPanel({
                         : "warning"
                   }
                 >
-                  {equipmentStateLabels[data.configuration_state]}
+                  {passportTitles[data.configuration_state]}
                 </StatusBadge>
                 <p className="help-copy">
-                  Після зміни обладнання перевірте підключення та дочекайтеся підтвердження контролера.
+                  {equipmentStateLabels[data.configuration_state]}. Поточні показання та зв’язок дивіться на панелі.
                 </p>
                 {data.modules.length === 0 ? (
                   <p>
@@ -80,31 +89,14 @@ export function EquipmentPassportPanel({
                         </h3>
                         <dl className="overview-details">
                           <div>
-                            <dt>Установка</dt>
-                            <dd>{data.installations.find((item) => item.id === module.installation_id)?.name}</dd>
-                          </div>
-                          <div>
                             <dt>Модель</dt>
                             <dd>
                               {module.manufacturer} {module.model}
                             </dd>
                           </div>
                           <div>
-                            <dt>Серія · місце підключення</dt>
-                            <dd>
-                              {module.series} · {module.slot}
-                            </dd>
-                          </div>
-                          <div>
                             <dt>Серійний номер</dt>
                             <dd>{module.serial_number || "Не зазначено"}</dd>
-                          </div>
-                          <div>
-                            <dt>Версія обладнання / ПЗ</dt>
-                            <dd>
-                              {module.hardware_revision || "Не зазначено"} /{" "}
-                              {module.software_revision || "Не зазначено"}
-                            </dd>
                           </div>
                           {module.motor && (
                             <div>
@@ -113,6 +105,28 @@ export function EquipmentPassportPanel({
                             </div>
                           )}
                         </dl>
+                        <details className="equipment-secondary">
+                          <summary>Технічні відомості</summary>
+                          <dl className="overview-details">
+                            <div>
+                              <dt>Установка</dt>
+                              <dd>{data.installations.find((item) => item.id === module.installation_id)?.name}</dd>
+                            </div>
+                            <div>
+                              <dt>Серія · місце підключення</dt>
+                              <dd>
+                                {module.series} · {module.slot}
+                              </dd>
+                            </div>
+                            <div>
+                              <dt>Версія обладнання / ПЗ</dt>
+                              <dd>
+                                {module.hardware_revision || "Не зазначено"} /{" "}
+                                {module.software_revision || "Не зазначено"}
+                              </dd>
+                            </div>
+                          </dl>
+                        </details>
                       </section>
                     ))
                 )}
@@ -140,8 +154,8 @@ export function EquipmentPassportPanel({
                 )}
                 <EquipmentActions context={context} passport={data} onSaved={query.refresh} />
                 {data.desired && (
-                  <section aria-label="Конфігурація обладнання">
-                    <h3>Узгодження з контролером</h3>
+                  <details className="equipment-secondary">
+                    <summary>Підтвердження обладнання контролером</summary>
                     <dl className="overview-details">
                       <div>
                         <dt>Профіль</dt>
@@ -171,7 +185,7 @@ export function EquipmentPassportPanel({
                         <dd>{formatSeen(data.desired.created_at, context.activeSite?.timezone ?? "UTC")}</dd>
                       </div>
                     </dl>
-                  </section>
+                  </details>
                 )}
               </>
             )

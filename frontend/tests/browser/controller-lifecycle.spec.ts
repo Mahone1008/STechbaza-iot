@@ -1,4 +1,5 @@
-import { refreshButton } from "../helpers/customer-details";
+import { refreshButton, revealSection } from "../helpers/customer-details";
+import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 import {
   API_ORIGIN,
@@ -61,8 +62,8 @@ function passport(): Schema["EquipmentPassport"] {
     configuration_state: "legacy",
   };
 }
-async function setup(page: Page, options: { viewer?: boolean } = {}) {
-  await mockAuthenticatedWorkspace(page, options.viewer ? { role: "viewer" } : {});
+async function setup(page: Page, options: { viewer?: boolean; admin?: boolean } = {}) {
+  await mockAuthenticatedWorkspace(page, options.viewer ? { role: "viewer" } : options.admin ? { role: "admin" } : {});
   await page.route(`${API_ORIGIN}/api/v1/equipment/profiles`, async (route) => {
     if (!(await fulfillPreflight(route))) await fulfillJson(route, 200, [profile]);
   });
@@ -81,6 +82,7 @@ async function setup(page: Page, options: { viewer?: boolean } = {}) {
       });
   });
   await page.goto(`/devices/${DEVICE_ID}?view=equipment`);
+  await expect(page.getByText("OLD-DRIVE", { exact: true })).toBeVisible();
 }
 
 test("replacement preserves the old passport, requires explicit confirmation and shows a STOP rejection", async ({
@@ -100,6 +102,7 @@ test("replacement preserves the old passport, requires explicit confirmation and
     });
     await fulfillJson(route, 409, { detail: "Потрібні свіжі дані: двигун зупинений, 0 Гц, керування DISARM" });
   });
+  await revealSection(page, "Обслуговування та заміна");
   await page.getByRole("button", { name: "Замінити частотник", exact: true }).click();
   await page.getByLabel("Виробник і серія").selectOption(profile.id);
   await page.getByLabel("Модель нового частотника зі шильдика").fill("SU600A-5RG1-B");
@@ -163,7 +166,7 @@ test("handover kit remains visible after passport refresh removes its old associ
   await page.getByLabel("Причина", { exact: true }).fill("Продаж новому власнику");
   await page.getByLabel("Ваш пароль для підтвердження").fill("test-password-only");
   await page.getByRole("checkbox").check();
-  await page.getByRole("button", { name: "Підтвердити дію", exact: true }).click();
+  await page.getByRole("button", { name: "Підтвердити передачу", exact: true }).click();
   await expect(page.getByText("Контролер готовий до передачі", { exact: true })).toBeVisible();
   await expect(page.getByRole("img", { name: "QR для підключення контролера" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Завантажити комплект передачі" })).toBeVisible();
@@ -185,25 +188,180 @@ test("viewer can read passport without replacement or credential controls", asyn
   await expect(page.getByRole("button", { name: "Керувати доступом" })).toHaveCount(0);
 });
 
-for (const width of [320, 1280]) test(`controller access actions have readable spacing at ${width}px`, async ({ page }) => {
-  await page.setViewportSize({ width, height: 852 });
+for (const width of [320, 1280])
+  test(`controller access actions have readable spacing at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 852 });
+    await setup(page);
+    const section = page.locator('section[aria-label="Доступ і передача контролера"]');
+    const help = (await section.locator(":scope > .help-copy").boundingBox())!;
+    const toggle = section.getByRole("button", { name: "Керувати доступом", exact: true });
+    const box = (await toggle.boundingBox())!;
+    expect(box.y - (help.y + help.height)).toBeGreaterThanOrEqual(16);
+    await toggle.click();
+    await expect(section.getByRole("button", { name: "Передати іншому власнику", exact: true })).toBeVisible();
+    await expect(section.getByRole("button", { name: "Оновити доступ контролера", exact: true })).toBeHidden();
+    await revealSection(page, "Захист підключення контролера");
+    const buttons = section.locator(".equipment-secondary > .ui-row > .button");
+    await expect(buttons).toHaveCount(2);
+    const boxes = await Promise.all((await buttons.all()).map((button) => button.boundingBox()));
+    for (let i = 1; i < boxes.length; i++) {
+      const previous = boxes[i - 1]!,
+        current = boxes[i]!;
+      const gap =
+        Math.abs(current.y - previous.y) < 2
+          ? current.x - previous.x - previous.width
+          : current.y - previous.y - previous.height;
+      expect(gap).toBeGreaterThanOrEqual(10);
+    }
+    await expect(section.getByRole("button", { name: "Оновити стан доступу" })).toBeHidden();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    expect(
+      (await new AxeBuilder({ page }).include("#device-section-equipment").withTags(["wcag2a", "wcag2aa"]).analyze())
+        .violations,
+    ).toEqual([]);
+  });
+
+test("customer passport keeps technical data and rare maintenance out of the main view", async ({ page }) => {
   await setup(page);
-  const section = page.locator('section[aria-label="Доступ і передача контролера"]');
-  const help = (await section.locator(":scope > .help-copy").boundingBox())!;
-  const toggle = section.getByRole("button", { name: "Керувати доступом", exact: true });
-  const box = (await toggle.boundingBox())!;
-  expect(box.y - (help.y + help.height)).toBeGreaterThanOrEqual(16);
-  await toggle.click();
-  const buttons = section.locator(":scope > .ui-row > .button");
-  await expect(buttons).toHaveCount(3);
-  const boxes = await Promise.all((await buttons.all()).map((button) => button.boundingBox()));
-  for (let i = 1; i < boxes.length; i++) {
-    const previous = boxes[i - 1]!, current = boxes[i]!;
-    const gap = Math.abs(current.y - previous.y) < 2
-      ? current.x - previous.x - previous.width
-      : current.y - previous.y - previous.height;
-    expect(gap).toBeGreaterThanOrEqual(10);
-  }
-  await expect(section.getByRole("button", { name: "Оновити стан доступу" })).toBeHidden();
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await expect(page.getByText("OLD-DRIVE", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Налаштувати підключення", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Замінити частотник", exact: true })).toBeHidden();
+  await expect(page.getByText("vfd-1", { exact: false })).toBeHidden();
+  await page.screenshot({ path: test.info().outputPath("equipment-desktop.png"), fullPage: true });
+  await revealSection(page, "Технічні відомості");
+  await expect(page.getByText("vfd-1", { exact: false })).toBeVisible();
+});
+
+test("opening a supported setup uses its passport model without sending a change", async ({ page }) => {
+  await setup(page);
+  let posts = 0;
+  await page.route(`${API_ORIGIN}/api/v1/devices/${DEVICE_ID}/equipment/configurations`, async (route) => {
+    if (!(await fulfillPreflight(route))) {
+      posts++;
+      await fulfillJson(route, 201, {});
+    }
+  });
+  await page.getByRole("button", { name: "Налаштувати підключення", exact: true }).click();
+  await expect(page.getByLabel("Виробник і серія")).toHaveValue(profile.id);
+  await expect(page.getByRole("button", { name: "Зберегти налаштування", exact: true })).toBeDisabled();
+  expect(posts).toBe(0);
+  await page.getByRole("checkbox").check();
+  await page.getByLabel("Максимальна частота, Гц", { exact: true }).fill("45");
+  await expect(page.getByRole("checkbox")).not.toBeChecked();
+  await expect(page.getByRole("button", { name: "Зберегти налаштування", exact: true })).toBeDisabled();
+});
+
+test("setup never guesses a driver for a different full model", async ({ page }) => {
+  await setup(page);
+  await page.route(`${API_ORIGIN}/api/v1/devices/${DEVICE_ID}/equipment`, async (route) => {
+    if (!(await fulfillPreflight(route)))
+      await fulfillJson(route, 200, { ...passport(), modules: [{ ...installed, model: "SU600-OTHER-REVISION" }] });
+  });
+  await (await refreshButton(page, "Оновити паспорт")).click();
+  await page.getByRole("button", { name: "Налаштувати підключення", exact: true }).click();
+  await expect(page.getByLabel("Виробник і серія")).toHaveValue("");
+  await page.getByLabel("Виробник і серія").selectOption(profile.id);
+  await page.getByRole("checkbox").check();
+  await expect(page.getByRole("button", { name: "Зберегти налаштування", exact: true })).toBeDisabled();
+  await expect(page.getByText("Обраний профіль не підтверджений", { exact: false })).toBeVisible();
+});
+
+test("passport refresh cannot retarget an already reviewed configuration to a replaced drive", async ({ page }) => {
+  await setup(page);
+  let replaced = false,
+    posts = 0;
+  await page.route(`${API_ORIGIN}/api/v1/devices/${DEVICE_ID}/equipment`, async (route) => {
+    if (!(await fulfillPreflight(route)))
+      await fulfillJson(route, 200, {
+        ...passport(),
+        modules: [{ ...installed, id: replaced ? "44444444-4444-4444-8444-444444444444" : moduleId }],
+      });
+  });
+  await page.route(`${API_ORIGIN}/api/v1/devices/${DEVICE_ID}/equipment/configurations`, async (route) => {
+    if (!(await fulfillPreflight(route))) {
+      posts++;
+      await fulfillJson(route, 201, {});
+    }
+  });
+  await page.getByRole("button", { name: "Налаштувати підключення", exact: true }).click();
+  await page.getByRole("checkbox").check();
+  replaced = true;
+  await (await refreshButton(page, "Оновити паспорт")).click();
+  await expect(page.getByRole("alert").filter({ hasText: "Паспорт змінився" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Зберегти налаштування", exact: true })).toBeDisabled();
+  expect(posts).toBe(0);
+});
+
+test("organization admin has access maintenance without owner handover", async ({ page }) => {
+  await setup(page, { admin: true });
+  await page.getByRole("button", { name: "Керувати доступом", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Передати іншому власнику", exact: true })).toHaveCount(0);
+  await revealSection(page, "Захист підключення контролера");
+  await expect(page.getByRole("button", { name: "Оновити доступ контролера", exact: true })).toBeVisible();
+});
+
+test("closing access actions clears proof and a changed generation blocks the reviewed action", async ({ page }) => {
+  await setup(page);
+  let generation = 1,
+    posts = 0;
+  await page.route(`${API_ORIGIN}/api/v1/connect/${controllerId}/status`, async (route) => {
+    if (!(await fulfillPreflight(route)))
+      await fulfillJson(route, 200, {
+        controller_id: controllerId,
+        generation,
+        credential_revision: generation,
+        credential_state: "active",
+        access_revoked: false,
+        last_contact_at: null,
+      });
+  });
+  await page.route(`${API_ORIGIN}/api/v1/connect/${controllerId}/access/release`, async (route) => {
+    if (!(await fulfillPreflight(route))) {
+      posts++;
+      await fulfillJson(route, 409, {});
+    }
+  });
+  await page.getByRole("button", { name: "Керувати доступом", exact: true }).click();
+  await page.getByRole("button", { name: "Передати іншому власнику", exact: true }).click();
+  await page.getByLabel("Причина", { exact: true }).fill("Передача новому власнику");
+  await page.getByLabel("Ваш пароль для підтвердження").fill("test-password-only");
+  await page.getByRole("checkbox").check();
+  generation = 2;
+  await (await refreshButton(page, "Оновити стан доступу")).click();
+  await expect(page.getByRole("alert").filter({ hasText: "Стан доступу змінився" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Підтвердити передачу", exact: true })).toBeDisabled();
+  await page.getByRole("button", { name: "Згорнути дії", exact: true }).click();
+  await page.getByRole("button", { name: "Керувати доступом", exact: true }).click();
+  await page.getByRole("button", { name: "Передати іншому власнику", exact: true }).click();
+  await expect(page.getByLabel("Ваш пароль для підтвердження")).toHaveValue("");
+  await expect(page.getByRole("checkbox")).not.toBeChecked();
+  expect(posts).toBe(0);
+});
+
+test("an access form cannot move to another controller with the same generation", async ({ page }) => {
+  await setup(page);
+  const nextController = "11111111-1111-4111-8111-111111111112";
+  await page.getByRole("button", { name: "Керувати доступом", exact: true }).click();
+  await page.getByRole("button", { name: "Передати іншому власнику", exact: true }).click();
+  await page.getByLabel("Причина", { exact: true }).fill("Передача новому власнику");
+  await page.getByLabel("Ваш пароль для підтвердження").fill("test-password-only");
+  await page.getByRole("checkbox").check();
+  await page.route(`${API_ORIGIN}/api/v1/devices/${DEVICE_ID}/equipment`, async (route) => {
+    if (!(await fulfillPreflight(route)))
+      await fulfillJson(route, 200, { ...passport(), controller_id: nextController });
+  });
+  await page.route(`${API_ORIGIN}/api/v1/connect/${nextController}/status`, async (route) => {
+    if (!(await fulfillPreflight(route)))
+      await fulfillJson(route, 200, {
+        controller_id: nextController,
+        generation: 1,
+        credential_revision: 1,
+        credential_state: "active",
+        access_revoked: false,
+        last_contact_at: null,
+      });
+  });
+  await (await refreshButton(page, "Оновити паспорт")).click();
+  await expect(page.getByRole("alert").filter({ hasText: "Стан доступу змінився" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Підтвердити передачу", exact: true })).toBeDisabled();
 });
