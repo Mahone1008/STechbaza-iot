@@ -5,16 +5,26 @@
 
 namespace kerumo {
 class Modbus final : public Bus {
+public:
+  struct Diagnostics {
+    uint32_t requests = 0, valid = 0, noReply = 0, invalid = 0;
+    uint16_t lastRegister = 0, lastReceived = 0;
+  };
+
+private:
   HardwareSerial &serial_;
   const bool controlEnabled_;
-  uint32_t quietUntil = 0;
+  Diagnostics diagnostics_{};
+  uint32_t quietSince = 0;
+  bool quietPending = false;
   bool exchange(uint16_t address, uint16_t value, bool write, uint16_t &result) {
     // Only this task owns UART. Allow delayed frames to drain after a timeout.
-    while (static_cast<int32_t>(millis() - quietUntil) < 0) {
+    while (quietPending && static_cast<uint32_t>(millis() - quietSince) < 250) {
       while (serial_.available())
         serial_.read();
       delay(1);
     }
+    quietPending = false;
     delay(5);
     while (serial_.available())
       serial_.read();
@@ -47,13 +57,26 @@ class Modbus final : public Bus {
       delay(1);
     }
     bool ok = write ? writeResponse(response, count, request) : readResponse(response, count, 1, result);
-    if (!ok)
-      quietUntil = millis() + 250;
+    ++diagnostics_.requests;
+    diagnostics_.lastRegister = address;
+    diagnostics_.lastReceived = static_cast<uint16_t>(count);
+    if (ok)
+      ++diagnostics_.valid;
+    else if (count == 0)
+      ++diagnostics_.noReply;
+    else
+      ++diagnostics_.invalid;
+    if (!ok) {
+      quietSince = millis();
+      quietPending = true;
+    }
     return ok;
   }
 
 public:
   Modbus(HardwareSerial &serial, bool controlEnabled) : serial_(serial), controlEnabled_(controlEnabled) {}
+  // Read by the owning VFD task; diagnostics never perform additional bus I/O.
+  const Diagnostics &diagnostics() const { return diagnostics_; }
   bool read(uint16_t address, uint16_t &value) override { return exchange(address, 0, false, value); }
   bool write(uint16_t address, uint16_t value) override {
     if (!controlEnabled_)

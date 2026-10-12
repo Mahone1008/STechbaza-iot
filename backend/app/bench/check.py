@@ -6,6 +6,7 @@ import queue
 import ssl
 import threading
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 
 import paho.mqtt.client as mqtt
@@ -23,6 +24,9 @@ def run():
     with SessionLocal() as session:
         assert_database(session)
     identity = json.loads(Path("/work/identity.json").read_text())
+    port = identity.get("port", 8883)
+    transport = os.getenv("KERUMO_BENCH_TRANSPORT", "wifi")
+    ensure(transport in {"wifi", "cellular"}, "Invalid bench transport")
     ensure(identity["uid"] == UID, "Wrong identity")
     topic = f"techbaza/devices/{UID}"
     inbox = queue.Queue()
@@ -39,21 +43,28 @@ def run():
     # Certificate verification must work without hostname/CA bypasses.
     tls = ssl.create_default_context(cafile="/work/ca.crt")
     import socket
-    with socket.create_connection((identity["host"],8883),timeout=5) as sock:
+    with socket.create_connection((identity["host"],port),timeout=5) as sock:
         with tls.wrap_socket(sock,server_hostname=identity["host"]) as secured:
             ensure(secured.version() in {"TLSv1.2", "TLSv1.3"}, "TLS version")
     try:
-        with socket.create_connection((identity["host"],8883),timeout=5) as sock:
+        with socket.create_connection((identity["host"],port),timeout=5) as sock:
             ssl.create_default_context().wrap_socket(sock,server_hostname=identity["host"])
     except ssl.SSLCertVerificationError:
         pass
     else:
         raise RuntimeError("Private CA unexpectedly trusted without pairing")
+    try:
+        with socket.create_connection((identity["host"],port),timeout=5) as sock:
+            tls.wrap_socket(sock,server_hostname="wrong-broker.invalid")
+    except ssl.SSLCertVerificationError:
+        pass
+    else:
+        raise RuntimeError("Wrong broker hostname was accepted")
     for username,password in ((None,None),(UID,"wrong-password")):
         ready=threading.Event(); outcome=[]
         denied=create(password,username=username)
         denied.on_connect=lambda client,userdata,flags,reason,props: (outcome.append(reason.is_failure),ready.set())
-        denied.connect(identity["host"],8883,10);denied.loop_start()
+        denied.connect(identity["host"],port,10);denied.loop_start()
         try:
             ensure(ready.wait(5) and outcome==[True], "Anonymous/wrong password must be rejected")
         finally:
@@ -62,7 +73,7 @@ def run():
     edge=create(identity["password"])
     edge.on_connect=lambda client,userdata,flags,reason,props: (connection.append(not reason.is_failure),connected.set())
     edge.on_message=lambda client,userdata,message: inbox.put((message.topic,bytes(message.payload)))
-    edge.connect(identity["host"],8883,10);edge.loop_start()
+    edge.connect(identity["host"],port,10);edge.loop_start()
     owner=None
     try:
         ensure(connected.wait(5) and connection==[True], "Device MQTT authentication")
@@ -77,8 +88,9 @@ def run():
             info=edge.publish(topic+suffix,json.dumps(payload),qos=1,retain=False)
             info.wait_for_publish(timeout=5);ensure(info.is_published(), "MQTT PUBACK")
         publish("/heartbeat",envelope(0))
-        diagnostics={"version":1,"firmware_version":"0.2.2","uptime_ms":3000,"reset_reason":"power_on",
-                     "connection":{"transport":"wifi","signal":{"metric":"rssi","dbm":-67}},"last_stop":None}
+        diagnostics={"version":1,"firmware_version":"0.9.0" if transport == "cellular" else "0.2.2",
+                     "uptime_ms":3000,"reset_reason":"power_on",
+                     "connection":{"transport":transport,"signal":{"metric":"rssi","dbm":-67}},"last_stop":None}
         publish("/telemetry",{**envelope(1),"values":{"vfd.frequency_hz":0,"vfd.set_frequency_hz":19,
             "vfd.current_a":0,"vfd.voltage_v":0},"state":{"pump_running":False,"vfd_fault_code":0,
             "vfd_link":True,"vfd_configuration_valid":True,"control_armed":False},"diagnostics":diagnostics})
@@ -125,6 +137,28 @@ def run():
             return result if all(item["value"] is None for item in result["readings"]) else None
         view=wait_for("VFD absent fields",missing_view)
         ensure(view["availability"]["online"],"VFD outage should not masquerade as ESP32 outage")
+        if transport == "cellular":
+            # Exercise the user's observer/DB correlation tool on this CI peer.
+            # Repeated fresh packets avoid a race with its MQTT subscription.
+            from app.bench.v4_probe import run as observe
+            prepare(enable_control=False)
+            next_sequence = 4
+            with ThreadPoolExecutor(max_workers=1) as worker:
+                observed = worker.submit(observe, Path("/work/probe"), 30)
+                def probe_completed():
+                    nonlocal next_sequence
+                    publish("/heartbeat", envelope(next_sequence))
+                    next_sequence += 1
+                    publish("/telemetry", {**envelope(next_sequence),
+                        "values": {"vfd.frequency_hz": 0, "vfd.set_frequency_hz": 19,
+                                   "vfd.current_a": 0, "vfd.voltage_v": 0},
+                        "state": {"pump_running": False, "vfd_fault_code": 0,
+                                  "vfd_link": True, "control_armed": False}, "diagnostics": diagnostics})
+                    next_sequence += 1
+                    return observed.done()
+                wait_for("CI cellular observer and database correlation", probe_completed)
+                observed.result()
+            print("PASS: read-only observer/DB probe exercised with a simulated cellular peer, not physical hardware")
         print("PASS: TLS CA/IP, anonymous/password rejection, topic ACL, read-only enrollment, telemetry/subsets, v2 command/ACK/result bridge and missing values")
     finally:
         prepare(enable_control=False)
