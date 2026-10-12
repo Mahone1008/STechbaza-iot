@@ -15,6 +15,10 @@ async function mockOverview(page: Page, get = controlOverview) { await page.rout
 async function mockPost(page: Page, handler: (route: Route, body: CommandInput) => Promise<void>) { await page.route(commandsUrl, async (route) => { if (await fulfillPreflight(route)) return; expect(route.request().method()).toBe("POST"); await handler(route, route.request().postDataJSON() as CommandInput); }); }
 async function confirm(page: Page, label = "Запустити") { await controls(page).getByRole("button", { name: label, exact: true }).click(); await page.getByRole("dialog").getByRole("button", { name: "Надіслати команду" }).click(); }
 async function mockDetail(page: Page, get: () => Command = commandFixture) { await page.route(detailUrl, async (route) => { if (await fulfillPreflight(route)) return; await fulfillJson(route, 200, get()); }); }
+async function openSelectedCommand(page: Page) {
+  await expect(detail(page)).toHaveCount(0);
+  await page.getByRole("button", { name: "Переглянути в журналі", exact: true }).click();
+}
 test.beforeEach(async ({ page }) => { await mockAuthenticatedWorkspace(page); await mockOverview(page); await mockDetail(page); });
 
 test("a confirmation opened before equipment replacement cannot retarget its request", async ({ page }) => {
@@ -78,6 +82,7 @@ test("frequency validation, cancel and confirmation send exactly one immutable r
   expect(posts).toHaveLength(0); await page.getByRole("dialog").getByRole("button", { name: "Скасувати" }).click(); expect(posts).toHaveLength(0);
   await button.click();
   await page.getByRole("dialog").getByRole("button", { name: "Надіслати команду" }).evaluate((element: HTMLButtonElement) => { element.click(); element.click(); });
+  await openSelectedCommand(page);
   await expect(detail(page)).toContainText("У черзі"); expect(posts).toHaveLength(1);
   expect(posts[0]).toMatchObject({ command_type: "vfd.frequency.set", payload: { frequency_hz: 0 }, ttl_seconds: 30 });
   expect(posts[0]!.request_id).toMatch(/^[0-9a-f-]{36}$/);
@@ -91,8 +96,9 @@ test("lost response only retries manually with the same request_id and payload",
   await expect(controls(page).getByRole("button", { name: "Запустити", exact: true })).toBeDisabled(); expect(posts).toHaveLength(1);
   await page.getByRole("button", { name: "Повторити той самий запит", exact: true }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Підтвердити повтор" }).click();
+  await openSelectedCommand(page);
   await expect(detail(page)).toContainText("У черзі"); expect(posts).toHaveLength(2); expect(posts[1]).toEqual(posts[0]);
-  await page.reload(); await expect(controls(page)).toBeVisible(); expect(posts).toHaveLength(2);
+  await page.reload(); await expect(detail(page)).toBeVisible(); expect(posts).toHaveLength(2);
 });
 
 test("request uncertainty expires without a replay after F5 or reconnect", async ({ page, context }) => {
@@ -174,12 +180,45 @@ test("selected lifecycle polls ACK separately from result, stops on unknown and 
   await page.clock.install(); let gets = 0; let status = "queued";
   await mockPost(page, async (route, body) => fulfillJson(route, 201, commandFixture(body)));
   await mockDetail(page, () => { gets++; return commandFixture({ status, acknowledged_at: status === "queued" ? null : "2026-09-28T12:00:01Z", result_deadline_at: status === "queued" ? null : "2026-09-28T12:02:01Z" }); });
-  await page.goto(path); await confirm(page); await expect(detail(page)).toContainText("У черзі");
+  await page.goto(path); await confirm(page); await openSelectedCommand(page); await expect(detail(page)).toContainText("У черзі");
   status = "acknowledged"; await page.clock.fastForward(5100); await expect(detail(page).locator(".status-badge")).toHaveText("Контролер підтвердив прийом");
   status = "result_unknown"; await page.clock.fastForward(5100); await expect(detail(page).locator(".status-badge")).toHaveText("Результат невідомий");
   const stopped = gets; await page.clock.fastForward(11_000); expect(gets).toBe(stopped);
   status = "succeeded"; await (await refreshButton(page, "Оновити стан команди")).click();
   await expect(detail(page).locator(".status-badge")).toHaveText("Контролер повідомив про виконання");
+});
+
+test("created command stays compact on Panel and details poll only in the active Journal", async ({ page }) => {
+  await page.clock.install();
+  let reads = 0, posts = 0;
+  await mockPost(page, async (route, body) => { posts++; await fulfillJson(route, 201, commandFixture(body)); });
+  await mockDetail(page, () => { reads++; return commandFixture(); });
+  await page.goto(path);
+  await confirm(page);
+  await expect(controls(page)).toContainText("Команду прийнято. Очікуємо результат від контролера.");
+  await expect(detail(page)).toHaveCount(0);
+  await page.clock.fastForward(11000);
+  expect(reads).toBe(0);
+  expect(posts).toBe(1);
+  await openSelectedCommand(page);
+  await expect(detail(page)).toContainText("У черзі");
+  await expect(page.locator("#selected-command")).toBeFocused();
+  await expect(page).toHaveURL(new RegExp(`view=journal.*command=${commandId}|command=${commandId}.*view=journal`));
+  const opened = reads;
+  await page.clock.fastForward(5100);
+  await expect.poll(() => reads).toBeGreaterThan(opened);
+  await page.getByRole("tab", { name: "Панель", exact: true }).click();
+  await expect(detail(page)).toHaveCount(0);
+  const paused = reads;
+  await page.clock.fastForward(11000);
+  expect(reads).toBe(paused);
+  await page.reload();
+  await expect(controls(page)).toBeVisible();
+  await expect(detail(page)).toHaveCount(0);
+  expect(reads).toBe(paused);
+  await openSelectedCommand(page);
+  await expect(detail(page)).toContainText("У черзі");
+  expect(posts).toBe(1);
 });
 
 test("cursor journal pages retain their boundary after insertion and reject foreign rows", async ({ page }) => {
@@ -214,7 +253,7 @@ test("manual mode and hidden tab pause selected command polling", async ({ page 
   await page.clock.install(); let gets = 0;
   await mockPost(page, async (route, body) => fulfillJson(route, 201, commandFixture(body)));
   await mockDetail(page, () => { gets++; return commandFixture(); });
-  await page.goto(path); await confirm(page); await expect(detail(page)).toContainText("У черзі");
+  await page.goto(path); await confirm(page); await openSelectedCommand(page); await expect(detail(page)).toContainText("У черзі");
   await (await displaySettings(page)).selectOption("0"); const initial = gets;
   await page.clock.fastForward(11_000); expect(gets).toBe(initial);
   await (await displaySettings(page)).selectOption("30");
@@ -230,6 +269,7 @@ for (const viewport of [{ width: 1280, height: 720 }, { width: 390, height: 844 
     await page.goto(path);
     await (await displaySettings(page)).selectOption("0");
     await confirm(page);
+    await openSelectedCommand(page);
     const card = detail(page);
     await expect(card.locator(".status-badge")).toHaveText("У черзі");
     const summary = card.getByText("Автор та виконання", { exact: true });

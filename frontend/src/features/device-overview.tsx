@@ -14,13 +14,13 @@ import { StableRegion } from "@/components/stable-region";
 import type { PollSeconds } from "@/lib/api/polling-policy";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useElapsedSeconds } from "./use-elapsed-seconds";
 import { Button, Card, MetricCard, PageHeader, SelectField, StatusBadge } from "@/components/ui";
 import { useAccessContext, type ReadyAccessSnapshot } from "@/features/access-context";
 import { useAuthSession } from "@/features/auth-session";
 import { apiErrorDisplayMessage, apiQueryKeys, isApiError } from "@/lib/api";
-import { formatSeen } from "@/lib/api/inventory";
+import { formatSeen, isUuid } from "@/lib/api/inventory";
 import { deviceLifecycleLabel } from "@/lib/device-labels";
 import {
   channelLabel,
@@ -320,7 +320,17 @@ function DevicePanel({ context }: { context: ReadyAccessSnapshot }) {
         behavior: "smooth",
       });
   };
-  const [selectedCommand, setSelectedCommand] = useState<string | null>(null);
+  const [selectedCommand, setSelectedCommand] = useState<string | null>(() => {
+    const id = search.get("command");
+    return id && isUuid(id) ? id : null;
+  });
+  const focusCommand = useRef(false);
+  const rememberCommand = (id: string) => {
+    setSelectedCommand(id);
+    const url = new URL(window.location.href);
+    url.searchParams.set("command", id);
+    window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+  };
   // The demo presence lease is 15 s; refresh well before it expires.
   const [poll, setPoll] = useState<PollSeconds>(5);
   const query = usePanelQuery({
@@ -346,9 +356,20 @@ function DevicePanel({ context }: { context: ReadyAccessSnapshot }) {
   // Після F5 відновлюємо серверний план за ID із телеметрії, а не чернетку форми.
   const displayedCommand = selectedCommand ?? programCommandId;
   const selectCommand = (id: string) => {
-    setSelectedCommand(id);
+    focusCommand.current = true;
+    rememberCommand(id);
     navigate("journal");
   };
+  useEffect(() => {
+    if (section !== "journal" || !displayedCommand || !focusCommand.current) return;
+    focusCommand.current = false;
+    const frame = requestAnimationFrame(() => {
+      const detail = document.getElementById("selected-command");
+      detail?.focus({ preventScroll: true });
+      detail?.scrollIntoView({ block: "start", behavior: "smooth" });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [section, displayedCommand]);
   const onViewProgram =
     context.access.permissions.includes("command.read") && programCommandId
       ? () => selectCommand(programCommandId)
@@ -455,12 +476,14 @@ function DevicePanel({ context }: { context: ReadyAccessSnapshot }) {
             active={query.active && section === "panel"}
             refreshing={query.isFetching}
             poll={poll}
-            onCreated={setSelectedCommand}
+            onCreated={rememberCommand}
+            onViewCommand={
+              selectedCommand && context.access.permissions.includes("command.read")
+                ? () => selectCommand(selectedCommand)
+                : undefined
+            }
           />
         </div>
-        {section === "panel" && displayedCommand && context.access.permissions.includes("command.read") && (
-          <CommandDetail key={displayedCommand} context={context} id={displayedCommand} poll={poll} />
-        )}
       </DeviceSection>
       <DeviceSection name="charts" active={section === "charts"}>
         {visited.has("charts") &&
@@ -489,7 +512,7 @@ function DevicePanel({ context }: { context: ReadyAccessSnapshot }) {
       <DeviceSection name="journal" active={section === "journal"}>
         {visited.has("journal") && (
           <>
-            <div id="selected-command">
+            <div id="selected-command" tabIndex={-1}>
               {section === "journal" && displayedCommand && context.access.permissions.includes("command.read") && (
                 <CommandDetail key={displayedCommand} context={context} id={displayedCommand} poll={poll} />
               )}

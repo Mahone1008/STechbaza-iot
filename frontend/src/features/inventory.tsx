@@ -164,7 +164,7 @@ function Directory({ context, sites }: { context: DirectoryAccessSnapshot | Read
         actions={
           sites && organizationId && hasPermission("membership.read") ? (
             <Link className="button button-secondary" href={`/organizations/${organizationId}/members` as Route}>
-              Учасники організації
+              Учасники та доступ
             </Link>
           ) : undefined
         }

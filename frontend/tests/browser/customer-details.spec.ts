@@ -91,6 +91,7 @@ test("uncertain command result remains visible while delivery details are collap
   await page.goto(`/devices/${DEVICE_ID}`);
   await page.getByRole("button", { name: "Зупинити", exact: true }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Надіслати команду", exact: true }).click();
+  await page.getByRole("button", { name: "Переглянути в журналі", exact: true }).click();
   const card = page
     .locator("section.card")
     .filter({ has: page.getByRole("heading", { name: "Стан вибраної команди", exact: true }) });

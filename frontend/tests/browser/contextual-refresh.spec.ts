@@ -1,5 +1,5 @@
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 import { overviewWithFrequencyFixture } from "../fixtures/overview";
 import { seriesFixture } from "../fixtures/series";
 import { displaySettings, refreshButton } from "../helpers/customer-details";
@@ -78,6 +78,46 @@ async function setup(page: Page) {
   });
   return counts;
 }
+
+async function expectCenteredControls(settings: Locator) {
+  const container = await settings.locator(".panel-refresh-controls").boundingBox();
+  expect(container).not.toBeNull();
+  const center = container!.x + container!.width / 2;
+  const buttons = await settings.getByRole("button").all();
+  const boxes = await Promise.all(buttons.map((button) => button.boundingBox()));
+  expect(boxes.length).toBeGreaterThan(0);
+  const left = Math.min(...boxes.map((box) => box!.x));
+  const right = Math.max(...boxes.map((box) => box!.x + box!.width));
+  expect(Math.abs((left + right) / 2 - center)).toBeLessThanOrEqual(1);
+  const autoRefresh = settings.getByLabel("Автооновлення", { exact: true });
+  if (await autoRefresh.count()) {
+    const label = await settings.locator(".field-label").boundingBox();
+    const select = await autoRefresh.boundingBox();
+    expect(Math.abs((label!.x + select!.x + select!.width) / 2 - center)).toBeLessThanOrEqual(1);
+  }
+}
+
+for (const width of [1280, 1920])
+  test(`display settings are centered throughout device and directory views at ${width}px`, async ({ page }) => {
+    await setup(page);
+    await page.setViewportSize({ width, height: 1080 });
+    await page.goto(`/devices/${DEVICE_ID}`);
+    await (await displaySettings(page)).selectOption("0");
+    const settings = page.locator(".panel-display-settings");
+    for (const tab of ["Панель", "Графіки", "Розклади", "Журнал", "Обладнання"]) {
+      await page.getByRole("tab", { name: tab, exact: true }).click();
+      await expectCenteredControls(settings);
+    }
+    for (const path of [
+      "/organizations",
+      `/organizations/${ORGANIZATION_ID}/sites`,
+      `/organizations/${ORGANIZATION_ID}/sites/${SITE_ID}/devices`,
+    ]) {
+      await page.goto(path);
+      await expect(await refreshButton(page, "Оновити дані")).toBeEnabled();
+      await expectCenteredControls(settings);
+    }
+  });
 
 test("the shared action refreshes only the visible tab after every tab was visited", async ({ page }) => {
   const counts = await setup(page);

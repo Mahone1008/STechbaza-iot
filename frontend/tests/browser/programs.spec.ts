@@ -88,6 +88,8 @@ test("timer confirmation sends one complete plan with separate TTL and validates
   await expect(
     page.getByText("Команду прийнято. Очікуємо результат від контролера.", { exact: true }),
   ).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Стан вибраної команди", exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: "Переглянути в журналі", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Стан вибраної команди", exact: true })).toBeVisible();
   expect(posts).toHaveLength(1);
   expect(posts[0]).toMatchObject({
@@ -159,18 +161,17 @@ test("F5 restores every saved stage without issuing commands and leaves STOP ava
     if (request.method() === "POST" && request.url().endsWith("/commands")) posts++;
   });
   await page.goto(`/devices/${DEVICE_ID}`);
-  await expect(page.locator("#device-section-panel .program-summary li")).toHaveText([
+  await expect(page.locator("#device-section-panel .program-summary")).toHaveCount(0);
+  await page.getByRole("link", { name: "Переглянути етапи роботи", exact: true }).click();
+  await expect(page.locator("#selected-command .program-summary li")).toHaveText([
     "20 Гц · 1 хв",
     "40 Гц · 1 год",
     "50 Гц · 30 с",
   ]);
+  await page.getByRole("tab", { name: "Панель", exact: true }).click();
   data.diagnostics!.program!.remaining_seconds = 3580;
   await page.reload();
-  await expect(page.locator("#device-section-panel .program-summary li")).toHaveText([
-    "20 Гц · 1 хв",
-    "40 Гц · 1 год",
-    "50 Гц · 30 с",
-  ]);
+  await expect(page.locator("#device-section-panel .program-summary")).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Виконання етапів", exact: true })).toBeVisible();
   await expect(page.getByText("Етап 2 з 3 · 40 Гц.", { exact: true })).toBeVisible();
   await expect(page.getByText("Залишок етапу за повідомленням контролера: 59 хв 40 с.", { exact: true })).toBeVisible();
@@ -198,7 +199,11 @@ test("F5 restores every saved stage without issuing commands and leaves STOP ava
   });
   await page.getByRole("button", { name: "Зупинити", exact: true }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Надіслати команду", exact: true }).click();
-  await expect(page.locator("#device-section-panel")).toContainText("Контролер повідомив про виконання");
+  await expect(page.locator("#device-section-panel")).toContainText("Команду прийнято. Очікуємо результат від контролера.");
+  await expect(page.getByRole("heading", { name: "Стан вибраної команди", exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: "Переглянути в журналі", exact: true }).click();
+  await expect(page.locator("#selected-command")).toContainText("Контролер повідомив про виконання");
+  await page.getByRole("tab", { name: "Панель", exact: true }).click();
   await page.getByRole("link", { name: "Переглянути етапи роботи", exact: true }).click();
   await expect(page.locator("#selected-command .program-summary li")).toHaveText([
     "20 Гц · 1 хв",
@@ -246,9 +251,12 @@ for (const canReadCommands of [true, false])
     if (canReadCommands) {
       await expect(page.getByRole("heading", { name: "Робота за таймером", exact: true })).toBeVisible();
       await expect(page.getByText("Робота на заданій частоті · 20 Гц.", { exact: true })).toBeVisible();
-      await expect(page.locator("#device-section-panel .program-summary li")).toHaveText(["20 Гц · 1 хв"]);
+      await expect(page.locator("#device-section-panel .program-summary")).toHaveCount(0);
       await expect(page.getByRole("link", { name: "Переглянути таймер", exact: true })).toBeVisible();
       expect(reads).toBeGreaterThan(0);
+      await page.getByRole("link", { name: "Переглянути таймер", exact: true }).click();
+      await expect(page.locator("#selected-command .program-summary li")).toHaveText(["20 Гц · 1 хв"]);
+      await page.getByRole("tab", { name: "Панель", exact: true }).click();
     } else {
       await expect(page.getByRole("heading", { name: "Виконання роботи", exact: true })).toBeVisible();
       await expect(page.getByText("Етап 1 з 1 · 20 Гц.", { exact: true })).toBeVisible();

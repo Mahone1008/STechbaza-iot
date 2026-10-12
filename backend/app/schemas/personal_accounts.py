@@ -52,6 +52,8 @@ class InvitationPreview(StrictModel):
     email: str
     organization_name: str
     role: OrganizationRole
+    site_names: list[str] | None = Field(default=None, min_length=1, max_length=100)
+    access_expires_at: datetime | None = None
 
 
 class InvitationAccepted(StrictModel):

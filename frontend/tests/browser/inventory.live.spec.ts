@@ -94,6 +94,7 @@ test("real organization and site selection shows API devices, presence and resto
     const receipt = await receiptPromise; expect(receipt.status()).toBe(201);
     const command = await receipt.json() as components["schemas"]["DeviceCommandRead"];
     expect(command.command_type).toBe("vfd.stop"); expect(command.device_id).toBe(overview.device.id);
+    await page.getByRole("button", { name: "Переглянути в журналі", exact: true }).click();
     const details = page.locator("section.card").filter({ has: page.getByRole("heading", { name: "Стан вибраної команди", exact: true }) });
     await expect(details.locator(".status-badge")).toHaveText("Контролер повідомив про виконання", { timeout: 20_000 });
     await details.getByText("Автор та виконання", { exact: true }).click();

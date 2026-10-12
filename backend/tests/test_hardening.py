@@ -11,6 +11,7 @@ from types import SimpleNamespace as NS
 from unittest.mock import Mock, patch
 
 import paho.mqtt.client as paho
+from fastapi import HTTPException
 from pydantic import ValidationError
 from sqlalchemy import String, create_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
@@ -22,7 +23,7 @@ from app.repositories import commands as command_repo
 from app.schemas.capability import DeviceCapabilityAssign, DeviceCapabilityUpdate
 from app.schemas.command_ack import CommandAckEnvelope
 from app.schemas.command_result import CommandResultEnvelope
-from app.schemas.membership import MembershipUpdate
+from app.schemas.membership import MembershipCreate, MembershipUpdate
 from app.security.current_user import get_current_user_context
 from app.services.capabilities import CapabilityService, DeviceAlarmRulesConflictError
 from app.services.command_ack import CommandAckService
@@ -192,12 +193,39 @@ class CommandTests(unittest.TestCase):
 
 
 class MembershipTests(unittest.TestCase):
+    def test_update_precondition_requires_a_change_and_an_aware_timestamp(self):
+        now = datetime.now(timezone.utc)
+        for body in ({}, {"expected_updated_at": now}, {"expected_updated_at": None},
+                     {"role": "viewer", "expected_updated_at": now.replace(tzinfo=None)}):
+            with self.subTest(body=body), self.assertRaises(ValidationError):
+                MembershipUpdate(**body)
+        self.assertEqual(MembershipUpdate(role="viewer", expected_updated_at=now).expected_updated_at, now)
+        self.assertIsNone(MembershipUpdate(role="viewer").expected_updated_at)
+
+    def test_stale_update_precondition_is_checked_before_any_mutation(self):
+        now = datetime.now(timezone.utc)
+        session = Mock()
+        service = MembershipService(session)
+        service._memberships = Mock()
+        original_sites = [str(uuid.uuid4())]
+        target = NS(role="viewer", is_active=True, site_ids=original_sites,
+                    expires_at=None, updated_at=now)
+        service._memberships.get_for_organization.return_value = target
+        with self.assertRaises(HTTPException) as failure:
+            service.update(uuid.uuid4(), uuid.uuid4(),
+                MembershipUpdate(role="operator", site_ids=None, expected_updated_at=now-timedelta(seconds=1)),
+                actor_user_id=uuid.uuid4(), actor_is_superadmin=True)
+        self.assertEqual(failure.exception.status_code, 409)
+        self.assertEqual((target.role, target.site_ids, target.is_active), ("viewer", original_sites, True))
+        session.flush.assert_not_called()
+        session.commit.assert_not_called()
+
     def test_last_owner_is_checked_after_shared_lock(self):
         session, trace = Mock(), []
         service = MembershipService(session)
         service._memberships = Mock()
         service._memberships.lock_organization.side_effect = lambda _: trace.append("lock") or uuid.uuid4()
-        service._memberships.get_active.return_value = NS(role="owner")
+        service._memberships.get_active.return_value = NS(role="owner", site_ids=None)
         service._memberships.get_for_organization.return_value = NS(role="owner", is_active=True)
         service._memberships.count_active_owners.side_effect = lambda _: trace.append("count") or 1
         with self.assertRaises(MembershipLastOwnerError):
@@ -213,6 +241,39 @@ class MembershipTests(unittest.TestCase):
         with self.assertRaises(MembershipPermissionError):
             service.update(uuid.uuid4(), uuid.uuid4(), MembershipUpdate(role="viewer"),
                            actor_user_id=uuid.uuid4(), actor_is_superadmin=False)
+
+    def test_scope_narrowed_while_waiting_blocks_creation_and_update(self):
+        for operation in ("create", "update"):
+            with self.subTest(operation=operation):
+                session, trace = Mock(), []
+                service = MembershipService(session)
+                service._memberships = Mock()
+                service._users = Mock()
+                actor = NS(role="admin", site_ids=None)
+                organization_id, actor_id = uuid.uuid4(), uuid.uuid4()
+
+                def acquire_lock(_):
+                    trace.append("lock")
+                    actor.site_ids = [str(uuid.uuid4())]
+                    return organization_id
+
+                def read_actor(*_):
+                    trace.append("read-current-scope")
+                    return actor
+
+                service._memberships.lock_organization.side_effect = acquire_lock
+                service._memberships.get_active.side_effect = read_actor
+                with self.assertRaises(MembershipPermissionError):
+                    if operation == "create":
+                        service.create(organization_id, MembershipCreate(user_id=uuid.uuid4()),
+                            actor_user_id=actor_id, actor_is_superadmin=False)
+                    else:
+                        service.update(organization_id, uuid.uuid4(), MembershipUpdate(role="operator"),
+                            actor_user_id=actor_id, actor_is_superadmin=False)
+                self.assertEqual(trace, ["lock", "read-current-scope"])
+                service._users.get.assert_not_called()
+                service._memberships.get_for_organization.assert_not_called()
+                session.commit.assert_not_called()
 
 
 class DiagnosticsTests(unittest.TestCase):

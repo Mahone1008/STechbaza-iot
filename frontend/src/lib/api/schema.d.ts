@@ -3142,11 +3142,15 @@ export interface components {
         };
         /** InvitationPreview */
         InvitationPreview: {
+            /** Access Expires At */
+            access_expires_at?: string | null;
             /** Email */
             email: string;
             /** Organization Name */
             organization_name: string;
             role: components["schemas"]["OrganizationRole"];
+            /** Site Names */
+            site_names?: string[] | null;
         };
         /** InvitationRead */
         InvitationRead: {
@@ -3263,6 +3267,8 @@ export interface components {
          * @description Зміни tenant-role або active state membership.
          */
         MembershipUpdate: {
+            /** Expected Updated At */
+            expected_updated_at?: string | null;
             /** Expires At */
             expires_at?: string | null;
             /** Is Active */

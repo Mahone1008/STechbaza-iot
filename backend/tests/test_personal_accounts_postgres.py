@@ -14,7 +14,7 @@ from sqlalchemy import delete, select
 from auth_http_helpers import request
 from onboarding_helpers import OnboardingFixtures
 from app.db import SessionLocal
-from app.models import AccountLink, AuthSession, OrganizationMembership, User
+from app.models import AccountLink, AuthSession, OrganizationMembership, Site, User
 from app.security.account_keys import totp_code
 from app.security.browser_config import AUTH_BROWSER_ORIGINS
 from app.security.tokens import utc_now
@@ -308,6 +308,8 @@ class PersonalAccountTests(OnboardingFixtures, unittest.TestCase):
         self.assertNotIn(proof, str(invitation))
         preview, _ = self.http("/invitations/inspect", body={"token": proof})
         self.assertEqual(preview["role"], "operator")
+        self.assertEqual(preview["site_names"], ["Test only"])
+        self.assertIsNone(preview["access_expires_at"])
         created, _ = self.http(
             "/invitations/register",
             body={"token": proof, "display_name": "Staff", "password": self.password},
@@ -322,6 +324,113 @@ class PersonalAccountTests(OnboardingFixtures, unittest.TestCase):
                 (membership.role, membership.site_ids), ("operator", [str(self.sites[0])])
             )
             self.assertEqual(user.platform_role, "user")
+        self.http("/invitations/inspect", body={"token": proof}, expected=404)
+
+    def test_service_invitation_sends_role_label_and_grants_only_selected_object(self):
+        invitation, _ = self.http(
+            f"/organizations/{self.orgs[0]}/invitations", who="owner", expected=201,
+            body={"email": self.email, "role": "service", "site_ids": [str(self.sites[0])]},
+        )
+        self.assertEqual(invitation["role"], "service")
+        self.assertEqual(len(self.letters), 1)
+        self.assertIn("Роль: Сервісне обслуговування.", self.letters[0][2])
+        self.assertIn("Доступ лише до об’єктів:", self.letters[0][2])
+        proof = self.mail_token()
+        preview, _ = self.http("/invitations/inspect", body={"token": proof})
+        self.assertEqual((preview["role"], preview["site_names"]), ("service", ["Test only"]))
+        created, _ = self.http("/invitations/register", body={
+            "token": proof, "display_name": "Service specialist", "password": self.password,
+        })
+        with SessionLocal() as session:
+            user = session.scalar(select(User).where(User.email == created["email"]))
+            self.additional_users.append(user.id)
+            membership = session.scalar(select(OrganizationMembership).where(
+                OrganizationMembership.user_id == user.id,
+                OrganizationMembership.organization_id == self.orgs[0],
+            ))
+            self.assertEqual((membership.role, membership.site_ids), ("service", [str(self.sites[0])]))
+            self.assertEqual(user.platform_role, "user")
+        login, _ = self.http("/auth/browser/login", body={"email": self.email, "password": self.password})
+        access, _ = self.http(f"/organizations/{self.orgs[0]}/access", method="GET", token=login["access_token"])
+        self.assertIn("capability.manage", access["permissions"])
+        self.assertIn("command.execute", access["permissions"])
+        self.assertNotIn("membership.manage", access["permissions"])
+        self.assertNotIn("site.create", access["permissions"])
+
+    def test_invitation_preview_and_mail_show_only_selected_objects_and_access_expiry(self):
+        second = uuid.uuid4()
+        with SessionLocal.begin() as session:
+            session.get(Site, self.sites[0]).name = "Свердловина А"
+            session.get(Site, self.sites[1]).name = "Приватний об’єкт іншого клієнта"
+            session.add(Site(id=second, organization_id=self.orgs[0], name="Насосна станція Б", code="second"))
+            session.add(Site(organization_id=self.orgs[0], name="Не наданий об’єкт", code="not-selected"))
+        access_expiry = utc_now() + timedelta(days=7)
+        self.http(
+            f"/organizations/{self.orgs[0]}/invitations",
+            who="owner", expected=201,
+            body={"email": self.email, "role": "operator", "site_ids": [str(second), str(self.sites[0])],
+                  "expires_at": access_expiry.isoformat()},
+        )
+        preview, headers = self.http("/invitations/inspect", body={"token": self.mail_token()})
+        self.assertEqual(preview["site_names"], ["Насосна станція Б", "Свердловина А"])
+        self.assertEqual(preview["access_expires_at"], access_expiry.isoformat().replace("+00:00", "Z"))
+        self.assertEqual(headers["cache-control"], "no-store")
+        letter = self.letters[-1][2]
+        self.assertIn("Роль: Оператор.", letter)
+        self.assertIn("Доступ лише до об’єктів:", letter)
+        self.assertIn("Насосна станція Б", letter)
+        self.assertIn("Свердловина А", letter)
+        self.assertIn(access_expiry.strftime("%d.%m.%Y %H:%M UTC"), letter)
+        for hidden in ("Приватний об’єкт іншого клієнта", "Не наданий об’єкт"):
+            self.assertNotIn(hidden, str(preview))
+            self.assertNotIn(hidden, letter)
+
+    def test_whole_organization_invitation_is_explicit_and_owner_cannot_have_scoped_access(self):
+        self.http(
+            f"/organizations/{self.orgs[0]}/invitations", who="owner", expected=422,
+            body={"email": self.email, "role": "owner", "site_ids": [str(self.sites[0])]},
+        )
+        self.http(
+            f"/organizations/{self.orgs[0]}/invitations", who="owner", expected=422,
+            body={"email": self.email, "role": "owner", "expires_at": (utc_now() + timedelta(days=7)).isoformat()},
+        )
+        self.assertEqual(self.letters, [])
+        self.http(
+            f"/organizations/{self.orgs[0]}/invitations", who="owner", expected=201,
+            body={"email": self.email, "role": "viewer"},
+        )
+        preview, _ = self.http("/invitations/inspect", body={"token": self.mail_token()})
+        self.assertIsNone(preview["site_names"])
+        self.assertIsNone(preview["access_expires_at"])
+        self.assertIn("Роль: Перегляд.", self.letters[-1][2])
+        self.assertIn("Доступ: усі об’єкти організації.", self.letters[-1][2])
+        self.assertIn("Термін доступу: без обмеження в часі.", self.letters[-1][2])
+
+    def test_invalid_or_expired_invitation_scope_never_exposes_object_names(self):
+        invitation, _ = self.http(
+            f"/organizations/{self.orgs[0]}/invitations", who="owner", expected=201,
+            body={"email": self.email, "site_ids": [str(self.sites[0])]},
+        )
+        proof = self.mail_token()
+        for site_ids, expiry in (
+            ([str(self.sites[0]), str(self.sites[1])], None),
+            ([], None),
+            ([str(self.sites[0])] * 101, None),
+            (["not-a-site-id"], None),
+            ([str(self.sites[0])], utc_now() - timedelta(seconds=1)),
+        ):
+            with self.subTest(site_ids=site_ids, expiry=expiry):
+                with SessionLocal.begin() as session:
+                    link = session.get(AccountLink, uuid.UUID(invitation["id"]))
+                    link.site_ids = site_ids
+                    link.access_expires_at = expiry
+                result, _ = self.http("/invitations/inspect", body={"token": proof}, expected=404)
+                self.assertNotIn("site_names", result)
+        with SessionLocal.begin() as session:
+            link = session.get(AccountLink, uuid.UUID(invitation["id"]))
+            link.site_ids = [str(self.sites[0])]
+            link.access_expires_at = None
+            link.expires_at = utc_now() - timedelta(seconds=1)
         self.http("/invitations/inspect", body={"token": proof}, expected=404)
 
     def test_invitation_cannot_replace_existing_account_or_grant_foreign_email(self):
@@ -372,6 +481,7 @@ class PersonalAccountTests(OnboardingFixtures, unittest.TestCase):
             method="DELETE",
             expected=204,
         )
+        self.http("/invitations/inspect", body={"token": proof}, expected=404)
         self.http(
             "/invitations/register",
             body={"token": proof, "display_name": "Buyer", "password": self.password},
@@ -393,6 +503,7 @@ class PersonalAccountTests(OnboardingFixtures, unittest.TestCase):
                 )
             )
             membership.role = "viewer"
+        self.http("/invitations/inspect", body={"token": proof}, expected=404)
         self.http(
             "/invitations/register",
             body={"token": proof, "display_name": "Buyer", "password": self.password},

@@ -379,6 +379,32 @@ class FrontendPostgresTests(unittest.TestCase):
         self.assertIsNone(result["access"]["organization_role"])
         self.assertEqual(result["access"]["permissions"], sorted(p.value for p in Permission))
 
+    def test_scoped_permissions_match_guards_and_hide_other_objects(self):
+        other_site = uuid.uuid4()
+        with SessionLocal.begin() as session:
+            session.add(Site(id=other_site, organization_id=self.orgs[0], name="Other object", code="other"))
+            session.flush()
+            session.get(Device, self.devices[1]).site_id = other_site
+            for role in ("admin", "operator", "viewer"):
+                membership = session.scalar(select(OrganizationMembership).where(
+                    OrganizationMembership.user_id == self.identities[role].user.id,
+                    OrganizationMembership.organization_id == self.orgs[0]))
+                membership.site_ids = [str(self.sites[0])]
+        blocked = {Permission.SITE_CREATE, Permission.MEMBERSHIP_READ, Permission.MEMBERSHIP_MANAGE}
+        for role in ("admin", "operator", "viewer"):
+            with self.subTest(role=role):
+                access = self.request(self.access, who=role)
+                expected = ORGANIZATION_ROLE_PERMISSIONS[OrganizationRole(role)] - blocked
+                self.assertEqual(access["permissions"], sorted(item.value for item in expected))
+                self.assertEqual(self.request(self.overview, who=role)["access"], access)
+                sites = self.request(f"/organizations/{self.orgs[0]}/sites", who=role)
+                self.assertEqual([site["id"] for site in sites], [str(self.sites[0])])
+                self.request(f"/sites/{other_site}/devices", who=role, expected=404)
+                self.request(f"/devices/{self.devices[1]}/overview", who=role, expected=404)
+                self.request(f"/organizations/{self.orgs[0]}/memberships", who=role, expected=403)
+                self.request(f"/organizations/{self.orgs[0]}/sites", who=role, method="POST",
+                    body={"name": "Unauthorized object", "code": "denied", "timezone": "UTC"}, expected=403)
+
     def test_revoked_session_disabled_user_and_invalid_uuid(self):
         self.request("/devices/not-a-uuid/overview", expected=422)
         self.request("/organizations/not-a-uuid/access", expected=422)
