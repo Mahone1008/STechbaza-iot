@@ -25,5 +25,6 @@ Docker-Checked @compose build backend
 Docker-Checked @compose up -d --wait postgres mosquitto
 Docker-Checked @compose run --rm -T backend alembic upgrade head
 Docker-Checked @compose up -d --no-deps --force-recreate --wait @services
-Write-Host 'Server updated. Restart both frontend terminals and upload firmware 0.10.1 using retained local headers.' -ForegroundColor Green
-Write-Host 'Database, NVS, private headers, tunnel endpoint and control flags were retained. See docs/vfd-settings-v1.md.'
+Write-Host 'Server updated. Restart both frontend terminals.' -ForegroundColor Green
+Write-Host 'For factory V4 activation, prepare an isolated firmware 0.11.0 sketch with scripts/prepare-factory-v4.ps1. See docs/v4-factory-onboarding.md.'
+Write-Host 'Database, private headers, tunnel endpoint and control flags were retained. See docs/vfd-settings-v1.md.'
