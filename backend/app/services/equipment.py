@@ -26,7 +26,9 @@ from app.schemas.equipment import (
     ModuleRead,
     ReplacementCreate,
 )
-from app.services.equipment_profiles import canonical_json, configuration_hash, get_profile
+from app.services.equipment_profiles import (
+    canonical_json, configuration_hash, get_profile, selectable_manufacturer,
+)
 from app.services.telemetry_quality import freshness
 
 
@@ -200,6 +202,8 @@ class EquipmentService:
         )
 
     def add_module(self, device_id, payload: ModuleCreate) -> EquipmentModule:
+        if payload.kind == "vfd" and not selectable_manufacturer(payload.manufacturer):
+            raise EquipmentConflict("Для нового частотника оберіть SUSWE")
         device = DeviceRepository(self.session).get_for_update(device_id)
         installation = self.session.get(PumpInstallation, payload.installation_id)
         if not installation or installation.site_id != device.site_id:
@@ -312,6 +316,8 @@ class EquipmentService:
         return row
 
     def replace(self, device_id, payload: ReplacementCreate, current):
+        if not selectable_manufacturer(payload.replacement.manufacturer):
+            raise EquipmentConflict("Для нового частотника оберіть SUSWE")
         device = DeviceRepository(self.session).get_for_update(device_id)
         previous = desired_configuration(self.session, device_id)
         if payload.expected_revision != (previous.revision if previous else 0):

@@ -8,8 +8,17 @@ import { useAuthSession } from "@/features/auth-session";
 import type { ReadyAccessSnapshot } from "@/features/access-context";
 import { usePanelQuery } from "@/features/use-panel-query";
 import { apiErrorDisplayMessage } from "@/lib/api";
-import { equipmentStateLabels, parseEquipmentPassport } from "@/lib/api/equipment";
+import { equipmentStateLabels, parseEquipmentPassport, type EquipmentState } from "@/lib/api/equipment";
 import { formatSeen } from "@/lib/api/inventory";
+
+const passportTitles: Record<EquipmentState, string> = {
+  legacy: "Потрібно налаштувати підключення",
+  awaiting: "Очікуємо підтвердження контролера",
+  mismatch: "Потрібно звірити обладнання",
+  stale: "Потрібно оновити підтвердження",
+  incompatible: "Потрібна перевірка сумісності",
+  verified: "Паспорт підтверджено контролером",
+};
 
 export function EquipmentPassportPanel({
   context,
@@ -59,11 +68,8 @@ export function EquipmentPassportPanel({
                         : "warning"
                   }
                 >
-                  {equipmentStateLabels[data.configuration_state]}
+                  {passportTitles[data.configuration_state]}
                 </StatusBadge>
-                <p className="help-copy">
-                  Після зміни обладнання перевірте підключення та дочекайтеся підтвердження контролера.
-                </p>
                 {data.modules.length === 0 ? (
                   <p>
                     Обладнання ще не внесено в паспорт. Для заповнення потрібні модель зі шильдика та перевірка
@@ -80,39 +86,74 @@ export function EquipmentPassportPanel({
                         </h3>
                         <dl className="overview-details">
                           <div>
-                            <dt>Установка</dt>
-                            <dd>{data.installations.find((item) => item.id === module.installation_id)?.name}</dd>
-                          </div>
-                          <div>
-                            <dt>Модель</dt>
+                            <dt>{module.kind === "vfd" ? "Частотник" : "Модель"}</dt>
                             <dd>
-                              {module.manufacturer} {module.model}
+                              {module.manufacturer} {module.kind === "vfd" ? module.series : module.model}
                             </dd>
                           </div>
-                          <div>
-                            <dt>Серія · місце підключення</dt>
-                            <dd>
-                              {module.series} · {module.slot}
-                            </dd>
-                          </div>
-                          <div>
-                            <dt>Серійний номер</dt>
-                            <dd>{module.serial_number || "Не зазначено"}</dd>
-                          </div>
-                          <div>
-                            <dt>Версія обладнання / ПЗ</dt>
-                            <dd>
-                              {module.hardware_revision || "Не зазначено"} /{" "}
-                              {module.software_revision || "Не зазначено"}
-                            </dd>
-                          </div>
-                          {module.motor && (
-                            <div>
-                              <dt>Номінальна частота двигуна</dt>
-                              <dd>{module.motor.rated_frequency_hz} Гц</dd>
-                            </div>
+                          {module.kind === "vfd" && (
+                            <>
+                              <div>
+                                <dt>Потужність двигуна</dt>
+                                <dd>
+                                  {module.motor?.rated_power_kw != null
+                                    ? `${module.motor.rated_power_kw} кВт`
+                                    : "Не зазначено"}
+                                </dd>
+                              </div>
+                              <div>
+                                <dt>Робоча частота</dt>
+                                <dd>
+                                  {data.desired?.manifest.module_id === module.id ? (
+                                    <>
+                                      {data.desired.manifest.frequency_limits.min_hz}–
+                                      {data.desired.manifest.frequency_limits.max_hz} Гц
+                                      {data.configuration_state !== "verified" && " · не підтверджено"}
+                                    </>
+                                  ) : (
+                                    "Не налаштовано"
+                                  )}
+                                </dd>
+                              </div>
+                            </>
                           )}
                         </dl>
+                        <details className="equipment-secondary">
+                          <summary>Докладніше про обладнання</summary>
+                          <dl className="overview-details">
+                            <div>
+                              <dt>Повна модель</dt>
+                              <dd>{module.model}</dd>
+                            </div>
+                            <div>
+                              <dt>Серійний номер</dt>
+                              <dd>{module.serial_number || "Не зазначено"}</dd>
+                            </div>
+                            {module.motor && (
+                              <div>
+                                <dt>Номінальна частота двигуна</dt>
+                                <dd>{module.motor.rated_frequency_hz} Гц</dd>
+                              </div>
+                            )}
+                            <div>
+                              <dt>Установка</dt>
+                              <dd>{data.installations.find((item) => item.id === module.installation_id)?.name}</dd>
+                            </div>
+                            <div>
+                              <dt>Серія · місце підключення</dt>
+                              <dd>
+                                {module.series} · {module.slot}
+                              </dd>
+                            </div>
+                            <div>
+                              <dt>Версія обладнання / ПЗ</dt>
+                              <dd>
+                                {module.hardware_revision || "Не зазначено"} /{" "}
+                                {module.software_revision || "Не зазначено"}
+                              </dd>
+                            </div>
+                          </dl>
+                        </details>
                       </section>
                     ))
                 )}
@@ -140,8 +181,9 @@ export function EquipmentPassportPanel({
                 )}
                 <EquipmentActions context={context} passport={data} onSaved={query.refresh} />
                 {data.desired && (
-                  <section aria-label="Конфігурація обладнання">
-                    <h3>Узгодження з контролером</h3>
+                  <details className="equipment-secondary">
+                    <summary>Підтвердження обладнання контролером</summary>
+                    <p className="help-copy">{equipmentStateLabels[data.configuration_state]}.</p>
                     <dl className="overview-details">
                       <div>
                         <dt>Профіль</dt>
@@ -171,7 +213,7 @@ export function EquipmentPassportPanel({
                         <dd>{formatSeen(data.desired.created_at, context.activeSite?.timezone ?? "UTC")}</dd>
                       </div>
                     </dl>
-                  </section>
+                  </details>
                 )}
               </>
             )

@@ -20,7 +20,7 @@ export function EquipmentActions({
 }) {
   const { authorizedRequest } = useAuthSession();
   const [mode, setMode] = useState<"configure" | "replace" | "commission" | null>(null);
-  const [profileId, setProfileId] = useState(passport.desired?.manifest.profile_id ?? "");
+  const [profileId, setProfileId] = useState<string | null>(passport.desired?.manifest.profile_id ?? null);
   const [model, setModel] = useState("");
   const [serial, setSerial] = useState("");
   const [hardware, setHardware] = useState("");
@@ -32,7 +32,8 @@ export function EquipmentActions({
   const [confirmed, setConfirmed] = useState(false);
   const [controlMode, setControlMode] = useState<Schema["CommissionRequest"]["control_mode"]>("read_only");
   const [notice, setNotice] = useState("");
-  const { busy, error, run } = useAccountAction(onSaved);
+  const [review, setReview] = useState<{ moduleId: string; revision: number } | null>(null);
+  const { busy, error, run, fail } = useAccountAction(onSaved);
   const profiles = usePanelQuery({
     queryKey: ["equipment-profiles", context.scope],
     enabled: mode !== null,
@@ -46,25 +47,43 @@ export function EquipmentActions({
     context.activeDevice?.lifecycle_status === "retired"
   )
     return null;
-  const profile = profiles.data?.find((item) => item.id === profileId);
+  const selectableProfiles = profiles.data?.filter((item) => item.manufacturer.toUpperCase() === "SUSWE");
+  const matching = selectableProfiles?.find(
+    (item) =>
+      item.driver_id &&
+      item.manufacturer === installedModule.manufacturer &&
+      item.series === installedModule.series &&
+      item.tested_model?.toLowerCase() === installedModule.model.toLowerCase(),
+  );
+  const selectedProfileId = profileId ?? (mode === "configure" ? (matching?.id ?? "") : "");
+  const profile = selectableProfiles?.find((item) => item.id === selectedProfileId);
   const supported = profile?.driver_id && profile.tested_model?.toLowerCase() === installedModule.model.toLowerCase();
   const base = `/api/v1/devices/${passport.device_id}/equipment`;
+  const changed =
+    !!review &&
+    (review.moduleId !== installedModule.id || review.revision !== (passport.desired?.manifest.revision ?? 0));
   const selectMode = (next: typeof mode) => {
     setMode(next);
     setConfirmed(false);
     setNotice("");
+    setProfileId(next === "configure" ? (passport.desired?.manifest.profile_id ?? null) : null);
+    setMinHz(String(passport.desired?.manifest.frequency_limits.min_hz ?? 0));
+    setMaxHz(String(passport.desired?.manifest.frequency_limits.max_hz ?? 50));
+    setRated("");
+    setReview({ moduleId: installedModule.id, revision: passport.desired?.manifest.revision ?? 0 });
+    fail("");
   };
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!confirmed) return;
+    if (!confirmed || !review || changed || !profiles.active) return;
     void run(async () => {
       if (mode === "replace" && profile) {
         await authorizedRequest({
           path: `${base}/replacement`,
           method: "POST",
           body: {
-            expected_module_id: installedModule.id,
-            expected_revision: passport.desired?.manifest.revision ?? 0,
+            expected_module_id: review.moduleId,
+            expected_revision: review.revision,
             stopped_and_isolated: true,
             reason,
             replacement: {
@@ -90,8 +109,8 @@ export function EquipmentActions({
           path: `${base}/configurations`,
           method: "POST",
           body: {
-            expected_revision: passport.desired?.manifest.revision ?? 0,
-            module_id: installedModule.id,
+            expected_revision: review.revision,
+            module_id: review.moduleId,
             profile_id: profile.id,
             profile_version: profile.version,
             bus: { transport: "modbus_rtu", address: 1, baud: 9600, parity: "none", stop_bits: 1 },
@@ -107,7 +126,7 @@ export function EquipmentActions({
           path: `${base}/commission`,
           method: "POST",
           body: {
-            expected_revision: passport.desired.manifest.revision,
+            expected_revision: review.revision,
             installation_checked: true,
             control_mode: controlMode,
           },
@@ -124,26 +143,42 @@ export function EquipmentActions({
     <section className="equipment-actions" aria-label="Налаштування обладнання">
       <h3>Налаштування та обслуговування</h3>
       <p className="help-copy">
-        Зміни виконуються після STOP і DISARM. Вимкніть розклади та дочекайтеся завершення команд.
+        Налаштуйте підключення, дочекайтеся підтвердження контролера та завершіть перевірку обладнання.
       </p>
       <div className="ui-row">
-        <Button disabled={busy} onClick={() => selectMode("configure")}>
-          Налаштувати підключення
-        </Button>
-        <Button disabled={busy || passport.configuration_state !== "verified"} onClick={() => selectMode("commission")}>
-          Завершити налаштування
-        </Button>
-        <Button disabled={busy} onClick={() => selectMode("replace")}>
-          Замінити частотник
+        <Button
+          variant="primary"
+          disabled={busy}
+          onClick={() => selectMode(passport.configuration_state === "verified" ? "commission" : "configure")}
+        >
+          {passport.configuration_state === "verified" ? "Завершити підключення" : "Налаштувати підключення"}
         </Button>
       </div>
+      <details className="equipment-secondary">
+        <summary>Обслуговування та заміна</summary>
+        <p className="help-copy">Для зміни робочих меж або заміни встановленого частотника.</p>
+        <div className="ui-row">
+          <Button disabled={busy} onClick={() => selectMode("configure")}>
+            Змінити налаштування
+          </Button>
+          <Button disabled={busy} onClick={() => selectMode("replace")}>
+            Замінити частотник
+          </Button>
+        </div>
+      </details>
       {notice && (
         <p role="status" className="notice">
           {notice}
         </p>
       )}
       {mode && (
-        <form onSubmit={submit} className="equipment-action-form">
+        <form
+          onSubmit={submit}
+          className="equipment-action-form"
+          onChange={(event) => {
+            if (!(event.target instanceof HTMLInputElement && event.target.type === "checkbox")) setConfirmed(false);
+          }}
+        >
           <h4>
             {mode === "replace"
               ? "Заміна частотного перетворювача"
@@ -151,21 +186,28 @@ export function EquipmentActions({
                 ? "Підключення та межі установки"
                 : "Перевірка перед використанням"}
           </h4>
+          <p className="help-copy">
+            Зупиніть двигун, заблокуйте пуск на контролері (DISARM), призупиніть розклади та дочекайтеся завершення
+            команд.
+          </p>
+          {changed && (
+            <p role="alert">Паспорт змінився. Закрийте форму й відкрийте її знову, щоб перевірити актуальні дані.</p>
+          )}
           {mode !== "commission" && (
             <>
               <SelectField
-                label="Виробник і серія"
+                label="Серія частотника SUSWE"
                 required
-                value={profileId}
+                value={selectedProfileId}
                 onChange={(event) => {
                   setProfileId(event.target.value);
                   setConfirmed(false);
                 }}
               >
                 <option value="">Оберіть за шильдиком</option>
-                {profiles.data?.map((item) => (
+                {selectableProfiles?.map((item) => (
                   <option key={item.id} value={item.id}>
-                    {item.manufacturer} {item.series}
+                    {item.series}
                   </option>
                 ))}
               </SelectField>
@@ -201,20 +243,23 @@ export function EquipmentActions({
                 value={serial}
                 onChange={(event) => setSerial(event.target.value)}
               />
-              <div className="equipment-form-grid">
-                <TextField
-                  label="Версія обладнання"
-                  maxLength={80}
-                  value={hardware}
-                  onChange={(event) => setHardware(event.target.value)}
-                />
-                <TextField
-                  label="Версія ПЗ частотника"
-                  maxLength={80}
-                  value={software}
-                  onChange={(event) => setSoftware(event.target.value)}
-                />
-              </div>
+              <details className="equipment-secondary">
+                <summary>Додаткові відомості про частотник</summary>
+                <div className="equipment-form-grid">
+                  <TextField
+                    label="Версія обладнання"
+                    maxLength={80}
+                    value={hardware}
+                    onChange={(event) => setHardware(event.target.value)}
+                  />
+                  <TextField
+                    label="Версія ПЗ частотника"
+                    maxLength={80}
+                    value={software}
+                    onChange={(event) => setSoftware(event.target.value)}
+                  />
+                </div>
+              </details>
               <TextField
                 label="Номінальна частота двигуна зі шильдика, Гц"
                 type="number"
@@ -247,7 +292,7 @@ export function EquipmentActions({
                 <strong>
                   {installedModule.manufacturer} {installedModule.model}
                 </strong>
-                . Перевірений транспорт SU600: адреса 1, 9600, 8N1.
+                . Виробник і серія обрані з паспорта, якщо для повної моделі є перевірений драйвер.
               </p>
               {!installedModule.motor && (
                 <TextField
@@ -288,10 +333,14 @@ export function EquipmentActions({
                   Обраний профіль не підтверджений для цієї повної моделі. Збереження конфігурації недоступне.
                 </p>
               )}
-              <p>
-                Після доставки відкрийте локальне налаштування кнопкою BOOT на 3 секунди та підтвердьте обладнання. Для
-                legacy-прошивки потрібен експорт manifest за інструкцією.
-              </p>
+              <details className="equipment-secondary">
+                <summary>Як підтвердити підключення</summary>
+                <p>Перевірене підключення SU600: адреса 1, 9600, 8N1.</p>
+                <p>
+                  Після доставки відкрийте локальне налаштування кнопкою BOOT на 3 секунди та підтвердьте обладнання.
+                  Для legacy-прошивки потрібен експорт manifest за інструкцією.
+                </p>
+              </details>
             </>
           )}
           {mode === "commission" && (
@@ -329,7 +378,14 @@ export function EquipmentActions({
             <Button
               variant="primary"
               type="submit"
-              disabled={busy || !confirmed || (mode === "configure" && !supported) || (mode === "replace" && !profile)}
+              disabled={
+                busy ||
+                !profiles.active ||
+                changed ||
+                !confirmed ||
+                (mode === "configure" && !supported) ||
+                (mode === "replace" && !profile)
+              }
             >
               {busy ? "Зберігаємо…" : mode === "replace" ? "Підтвердити заміну" : "Зберегти налаштування"}
             </Button>

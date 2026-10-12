@@ -33,6 +33,12 @@ test("source confirmation sends one immutable CAS command and waits for actual t
   });
   await page.goto(`/devices/${DEVICE_ID}`);
   const section = page.getByRole("region", { name: "Джерело керування" });
+  await expect(page.getByText("Кожна дія потребує підтвердження.", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("Джерело керування:", { exact: true })).toHaveCount(0);
+  await expect(section.getByRole("button", { name: "Дистанційне керування", exact: true })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
   await section.getByRole("button", { name: "Місцеве керування", exact: true }).click();
   await expect(page.getByRole("dialog")).toContainText("частота — її крутилкою");
   expect(
@@ -52,6 +58,14 @@ test("source confirmation sends one immutable CAS command and waits for actual t
     payload: { source: "local", expected_run_source: 2, expected_frequency_source: 6 },
   });
   await expect(section).toContainText("Дистанційне");
+  await expect(section.getByRole("button", { name: "Дистанційне керування", exact: true })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await expect(section.getByRole("button", { name: "Місцеве керування", exact: true })).toHaveAttribute(
+    "aria-pressed",
+    "false",
+  );
   await expect(section.getByRole("button", { name: "Місцеве керування", exact: true })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Запустити", exact: true })).toBeDisabled();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
@@ -78,7 +92,10 @@ test("changed source during confirmation fails before POST; local mode blocks RU
   await expect(page.getByText("Стан змінився. Оновіть показання та підтвердьте нову дію.")).toBeVisible();
   expect(posts).toBe(0);
   await page.reload();
-  await expect(page.getByRole("region", { name: "Джерело керування" })).toContainText("Місцеве · крутилка панелі");
+  await expect(page.getByRole("button", { name: "Місцеве керування", exact: true })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
   await expect(page.getByRole("button", { name: "Запустити", exact: true })).toBeDisabled();
 });
 
@@ -128,7 +145,10 @@ test("uncertain POST automatically recovers after a missing receipt without repe
   const section = page.getByRole("region", { name: "Джерело керування" });
   await expect(section).toContainText("Результат невідомий", { timeout: 15000 });
   await expect(section).toContainText("Контролер повідомив про виконання", { timeout: 15000 });
-  await expect(section).toContainText("Місцеве · крутилка панелі");
+  await expect(section.getByRole("button", { name: "Місцеве керування", exact: true })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
   await expect(section.getByRole("button", { name: "Місцеве керування", exact: true })).toBeDisabled();
   expect(posts).toBe(1);
 });
@@ -144,7 +164,10 @@ for (const source of [0, 1])
     });
     await page.goto(`/devices/${DEVICE_ID}`);
     const section = page.getByRole("region", { name: "Джерело керування" });
-    await expect(section).toContainText(source === 0 ? "Місцеве · крутилка панелі" : "Місцеве · кнопки панелі");
+    await expect(section.getByRole("button", { name: "Місцеве керування", exact: true })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
     if (source === 0)
       await expect(section.getByRole("button", { name: "Місцеве керування", exact: true })).toBeDisabled();
     else await expect(section.getByRole("button", { name: "Місцеве керування", exact: true })).toBeEnabled();
@@ -182,7 +205,12 @@ test("stale telemetry and a controller without stopped permission block switchin
     if (!(await fulfillPreflight(route))) await fulfillJson(route, 200, data);
   });
   await page.goto(`/devices/${DEVICE_ID}`);
-  await expect(page.getByRole("region", { name: "Джерело керування" })).toContainText("потрібні свіжі показання");
+  const section = page.getByRole("region", { name: "Джерело керування" });
+  await expect(section).toContainText("Немає свіжих показань");
+  await expect(section.getByRole("button", { name: "Дистанційне керування", exact: true })).toHaveAttribute(
+    "aria-pressed",
+    "false",
+  );
   await expect(page.getByRole("button", { name: "Місцеве керування", exact: true })).toBeDisabled();
   data.telemetry_freshness.status = "fresh";
   data.telemetry_freshness.reason = "recent";

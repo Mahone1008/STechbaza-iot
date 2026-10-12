@@ -115,7 +115,7 @@ test("equipment refresh includes open access details and drops them when collaps
   await page.goto(`/devices/${DEVICE_ID}?view=equipment`);
   await (await displaySettings(page)).selectOption("0");
   await page.getByRole("button", { name: "Керувати доступом" }).click();
-  await expect(page.getByText("Мережевий доступ активний.", { exact: true })).toBeVisible();
+  await expect(page.getByText("Контролеру дозволено підключатися до сервісу.", { exact: true })).toBeVisible();
   const button = await refreshButton(page, "Оновити дані");
   await expect(button).toBeEnabled();
   const before = { ...counts };

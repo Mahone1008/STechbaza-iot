@@ -209,12 +209,13 @@ export function VfdSourceControl(props: Props) {
     effectiveQuality(props.overview.freshness.status, props.overview.freshness, elapsed) === "fresh";
   if (!settings) return null;
   const canSwitch = props.overview?.allowedCommands.includes("vfd.source.set");
+  const local = fresh && settings.run_source === 0 && [0, 1].includes(settings.frequency_source ?? -1);
+  const remote = fresh && settings.run_source === 2 && settings.frequency_source === 6;
   return (
     <section className="vfd-source-control" aria-label="Джерело керування">
-      <p>
-        <strong>Джерело керування:</strong>{" "}
-        {fresh ? sourceLabel(settings) : "Не підтверджено · потрібні свіжі показання"}
-      </p>
+      {(!fresh || !canSwitch || (!local && !remote)) && (
+        <p role="status">{fresh ? sourceLabel(settings) : "Немає свіжих показань."}</p>
+      )}
       {fresh && settings.run_source === 0 && (
         <p className="help-copy">
           У місцевому режимі зупиняйте двигун на панелі частотника або установці. Зупинка із сайту потребує
@@ -227,6 +228,8 @@ export function VfdSourceControl(props: Props) {
             <Button
               key={source}
               size="small"
+              variant={(source === "local" ? local : remote) ? "primary" : "secondary"}
+              aria-pressed={source === "local" ? local : remote}
               disabled={
                 !change.canAct ||
                 change.busy ||

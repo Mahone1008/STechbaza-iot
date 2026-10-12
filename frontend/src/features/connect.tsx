@@ -133,7 +133,8 @@ function ConnectWizard({ id }: { id: string }) {
       }),
   });
   const data = connection ?? query.data;
-  const profile = profiles.data?.find((item) => `${item.id}:${item.version}` === selectedProfile);
+  const selectableProfiles = profiles.data?.filter((item) => item.manufacturer.trim().toUpperCase() === "SUSWE");
+  const profile = selectableProfiles?.find((item) => `${item.id}:${item.version}` === selectedProfile);
   const { busy, error, run: mutate } = useAccountAction();
   const submitClaim = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -323,7 +324,7 @@ function ConnectWizard({ id }: { id: string }) {
             <form onSubmit={submitEquipment}>
               <SelectField
                 required
-                label="Виробник і серія"
+                label="Серія частотника SUSWE"
                 value={selectedProfile}
                 onChange={(event) => {
                   setSelectedProfile(event.target.value);
@@ -332,9 +333,9 @@ function ConnectWizard({ id }: { id: string }) {
                 }}
               >
                 <option value="">Оберіть за шильдиком</option>
-                {profiles.data?.map((item) => (
+                {selectableProfiles?.map((item) => (
                   <option key={`${item.id}:${item.version}`} value={`${item.id}:${item.version}`}>
-                    {item.manufacturer} {item.series}
+                    {item.series}
                   </option>
                 ))}
               </SelectField>

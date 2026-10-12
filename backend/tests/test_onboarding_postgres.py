@@ -26,6 +26,19 @@ from app.security.passwords import hash_password
 
 @unittest.skipUnless(os.getenv("TECHBAZA_RUN_DB_TESTS") == "1", "Requires isolated PostgreSQL")
 class OnboardingPostgresTests(OnboardingFixtures, unittest.TestCase):
+    def test_hidden_manufacturer_cannot_be_selected_for_new_equipment(self):
+        factory = self.factory()
+        path = f"/api/v1/connect/{factory['controller']['id']}"
+        claimed = self.call(path + "/claim", method="POST", body=self.claim_body(factory))
+        selection = dict(profile_id="sigma.inventory", profile_version=1,
+                         model="Legacy drive", nameplate_confirmed=True)
+        self.call(path + "/equipment", method="PUT", body=selection, expected=422)
+        passport = self.call(f"/api/v1/devices/{claimed['device_id']}/equipment")
+        self.assertEqual(passport["modules"], [])
+        selected = self.call(path + "/equipment", method="PUT", body={**selection,
+            "profile_id": "suswe.su300.modbus", "model": "SU300-test"})
+        self.assertEqual(selected["manufacturer"], "SUSWE")
+
     def test_claim_consumes_secret_and_rescanning_never_leaks_another_tenant(self):
         factory = self.factory()
         path = f"/api/v1/connect/{factory['controller']['id']}"

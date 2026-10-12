@@ -1,4 +1,9 @@
-import { securityTotpPassword, securityPasswordProof, recoveryPasswordProof, revealSection } from "../helpers/customer-details";
+import {
+  securityTotpPassword,
+  securityPasswordProof,
+  recoveryPasswordProof,
+  revealSection,
+} from "../helpers/customer-details";
 import { expect, test, type Page, type Route } from "@playwright/test";
 import type { components } from "../../src/lib/api/schema";
 import {
@@ -48,9 +53,9 @@ const controller: Schema["FactoryRead"] = {
   last_contact_at: null,
 };
 const profile: Schema["ProfileRead"] = {
-  id: "sunfar.su300",
+  id: "suswe.su300.modbus",
   version: 1,
-  manufacturer: "Sunfar",
+  manufacturer: "SUSWE",
   series: "SU300",
   support: "documented",
   driver_id: null,
@@ -249,7 +254,7 @@ test("TOTP enrollment clears its secret, rotates recovery and revokes only the s
     await fulfillJson(request, 200, {});
   });
   await page.goto("/account/security");
-  const proof = (await securityTotpPassword(page));
+  const proof = await securityTotpPassword(page);
   const otp = page.getByLabel("Код із застосунку автентифікації", { exact: true });
   await expect(otp).toHaveCount(0);
   await proof.fill(password);
@@ -496,7 +501,16 @@ for (const existing of [false, true])
     await read(page, `connect/${id}`, () => connection);
     await read(page, "connect/sites", () => [{ id: SITE_ID, name: "Existing site" }]);
     await read(page, "connect/organizations", () => []);
-    await read(page, "equipment/profiles", () => [profile]);
+    await read(page, "equipment/profiles", () => [
+      profile,
+      {
+        ...profile,
+        id: "sigma.inventory",
+        manufacturer: "SIGMA",
+        series: "Модель за шильдиком",
+        support: "inventory_only",
+      },
+    ]);
     let claims = 0,
       writes = 0;
     await route(page, `connect/${id}/claim`, async (request) => {
@@ -531,7 +545,9 @@ for (const existing of [false, true])
       page.getByText("Контролер прив’язано до вашого об’єкта. Повторна активація не потрібна.", { exact: true }),
     ).toBeVisible();
     expect(claims).toBe(1);
-    await page.getByLabel("Виробник і серія", { exact: true }).selectOption(`${profile.id}:1`);
+    const series = page.getByLabel("Серія частотника SUSWE", { exact: true });
+    await expect(series.locator("option")).toHaveText(["Оберіть за шильдиком", "SU300"]);
+    await series.selectOption(`${profile.id}:1`);
     await page.getByLabel("Повна модель зі шильдика", { exact: true }).fill("SU300-test");
     const save = page.getByRole("button", { name: "Зберегти обладнання", exact: true });
     await expect(save).toBeDisabled();
