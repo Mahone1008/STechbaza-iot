@@ -23,10 +23,11 @@ class MembershipUpdate(MembershipScope):
 
     role: OrganizationRole | None = None
     is_active: bool | None = None
+    expected_updated_at: AwareDatetime | None = None
 
     @model_validator(mode="after")
     def require_change(self) -> "MembershipUpdate":
-        if not self.model_fields_set:
+        if not self.model_fields_set - {"expected_updated_at"}:
             raise ValueError("Потрібно передати зміну доступу")
         return self
 

@@ -11,10 +11,12 @@ import threading
 import time
 import unittest
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
 import paho.mqtt.client as paho
+from fastapi import HTTPException
 
 from sqlalchemy import delete, select, text
 
@@ -39,7 +41,7 @@ from app.services.command_dispatch import CommandDispatchService
 from app.services.command_config import COMMAND_RETRY_INTERVAL_SECONDS
 from app.services.presence_config import DEVICE_ONLINE_TIMEOUT_SECONDS
 from app.services.command_result import CommandResultService
-from app.services.memberships import MembershipService, MembershipLastOwnerError
+from app.services.memberships import MembershipService, MembershipLastOwnerError, MembershipPermissionError
 
 
 @unittest.skipUnless(os.getenv("TECHBAZA_RUN_DB_TESTS") == "1", "PostgreSQL tests require explicit opt-in")
@@ -114,6 +116,85 @@ class PostgreSQLHardeningTests(unittest.TestCase):
             self.assertCountEqual(self.parallel(change), ["updated", "protected"])
         with SessionLocal() as session:
             self.assertEqual(MembershipRepository(session).count_active_owners(self.org_id), 1)
+
+    def test_actor_scope_narrowed_before_locked_write_cannot_manage_members(self):
+        with SessionLocal.begin() as session:
+            session.get(OrganizationMembership, self.memberships[0]).role = "admin"
+            session.get(OrganizationMembership, self.memberships[1]).role = "viewer"
+        ready = threading.Event()
+
+        def change_member():
+            with SessionLocal() as worker:
+                cached_actor = MembershipRepository(worker).get_active(self.users[0], self.org_id)
+                self.assertIsNone(cached_actor.site_ids)
+                ready.set()
+                try:
+                    MembershipService(worker).update(self.org_id, self.memberships[1],
+                        MembershipUpdate(role="operator"), actor_user_id=self.users[0],
+                        actor_is_superadmin=False)
+                    return "changed"
+                except MembershipPermissionError:
+                    return "blocked"
+
+        with SessionLocal() as holder:
+            MembershipRepository(holder).lock_organization(self.org_id)
+            actor = holder.get(OrganizationMembership, self.memberships[0])
+            actor.site_ids = [str(holder.get(Device, self.device_id).site_id)]
+            with ThreadPoolExecutor(max_workers=1) as pool:
+                future = pool.submit(change_member)
+                prepared = ready.wait(5)
+                holder.commit()  # Release the organization lock after narrowing scope.
+                self.assertTrue(prepared, "Membership worker did not prepare its cached actor")
+                self.assertEqual(future.result(timeout=8), "blocked")
+        with SessionLocal() as session:
+            self.assertEqual(session.get(OrganizationMembership, self.memberships[1]).role, "viewer")
+
+    def test_membership_update_cas_rejects_stale_scope_and_preserves_legacy_clients(self):
+        original = datetime.now(timezone.utc) - timedelta(days=1)
+        with SessionLocal.begin() as session:
+            target = session.get(OrganizationMembership, self.memberships[1])
+            target.role, target.updated_at = "viewer", original
+        with SessionLocal() as session:
+            service = MembershipService(session)
+            restricted_site = session.get(Device, self.device_id).site_id
+            changed = service.update(self.org_id, self.memberships[1],
+                MembershipUpdate(role="operator", site_ids=[restricted_site], expected_updated_at=original),
+                actor_user_id=self.users[0], actor_is_superadmin=True)
+            latest = changed.updated_at
+            self.assertNotEqual(latest, original)
+            with self.assertRaises(HTTPException) as failure:
+                service.update(self.org_id, self.memberships[1],
+                    MembershipUpdate(site_ids=None, is_active=False, expected_updated_at=original),
+                    actor_user_id=self.users[0], actor_is_superadmin=True)
+            self.assertEqual(failure.exception.status_code, 409)
+            session.rollback()
+            current = session.get(OrganizationMembership, self.memberships[1])
+            self.assertEqual((current.role, current.site_ids, current.is_active, current.updated_at),
+                ("operator", [str(restricted_site)], True, latest))
+            # Old API consumers remain compatible when they omit the precondition.
+            legacy = service.update(self.org_id, self.memberships[1], MembershipUpdate(is_active=False),
+                actor_user_id=self.users[0], actor_is_superadmin=True)
+            self.assertFalse(legacy.is_active)
+            self.assertEqual(legacy.role, "operator")
+            self.assertEqual(legacy.site_ids, [str(restricted_site)])
+
+    def test_simultaneous_membership_updates_with_same_precondition_have_one_winner(self):
+        original = datetime.now(timezone.utc) - timedelta(days=1)
+        with SessionLocal.begin() as session:
+            target = session.get(OrganizationMembership, self.memberships[1])
+            target.role, target.updated_at = "viewer", original
+
+        def change(session, index):
+            try:
+                MembershipService(session).update(self.org_id, self.memberships[1],
+                    MembershipUpdate(role=("operator", "service")[index], expected_updated_at=original),
+                    actor_user_id=self.users[0], actor_is_superadmin=True)
+                return "updated"
+            except HTTPException as failure:
+                self.assertEqual(failure.status_code, 409)
+                return "conflict"
+
+        self.assertCountEqual(self.parallel(change), ["updated", "conflict"])
 
     def test_simultaneous_rule_assignments_reject_conflict(self):
         config = {"alarm_rules": [{

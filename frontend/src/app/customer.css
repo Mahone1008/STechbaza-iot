@@ -492,7 +492,7 @@ html[data-theme="customer"] .recovery-result {
 html[data-theme="customer"] .panel-refresh-controls .field {
   grid-template-columns: auto minmax(0, 280px);
   align-items: center;
-  justify-content: end;
+  justify-content: center;
   gap: 12px;
 }
 html[data-theme="customer"] .panel-refresh-controls .select {

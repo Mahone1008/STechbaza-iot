@@ -43,6 +43,12 @@ class FrontendReadService:
             if self._access.is_superadmin
             or (role is not None and role_has_permission(role, permission))
         ]
+        if self._access.allowed_site_ids(organization_id) is not None:
+            # Scope restrictions must also appear in the read model so a scoped
+            # admin is never offered organization-wide member or site actions.
+            permissions = [permission for permission in permissions if permission not in (
+                Permission.SITE_CREATE, Permission.MEMBERSHIP_READ, Permission.MEMBERSHIP_MANAGE,
+            )]
         return OrganizationAccessRead(
             organization_id=organization_id,
             platform_role=self._current.user.platform_role,

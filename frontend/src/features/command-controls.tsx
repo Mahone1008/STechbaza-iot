@@ -58,6 +58,7 @@ export function CommandControls({
   poll,
   onCreated,
   onSchedules,
+  onViewCommand,
 }: {
   context: ReadyAccessSnapshot;
   overview: Overview | null;
@@ -67,6 +68,7 @@ export function CommandControls({
   poll: PollSeconds;
   onCreated: (id: string) => void;
   onSchedules?: () => void;
+  onViewCommand?: (() => void) | undefined;
 }) {
   const sectionActive = usePanelActivity();
   const { authorizedRequest } = useAuthSession();
@@ -512,6 +514,11 @@ export function CommandControls({
       )}
       {busy && <p role="status">Перевіряємо доступ і надсилаємо команду…</p>}
       {notice && <p role="status">{notice}</p>}
+      {onViewCommand && (
+        <Button variant="ghost" size="small" onClick={onViewCommand}>
+          Переглянути в журналі
+        </Button>
+      )}
       {uncertain && (
         <section className="notice notice-warning" role="alert">
           <h3>Прийом команди не підтверджено</h3>

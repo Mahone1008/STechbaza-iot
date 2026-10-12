@@ -60,8 +60,14 @@ function InvitationWithToken({ token }: { token: string }) {
     });
   return (
     <main className="connect-page">
-      <PageHeader title="Запрошення до організації" description="Особистий доступ із правами, які призначив власник." />
+      <PageHeader title="Запрошення до KERUMO" description="Особистий доступ із правами, які призначив власник." />
       <Card title={preview?.organization_name ?? "Перевірка запрошення"}>
+        {preview?.site_names !== undefined && (
+          <p>
+            {preview.site_names === null ? "Доступ до всієї організації" : `Об’єкти: ${preview.site_names.join(", ")}`}
+          </p>
+        )}
+        {preview?.access_expires_at && <p>Доступ до {new Date(preview.access_expires_at).toLocaleString("uk-UA")}</p>}
         {linkError ? (
           <p role="alert">{linkError} Попросіть власника надіслати нове запрошення.</p>
         ) : !preview ? (

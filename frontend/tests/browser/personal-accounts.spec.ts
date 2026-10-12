@@ -2,6 +2,7 @@ import { expect, test, type Page, type Route } from "@playwright/test";
 import {
   API_ORIGIN,
   ORGANIZATION_ID,
+  SITE_ID,
   SESSION_ID,
   fulfillJson,
   fulfillPreflight,
@@ -135,12 +136,17 @@ test("organization owner can invite and revoke, and a viewer cannot open member 
   await route(page, `organizations/${ORGANIZATION_ID}/memberships`, (request) => fulfillJson(request, 200, []));
   await route(page, `organizations/${ORGANIZATION_ID}/invitations`, async (request) => {
     if (request.request().method() === "POST") {
-      expect(request.request().postDataJSON()).toEqual({ email, role: "operator" });
+      expect(request.request().postDataJSON()).toEqual({
+        email,
+        role: "operator",
+        site_ids: [SITE_ID],
+        expires_at: null,
+      });
       const invitation = {
         id: SESSION_ID,
         email,
         role: "operator",
-        site_ids: null,
+        site_ids: [SITE_ID],
         access_expires_at: null,
         expires_at: "2027-01-01T00:00:00Z",
         used_at: null,
@@ -157,7 +163,8 @@ test("organization owner can invite and revoke, and a viewer cannot open member 
   });
   await page.goto(`/organizations/${ORGANIZATION_ID}/members`);
   await page.getByLabel("Пошта учасника", { exact: true }).fill(email);
-  await page.getByLabel("Права запрошеного учасника", { exact: true }).selectOption("operator");
+  await page.getByLabel("Права учасника", { exact: true }).selectOption("operator");
+  await page.getByRole("checkbox", { name: "Тестовий об’єкт", exact: true }).check();
   await page.getByRole("button", { name: "Надіслати запрошення", exact: true }).click();
   await expect(page.getByText(/Запрошення надіслано/)).toBeVisible();
   await page.getByRole("button", { name: "Скасувати запрошення", exact: true }).click();

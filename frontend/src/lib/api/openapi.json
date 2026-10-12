@@ -3358,6 +3358,18 @@
       "InvitationPreview": {
         "additionalProperties": false,
         "properties": {
+          "access_expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Access Expires At"
+          },
           "email": {
             "title": "Email",
             "type": "string"
@@ -3368,6 +3380,22 @@
           },
           "role": {
             "$ref": "#/components/schemas/OrganizationRole"
+          },
+          "site_names": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 100,
+                "minItems": 1,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Site Names"
           }
         },
         "required": [
@@ -3689,6 +3717,18 @@
       "MembershipUpdate": {
         "description": "Зміни tenant-role або active state membership.",
         "properties": {
+          "expected_updated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Updated At"
+          },
           "expires_at": {
             "anyOf": [
               {

@@ -90,7 +90,7 @@ for (const width of [320, 393, 768, 1280]) {
     await page.goto(`/organizations/${ORGANIZATION_ID}/sites`);
     const header = page.locator(".page-header");
     await expect(header.getByRole("heading", { name: "Об’єкти", exact: true })).toBeVisible();
-    await expect(header.getByRole("link", { name: "Учасники організації" })).toBeVisible();
+    await expect(header.getByRole("link", { name: "Учасники та доступ" })).toBeVisible();
     await expect(header.getByRole("button", { name: "Оновити список" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Оновити список" })).toBeHidden();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);

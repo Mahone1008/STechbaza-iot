@@ -1,12 +1,13 @@
 """Organization invitations carry explicit roles and never replace existing access."""
 
 import uuid
+from datetime import timezone
 
 from fastapi import HTTPException
 from sqlalchemy import select, func, update
 from sqlalchemy.orm import Session
 
-from app.models import AccountLink, Organization, OrganizationMembership, User
+from app.models import AccountLink, Organization, OrganizationMembership, Site, User
 from app.schemas.personal_accounts import AccountCreated, InvitationCreate, RegistrationComplete
 from app.security.authorization import AccessControl
 from app.security.roles import OrganizationRole, Permission, role_has_permission
@@ -14,6 +15,33 @@ from app.security.tokens import utc_now
 from app.services.account_links import create_link, create_person, lock_email, read_link
 from app.services.account_mail import public_url, send_account_mail
 from app.services.memberships import MembershipService
+
+
+def invitation_site_names(session: Session, row: AccountLink) -> list[str] | None:
+    """Only expose an invitation's still-valid, selected organization objects."""
+    if row.site_ids is not None and (
+        not isinstance(row.site_ids, list) or not 1 <= len(row.site_ids) <= 100
+    ):
+        raise HTTPException(404, "Запрошення більше недоступне")
+    try:
+        MembershipService(session)._validate_scope(
+            row.organization_id, row.role, row.site_ids, row.access_expires_at
+        )
+        if row.site_ids is None:
+            return None
+        selected = list(dict.fromkeys(uuid.UUID(str(value)) for value in row.site_ids))
+    except (HTTPException, ValueError, TypeError, AttributeError):
+        raise HTTPException(404, "Запрошення більше недоступне") from None
+    sites = dict(
+        session.execute(
+            select(Site.id, Site.name)
+            .where(Site.organization_id == row.organization_id, Site.id.in_(selected))
+            .limit(100)
+        ).all()
+    )
+    if set(sites) != set(selected):
+        raise HTTPException(404, "Запрошення більше недоступне")
+    return [sites[site_id] for site_id in selected]
 
 
 def lock_organization(session: Session, organization_id: uuid.UUID):
@@ -92,10 +120,30 @@ def create_invitation(
         access_expires_at=payload.expires_at,
         created_by_user_id=current.user.id,
     )
+    names = invitation_site_names(session, row)
+    role = {
+        "owner": "Власник",
+        "admin": "Адміністратор",
+        "operator": "Оператор",
+        "viewer": "Перегляд",
+    }[row.role]
+    scope = (
+        "Доступ: усі об’єкти організації."
+        if names is None
+        else "Доступ лише до об’єктів:\n" + "\n".join(f"- {name}" for name in names)
+    )
+    duration = (
+        "Термін доступу: без обмеження в часі."
+        if row.access_expires_at is None
+        else "Доступ діє до "
+        + row.access_expires_at.astimezone(timezone.utc).strftime("%d.%m.%Y %H:%M UTC")
+        + "."
+    )
     send_account_mail(
         email,
         "Запрошення до організації в KERUMO",
         f"Вас запрошують до організації «{org.name}».\n\n"
+        f"Роль: {role}.\n{scope}\n{duration}\n\n"
         f"Відкрийте посилання протягом трьох днів:\n{public_url()}/invite#token={token}\n\n"
         "Увійдіть у свій обліковий запис або створіть особистий пароль. Нікому не передавайте його.",
     )

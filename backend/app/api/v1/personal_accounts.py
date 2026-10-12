@@ -30,6 +30,7 @@ from app.services.account_links import read_link
 from app.services.invitations import (
     accept_invitation,
     create_invitation,
+    invitation_site_names,
     lock_organization,
     validate_inviter,
 )
@@ -157,7 +158,13 @@ def invitation_inspect(payload: EmailLinkProof, request: Request, response: Resp
     if organization is None or not organization.is_active:
         raise HTTPException(404, "Організація недоступна")
     response.headers["Cache-Control"] = "no-store"
-    return InvitationPreview(email=row.email, organization_name=organization.name, role=row.role)
+    return InvitationPreview(
+        email=row.email,
+        organization_name=organization.name,
+        role=row.role,
+        site_names=invitation_site_names(session, row),
+        access_expires_at=row.access_expires_at,
+    )
 
 
 @router.post("/invitations/accept", response_model=InvitationAccepted)

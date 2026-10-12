@@ -61,7 +61,11 @@ class MembershipService:
         if actor_is_superadmin:
             return
         actor = self._memberships.get_active(actor_user_id, organization_id)
-        if actor is None or not role_has_permission(actor.role, Permission.MEMBERSHIP_MANAGE):
+        if (
+            actor is None
+            or actor.site_ids is not None
+            or not role_has_permission(actor.role, Permission.MEMBERSHIP_MANAGE)
+        ):
             raise MembershipPermissionError
 
     def _actor_is_owner(
@@ -163,6 +167,11 @@ class MembershipService:
         )
         if membership is None:
             raise MembershipNotFoundError
+        if (
+            payload.expected_updated_at is not None
+            and payload.expected_updated_at != membership.updated_at
+        ):
+            raise HTTPException(409, "Доступ учасника вже змінено. Оновіть список і перевірте актуальні права.")
 
         actor_is_owner = self._actor_is_owner(
             organization_id,
