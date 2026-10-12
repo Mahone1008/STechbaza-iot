@@ -65,6 +65,27 @@ class EquipmentPostgresTests(unittest.TestCase):
         self.call(f"/api/v1/devices/{self.devices[1]}/equipment/modules", method="POST", body=self.module_body, who="other", expected=409)
         self.call(self.base + "/equipment/modules", method="POST", body=self.module_body, who="owner", expected=409)
 
+    def test_new_selection_is_suswe_only_and_existing_inventory_remains_readable(self):
+        catalog = self.call("/api/v1/equipment/profiles", who="owner")
+        self.assertEqual({item["manufacturer"] for item in catalog}, {"SUSWE"})
+        sigma = {**self.module_body, "manufacturer": "SIGMA", "series": "Legacy", "model": "Legacy drive"}
+        self.call(self.base + "/equipment/modules", method="POST",
+            body={**sigma, "slot": "vfd-2"}, who="owner", expected=409)
+        self.call(self.base + "/equipment/replacement", method="POST", who="owner", expected=409,
+            body={"expected_module_id": self.module["id"], "expected_revision": 0,
+                "replacement": sigma, "stopped_and_isolated": True, "reason": "Test replacement"})
+        with SessionLocal.begin() as session:
+            installed = session.get(EquipmentModule, uuid.UUID(self.module["id"]))
+            self.assertIsNone(installed.retired_at)
+            # A historical installed module is not changed or hidden by the new catalog.
+            installed.manufacturer = "SIGMA"
+            installed.series = "Legacy"
+            installed.model = "Legacy drive"
+        passport = self.call(self.base + "/equipment", who="viewer")
+        self.assertEqual(len(passport["modules"]), 1)
+        self.assertEqual(passport["modules"][0]["manufacturer"], "SIGMA")
+        self.assertEqual(passport["modules"][0]["model"], "Legacy drive")
+
     def test_configuration_guard_and_optimistic_revision(self):
         for armed, running, age in [(True, False, 0), (False, True, 0), (False, False, 300)]:
             self.fresh(armed=armed, running=running, age=age)

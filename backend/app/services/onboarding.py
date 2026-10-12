@@ -32,7 +32,7 @@ from app.security.roles import Permission
 from app.security.tokens import utc_now
 from app.security.passwords import hash_password, verify_password
 from app.security.mfa_policy import require_privileged_mfa
-from app.services.equipment_profiles import get_profile
+from app.services.equipment_profiles import get_profile, selectable_manufacturer
 from app.services.label_accounts import permanent_login, renew_label
 
 
@@ -276,7 +276,7 @@ def select_equipment(
     )
     session.scalar(select(Device.id).where(Device.id == device.id).with_for_update())
     profile = get_profile(payload.profile_id, payload.profile_version)
-    if profile is None:
+    if profile is None or not selectable_manufacturer(profile.manufacturer):
         raise HTTPException(422, "Профіль моделі не знайдено")
     existing = session.scalar(
         select(EquipmentModule).where(

@@ -70,9 +70,6 @@ export function EquipmentPassportPanel({
                 >
                   {passportTitles[data.configuration_state]}
                 </StatusBadge>
-                <p className="help-copy">
-                  {equipmentStateLabels[data.configuration_state]}. Поточні показання та зв’язок дивіться на панелі.
-                </p>
                 {data.modules.length === 0 ? (
                   <p>
                     Обладнання ще не внесено в паспорт. Для заповнення потрібні модель зі шильдика та перевірка
@@ -89,25 +86,55 @@ export function EquipmentPassportPanel({
                         </h3>
                         <dl className="overview-details">
                           <div>
-                            <dt>Модель</dt>
+                            <dt>{module.kind === "vfd" ? "Частотник" : "Модель"}</dt>
                             <dd>
-                              {module.manufacturer} {module.model}
+                              {module.manufacturer} {module.kind === "vfd" ? module.series : module.model}
                             </dd>
                           </div>
-                          <div>
-                            <dt>Серійний номер</dt>
-                            <dd>{module.serial_number || "Не зазначено"}</dd>
-                          </div>
-                          {module.motor && (
-                            <div>
-                              <dt>Номінальна частота двигуна</dt>
-                              <dd>{module.motor.rated_frequency_hz} Гц</dd>
-                            </div>
+                          {module.kind === "vfd" && (
+                            <>
+                              <div>
+                                <dt>Потужність двигуна</dt>
+                                <dd>
+                                  {module.motor?.rated_power_kw != null
+                                    ? `${module.motor.rated_power_kw} кВт`
+                                    : "Не зазначено"}
+                                </dd>
+                              </div>
+                              <div>
+                                <dt>Робоча частота</dt>
+                                <dd>
+                                  {data.desired?.manifest.module_id === module.id ? (
+                                    <>
+                                      {data.desired.manifest.frequency_limits.min_hz}–
+                                      {data.desired.manifest.frequency_limits.max_hz} Гц
+                                      {data.configuration_state !== "verified" && " · не підтверджено"}
+                                    </>
+                                  ) : (
+                                    "Не налаштовано"
+                                  )}
+                                </dd>
+                              </div>
+                            </>
                           )}
                         </dl>
                         <details className="equipment-secondary">
-                          <summary>Технічні відомості</summary>
+                          <summary>Докладніше про обладнання</summary>
                           <dl className="overview-details">
+                            <div>
+                              <dt>Повна модель</dt>
+                              <dd>{module.model}</dd>
+                            </div>
+                            <div>
+                              <dt>Серійний номер</dt>
+                              <dd>{module.serial_number || "Не зазначено"}</dd>
+                            </div>
+                            {module.motor && (
+                              <div>
+                                <dt>Номінальна частота двигуна</dt>
+                                <dd>{module.motor.rated_frequency_hz} Гц</dd>
+                              </div>
+                            )}
                             <div>
                               <dt>Установка</dt>
                               <dd>{data.installations.find((item) => item.id === module.installation_id)?.name}</dd>
@@ -156,6 +183,7 @@ export function EquipmentPassportPanel({
                 {data.desired && (
                   <details className="equipment-secondary">
                     <summary>Підтвердження обладнання контролером</summary>
+                    <p className="help-copy">{equipmentStateLabels[data.configuration_state]}.</p>
                     <dl className="overview-details">
                       <div>
                         <dt>Профіль</dt>

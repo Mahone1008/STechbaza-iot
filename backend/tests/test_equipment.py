@@ -89,12 +89,14 @@ class EquipmentTests(unittest.TestCase):
 
     def test_catalog_does_not_advertise_unimplemented_models(self):
         catalog = profiles()
+        self.assertTrue(all(item.manufacturer == "SUSWE" for item in catalog))
         self.assertEqual(
             {item.series for item in catalog if item.manufacturer == "SUSWE"},
             {"SU100", "SU300", "SU600", "SU700", "SU800", "SU900", "SU1000"},
         )
         self.assertEqual([item.series for item in catalog if item.driver_id], ["SU600"])
-        sigma = next(item for item in catalog if item.manufacturer == "SIGMA")
+        sigma = get_profile("sigma.inventory", 1)
+        self.assertIsNotNone(sigma)  # Historical equipment keeps its profile.
         self.assertEqual(sigma.support, "inventory_only")
         self.assertIsNone(sigma.driver_id)
         self.assertIsNone(sigma.manual_sha256)
@@ -109,6 +111,8 @@ class EquipmentTests(unittest.TestCase):
         self.assertIsNone(get_profile("suswe.su600.modbus", 2))
         catalog[0].notes.clear()
         self.assertTrue(profiles()[0].notes)  # Callers cannot mutate the cached catalog.
+        sigma.notes.clear()
+        self.assertTrue(get_profile("sigma.inventory", 1).notes)
 
     def test_shared_firmware_fixture_and_safe_header(self):
         self.assertEqual(canonical_json(self.manifest.model_dump(mode="json")), self.text)

@@ -22,8 +22,16 @@ def _catalog() -> tuple[ProfileRead, ...]:
 
 
 def profiles() -> list[ProfileRead]:
-    return [entry.model_copy(deep=True) for entry in _catalog()]
+    """Profiles offered for a new equipment selection."""
+    return [entry.model_copy(deep=True) for entry in _catalog() if selectable_manufacturer(entry.manufacturer)]
+
+
+def selectable_manufacturer(manufacturer: str) -> bool:
+    return manufacturer.strip().casefold() == "suswe"
 
 
 def get_profile(profile_id: str, version: int) -> ProfileRead | None:
-    return next((entry for entry in profiles() if entry.id == profile_id and entry.version == version), None)
+    # Historical passports/configurations retain their immutable profiles even
+    # when a manufacturer is no longer offered for a new selection.
+    entry = next((entry for entry in _catalog() if entry.id == profile_id and entry.version == version), None)
+    return entry.model_copy(deep=True) if entry else None

@@ -47,7 +47,8 @@ export function EquipmentActions({
     context.activeDevice?.lifecycle_status === "retired"
   )
     return null;
-  const matching = profiles.data?.find(
+  const selectableProfiles = profiles.data?.filter((item) => item.manufacturer.toUpperCase() === "SUSWE");
+  const matching = selectableProfiles?.find(
     (item) =>
       item.driver_id &&
       item.manufacturer === installedModule.manufacturer &&
@@ -55,7 +56,7 @@ export function EquipmentActions({
       item.tested_model?.toLowerCase() === installedModule.model.toLowerCase(),
   );
   const selectedProfileId = profileId ?? (mode === "configure" ? (matching?.id ?? "") : "");
-  const profile = profiles.data?.find((item) => item.id === selectedProfileId);
+  const profile = selectableProfiles?.find((item) => item.id === selectedProfileId);
   const supported = profile?.driver_id && profile.tested_model?.toLowerCase() === installedModule.model.toLowerCase();
   const base = `/api/v1/devices/${passport.device_id}/equipment`;
   const changed =
@@ -195,7 +196,7 @@ export function EquipmentActions({
           {mode !== "commission" && (
             <>
               <SelectField
-                label="Виробник і серія"
+                label="Серія частотника SUSWE"
                 required
                 value={selectedProfileId}
                 onChange={(event) => {
@@ -204,9 +205,9 @@ export function EquipmentActions({
                 }}
               >
                 <option value="">Оберіть за шильдиком</option>
-                {profiles.data?.map((item) => (
+                {selectableProfiles?.map((item) => (
                   <option key={item.id} value={item.id}>
-                    {item.manufacturer} {item.series}
+                    {item.series}
                   </option>
                 ))}
               </SelectField>
