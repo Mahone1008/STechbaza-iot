@@ -22,12 +22,23 @@ from app.services.equipment import command_target, EquipmentConflict
 @unittest.skipUnless(os.getenv("TECHBAZA_RUN_DB_TESTS") == "1", "Requires isolated PostgreSQL")
 class FactoryPreparationTests(OnboardingFixtures, unittest.TestCase):
     def setUp(self):
+        # Prepared claims can introduce shared catalog entries. Record the
+        # baseline before the base fixture adds its own capabilities so cleanup
+        # removes this scenario's entries without deleting an existing catalog.
+        with SessionLocal() as session:
+            self.initial_capabilities = set(session.scalars(select(Capability.id)))
         super().setUp()
         self.enterContext(patch("app.services.controller_credentials.ControllerBroker"))
         self.enterContext(patch.dict(os.environ, {"CONTROLLER_MQTT_PUBLIC_HOST": "example.test"}))
         self.setup_equipment = dict(profile_id="suswe.su600.modbus", profile_version=1,
             model="SU600A-5RG1-B", serial_number="VFD-TEST", motor={"rated_frequency_hz": 50},
             frequency_limits={"min_hz": 10, "max_hz": 50})
+
+    def cleanup_data(self):
+        with SessionLocal() as session:
+            introduced = set(session.scalars(select(Capability.id))) - self.initial_capabilities
+        self.created_caps.extend(introduced - set(self.created_caps))
+        super().cleanup_data()
 
     def create_claim(self, *, prepared=True):
         kit = self.factory(network_transport="lte", hardware_model="KERUMO V4",
