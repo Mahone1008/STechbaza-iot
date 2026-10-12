@@ -31,9 +31,47 @@ from app.services.equipment import (
     EquipmentService,
     desired_configuration,
     require_stopped,
+    read_configuration,
+    require_current_binding,
 )
 from app.services.onboarding import audit, factory_read, locked_controller
 from app.services.label_accounts import renew_label
+from app.services.installation_readiness import require_installer, can_install
+
+
+def invalidate_control(row):
+    if row.control_revision >= 2147483647:
+        raise EquipmentConflict("Досягнуто межу ревізій керування; зверніться до виробника")
+    row.control_revision += 1
+    row.control_mode = None
+    row.control_configuration_hash = None
+
+
+def record_firmware_capability(session, row, capability):
+    row.firmware_control_capability = capability
+    if row.device_id and row.control_mode is not None and row.control_mode != "read_only" and (
+            capability == "read_only" or (row.control_mode == "extended_test" and capability != "full")):
+        session.scalar(select(Device.id).where(Device.id == row.device_id).with_for_update())
+        invalidate_control(row)
+        controlled = select(Capability.id).where(Capability.code.in_(("vfd.control", "vfd.program", "vfd.schedule")))
+        session.execute(update(DeviceCapability).where(DeviceCapability.device_id == row.device_id,
+            DeviceCapability.capability_id.in_(controlled)).values(is_enabled=False))
+
+
+def runtime_grant(session, row, device, configuration):
+    """Only a commissioned current binding can obtain a runtime grant.
+
+    ARM/STOP are physical firmware checks. Fresh STOP is checked when the service
+    commissions, not every HTTPS poll while an authorised motor is running.
+    """
+    mode = row.control_mode
+    if (not configuration or mode is None or device.lifecycle_status != "active" or row.access_revoked
+            or row.status != "claimed" or row.control_revision < 1):
+        return False, "read_only"
+    manifest = read_configuration(configuration).manifest
+    if configuration.configuration_hash != row.control_configuration_hash or manifest.device_uid != device.uid:
+        return False, "read_only"
+    return True, mode
 
 
 def install_capabilities(session, device, limits, *, enabled, mode="read_only"):
@@ -82,12 +120,18 @@ def install_capabilities(session, device, limits, *, enabled, mode="read_only"):
 
 def commission(session, current, device_id, payload):
     device = AccessControl(session, current).require_device(device_id, Permission.CAPABILITY_MANAGE)
-    session.scalar(select(Device.id).where(Device.id == device_id).with_for_update())
+    factory = session.scalar(select(FactoryController).where(FactoryController.device_id == device_id).with_for_update())
+    require_installer(session, current, device)
+    device = session.scalar(select(Device).where(Device.id == device_id).with_for_update().execution_options(populate_existing=True))
+    require_current_binding(device, factory)
+    AccessControl(session, current).require_device(device.id, Permission.CAPABILITY_MANAGE)
     passport = EquipmentService(session).passport(device)
     if passport.controller_id:
-        factory = session.get(FactoryController, passport.controller_id)
         if factory.status != "claimed" or factory.access_revoked:
             raise EquipmentConflict("Спочатку відновіть доступ контролера")
+        if payload.control_mode != "read_only" and (factory.firmware_control_capability == "read_only" or
+                (payload.control_mode == "extended_test" and factory.firmware_control_capability != "full")):
+            raise EquipmentConflict("Прошивка плати ще не підтвердила підтримку цього режиму керування")
     if (
         not passport.desired
         or passport.desired.manifest.revision != payload.expected_revision
@@ -114,6 +158,9 @@ def commission(session, current, device_id, payload):
     device.lifecycle_status = "active"
     if passport.controller_id:
         row = session.get(FactoryController, passport.controller_id)
+        invalidate_control(row)
+        row.control_mode = payload.control_mode
+        row.control_configuration_hash = passport.desired.configuration_hash
         audit(
             session,
             row,
@@ -123,7 +170,9 @@ def commission(session, current, device_id, payload):
             mode=payload.control_mode,
         )
     session.commit()
-    return EquipmentService(session).passport(device)
+    result = EquipmentService(session).passport(device)
+    result.can_install = can_install(session, current, device)
+    return result
 
 
 def bootstrap_configuration(session, controller_id, payload, token):
@@ -132,16 +181,17 @@ def bootstrap_configuration(session, controller_id, payload, token):
         raise HTTPException(401, "Контролер не авторизований")
     row.last_contact_at, row.firmware_version = utc_now(), payload.firmware_version
     row.last_contact_transport = payload.network_transport
+    record_firmware_capability(session, row, payload.control_capability)
     row.bootstrap_hash = digest("bootstrap", token)
     if row.status in ("quarantined", "retired", "releasing") or row.access_revoked:
         session.commit()
-        return BootstrapConfiguration(state="revoked")
+        return BootstrapConfiguration(state="revoked", control_revision=row.control_revision)
     if row.network_transport != payload.network_transport:
         session.commit()
         raise HTTPException(409, "Тип мережі плати не відповідає заводському комплекту")
     if row.status == "ready":
         session.commit()
-        return BootstrapConfiguration(state="waiting")
+        return BootstrapConfiguration(state="waiting", control_revision=row.control_revision)
     device = session.get(Device, row.device_id)
     credential = session.get(ControllerCredential, device.id)
     if credential is None:
@@ -150,18 +200,31 @@ def bootstrap_configuration(session, controller_id, payload, token):
     credentials.synchronize(device.id)
     # Повторний lock захищає відповідь від одночасної передачі або ротації.
     row = locked_controller(session, controller_id)
+    device = session.scalar(select(Device).where(Device.id == device.id).with_for_update().execution_options(populate_existing=True))
     if row.status != "claimed" or row.access_revoked or row.device_id != device.id:
-        return BootstrapConfiguration(state="revoked")
+        return BootstrapConfiguration(state="revoked", control_revision=row.control_revision)
     credential = session.get(ControllerCredential, device.id, populate_existing=True)
     if credential.revoked or credential.applied_revision != credential.revision:
         raise HTTPException(503, "Ключ ще не підтверджено шлюзом")
     configuration = desired_configuration(session, device.id)
     if device.lifecycle_status in ("maintenance", "retired"):
         configuration = None
+    if row.control_mode is not None and (configuration is None or
+            configuration.configuration_hash != row.control_configuration_hash):
+        invalidate_control(row)
+        controlled = select(Capability.id).where(Capability.code.in_(("vfd.control", "vfd.program", "vfd.schedule")))
+        session.execute(update(DeviceCapability).where(DeviceCapability.device_id == device.id,
+            DeviceCapability.capability_id.in_(controlled)).values(is_enabled=False))
+    if row.control_mode is not None and row.control_mode != "read_only":
+        assignment = session.scalar(select(DeviceCapability).join(Capability).where(
+            DeviceCapability.device_id == device.id, Capability.code == "vfd.control"))
+        if assignment is None or not assignment.is_enabled:
+            invalidate_control(row)
     host = os.getenv("CONTROLLER_MQTT_PUBLIC_HOST")
     if not host:
         raise HTTPException(503, "Публічну адресу шлюзу ще не налаштовано")
-    return BootstrapConfiguration(
+    commissioned, mode = runtime_grant(session, row, device, configuration)
+    result = BootstrapConfiguration(
         state="configured",
         device_uid=device.uid,
         mqtt_host=host,
@@ -170,7 +233,12 @@ def bootstrap_configuration(session, controller_id, payload, token):
         credential_revision=credential.revision,
         manifest=configuration.canonical_manifest if configuration else None,
         configuration_hash=configuration.configuration_hash if configuration else None,
+        commissioned=commissioned,
+        control_mode=mode,
+        control_revision=row.control_revision,
     )
+    session.commit()
+    return result
 
 
 def controller_status(session, current, controller_id):
@@ -226,8 +294,10 @@ def operate(session, current, controller_id, operation, payload):
     ):
         require_stopped(session, device, utc_now())
     if operation == "rotate":
+        invalidate_control(row)
         credentials.issue(session, row, device)
     else:
+        invalidate_control(row)
         credentials.revoke(session, row)
         controlled = select(Capability.id).where(
             Capability.code.in_(("vfd.control", "vfd.program", "vfd.schedule"))
@@ -262,6 +332,10 @@ def operate(session, current, controller_id, operation, payload):
     code = new_key()
     row.generation += 1
     row.device_id, row.status, row.claimed_at = None, "ready", None
+    # Ownership history may contain later replacements; never copy its original
+    # manufacturing motor/drive template into a new owner's installation.
+    row.prepared_equipment = None
+    row.preparation_revision += 1
     renew_label(row)
     row.activation_hash, row.access_revoked = digest("activation", code), False
     row.last_contact_at = None
@@ -313,6 +387,10 @@ def factory_reset(session, current, controller_id, payload):
     row.device_id, row.claimed_at, row.last_contact_at = None, None, None
     row.last_contact_transport = None
     row.status, row.access_revoked = "ready", False
+    invalidate_control(row)
+    row.firmware_control_capability = "read_only"
+    row.prepared_equipment = None
+    row.preparation_revision += 1
     row.activation_hash, row.bootstrap_hash = (
         digest("activation", activation),
         digest("bootstrap", bootstrap),

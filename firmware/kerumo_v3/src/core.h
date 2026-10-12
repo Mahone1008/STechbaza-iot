@@ -97,6 +97,10 @@ struct Sample {
   StopReason programReason{StopReason::None};
   DriveSettings settings{};
   bool settingsReady{}, bindingCompatible{};
+  bool motionPossible{}, controlBusy{};
+  uint32_t controlGrantRevision{};
+  uint8_t controlGrantMode{};
+  bool controlGrantAccepted{};
 };
 class Controller {
  public:
@@ -104,10 +108,16 @@ class Controller {
   bool begin(const char* uid);
   bool arm(SessionMode mode = SessionMode::Bench);
   void disarm(StopReason reason = StopReason::LocalDisarm);
+  // Explicit physical restoration clears DISARM; it never grants ARM or RUN.
+  bool restoreRemotePermission();
+  void requireCommandsIssuedAfter(int64_t at) {
+    if (at > remotePermissionUtcMs_) remotePermissionUtcMs_ = at;
+  }
   void receive(const Command& command, const char* session, const char* ackId, const char* resultId);
   // Explicit firmware opt-in, supplied only for a locally confirmed installation.
   // Grants permission after checks; never starts or resumes motion.
-  void tick(bool networkConnected, bool remoteOperation = false);
+  void tick(bool networkConnected, bool remoteOperation = false,
+            SessionMode remoteMode = SessionMode::ExtendedTest);
   Sample sample();
   void replay() const;
   const Journal& journal() const { return journal_; }
@@ -132,7 +142,7 @@ class Controller {
   bool remoteInhibited_{}, remoteCheckStarted_{};
   bool remoteOperation_{}, networkConnected_{};
   uint32_t lastRemoteCheck_{};
-  int64_t remotePermissionUtcMs_{}; // Reject commands issued before automatic permission.
+  int64_t remotePermissionUtcMs_{}; // Reject non-STOP issued before live permission, including source/F edits.
   SessionMode mode_{SessionMode::Bench}; // RAM only; remote mode revalidates after reboot.
   StopReason stopReason_{StopReason::None};
   StopDiagnostic lastStop_{}; // лише поточний boot; сама STOP-діагностика не записується в NVS

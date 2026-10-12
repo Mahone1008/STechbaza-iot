@@ -109,6 +109,7 @@ it("staff recovery and rejected return URLs lead back to the private console", (
     expect(safeLoginReturnTo(null)).toBe("/operations");
     expect(safeLoginReturnTo("https://outside.example.com")).toBe("/operations");
     expect(safeLoginReturnTo("/account/security")).toBe("/account/security");
+    expect(safeLoginReturnTo("/invite")).toBe("/invite");
   } finally {
     vi.unstubAllEnvs();
   }

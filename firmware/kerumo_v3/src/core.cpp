@@ -287,6 +287,16 @@ void Controller::disarm(StopReason reason) {
   else
     stopReason_ = reason;
 }
+bool Controller::restoreRemotePermission() {
+  if (!controls_ || !storageOk_ || journal_.motionPossible || stopping_ || pending_ >= 0 || programSlot_ >= 0)
+    return false;
+  DriveState state{}; double output{}; uint16_t fault{};
+  driver_.refreshConfig();
+  if (!driver_.recoveryAllowed() || !driver_.readState(state) || !driver_.readOutputHz(output) ||
+      !driver_.readFault(fault) || fault || !confirmedStopped(state, output)) return false;
+  remoteInhibited_ = false;
+  return true;
+}
 void Controller::finish(Record &record, Outcome outcome, Error error, double actual) {
   record.outcome = outcome;
   record.error = error;
@@ -342,8 +352,8 @@ void Controller::receive(const Command &c, const char *session, const char *ackI
     incoming.outcome = Outcome::Failed;
     incoming.error = Error::ReadOnly;
     incoming.completedMs = now;
-  } else if (!settingsType(c.type) && c.type != Type::Stop &&
-             (!armed_ || (remotePermissionUtcMs_ && c.issuedMs < remotePermissionUtcMs_))) {
+  } else if (c.type != Type::Stop &&
+             ((!settingsType(c.type) && !armed_) || (remotePermissionUtcMs_ && c.issuedMs < remotePermissionUtcMs_))) {
     incoming.outcome = Outcome::Failed;
     incoming.error = Error::NotArmed;
     incoming.completedMs = now;
@@ -624,7 +634,7 @@ void Controller::tickProgram() {
     programHoldSince_ = clock_.uptimeMs();
   }
 }
-void Controller::tick(bool networkConnected, bool remoteOperation) {
+void Controller::tick(bool networkConnected, bool remoteOperation, SessionMode remoteMode) {
   networkConnected_ = networkConnected;
   remoteOperation_ = remoteOperation;
   const uint32_t now = clock_.monotonicMs();
@@ -703,7 +713,7 @@ void Controller::tick(bool networkConnected, bool remoteOperation) {
       (!remoteCheckStarted_ || static_cast<uint32_t>(clock_.monotonicMs() - lastRemoteCheck_) >= 3000)) {
     remoteCheckStarted_ = true;
     lastRemoteCheck_ = clock_.monotonicMs();
-    if (arm(SessionMode::ExtendedTest))
+    if (arm(remoteMode))
       remotePermissionUtcMs_ = clock_.utcMs();
   }
 }
@@ -719,6 +729,8 @@ Sample Controller::sample() {
   sample.configOk = sessionConfigOk();
   sample.armed = armed_;
   sample.storageOk = storageOk_;
+  sample.motionPossible = journal_.motionPossible;
+  sample.controlBusy = stopping_ || pending_ >= 0 || programSlot_ >= 0;
   sample.commandSequence = journal_.highest;
   sample.uptimeMs = clock_.uptimeMs();
   sample.lastStop = lastStop_;

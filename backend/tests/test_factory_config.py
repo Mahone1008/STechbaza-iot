@@ -34,7 +34,8 @@ class FactoryConfigurationTests(unittest.TestCase):
         api_ca, mqtt_ca = self.cas
         result = generate(self.kit, api_ca, "https://controllers.example.com", mqtt_ca=mqtt_ca)
         self.assertIn('#define KERUMO_USE_LTE true', result)
-        self.assertIn('#define KERUMO_ENABLE_CONTROL false', result)
+        self.assertIn('#define KERUMO_ENABLE_CONTROL true', result)
+        self.assertIn('#define KERUMO_ENABLE_REMOTE_OPERATION true', result)
         self.assertIn('#define KERUMO_BOOTSTRAP_CA ', result)
         self.assertIn('#define KERUMO_MQTT_CA ', result)
         self.assertNotIn('KERUMO_DEVICE_UID', result)
@@ -57,9 +58,9 @@ class FactoryConfigurationTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 generate(self.kit, ca, "https://controllers.example.com", mqtt_ca=broken)
 
-    def test_legacy_wifi_kit_is_supported_with_safe_control_defaults(self):
+    def test_legacy_wifi_kit_can_explicitly_select_observation(self):
         kit = {**self.kit, "controller": {"id": self.kit["controller"]["id"]}}
-        result = generate(kit, self.cas[0], "https://controllers.example.com")
+        result = generate(kit, self.cas[0], "https://controllers.example.com", control_mode="ReadOnly")
         self.assertIn('#define KERUMO_USE_LTE false', result)
         self.assertIn('#define KERUMO_ENABLE_REMOTE_OPERATION false', result)
         self.assertNotIn('KERUMO_MODEM_APN', result)
@@ -68,3 +69,10 @@ class FactoryConfigurationTests(unittest.TestCase):
         result = generate(self.kit, self.cas[0], "https://controllers.example.com", control_mode="Remote")
         for flag in ('CONTROL', 'EXTENDED_TEST', 'REMOTE_OPERATION'):
             self.assertIn(f'#define KERUMO_ENABLE_{flag} true', result)
+
+    def test_full_factory_image_has_all_modes_without_baking_ownership_or_commissioning(self):
+        result = generate(self.kit, self.cas[0], "https://controllers.example.com", control_mode="Full")
+        for flag in ('CONTROL', 'EXTENDED_TEST', 'REMOTE_OPERATION'):
+            self.assertIn(f'#define KERUMO_ENABLE_{flag} true', result)
+        self.assertNotIn('KERUMO_CONTROL_GRANTED', result)
+        self.assertNotIn('KERUMO_DEVICE_UID', result)

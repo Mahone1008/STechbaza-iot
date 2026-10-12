@@ -1,6 +1,7 @@
 import { invalidResponse, isRecord, requiredDateTime, requiredString, requiredUuid } from "./access";
 import { matchingId, type Device } from "./inventory";
 import type { components } from "./schema";
+import { parseReadiness } from "./readiness";
 
 export type EquipmentPassport = components["schemas"]["EquipmentPassport"];
 export type EquipmentState = EquipmentPassport["configuration_state"];
@@ -101,5 +102,13 @@ export function parseEquipmentPassport(value: unknown, device: Device): Equipmen
     if (!report.compatible || report.configuration_hash !== desired.configuration_hash ||
         ["module_id", "binding_id", "revision", "binding_generation", "profile_id", "profile_version", "profile_hash", "driver_id", "driver_version"].some((key) => report[key] !== manifest[key])) invalidResponse(path, "matching equipment confirmation");
   }
-  return data as EquipmentPassport;
+  if (data.can_install !== undefined && typeof data.can_install !== "boolean") invalidResponse(path, "installation permission");
+  const capability = data.firmware_control_capability ?? "read_only";
+  if (!["read_only", "bench", "full"].includes(String(capability))) invalidResponse(path, "firmware control capability");
+  const commissionedMode = data.commissioned_control_mode ?? null;
+  if (commissionedMode !== null && !["read_only", "bench_without_motor", "extended_test"].includes(String(commissionedMode))) invalidResponse(path, "commissioned control mode");
+  const readiness = parseReadiness(data.readiness, path);
+  if (readiness.state === "ready" && data.configuration_state !== "verified") invalidResponse(path, "verified installation readiness");
+  return { ...data, can_install: data.can_install === true, readiness,
+    firmware_control_capability: capability, commissioned_control_mode: commissionedMode } as EquipmentPassport;
 }

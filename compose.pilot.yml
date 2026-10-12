@@ -50,6 +50,7 @@ services:
       MQTT_CLIENT_ID: kerumo-customer-worker
       MAIL_DELIVERY_MODE: ${MAIL_DELIVERY_MODE:-disabled}
       MAIL_PUBLIC_URL: https://${CUSTOMER_HOST:?Prepare .env.pilot}
+      STAFF_PUBLIC_URL: ${STAFF_PUBLIC_URL:-}
       MAIL_FROM: ${MAIL_FROM:-KERUMO <access@kerumo.example.com>}
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}

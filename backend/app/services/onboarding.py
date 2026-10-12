@@ -27,13 +27,14 @@ from app.schemas.onboarding import (
     FactorySecrets,
     ShipmentRequest,
     FactoryTransportUpdate,
+    FactoryEquipmentUpdate,
 )
 from app.security.account_keys import digest, new_key, verify_digest
 from app.repositories.factory import FactoryRepository
 from app.repositories.telemetry import TelemetryRepository
 from app.security.authorization import AccessControl
 from app.security.current_user import CurrentUserContext
-from app.security.roles import Permission, role_has_permission
+from app.security.roles import Permission
 from app.security.tokens import utc_now
 from app.security.passwords import hash_password, verify_password
 from app.security.mfa_policy import require_privileged_mfa
@@ -73,8 +74,13 @@ def register_controller(
     session: Session, current: CurrentUserContext, payload: FactoryCreate
 ) -> FactorySecrets:
     activation, bootstrap = new_key(), new_key()
+    if payload.equipment:
+        from app.services.factory_preparation import validate_preparation
+        validate_preparation(payload.equipment)
     row = FactoryController(
-        **payload.model_dump(exclude={"factory_test_passed"}),
+        **payload.model_dump(exclude={"factory_test_passed", "equipment"}),
+        prepared_equipment=payload.equipment.model_dump(mode="json") if payload.equipment else None,
+        preparation_revision=1 if payload.equipment else 0,
         status="ready",
         generation=1,
         activation_hash=digest("activation", activation),
@@ -127,9 +133,32 @@ def transport_editable(session: Session, row: FactoryController) -> bool:
 
 
 def factory_read(session: Session, row: FactoryController) -> FactoryRead:
+    from app.services.factory_preparation import preparation_editable
     result = FactoryRead.model_validate(row)
     result.transport_editable = transport_editable(session, row)
+    result.preparation_editable = preparation_editable(session, row)
     return result
+
+
+def update_factory_equipment(session, current, controller_id, payload: FactoryEquipmentUpdate):
+    from app.services.factory_preparation import preparation_editable, validate_preparation, apply_preparation
+    row = locked_controller(session, controller_id)
+    if row.device_id:
+        session.scalar(select(Device.id).where(Device.id == row.device_id).with_for_update())
+    if (row.generation != payload.expected_generation or row.preparation_revision != payload.expected_preparation_revision
+            or not preparation_editable(session, row)):
+        raise HTTPException(409, "Підготовку вже змінено або обладнання налаштоване; оновіть реєстр")
+    if payload.equipment:
+        validate_preparation(payload.equipment)
+    previous = row.prepared_equipment
+    row.prepared_equipment = payload.equipment.model_dump(mode="json") if payload.equipment else None
+    row.preparation_revision += 1
+    if row.device_id and row.prepared_equipment:
+        apply_preparation(session, current, row, session.get(Device, row.device_id))
+    audit(session, row, current, "equipment_prepared", preparation_revision=row.preparation_revision,
+          previous=previous, equipment=row.prepared_equipment, generation=row.generation)
+    session.commit()
+    return factory_read(session, row)
 
 
 def update_factory_transport(session: Session, current: CurrentUserContext,
@@ -151,6 +180,8 @@ def update_factory_transport(session: Session, current: CurrentUserContext,
 
 
 def connection_details(session: Session, row: FactoryController, device: Device | None) -> dict:
+    from app.services.equipment import desired_configuration, configuration_state
+    from app.services.installation_readiness import readiness
     snapshot = TelemetryRepository(session).get_state(device.id) if device else None
     now = utc_now()
     state = "not_connected"
@@ -165,9 +196,13 @@ def connection_details(session: Session, row: FactoryController, device: Device 
             state = "offline"
         else:
             state = "bootstrap_connected"
+    configuration = desired_configuration(session, device.id) if device else None
+    config_state = configuration_state(device, configuration, snapshot, now) if device else "awaiting"
+    is_fresh = bool(snapshot and freshness(snapshot, device_session_id=device.last_observed_session_id, now=now).status == "fresh")
     return dict(network_transport=row.network_transport, last_contact_transport=row.last_contact_transport,
                 telemetry_received_at=snapshot.last_received_at if snapshot else None,
-                connection_state=state, initial_equipment_editable=initial_equipment_editable(session, row, device))
+                connection_state=state, initial_equipment_editable=initial_equipment_editable(session, row, device),
+                readiness=readiness(session, device, row if device else None, configuration, snapshot, config_state, fresh=is_fresh))
 
 
 def connection_read(
@@ -177,13 +212,22 @@ def connection_read(
         raise HTTPException(404, "Контролер недоступний")
     device = None
     can_manage = False
+    organization_id = None
+    can_invite_installer = False
     if row.device_id:
         access = AccessControl(session, current)
         context = access.require_device_context(
             row.device_id, Permission.DEVICE_READ
         )
         device = context.device
-        can_manage = access.is_superadmin or role_has_permission(context.organization_role, Permission.CAPABILITY_MANAGE)
+        organization_id = context.organization_id
+        try:
+            access.require_organization(organization_id, Permission.MEMBERSHIP_MANAGE)
+            can_invite_installer = True
+        except HTTPException:
+            pass
+        from app.services.installation_readiness import can_install
+        can_manage = can_install(session, current, device)
     details = connection_details(session, row, device)
     details["initial_equipment_editable"] = can_manage and details["initial_equipment_editable"]
     return ConnectionRead(
@@ -193,6 +237,8 @@ def connection_read(
         state=row.status,
         device_id=device.id if device else None,
         site_id=device.site_id if device else None,
+        organization_id=organization_id,
+        can_invite_installer=can_invite_installer,
         last_contact_at=row.last_contact_at,
         firmware_version=row.firmware_version,
         activation_required=row.buyer_user_id != current.user.id,
@@ -202,6 +248,7 @@ def connection_read(
         and current.user.login_name == row.buyer_login
         else None,
         **details,
+        can_install=can_manage,
     )
 
 
@@ -321,6 +368,9 @@ def claim(
         utc_now(),
         None,
     )
+    if row.prepared_equipment:
+        from app.services.factory_preparation import apply_preparation
+        apply_preparation(session, current, row, device)
     # A logged-in customer can attach a new controller to their existing cabinet;
     # its label must never become a second password for that customer's identity.
     if row.buyer_user_id != current.user.id:
@@ -362,6 +412,8 @@ def select_equipment(
     device = AccessControl(session, current).require_device(
         row.device_id, Permission.CAPABILITY_MANAGE
     )
+    from app.services.installation_readiness import require_installer
+    require_installer(session, current, device)
     session.scalar(select(Device.id).where(Device.id == device.id).with_for_update())
     profile = get_profile(payload.profile_id, payload.profile_version)
     if profile is None or not selectable_manufacturer(profile.manufacturer):
@@ -378,22 +430,27 @@ def select_equipment(
             existing.model,
             existing.hardware_revision,
             existing.software_revision,
+            existing.serial_number,
+            existing.motor,
         ) != (
             profile.manufacturer,
             profile.series,
             payload.model,
             payload.hardware_revision,
             payload.software_revision,
+            payload.serial_number,
+            payload.motor.model_dump(mode="json") if payload.motor else None,
         ):
             if existing.retired_at is not None or not initial_equipment_editable(session, row, device):
                 raise HTTPException(
                     409,
                     "Обладнання вже налаштовано. Заміна потребує окремого підтвердження зупинки",
                 )
-            keys = ("manufacturer", "series", "model", "hardware_revision", "software_revision")
+            keys = ("manufacturer", "series", "model", "hardware_revision", "software_revision", "serial_number", "motor")
             previous = {key: getattr(existing, key) for key in keys}
             for key, value in zip(keys, (profile.manufacturer, profile.series, payload.model,
-                                        payload.hardware_revision, payload.software_revision)):
+                                        payload.hardware_revision, payload.software_revision, payload.serial_number,
+                                        payload.motor.model_dump(mode="json") if payload.motor else None)):
                 setattr(existing, key, value)
             audit(session, row, current, "initial_equipment_corrected", module_id=str(existing.id),
                   previous=previous, profile_id=profile.id, profile_version=profile.version,
@@ -416,6 +473,8 @@ def select_equipment(
         model=payload.model,
         hardware_revision=payload.hardware_revision,
         software_revision=payload.software_revision,
+        serial_number=payload.serial_number,
+        motor=payload.motor.model_dump(mode="json") if payload.motor else None,
     )
     session.add(module)
     audit(
@@ -463,6 +522,8 @@ def bootstrap_contact(
         raise HTTPException(401, "Контролер не авторизований")
     row.last_contact_at, row.firmware_version = utc_now(), payload.firmware_version
     row.last_contact_transport = payload.network_transport
+    from app.services.controller_lifecycle import record_firmware_capability
+    record_firmware_capability(session, row, payload.control_capability)
     # Successful use migrates an old digest to the current dedicated root key.
     row.bootstrap_hash = digest("bootstrap", token)
     session.commit()

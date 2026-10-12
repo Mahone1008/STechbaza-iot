@@ -1,6 +1,7 @@
 """Mailbox registration and invitations use the browser CSRF boundary."""
 
 import uuid
+from datetime import timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
@@ -10,6 +11,7 @@ from sqlalchemy.orm import Session
 from app.api.auth_throttle import throttle_auth
 from app.db import get_db_session
 from app.models import AccountLink, Organization
+from app.models import Device, Site
 from app.schemas.personal_accounts import (
     AccountCreated,
     EmailLinkProof,
@@ -17,6 +19,7 @@ from app.schemas.personal_accounts import (
     InvitationCreate,
     InvitationPreview,
     InvitationRead,
+    InstallerInvitationCreate,
     RegistrationComplete,
     RegistrationStart,
     RegistrationPreview,
@@ -118,6 +121,30 @@ def invitation_create(
     throttle_auth(request, session, email="invite:" + str(current.user.id))
     response.headers["Cache-Control"] = "no-store"
     return create_invitation(session, current, organization_id, payload)
+
+
+@router.post("/connect/{controller_id}/installer-invitations", response_model=InvitationRead, status_code=201)
+def installer_invitation(controller_id: uuid.UUID, payload: InstallerInvitationCreate,
+                         current: Current, request: Request, response: Response, session: Db):
+    from app.services.onboarding import locked_controller
+    from app.security.actor_metadata import installer_by_email
+    from app.security.roles import OrganizationRole
+    from app.services.account_mail import staff_public_url
+    row = locked_controller(session, controller_id)
+    if row.status != "claimed" or row.device_id is None:
+        raise HTTPException(409, "Спочатку прив’яжіть контролер до об’єкта")
+    access = AccessControl(session, current)
+    device = access.require_device(row.device_id, Permission.DEVICE_READ)
+    session.scalar(select(Device.id).where(Device.id == device.id).with_for_update())
+    site = session.get(Site, device.site_id)
+    access.require_organization(site.organization_id, Permission.MEMBERSHIP_MANAGE)
+    throttle_auth(request, session, email="installer-invite:" + str(current.user.id))
+    if installer_by_email(session, str(payload.email).lower()) is None:
+        raise HTTPException(422, "Вкажіть пошту зареєстрованого монтажника із сервісним доступом")
+    response.headers["Cache-Control"] = "no-store"
+    return create_invitation(session, current, site.organization_id, InvitationCreate(
+        email=payload.email, role=OrganizationRole.SERVICE, site_ids=[site.id],
+        expires_at=utc_now() + timedelta(days=payload.expires_in_days)), delivery_url=staff_public_url())
 
 
 @router.delete("/organizations/{organization_id}/invitations/{invitation_id}", status_code=204)

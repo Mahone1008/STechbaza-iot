@@ -9,7 +9,7 @@ import uuid
 from urllib.parse import urlsplit
 
 
-def generate(kit, ca, api_url, *, mqtt_ca=None, transport=None, apn="internet", control_mode="ReadOnly"):
+def generate(kit, ca, api_url, *, mqtt_ca=None, transport=None, apn="internet", control_mode="Full"):
     controller_id = str(uuid.UUID(kit["controller"]["id"]))
     origin = urlsplit(api_url)
     if (
@@ -40,7 +40,7 @@ def generate(kit, ca, api_url, *, mqtt_ca=None, transport=None, apn="internet", 
         raise ValueError("Оберіть wifi або lte")
     if not isinstance(apn, str) or not re.fullmatch(r"[A-Za-z0-9.-]{1,100}", apn):
         raise ValueError("Некоректний APN")
-    if control_mode not in {"ReadOnly", "Bench", "Extended", "Remote"}:
+    if control_mode not in {"ReadOnly", "Bench", "Extended", "Remote", "Full"}:
         raise ValueError("Некоректний режим прошивки")
     values = dict(
         KERUMO_FACTORY_CONTROLLER_ID=controller_id,
@@ -51,8 +51,8 @@ def generate(kit, ca, api_url, *, mqtt_ca=None, transport=None, apn="internet", 
         KERUMO_MQTT_CA=mqtt_ca,
         KERUMO_USE_LTE=transport == "lte",
         KERUMO_ENABLE_CONTROL=control_mode != "ReadOnly",
-        KERUMO_ENABLE_EXTENDED_TEST=control_mode in {"Extended", "Remote"},
-        KERUMO_ENABLE_REMOTE_OPERATION=control_mode == "Remote",
+        KERUMO_ENABLE_EXTENDED_TEST=control_mode in {"Extended", "Remote", "Full"},
+        KERUMO_ENABLE_REMOTE_OPERATION=control_mode in {"Remote", "Full"},
     )
     if transport == "lte":
         values["KERUMO_MODEM_APN"] = apn
@@ -69,7 +69,7 @@ def main():
     parser.add_argument("--mqtt-ca", type=Path, help="Окремий довірений CA MQTT, якщо відрізняється від API")
     parser.add_argument("--transport", choices=("wifi", "lte"), help="Тип мережі; має відповідати заводському реєстру")
     parser.add_argument("--apn", default="internet")
-    parser.add_argument("--control-mode", choices=("ReadOnly", "Bench", "Extended", "Remote"), default="ReadOnly")
+    parser.add_argument("--control-mode", choices=("ReadOnly", "Bench", "Extended", "Remote", "Full"), default="Full")
     args = parser.parse_args()
     content = generate(
         json.loads(args.kit.read_text(encoding="utf-8-sig")), args.ca.read_text(), args.api_url,

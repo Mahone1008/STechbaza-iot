@@ -530,9 +530,9 @@ void calendarWeekExecution() {
 int main() {
   vfdSettingsTests();
 
-  remotePermissionAndLocalStop(); remoteGuardsAndReconnect(); remoteRestartRecovery(); remoteRunningInterlocks(); remoteProgramRestart();
+  remotePermissionAndLocalStop(); remoteGuardsAndReconnect(); remoteRestartRecovery(); remoteRunningInterlocks(); remoteProgramRestart(); explicitLocalRestoreAndRevocation(); factoryGrantCommandBoundary(); configurationReadbackCannotRaceMotion();
   puts("PASS: opt-in remote permission, fresh-command barrier, reconnect/restart STOP, guards and local DISARM");
-  driverIndependence(); equipmentBindingAndJournal(); provisioningIdentity();
+  driverIndependence(); equipmentBindingAndJournal(); provisioningIdentity(); factoryServerGrant();
   calendarExecution(); calendarParsingAndMigration(); calendarWeekExecution();
   programExecution(); programCancellationAndRecovery(); programBoundaries(); programParsingAndMigration();
   readOnlyAndConfiguration(); timingAndOrdering(); echoIsNotPhysicalResult(); duplicateAndRestart();

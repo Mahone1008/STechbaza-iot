@@ -21,6 +21,18 @@ def public_url() -> str:
     return value
 
 
+def staff_public_url() -> str:
+    """An installer uses the separate staff trust plane, never customer login."""
+    local = all(urlsplit(origin).hostname in ("localhost", "127.0.0.1", "::1") for origin in AUTH_BROWSER_ORIGINS)
+    value = os.getenv("STAFF_PUBLIC_URL", "http://127.0.0.1:3001" if local else "").rstrip("/")
+    parsed = urlsplit(value)
+    if (not parsed.hostname or parsed.username or parsed.password or parsed.query or parsed.fragment
+            or parsed.path or (parsed.scheme != "https" and not (
+                local and parsed.scheme == "http" and parsed.hostname in ("localhost", "127.0.0.1", "::1")))):
+        raise HTTPException(503, "Адресу кабінету монтажника ще не налаштовано; зверніться до виробника")
+    return value
+
+
 def send_account_mail(email: str, subject: str, message: str) -> None:
     mode = os.getenv("MAIL_DELIVERY_MODE", "disabled")
     local = all(

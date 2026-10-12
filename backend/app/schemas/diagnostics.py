@@ -61,6 +61,12 @@ class StopDiagnostics(DiagnosticModel):
         return value
 
 
+class ControlGrantDiagnostics(DiagnosticModel):
+    revision: int = Field(strict=True, ge=0, le=2147483647)
+    mode: Literal["read_only", "bench_without_motor", "extended_test"]
+    accepted: bool = Field(strict=True)
+
+
 class ControllerDiagnostics(DiagnosticModel):
     version: Literal[1]
     firmware_version: str = Field(min_length=1, max_length=32, pattern=r"^[0-9A-Za-z.+_-]+$")
@@ -71,6 +77,7 @@ class ControllerDiagnostics(DiagnosticModel):
     program: ProgramProgress | None = None
     equipment: EquipmentReport | None = None
     vfd_settings: VfdSettings | None = None
+    control_grant: ControlGrantDiagnostics | None = None
 
     @field_validator("version", mode="before")
     @classmethod

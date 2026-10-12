@@ -1,9 +1,16 @@
 import { invalidResponse, isRecord, requiredDateTime, requiredString, requiredUuid } from "./access";
 import type { components } from "./schema";
 import { equipmentState } from "./equipment";
+import { parseReadiness, type InstallationReadiness } from "./readiness";
 
 const path = "/api/v1/connect";
-export function parseConnection(value: unknown, controllerId: string): components["schemas"]["ConnectionRead"] {
+export type Connection = components["schemas"]["ConnectionRead"] & {
+  readiness: InstallationReadiness;
+  can_install: boolean;
+  organization_id: string | null;
+  can_invite_installer: boolean;
+};
+export function parseConnection(value: unknown, controllerId: string): Connection {
   if (!isRecord(value) || value.controller_id !== controllerId || !["ready", "claimed"].includes(String(value.state)))
     return invalidResponse(path, "controller identity and state");
   const claimed = value.state === "claimed";
@@ -27,7 +34,21 @@ export function parseConnection(value: unknown, controllerId: string): component
     return invalidResponse(path, "live controller telemetry");
   if (value.initial_equipment_editable !== undefined && typeof value.initial_equipment_editable !== "boolean")
     return invalidResponse(path, "initial equipment editing");
+  if (value.can_install !== undefined && typeof value.can_install !== "boolean")
+    return invalidResponse(path, "installation permission");
+  if (value.can_invite_installer !== undefined && typeof value.can_invite_installer !== "boolean")
+    return invalidResponse(path, "installer invitation permission");
+  const organizationId = value.organization_id == null ? null : requiredUuid(value, "organization_id", path);
+  if (value.can_invite_installer === true && (!claimed || !organizationId))
+    return invalidResponse(path, "installer invitation scope");
+  const readiness = parseReadiness(value.readiness, path);
+  if (readiness.state === "ready" && (!claimed || connectionState !== "online" || readiness.blockers.length > 0))
+    return invalidResponse(path, "confirmed installation readiness");
   return {
+    readiness,
+    can_install: value.can_install === true,
+    organization_id: organizationId,
+    can_invite_installer: value.can_invite_installer === true,
     controller_id: requiredUuid(value, "controller_id", path),
     serial_number: requiredString(value, "serial_number", path),
     hardware_model: requiredString(value, "hardware_model", path),

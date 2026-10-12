@@ -37,6 +37,11 @@ class InvitationCreate(MembershipScope, StrictModel):
     role: OrganizationRole = OrganizationRole.VIEWER
 
 
+class InstallerInvitationCreate(StrictModel):
+    email: EmailStr
+    expires_in_days: int = Field(default=7, strict=True, ge=1, le=30)
+
+
 class InvitationRead(StrictModel):
     id: uuid.UUID
     email: str

@@ -190,3 +190,14 @@ class EquipmentPassport(EquipmentModel):
     reported: EquipmentReport | None
     configuration_state: EquipmentConfigurationState
     controller_id: uuid.UUID | None = None
+    can_install: bool = False
+    readiness: "EquipmentReadiness"
+    firmware_control_capability: Literal["read_only", "bench", "full"] = "read_only"
+    commissioned_control_mode: Literal["read_only", "bench_without_motor", "extended_test"] | None = None
+
+
+class EquipmentReadiness(EquipmentModel):
+    state: Literal["needs_equipment", "awaiting_controller", "needs_local_confirmation", "needs_commissioning", "ready", "offline", "blocked"]
+    title: str
+    next_action: str | None = None
+    blockers: list[str] = Field(default_factory=list)

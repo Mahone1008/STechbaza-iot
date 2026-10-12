@@ -2,6 +2,41 @@
 #include "equipment.h"
 
 namespace kerumo {
+enum class ControlGrantMode : uint8_t { ReadOnly, Bench, Extended };
+inline const char *controlGrantModeCode(ControlGrantMode mode) {
+  return mode == ControlGrantMode::Extended ? "extended_test" :
+      mode == ControlGrantMode::Bench ? "bench_without_motor" : "read_only";
+}
+struct ServerControlGrant {
+  uint32_t revision{};
+  ControlGrantMode mode{ControlGrantMode::ReadOnly};
+  bool commissioned{}, current{};
+  // A cached response is only an anti-rollback watermark, never permission.
+  bool read(JsonDocument &doc, bool live) {
+    current = false;
+    if (!doc["commissioned"].is<bool>() || !doc["control_revision"].is<uint32_t>()) return false;
+    const uint32_t nextRevision = doc["control_revision"].as<uint32_t>();
+    if (nextRevision > 2147483647U || nextRevision < revision) return false;
+    const char *code = doc["control_mode"] | "";
+    ControlGrantMode nextMode;
+    if (std::strcmp(code, "read_only") == 0) nextMode = ControlGrantMode::ReadOnly;
+    else if (std::strcmp(code, "bench_without_motor") == 0) nextMode = ControlGrantMode::Bench;
+    else if (std::strcmp(code, "extended_test") == 0) nextMode = ControlGrantMode::Extended;
+    else return false;
+    const bool nextCommissioned = doc["commissioned"].as<bool>();
+    if (nextCommissioned && !nextRevision) return false;
+    if (!nextCommissioned && nextMode != ControlGrantMode::ReadOnly) return false;
+    if (known_ && nextRevision == revision && (mode != nextMode || commissioned != nextCommissioned)) return false;
+    revision = nextRevision; mode = nextMode; commissioned = nextCommissioned; known_ = true; current = live;
+    return true;
+  }
+  bool permits(bool bound, bool controlCapable, bool extendedCapable) const {
+    return current && commissioned && bound && controlCapable &&
+        (mode == ControlGrantMode::Bench || (mode == ControlGrantMode::Extended && extendedCapable));
+  }
+private:
+  bool known_{};
+};
 inline uint32_t factoryGeneration(const char *uid, const char *controllerId) {
   if (!uid || !validUuid(controllerId) || std::strncmp(uid, "FC-", 3) != 0) return false;
   size_t offset = 3;

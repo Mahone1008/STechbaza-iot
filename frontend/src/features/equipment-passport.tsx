@@ -33,7 +33,7 @@ export function EquipmentPassportPanel({
   const query = usePanelQuery({
     queryKey: ["equipment-passport", context.scope, context.activeOrganization.id, device.id],
     enabled: open,
-    intervalMs: 0,
+    intervalMs: process.env.NEXT_PUBLIC_PORTAL_MODE === "staff" ? 5000 : 0,
     queryFn: async (signal) =>
       parseEquipmentPassport(
         await authorizedRequest<unknown>({ path: `/api/v1/devices/${device.id}/equipment`, signal }),
@@ -61,19 +61,23 @@ export function EquipmentPassportPanel({
               <>
                 <StatusBadge
                   tone={
-                    data.configuration_state === "verified"
-                      ? "success"
-                      : data.configuration_state === "legacy"
-                        ? "neutral"
+                    data.readiness
+                      ? data.readiness.state === "ready"
+                        ? "success"
                         : "warning"
+                      : data.configuration_state === "verified"
+                        ? "success"
+                        : data.configuration_state === "legacy"
+                          ? "neutral"
+                          : "warning"
                   }
                 >
-                  {passportTitles[data.configuration_state]}
+                  {data.readiness?.title ?? passportTitles[data.configuration_state]}
                 </StatusBadge>
                 {data.modules.length === 0 ? (
                   <p>
                     Обладнання ще не внесено в паспорт. Для заповнення потрібні модель зі шильдика та перевірка
-                    підключення. Зверніться до адміністратора об’єкта.
+                    підключення. Зверніться до виробника або сервісу.
                   </p>
                 ) : (
                   data.modules
@@ -180,7 +184,7 @@ export function EquipmentPassportPanel({
                   </details>
                 )}
                 <EquipmentActions context={context} passport={data} onSaved={query.refresh} />
-                {data.desired && (
+                {data.desired && data.can_install === true && process.env.NEXT_PUBLIC_PORTAL_MODE === "staff" && (
                   <details className="equipment-secondary">
                     <summary>Підтвердження обладнання контролером</summary>
                     <p className="help-copy">{equipmentStateLabels[data.configuration_state]}.</p>

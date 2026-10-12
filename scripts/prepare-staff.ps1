@@ -11,7 +11,7 @@ function New-StaffSecret {
 }
 $jwtSecret = New-StaffSecret
 $probeSecret = New-StaffSecret
-$content = "STAFF_JWT_SECRET=$jwtSecret`nSTAFF_DIAGNOSTICS_SECRET=$probeSecret`n"
+$content = "STAFF_PUBLIC_URL=http://127.0.0.1:3001`nSTAFF_JWT_SECRET=$jwtSecret`nSTAFF_DIAGNOSTICS_SECRET=$probeSecret`n"
 # CreateNew prevents overwriting a concurrent preparation or an existing key file.
 $stream = [IO.File]::Open($path, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::None)
 try { $bytes = [Text.UTF8Encoding]::new($false).GetBytes($content); $stream.Write($bytes, 0, $bytes.Length) }

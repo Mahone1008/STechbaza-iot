@@ -541,6 +541,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/connect/{controller_id}/installer-invitations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Installer Invitation */
+        post: operations["installer_invitation_api_v1_connect__controller_id__installer_invitations_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/connect/{controller_id}/security": {
         parameters: {
             query?: never;
@@ -1071,6 +1088,23 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/v1/factory/controllers/{controller_id}/equipment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Factory Equipment */
+        patch: operations["factory_equipment_api_v1_factory_controllers__controller_id__equipment_patch"];
         trace?: never;
     };
     "/api/v1/factory/controllers/{controller_id}/quarantine": {
@@ -2032,8 +2066,24 @@ export interface components {
         };
         /** BootstrapConfiguration */
         BootstrapConfiguration: {
+            /**
+             * Commissioned
+             * @default false
+             */
+            commissioned: boolean;
             /** Configuration Hash */
             configuration_hash?: string | null;
+            /**
+             * Control Mode
+             * @default read_only
+             * @enum {string}
+             */
+            control_mode: "read_only" | "bench_without_motor" | "extended_test";
+            /**
+             * Control Revision
+             * @default 0
+             */
+            control_revision: number;
             /**
              * Credential Revision
              * @default 0
@@ -2057,6 +2107,12 @@ export interface components {
         };
         /** BootstrapContact */
         BootstrapContact: {
+            /**
+             * Control Capability
+             * @default read_only
+             * @enum {string}
+             */
+            control_capability: "read_only" | "bench" | "full";
             /** Firmware Version */
             firmware_version: string;
             /**
@@ -2232,6 +2288,16 @@ export interface components {
              */
             activation_required: boolean;
             /**
+             * Can Install
+             * @default false
+             */
+            can_install: boolean;
+            /**
+             * Can Invite Installer
+             * @default false
+             */
+            can_invite_installer: boolean;
+            /**
              * Connection State
              * @default not_connected
              * @enum {string}
@@ -2263,8 +2329,11 @@ export interface components {
              * @enum {string}
              */
             network_transport: "wifi" | "lte";
+            /** Organization Id */
+            organization_id?: string | null;
             /** Permanent Login */
             permanent_login?: string | null;
+            readiness: components["schemas"]["EquipmentReadiness"];
             /** Serial Number */
             serial_number: string;
             /** Site Id */
@@ -2277,9 +2346,22 @@ export interface components {
             /** Telemetry Received At */
             telemetry_received_at?: string | null;
         };
+        /** ControlGrantDiagnostics */
+        ControlGrantDiagnostics: {
+            /** Accepted */
+            accepted: boolean;
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "read_only" | "bench_without_motor" | "extended_test";
+            /** Revision */
+            revision: number;
+        };
         /** ControllerDiagnostics */
         ControllerDiagnostics: {
             connection: components["schemas"]["ConnectionDiagnostics"];
+            control_grant?: components["schemas"]["ControlGrantDiagnostics"] | null;
             equipment?: components["schemas"]["EquipmentReport"] | null;
             /** Firmware Version */
             firmware_version: string;
@@ -2936,6 +3018,13 @@ export interface components {
         /** EquipmentPassport */
         EquipmentPassport: {
             /**
+             * Can Install
+             * @default false
+             */
+            can_install: boolean;
+            /** Commissioned Control Mode */
+            commissioned_control_mode?: ("read_only" | "bench_without_motor" | "extended_test") | null;
+            /**
              * Configuration State
              * @enum {string}
              */
@@ -2950,13 +3039,34 @@ export interface components {
              * Format: uuid
              */
             device_id: string;
+            /**
+             * Firmware Control Capability
+             * @default read_only
+             * @enum {string}
+             */
+            firmware_control_capability: "read_only" | "bench" | "full";
             /** Firmware Version */
             firmware_version: string | null;
             /** Installations */
             installations: components["schemas"]["InstallationRead"][];
             /** Modules */
             modules: components["schemas"]["ModuleRead"][];
+            readiness: components["schemas"]["EquipmentReadiness"];
             reported: components["schemas"]["EquipmentReport"] | null;
+        };
+        /** EquipmentReadiness */
+        EquipmentReadiness: {
+            /** Blockers */
+            blockers?: string[];
+            /** Next Action */
+            next_action?: string | null;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "needs_equipment" | "awaiting_controller" | "needs_local_confirmation" | "needs_commissioning" | "ready" | "offline" | "blocked";
+            /** Title */
+            title: string;
         };
         /** EquipmentReport */
         EquipmentReport: {
@@ -3000,6 +3110,7 @@ export interface components {
             hardware_revision?: string | null;
             /** Model */
             model: string;
+            motor?: components["schemas"]["MotorNameplate"] | null;
             /**
              * Nameplate Confirmed
              * @constant
@@ -3009,6 +3120,8 @@ export interface components {
             profile_id: string;
             /** Profile Version */
             profile_version: number;
+            /** Serial Number */
+            serial_number?: string | null;
             /** Software Revision */
             software_revision?: string | null;
         };
@@ -3028,6 +3141,7 @@ export interface components {
         FactoryCreate: {
             /** Batch */
             batch: string;
+            equipment?: components["schemas"]["FactoryEquipmentSetup"] | null;
             /**
              * Factory Test Passed
              * @constant
@@ -3047,6 +3161,31 @@ export interface components {
             serial_number: string;
             /** Test Reference */
             test_reference: string;
+        };
+        /** FactoryEquipmentSetup */
+        FactoryEquipmentSetup: {
+            frequency_limits: components["schemas"]["FrequencyLimits"];
+            /** Hardware Revision */
+            hardware_revision?: string | null;
+            /** Model */
+            model: string;
+            motor?: components["schemas"]["MotorNameplate"] | null;
+            /** Profile Id */
+            profile_id: string;
+            /** Profile Version */
+            profile_version: number;
+            /** Serial Number */
+            serial_number?: string | null;
+            /** Software Revision */
+            software_revision?: string | null;
+        };
+        /** FactoryEquipmentUpdate */
+        FactoryEquipmentUpdate: {
+            equipment: components["schemas"]["FactoryEquipmentSetup"] | null;
+            /** Expected Generation */
+            expected_generation: number;
+            /** Expected Preparation Revision */
+            expected_preparation_revision: number;
         };
         /** FactoryQuarantine */
         FactoryQuarantine: {
@@ -3073,6 +3212,12 @@ export interface components {
             device_id: string | null;
             /** Distributor */
             distributor: string | null;
+            /**
+             * Firmware Control Capability
+             * @default read_only
+             * @enum {string}
+             */
+            firmware_control_capability: "read_only" | "bench" | "full";
             /** Generation */
             generation: number;
             /** Hardware Model */
@@ -3094,6 +3239,17 @@ export interface components {
              * @enum {string}
              */
             network_transport: "wifi" | "lte";
+            /**
+             * Preparation Editable
+             * @default false
+             */
+            preparation_editable: boolean;
+            /**
+             * Preparation Revision
+             * @default 0
+             */
+            preparation_revision: number;
+            prepared_equipment?: components["schemas"]["FactoryEquipmentSetup"] | null;
             /** Serial Number */
             serial_number: string;
             /** Status */
@@ -3190,6 +3346,19 @@ export interface components {
              * Format: uuid
              */
             site_id: string;
+        };
+        /** InstallerInvitationCreate */
+        InstallerInvitationCreate: {
+            /**
+             * Email
+             * Format: email
+             */
+            email: string;
+            /**
+             * Expires In Days
+             * @default 7
+             */
+            expires_in_days: number;
         };
         /** InvitationAccepted */
         InvitationAccepted: {
@@ -5687,6 +5856,41 @@ export interface operations {
             };
         };
     };
+    installer_invitation_api_v1_connect__controller_id__installer_invitations_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                controller_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InstallerInvitationCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvitationRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     activation_security_api_v1_connect__controller_id__security_post: {
         parameters: {
             query?: never;
@@ -6866,6 +7070,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    factory_equipment_api_v1_factory_controllers__controller_id__equipment_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                controller_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FactoryEquipmentUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FactoryRead"];
                 };
             };
             /** @description Validation Error */

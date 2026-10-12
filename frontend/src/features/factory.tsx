@@ -3,6 +3,8 @@ import { useAccountAction } from "./use-account-action";
 import Link from "next/link";
 import { ControllerQr } from "@/components/controller-qr";
 import { FactoryControllerActions } from "./factory-controller-actions";
+import { FactoryEquipmentPreparation, FactoryPreparedEquipmentSummary } from "./factory-equipment-preparation";
+import type { FactoryPreparationResult } from "./factory-equipment-model";
 import { useState, type FormEvent } from "react";
 import { flushSync } from "react-dom";
 import { Button, Card, PageHeader, SelectField, TextField } from "@/components/ui";
@@ -45,6 +47,11 @@ function FactoryRegister() {
   });
   const [passed, setPassed] = useState(false);
   const [transport, setTransport] = useState<"wifi" | "lte">("wifi");
+  const [preparation, setPreparation] = useState<FactoryPreparationResult>({
+    equipment: null,
+    valid: true,
+    error: null,
+  });
   const [kitDownloaded, setKitDownloaded] = useState(false);
   const [secrets, setSecrets] = useState<Schema["FactorySecrets"] | null>(null);
   const [labelUrl, setLabelUrl] = useState("");
@@ -112,11 +119,17 @@ function FactoryRegister() {
 
   const registerController = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!passed || !preparation.valid) return;
     void perform(async () => {
       const created = await authorizedRequest<Schema["FactorySecrets"]>({
         path: "/api/v1/factory/controllers",
         method: "POST",
-        body: { ...values, network_transport: transport, factory_test_passed: passed },
+        body: {
+          ...values,
+          network_transport: transport,
+          factory_test_passed: passed,
+          equipment: preparation.equipment,
+        },
       });
       setSecrets(created);
       setKitDownloaded(false);
@@ -143,12 +156,31 @@ function FactoryRegister() {
   if (!query.data) return <p role="status">Перевіряємо права…</p>;
   return (
     <>
+      <Card title="Підготовка до передачі клієнту">
+        <ol>
+          <li>
+            <strong>Контролер.</strong> Зареєструйте перевірену плату та виберіть її тип інтернету.
+          </li>
+          <li>
+            <strong>Паспорт.</strong> Підготуйте частотник і робочі межі зараз або залиште це монтажнику.
+          </li>
+          <li>
+            <strong>Комплект.</strong> Збережіть приватний файл, прошийте цю плату й надрукуйте один QR та закриту
+            картку.
+          </li>
+          <li>
+            <strong>Перевірка.</strong> Монтажник підтвердить установку на місці; клієнт лише активує контролер у своєму
+            об’єкті.
+          </li>
+        </ol>
+      </Card>
       <Card title="Зареєструвати контролер">
         {secrets ? (
           <div className="connect-fields">
             <p>
               Завантажте заводський комплект для прошивки цієї плати. Реєстрація на сайті сама не підключає контролер.
             </p>
+            <FactoryPreparedEquipmentSummary equipment={secrets.controller.prepared_equipment} />
             <div className="factory-label factory-public-label">
               {validLabelUrl && <ControllerQr url={labelUrl} onReady={setReadyLabelUrl} />}
               <strong>KERUMO · {secrets.controller.serial_number}</strong>
@@ -205,6 +237,7 @@ function FactoryRegister() {
                 setSecrets(null);
                 setValues((current) => ({ ...current, serial_number: "" }));
                 setPassed(false);
+                setPreparation({ equipment: null, valid: true, error: null });
               }}
             >
               Комплект збережено
@@ -239,11 +272,12 @@ function FactoryRegister() {
                 }
               />
             ))}
+            <FactoryEquipmentPreparation onChange={setPreparation} disabled={busy} />
             <label className="ui-row">
               <input required type="checkbox" checked={passed} onChange={(event) => setPassed(event.target.checked)} />
               Контролер пройшов заводську перевірку
             </label>
-            <Button variant="primary" type="submit" disabled={busy || !passed}>
+            <Button variant="primary" type="submit" disabled={busy || !passed || !preparation.valid}>
               Зареєструвати і видати ключі
             </Button>
           </form>
@@ -279,6 +313,16 @@ function FactoryRegister() {
                     : "Недоступний"}{" "}
                 · {item.distributor ?? "Постачання не зазначено"} · {item.network_transport === "lte" ? "4G" : "Wi-Fi"}
               </p>
+              <p className="help-copy">
+                {!item.last_contact_at
+                  ? "Очікуємо перше підтверджене підключення плати."
+                  : item.firmware_control_capability === "full"
+                    ? "Прошивка підтримує керування; дозвіл надається після перевірки установки."
+                    : item.firmware_control_capability === "bench"
+                      ? "Прошивка дозволяє лише стендові випробування."
+                      : "Прошивка працює лише для спостереження."}
+              </p>
+              <FactoryPreparedEquipmentSummary equipment={item.prepared_equipment} />
               {item.status === "ready" && (
                 <Button
                   disabled={busy || distributor.trim().length < 2 || !reference.trim()}
@@ -293,7 +337,7 @@ function FactoryRegister() {
                 onKit={(kit) => {
                   setSecrets(kit);
                   setKitDownloaded(false);
-                  setLabelUrl(`${window.location.origin}${kit.qr_path}`);
+                  setLabelUrl(`${process.env.NEXT_PUBLIC_CUSTOMER_URL || window.location.origin}${kit.qr_path}`);
                 }}
               />
             </li>

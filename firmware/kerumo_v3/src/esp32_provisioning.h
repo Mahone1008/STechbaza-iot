@@ -15,7 +15,7 @@ class Provisioning {
   WebServer web_{80};
   String csrf_, controllerId_, bootstrap_, api_, ca_, apPassword_, pending_;
   uint32_t portalAt_{}, polledAt_{};
-  bool portal_{}, bindRequested_{}, cellular_{};
+  bool portal_{}, bindRequested_{}, restoreRequested_{}, cellular_{};
 
   bool validEnrollment(JsonDocument &doc) {
     if (std::strcmp(doc["state"] | "", "configured") != 0 || !enrollmentFields(doc, controllerId_.c_str())) return false;
@@ -39,6 +39,15 @@ class Provisioning {
     const String origin = web_.header("Origin");
     return (origin.isEmpty() || origin == "http://192.168.4.1") && web_.arg("csrf") == csrf_;
   }
+  void requestedPage(const char *message) {
+    String body = F("<!doctype html><html lang='uk'><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>"
+      "<title>KERUMO · Перевірка</title><style>body{font:17px system-ui;max-width:34rem;margin:2rem auto;padding:1rem}a{display:inline-block;padding:1rem;border:1px solid #a6b3bf;border-radius:8px}</style><h1>Перевірка установки</h1><p>");
+    body += message;
+    body += F("</p><p><a href='/'>Повернутися до налаштування</a></p></html>");
+    web_.sendHeader("Cache-Control", "no-store");
+    web_.sendHeader("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'");
+    web_.send(202, "text/html; charset=utf-8", body);
+  }
   void page() {
     if (!localRequest()) { web_.send(403); return; }
     String body = F("<!doctype html><html lang='uk'><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>"
@@ -58,7 +67,14 @@ class Provisioning {
     body += F("<section><h2>Підтвердження обладнання</h2><p>Звірте шильдик у кабінеті, зупиніть двигун і перевірте безпечність установки. Контролер перевірить STOP та 0 Гц.</p>"
       "<form method='post' action='/bind'><input type='hidden' name='csrf' value='");
     body += csrf_;
-    body += F("'><button>Підтвердити обладнання після зупинки</button></form><small>Це не запускає двигун. Результат перевірте у вкладці «Обладнання» після виходу з локальної мережі.</small></section>"
+    body += F("'><button>Підтвердити монтаж</button></form><small>Підтвердження не запускає двигун. Керування стане доступним після дозволу на сервері й перевірки контролера.</small></section>");
+    if (confirmed()) {
+      body += F("<section><h2>Відновлення після блокування пуску</h2><p>Після місцевого DISARM перевірте установку. Ця дія прибирає місцеве блокування, але не запускає двигун і не замінює серверний дозвіл.</p>"
+        "<form method='post' action='/enable'><input type='hidden' name='csrf' value='");
+      body += csrf_;
+      body += F("'><button>Дозволити керування після перевірки</button></form></section>");
+    }
+    body += F(
       "<form method='post' action='/close'><input type='hidden' name='csrf' value='");
     body += csrf_;
     body += F("'><button>Завершити налаштування</button></form></html>");
@@ -71,6 +87,7 @@ public:
   uint16_t port{8883};
   uint32_t revision{};
   bool enabled{}, suspended{true};
+  ServerControlGrant grant;
 
   bool begin(const char *controllerId, const char *bootstrap, const char *api, const char *ca, const char *apPassword,
              bool cellularTransport = false) {
@@ -120,12 +137,18 @@ public:
         return;
       }
       bindRequested_ = true;
-      web_.send(202, "text/plain; charset=utf-8", "Запит передано. Завершіть локальне налаштування та перевірте паспорт у кабінеті.");
+      requestedPage("Запит передано. Контролер перевірить STOP. Поверніться до налаштування, завершіть його та перевірте паспорт у кабінеті.");
     });
     web_.on("/close", HTTP_POST, [this]() {
       if (!localRequest(true)) { web_.send(403); return; }
       web_.send(200, "text/plain; charset=utf-8", "Налаштування завершено. Поверніться до кабінету.");
       portalAt_ = millis() - 600000;
+    });
+    web_.on("/enable", HTTP_POST, [this]() {
+      if (!localRequest(true)) { web_.send(403); return; }
+      if (suspended || !confirmed()) { web_.send(409); return; }
+      restoreRequested_ = true;
+      requestedPage("Запит передано. Контролер перевірить STOP. Поверніться до налаштування, завершіть його та перевірте готовність у кабінеті.");
     });
     web_.onNotFound([this]() { web_.send(404); });
     if (!cellular_ && ssid.isEmpty()) openPortal();
@@ -136,11 +159,13 @@ public:
     host = doc["mqtt_host"] | ""; port = doc["mqtt_port"] | 8883;
     manifest = doc["manifest"] | ""; hash = doc["configuration_hash"] | "";
     revision = doc["credential_revision"] | 0;
+    grant.read(doc, false);
   }
   bool confirmed() { return manifest.length() && prefs_.getString("confirmed", "") == hash; }
   bool confirm() { return hash.length() == 64 && prefs_.putString("confirmed", hash) == hash.length(); }
   bool activePortal() const { return portal_; }
   bool takeBind() { const bool result = bindRequested_; bindRequested_ = false; return result; }
+  bool takeRestore() { const bool result = restoreRequested_; restoreRequested_ = false; return result; }
   bool buttonHeld() {
     static uint32_t pressed = 0;
     static bool handled = false;
@@ -166,6 +191,7 @@ public:
     web_.handleClient();
     if (millis() - portalAt_ >= 600000) {
       web_.stop(); WiFi.softAPdisconnect(true); WiFi.mode(cellular_ ? WIFI_OFF : WIFI_STA); portal_ = false;
+      polledAt_ = 0; // Revalidate the server grant after local commissioning.
     }
   }
   bool pollDue(bool safeToChange) const {
@@ -177,7 +203,7 @@ public:
     return pending_.length() && prefs_.putString("active", pending_) == pending_.length();
   }
   // true: конфігурація змінилася; потрібні DISARM, новий STOP, commit та restart.
-  bool poll(const char *firmware, bool safeToChange) {
+  bool poll(const char *firmware, const char *capability, bool safeToChange) {
     if (!pollDue(safeToChange)) return false;
     polledAt_ = millis();
     WiFiClientSecure tls; tls.setCACert(ca_.c_str()); tls.setHandshakeTimeout(5);
@@ -188,28 +214,38 @@ public:
     JsonDocument contact;
     contact["firmware_version"] = firmware;
     contact["network_transport"] = cellular_ ? "lte" : "wifi";
+    contact["control_capability"] = capability;
     String request;
     serializeJson(contact, request);
     const int status = http.POST(request);
-    if (status >= 400 && status < 500) { suspended = true; http.end(); return false; }
+    if (status >= 400 && status < 500) { suspended = true; grant.current = false; http.end(); return false; }
     if (status != 200 || http.getSize() <= 0 || http.getSize() > 8192) {
-      if (status == 200) suspended = true;
+      if (status == 200) { suspended = true; grant.current = false; }
       http.end(); return false;
     }
     const String raw = http.getString(); http.end();
     JsonDocument doc;
-    if (deserializeJson(doc, raw, DeserializationOption::NestingLimit(3))) { suspended = true; return false; }
+    if (deserializeJson(doc, raw, DeserializationOption::NestingLimit(3))) { suspended = true; grant.current = false; return false; }
     const String state = doc["state"] | "";
-    if (state != "configured") { suspended = true; return false; }
+    if (state != "configured") { suspended = true; grant.current = false; return false; }
     const String nextUid = doc["device_uid"] | "", nextManifest = doc["manifest"] | "";
     if (!validEnrollment(doc) || !enrollmentRevisionAllowed(doc, controllerId_.c_str(), uid.c_str(), revision)) {
       suspended = true;
+      grant.current = false;
       return false;
     }
     const bool changed = uid != nextUid || manifest != nextManifest || hash != (doc["configuration_hash"] | "") ||
         revision != (doc["credential_revision"] | 0U) || host != (doc["mqtt_host"] | "") ||
         password != (doc["mqtt_password"] | "") || port != (doc["mqtt_port"] | 8883U);
-    if (changed) pending_ = raw;
+    if (changed) { pending_ = raw; grant.current = false; }
+    else {
+      // Grants are applied in RAM, independently of the immutable manifest.
+      // Persist only the anti-rollback watermark; boot still requires live HTTPS.
+      if (!grant.read(doc, true)) { suspended = true; return false; }
+      if (prefs_.getString("active", "") != raw && prefs_.putString("active", raw) != raw.length()) {
+        suspended = true; grant.current = false; return false;
+      }
+    }
     suspended = changed;
     // Runtime identity незмінна між boot: VFD task читає ті самі UID/hash.
     // Новий blob завантажиться після перезапуску, без спільного String mutation.

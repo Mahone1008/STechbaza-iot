@@ -5,8 +5,8 @@ from sqlalchemy import delete, select
 import test_comprehensive_postgres as base
 from auth_http_helpers import request
 from app.db import SessionLocal
-from app.models import AuthSession, Device, Organization, User
-from app.models.equipment import EquipmentModule
+from app.models import AuthSession, Device, Organization, User, ControllerCredential
+from app.models.equipment import EquipmentModule, EquipmentConfiguration
 from app.models.onboarding import FactoryAudit, FactoryController, PersonalWorkspace
 from app.security.tokens import utc_now
 
@@ -44,6 +44,12 @@ class OnboardingFixtures:
                         FactoryController.device_id.is_not(None),
                     )
                 )
+            )
+            session.execute(
+                delete(ControllerCredential).where(ControllerCredential.controller_id.in_(self.controllers))
+            )
+            session.execute(
+                delete(EquipmentConfiguration).where(EquipmentConfiguration.device_id.in_(controller_devices))
             )
             session.execute(
                 delete(EquipmentModule).where(EquipmentModule.device_id.in_(controller_devices))

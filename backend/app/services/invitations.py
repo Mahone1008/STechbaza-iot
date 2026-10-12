@@ -57,7 +57,7 @@ def lock_organization(session: Session, organization_id: uuid.UUID):
 
 
 def create_invitation(
-    session: Session, current, organization_id: uuid.UUID, payload: InvitationCreate
+    session: Session, current, organization_id: uuid.UUID, payload: InvitationCreate, *, delivery_url=None
 ):
     org = lock_organization(session, organization_id)
     session.expire_all()
@@ -145,7 +145,7 @@ def create_invitation(
         "Запрошення до організації в KERUMO",
         f"Вас запрошують до організації «{org.name}».\n\n"
         f"Роль: {role}.\n{scope}\n{duration}\n\n"
-        f"Відкрийте посилання протягом трьох днів:\n{public_url()}/invite#token={token}\n\n"
+        f"Відкрийте посилання протягом трьох днів:\n{delivery_url or public_url()}/invite#token={token}\n\n"
         "Увійдіть у свій обліковий запис або створіть особистий пароль. Нікому не передавайте його.",
     )
     session.commit()

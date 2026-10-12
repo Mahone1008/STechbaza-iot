@@ -52,13 +52,26 @@ static_assert(!KERUMO_ENABLE_REMOTE_OPERATION ||
 
 using namespace kerumo;
 namespace {
-constexpr char FirmwareVersion[] = "0.11.0";
+constexpr char FirmwareVersion[] = "0.12.0";
+constexpr const char *ControlCapability = KERUMO_ENABLE_CONTROL ?
+    (KERUMO_ENABLE_EXTENDED_TEST && KERUMO_ENABLE_REMOTE_OPERATION ? "full" : "bench") : "read_only";
 EquipmentBinding equipment{};
 bool managedEquipment = false;
 Provisioning provisioning;
 std::atomic<bool> locallyConfirmed{true};
 std::atomic<bool> configurationRestartPending{false};
 std::atomic<bool> configurationCheckPending{false};
+// Permission, mode and revision cross cores as one snapshot, never mixed grants.
+std::atomic<uint64_t> factoryGrantSnapshot{0};
+bool factoryPermission() { return (factoryGrantSnapshot.load() & 1U) != 0; }
+ControlGrantMode factoryMode() { return static_cast<ControlGrantMode>((factoryGrantSnapshot.load() >> 1) & 3U); }
+void refreshFactoryGrant() {
+  const bool accepted = !provisioning.suspended && !provisioning.activePortal() && provisioning.grant.permits(
+      managedEquipment && locallyConfirmed.load(), KERUMO_ENABLE_CONTROL,
+      KERUMO_ENABLE_EXTENDED_TEST && KERUMO_ENABLE_REMOTE_OPERATION);
+  factoryGrantSnapshot.store((static_cast<uint64_t>(provisioning.grant.revision) << 8) |
+      (static_cast<uint64_t>(provisioning.grant.mode) << 1) | static_cast<uint64_t>(accepted));
+}
 const char *deviceUid() { return provisioning.enabled ? provisioning.uid.c_str() : KERUMO_DEVICE_UID; }
 const char *mqttHost() { return provisioning.enabled ? provisioning.host.c_str() : KERUMO_MQTT_HOST; }
 const char *mqttPassword() { return provisioning.enabled ? provisioning.password.c_str() : KERUMO_MQTT_PASSWORD; }
@@ -69,7 +82,7 @@ std::atomic<int64_t> syncEpochMs{0}, syncMonoMs{0};
 std::atomic<bool> networkReady{false};
 std::atomic<uint32_t> networkCheckedMs{0};
 std::atomic<uint8_t> localAction{
-    0}; // 1 arm, 2 disarm, 3 replay, 4 extended test, 5 confirm stopped equipment binding
+    0}; // 1 arm, 2 local DISARM, 3 replay, 4 extended, 5 bind, 6 grant/config DISARM, 7 local restore
 QueueHandle_t commands, stopCommands, responses, samples;
 char sessionId[37]{};
 String baseTopic;
@@ -154,31 +167,42 @@ void deviceTask(void *) {
                 KERUMO_ENABLE_REMOTE_OPERATION ? "REMOTE / CHECKING" :
                 KERUMO_ENABLE_CONTROL ? "CONTROL / DISARMED" : "READ ONLY", deviceUid());
   uint32_t lastSample = 0, lastReplay = 0;
+  uint64_t appliedGrant = 0;
+  int64_t grantAcceptedAt = 0;
+  bool hadControlLink = false;
   StopReason lastReason = StopReason::None;
   for (;;) {
     uint8_t action = localAction.exchange(0);
-    if ((configurationRestartPending.load() || configurationCheckPending.load()) && action != 2)
+    if (configurationRestartPending.load() && action != 2 && action != 6)
+      action = 0;
+    // Local confirmation/restoration only reads STOP and clears an inhibit.
+    // Closing the portal must not lose these queued physical actions.
+    if (configurationCheckPending.load() && action != 2 && action != 5 && action != 6 && action != 7)
       action = 0;
     if (action == 5) {
       DriveState state{};
-      double hz{};
+      double hz{}; uint16_t fault{};
       drive.refreshConfig();
-      const bool bound = !controller.isArmed() && drive.controlOk() && drive.readState(state) &&
+      const bool bound = !controller.isArmed() && drive.settingsReady() && drive.readFault(fault) && !fault && drive.readState(state) &&
                          drive.readOutputHz(hz) && confirmedStopped(state, hz) &&
                          (storage.needsBinding ? storage.bindStoppedEquipment(deviceUid(), provisioning.enabled) : managedEquipment) &&
                          controller.begin(deviceUid());
-      if (bound && (!provisioning.enabled || provisioning.confirm())) locallyConfirmed.store(true);
+      if (bound && (!provisioning.enabled || provisioning.confirm())) {
+        locallyConfirmed.store(true);
+        // Physical confirmation releases the setup inhibit, never server permission.
+        controller.restoreRemotePermission();
+      }
       Serial.println(bound && locallyConfirmed.load() ? "EQUIPMENT BOUND; DISARMED. Old journal archived."
                            : "BIND DENIED: require managed manifest, pending binding, matching UID, valid "
                              "profile and stopped drive");
     }
     if (action == 1)
-      Serial.println(locallyConfirmed.load() && (!provisioning.enabled || deviceClock.controlLinkValid()) && controller.arm() ? "ARMED: SU600 bench, automatic STOP after 60 seconds"
+      Serial.println(locallyConfirmed.load() && (!provisioning.enabled || (factoryPermission() && deviceClock.controlLinkValid())) && controller.arm() ? "ARMED: SU600 bench, automatic STOP after 60 seconds"
                                       : "ARM DENIED: inspect configuration, clock and stopped state");
     if (action == 4)
       Serial.println(!KERUMO_ENABLE_EXTENDED_TEST
                          ? "ARM TEST DENIED: extended test is disabled in config.local.h"
-                     : locallyConfirmed.load() && (!provisioning.enabled || deviceClock.controlLinkValid()) && controller.arm(SessionMode::ExtendedTest)
+                     : locallyConfirmed.load() && (!provisioning.enabled || (factoryPermission() && factoryMode() == ControlGrantMode::Extended && deviceClock.controlLinkValid())) && controller.arm(SessionMode::ExtendedTest)
                          ? "ARMED: SU600 EXTENDED TEST, no duration cap; normal STOP keeps permission"
                          : "ARM TEST DENIED: verify STOP, clock, profile, F6.02=5.0..10.0s, F5.00 "
                            "stop-on-loss + overload enabled, F4.08=0");
@@ -186,19 +210,36 @@ void deviceTask(void *) {
       controller.disarm();
       Serial.println("DISARMED; pending local STOP is retried until verified");
     }
-    controller.tick(!configurationRestartPending.load() && !configurationCheckPending.load() && networkReady.load() &&
-                    static_cast<uint32_t>(millis() - networkCheckedMs.load()) < 8000,
-                    KERUMO_ENABLE_REMOTE_OPERATION && locallyConfirmed.load() &&
-                    !configurationRestartPending.load() && !configurationCheckPending.load());
+    if (action == 6) controller.disarm(StopReason::Config);
+    if (action == 7)
+      Serial.println(locallyConfirmed.load() && controller.restoreRemotePermission() ? "LOCAL BLOCK RELEASED; awaiting current server grant" : "RESTORE DENIED: require confirmed equipment and fresh STOP");
+    const uint64_t grantSnapshot = factoryGrantSnapshot.load();
+    const bool factoryAllowed = !provisioning.enabled || (grantSnapshot & 1U);
+    const SessionMode grantedMode = provisioning.enabled && ((grantSnapshot >> 1) & 3U) == static_cast<uint8_t>(ControlGrantMode::Bench)
+        ? SessionMode::Bench : SessionMode::ExtendedTest;
+    if (!factoryAllowed || (provisioning.enabled && appliedGrant != grantSnapshot))
+      controller.disarm(StopReason::Config);
+    const bool controlLink = !configurationRestartPending.load() && networkReady.load() &&
+        static_cast<uint32_t>(millis() - networkCheckedMs.load()) < 8000;
+    if (provisioning.enabled && (appliedGrant != grantSnapshot ||
+        (factoryAllowed && (!grantAcceptedAt || (controlLink && !hadControlLink) || action == 1 || action == 4 || action == 7))))
+      grantAcceptedAt = factoryAllowed ? deviceClock.utcMs() : 0;
+    appliedGrant = grantSnapshot;
+    hadControlLink = controlLink;
+    controller.tick(controlLink,
+                    KERUMO_ENABLE_REMOTE_OPERATION && locallyConfirmed.load() && factoryAllowed &&
+                    !configurationRestartPending.load() && !configurationCheckPending.load(), grantedMode);
+    if (provisioning.enabled && factoryAllowed)
+      controller.requireCommandsIssuedAfter(grantAcceptedAt);
     if (controller.stopReason() != lastReason) {
       lastReason = controller.stopReason();
       Serial.printf("CONTROL: last_stop=%s armed=%d\n", stopReasonCode(lastReason), controller.isArmed());
     }
     Command command{};
     if (xQueueReceive(stopCommands, &command, 0) == pdTRUE ||
-        xQueueReceive(commands, &command, 0) == pdTRUE) {
+        (!configurationCheckPending.load() && xQueueReceive(commands, &command, 0) == pdTRUE)) {
       // Config/readback can take time; do not execute after the network lease expires.
-      if (configurationRestartPending.load() || configurationCheckPending.load() || !networkReady.load() ||
+      if (configurationRestartPending.load() || !networkReady.load() ||
           static_cast<uint32_t>(millis() - networkCheckedMs.load()) >= 8000)
         controller.tick(false);
       char ack[37], result[37];
@@ -209,6 +250,9 @@ void deviceTask(void *) {
     const uint32_t now = millis();
     if (static_cast<uint32_t>(now - lastSample) >= 3000) {
       Sample sample = controller.sample();
+      sample.controlGrantRevision = static_cast<uint32_t>(appliedGrant >> 8);
+      sample.controlGrantMode = static_cast<uint8_t>((appliedGrant >> 1) & 3U);
+      sample.controlGrantAccepted = provisioning.enabled && factoryAllowed;
       xQueueOverwrite(samples, &sample);
       lastSample = millis();
       const auto &c = drive.config();
@@ -390,6 +434,12 @@ void telemetry(const Sample &sample, uint64_t sequence) {
     if (managedEquipment)
       writeEquipment(doc["diagnostics"]["equipment"].to<JsonObject>(), equipment,
                      sample.bindingCompatible && sample.storageOk && locallyConfirmed.load());
+    if (provisioning.enabled) {
+      auto grant = doc["diagnostics"]["control_grant"].to<JsonObject>();
+      grant["revision"] = sample.controlGrantRevision;
+      grant["mode"] = controlGrantModeCode(static_cast<ControlGrantMode>(sample.controlGrantMode));
+      grant["accepted"] = sample.controlGrantAccepted;
+    }
   }
   publish("/telemetry", doc);
 }
@@ -538,17 +588,18 @@ void loop() {
 #endif
   if (provisioning.enabled) {
     static bool wantsPortal = false;
-    static uint32_t restartRequestedAt = 0, persistAttemptAt = 0;
+    static uint32_t restartRequestedAt = 0, persistAttemptAt = 0, checkRequestedAt = 0;
     Sample state{};
     const bool fresh = xQueuePeek(samples, &state, 0) == pdTRUE && millis() - state.sampledMs < 5000;
-    const bool stopped = !managedEquipment || (fresh && !state.armed && state.vfd.ok[1] && state.vfd.ok[3] &&
+    const bool stopped = !managedEquipment || (fresh && state.vfd.ok[1] && state.vfd.ok[3] &&
                                                confirmedStopped(state.vfd.state, state.vfd.outputHz));
+    const bool idleStopped = stopped && (!managedEquipment || (!state.motionPossible && !state.controlBusy));
     if (configurationRestartPending.load()) {
       networkReady.store(false);
       mqtt.stop();
       // STOP до HTTP-запиту міг застаріти. ARM заблоковано, а VFD task
       // виконує DISARM/STOP. Новий blob також не записується до нового readback.
-      if ((!managedEquipment || (stopped && static_cast<int32_t>(state.sampledMs - restartRequestedAt) > 0)) &&
+      if ((!managedEquipment || (stopped && !state.armed && static_cast<int32_t>(state.sampledMs - restartRequestedAt) > 0)) &&
           (!persistAttemptAt || static_cast<uint32_t>(millis() - persistAttemptAt) >= 1000)) {
         persistAttemptAt = millis();
         if (provisioning.commitPending()) ESP.restart();
@@ -557,8 +608,8 @@ void loop() {
       delay(20);
       return;
     }
-    if (provisioning.buttonHeld()) { wantsPortal = true; localAction.store(2); }
-    if (wantsPortal && stopped) { provisioning.openPortal(); wantsPortal = false; }
+    if (provisioning.buttonHeld()) { wantsPortal = true; configurationCheckPending.store(false); localAction.store(2); }
+    if (wantsPortal && stopped && (!managedEquipment || !state.armed)) { provisioning.openPortal(); wantsPortal = false; }
     const bool hadPortal = provisioning.activePortal();
     provisioning.loop();
 #if KERUMO_USE_LTE
@@ -569,25 +620,40 @@ void loop() {
     (void)hadPortal;
 #endif
     if (provisioning.takeBind()) localAction.store(5);
+    if (provisioning.takeRestore()) localAction.store(7);
     if (provisioning.activePortal()) {
+      refreshFactoryGrant();
       networkReady.store(false); mqtt.stop(); delay(5); return;
     }
-    if (linkUp && deviceClock.utcMs() && provisioning.pollDue(stopped)) {
-      // HTTP is synchronous; freeze permission before it. Bootstrap is only
-      // polled while STOP+DISARM. Active revocation is enforced by broker ACLs.
+    if (!configurationCheckPending.load() && linkUp && deviceClock.utcMs() && provisioning.pollDue(idleStopped)) {
+      // Obtain STOP *after* freezing dequeue. An earlier dashboard sample can
+      // race a RUN already executing in the VFD task, or a scheduled program.
+      checkRequestedAt = millis();
       configurationCheckPending.store(true);
-      networkReady.store(false);
-      mqtt.stop();
-      const bool changed = provisioning.poll(FirmwareVersion, stopped);
+    }
+    const bool frozenReadback = !managedEquipment ||
+        (fresh && static_cast<int32_t>(state.sampledMs - checkRequestedAt) > 0);
+    if (configurationCheckPending.load() && frozenReadback && !idleStopped)
+      configurationCheckPending.store(false);
+    if (configurationCheckPending.load() &&
+        (!linkUp || !deviceClock.utcMs() || static_cast<uint32_t>(millis() - checkRequestedAt) > 6000))
+      configurationCheckPending.store(false);
+    if (configurationCheckPending.load() && frozenReadback && idleStopped) {
+      // HTTPS is only polled at fresh STOP, including an armed idle drive.
+      // Freeze ordinary dequeue/auto-ARM, retain STOP and the MQTT socket.
+      // A stalled request still expires the network lease in the VFD task.
+      const bool changed = provisioning.poll(FirmwareVersion, ControlCapability, idleStopped);
       if (changed) {
         restartRequestedAt = millis();
         configurationRestartPending.store(true);
-        localAction.store(2);
+        localAction.store(6);
         Serial.println("CONFIGURATION RECEIVED: waiting for fresh local STOP before save and restart");
       }
+      refreshFactoryGrant();
       configurationCheckPending.store(false);
       if (changed) return;
     }
+    refreshFactoryGrant();
     if (provisioning.suspended || provisioning.uid.isEmpty()) {
       networkReady.store(false); mqtt.stop(); delay(20); return;
     }

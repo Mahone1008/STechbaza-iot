@@ -28,6 +28,8 @@ jobs:
           /tmp/v4-cellular-test
           g++ -std=c++17 -Wall -Wextra -Werror -fsanitize=address,undefined -I firmware/tests/stubs firmware/tests/modbus_adapter_test.cpp firmware/kerumo_v3/src/core.cpp -o /tmp/v4-modbus-test
           /tmp/v4-modbus-test
+          g++ -std=c++17 -Wall -Wextra -Werror -fsanitize=address,undefined -I "$HOME/Arduino/libraries/ArduinoJson/src" firmware/kerumo_v3/src/core.cpp firmware/kerumo_v3/src/su600_driver.cpp firmware/tests/core_test.cpp -o /tmp/v4-control-grant-test
+          /tmp/v4-control-grant-test
       - name: Compile read-only LTE firmware for the original USB-UART port
         run: |
           cp firmware/kerumo_v3/lte_config.example.h firmware/kerumo_v3/lte_config.local.h
@@ -36,7 +38,7 @@ jobs:
         run: |
           sed -e 's/KERUMO_ENABLE_CONTROL false/KERUMO_ENABLE_CONTROL true/' -e 's/KERUMO_ENABLE_EXTENDED_TEST false/KERUMO_ENABLE_EXTENDED_TEST true/' -e 's/KERUMO_ENABLE_REMOTE_OPERATION false/KERUMO_ENABLE_REMOTE_OPERATION true/' firmware/kerumo_v3/lte_config.example.h > firmware/kerumo_v3/lte_config.local.h
           arduino-cli compile --warnings all --fqbn esp32:esp32:esp32s3:CDCOnBoot=cdc,FlashSize=16M,PSRAM=opi,PartitionScheme=app3M_fat9M_16MB firmware/kerumo_v3
-      - name: Compile factory LTE enrollment with separate API and broker trust
+      - name: Compile factory LTE enrollment and commissioned full control with separate API and broker trust
         run: |
           rm -f firmware/kerumo_v3/lte_config.local.h firmware/kerumo_v3/config.local.h firmware/kerumo_v3/equipment_config.local.h
           cat > firmware/kerumo_v3/factory_config.local.h <<'EOF'

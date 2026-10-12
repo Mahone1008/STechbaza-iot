@@ -438,6 +438,11 @@
       "BootstrapConfiguration": {
         "additionalProperties": false,
         "properties": {
+          "commissioned": {
+            "default": false,
+            "title": "Commissioned",
+            "type": "boolean"
+          },
           "configuration_hash": {
             "anyOf": [
               {
@@ -448,6 +453,23 @@
               }
             ],
             "title": "Configuration Hash"
+          },
+          "control_mode": {
+            "default": "read_only",
+            "enum": [
+              "read_only",
+              "bench_without_motor",
+              "extended_test"
+            ],
+            "title": "Control Mode",
+            "type": "string"
+          },
+          "control_revision": {
+            "default": 0,
+            "maximum": 2147483647.0,
+            "minimum": 0.0,
+            "title": "Control Revision",
+            "type": "integer"
           },
           "credential_revision": {
             "default": 0,
@@ -528,6 +550,16 @@
       "BootstrapContact": {
         "additionalProperties": false,
         "properties": {
+          "control_capability": {
+            "default": "read_only",
+            "enum": [
+              "read_only",
+              "bench",
+              "full"
+            ],
+            "title": "Control Capability",
+            "type": "string"
+          },
           "firmware_version": {
             "maxLength": 32,
             "minLength": 1,
@@ -953,6 +985,16 @@
             "title": "Activation Required",
             "type": "boolean"
           },
+          "can_install": {
+            "default": false,
+            "title": "Can Install",
+            "type": "boolean"
+          },
+          "can_invite_installer": {
+            "default": false,
+            "title": "Can Invite Installer",
+            "type": "boolean"
+          },
           "connection_state": {
             "default": "not_connected",
             "enum": [
@@ -1038,6 +1080,18 @@
             "title": "Network Transport",
             "type": "string"
           },
+          "organization_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Organization Id"
+          },
           "permanent_login": {
             "anyOf": [
               {
@@ -1048,6 +1102,9 @@
               }
             ],
             "title": "Permanent Login"
+          },
+          "readiness": {
+            "$ref": "#/components/schemas/EquipmentReadiness"
           },
           "serial_number": {
             "title": "Serial Number",
@@ -1094,9 +1151,41 @@
           "device_id",
           "site_id",
           "last_contact_at",
-          "firmware_version"
+          "firmware_version",
+          "readiness"
         ],
         "title": "ConnectionRead",
+        "type": "object"
+      },
+      "ControlGrantDiagnostics": {
+        "additionalProperties": false,
+        "properties": {
+          "accepted": {
+            "title": "Accepted",
+            "type": "boolean"
+          },
+          "mode": {
+            "enum": [
+              "read_only",
+              "bench_without_motor",
+              "extended_test"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "revision": {
+            "maximum": 2147483647.0,
+            "minimum": 0.0,
+            "title": "Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "revision",
+          "mode",
+          "accepted"
+        ],
+        "title": "ControlGrantDiagnostics",
         "type": "object"
       },
       "ControllerDiagnostics": {
@@ -1104,6 +1193,16 @@
         "properties": {
           "connection": {
             "$ref": "#/components/schemas/ConnectionDiagnostics"
+          },
+          "control_grant": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ControlGrantDiagnostics"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "equipment": {
             "anyOf": [
@@ -2726,6 +2825,27 @@
       "EquipmentPassport": {
         "additionalProperties": false,
         "properties": {
+          "can_install": {
+            "default": false,
+            "title": "Can Install",
+            "type": "boolean"
+          },
+          "commissioned_control_mode": {
+            "anyOf": [
+              {
+                "enum": [
+                  "read_only",
+                  "bench_without_motor",
+                  "extended_test"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Commissioned Control Mode"
+          },
           "configuration_state": {
             "enum": [
               "legacy",
@@ -2769,6 +2889,16 @@
             "title": "Device Id",
             "type": "string"
           },
+          "firmware_control_capability": {
+            "default": "read_only",
+            "enum": [
+              "read_only",
+              "bench",
+              "full"
+            ],
+            "title": "Firmware Control Capability",
+            "type": "string"
+          },
           "firmware_version": {
             "anyOf": [
               {
@@ -2794,6 +2924,9 @@
             "title": "Modules",
             "type": "array"
           },
+          "readiness": {
+            "$ref": "#/components/schemas/EquipmentReadiness"
+          },
           "reported": {
             "anyOf": [
               {
@@ -2813,9 +2946,56 @@
           "modules",
           "desired",
           "reported",
-          "configuration_state"
+          "configuration_state",
+          "readiness"
         ],
         "title": "EquipmentPassport",
+        "type": "object"
+      },
+      "EquipmentReadiness": {
+        "additionalProperties": false,
+        "properties": {
+          "blockers": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Blockers",
+            "type": "array"
+          },
+          "next_action": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Action"
+          },
+          "state": {
+            "enum": [
+              "needs_equipment",
+              "awaiting_controller",
+              "needs_local_confirmation",
+              "needs_commissioning",
+              "ready",
+              "offline",
+              "blocked"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "state",
+          "title"
+        ],
+        "title": "EquipmentReadiness",
         "type": "object"
       },
       "EquipmentReport": {
@@ -2925,6 +3105,16 @@
             "title": "Model",
             "type": "string"
           },
+          "motor": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MotorNameplate"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "nameplate_confirmed": {
             "const": true,
             "title": "Nameplate Confirmed",
@@ -2941,6 +3131,18 @@
             "minimum": 1.0,
             "title": "Profile Version",
             "type": "integer"
+          },
+          "serial_number": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Serial Number"
           },
           "software_revision": {
             "anyOf": [
@@ -3001,6 +3203,16 @@
             "title": "Batch",
             "type": "string"
           },
+          "equipment": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FactoryEquipmentSetup"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "factory_test_passed": {
             "const": true,
             "title": "Factory Test Passed",
@@ -3050,6 +3262,119 @@
           "factory_test_passed"
         ],
         "title": "FactoryCreate",
+        "type": "object"
+      },
+      "FactoryEquipmentSetup": {
+        "additionalProperties": false,
+        "properties": {
+          "frequency_limits": {
+            "$ref": "#/components/schemas/FrequencyLimits"
+          },
+          "hardware_revision": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hardware Revision"
+          },
+          "model": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Model",
+            "type": "string"
+          },
+          "motor": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MotorNameplate"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "profile_id": {
+            "maxLength": 96,
+            "minLength": 1,
+            "title": "Profile Id",
+            "type": "string"
+          },
+          "profile_version": {
+            "maximum": 2147483647.0,
+            "minimum": 1.0,
+            "title": "Profile Version",
+            "type": "integer"
+          },
+          "serial_number": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Serial Number"
+          },
+          "software_revision": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Software Revision"
+          }
+        },
+        "required": [
+          "profile_id",
+          "profile_version",
+          "model",
+          "frequency_limits"
+        ],
+        "title": "FactoryEquipmentSetup",
+        "type": "object"
+      },
+      "FactoryEquipmentUpdate": {
+        "additionalProperties": false,
+        "properties": {
+          "equipment": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FactoryEquipmentSetup"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "expected_generation": {
+            "minimum": 1.0,
+            "title": "Expected Generation",
+            "type": "integer"
+          },
+          "expected_preparation_revision": {
+            "maximum": 2147483646.0,
+            "minimum": 0.0,
+            "title": "Expected Preparation Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "expected_generation",
+          "expected_preparation_revision",
+          "equipment"
+        ],
+        "title": "FactoryEquipmentUpdate",
         "type": "object"
       },
       "FactoryQuarantine": {
@@ -3120,6 +3445,16 @@
             ],
             "title": "Distributor"
           },
+          "firmware_control_capability": {
+            "default": "read_only",
+            "enum": [
+              "read_only",
+              "bench",
+              "full"
+            ],
+            "title": "Firmware Control Capability",
+            "type": "string"
+          },
           "generation": {
             "title": "Generation",
             "type": "integer"
@@ -3172,6 +3507,26 @@
             ],
             "title": "Network Transport",
             "type": "string"
+          },
+          "preparation_editable": {
+            "default": false,
+            "title": "Preparation Editable",
+            "type": "boolean"
+          },
+          "preparation_revision": {
+            "default": 0,
+            "title": "Preparation Revision",
+            "type": "integer"
+          },
+          "prepared_equipment": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FactoryEquipmentSetup"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "serial_number": {
             "title": "Serial Number",
@@ -3414,6 +3769,28 @@
           "site_id"
         ],
         "title": "InstallationRead",
+        "type": "object"
+      },
+      "InstallerInvitationCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "email": {
+            "format": "email",
+            "title": "Email",
+            "type": "string"
+          },
+          "expires_in_days": {
+            "default": 7,
+            "maximum": 30.0,
+            "minimum": 1.0,
+            "title": "Expires In Days",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "email"
+        ],
+        "title": "InstallerInvitationCreate",
         "type": "object"
       },
       "InvitationAccepted": {
@@ -6909,7 +7286,7 @@
   "info": {
     "description": "Backend API платформи TechBaza IoT Pump Control",
     "title": "TechBaza Backend",
-    "version": "0.54.0"
+    "version": "0.55.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -8595,6 +8972,64 @@
         "summary": "Equipment Selection",
         "tags": [
           "onboarding"
+        ]
+      }
+    },
+    "/api/v1/connect/{controller_id}/installer-invitations": {
+      "post": {
+        "operationId": "installer_invitation_api_v1_connect__controller_id__installer_invitations_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "controller_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Controller Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InstallerInvitationCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitationRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Installer Invitation",
+        "tags": [
+          "personal-accounts"
         ]
       }
     },
@@ -10726,6 +11161,64 @@
           }
         ],
         "summary": "Factory Audit",
+        "tags": [
+          "onboarding"
+        ]
+      }
+    },
+    "/api/v1/factory/controllers/{controller_id}/equipment": {
+      "patch": {
+        "operationId": "factory_equipment_api_v1_factory_controllers__controller_id__equipment_patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "controller_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Controller Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FactoryEquipmentUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FactoryRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Factory Equipment",
         "tags": [
           "onboarding"
         ]
