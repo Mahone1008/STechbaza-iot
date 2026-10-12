@@ -14,6 +14,7 @@ from pydantic import (
 
 
 Password = Annotated[str, StringConstraints(strip_whitespace=False)]
+NetworkTransport = Literal["wifi", "lte"]
 
 
 class StrictModel(BaseModel):
@@ -72,6 +73,7 @@ class FactoryCreate(StrictModel):
     serial_number: str = Field(min_length=3, max_length=96, pattern=r"^[A-Za-z0-9._:-]+$")
     hardware_model: str = Field(min_length=2, max_length=80)
     hardware_revision: str = Field(min_length=1, max_length=80)
+    network_transport: NetworkTransport = "wifi"
     batch: str = Field(min_length=1, max_length=80)
     test_reference: str = Field(min_length=1, max_length=160)
     factory_test_passed: Literal[True]
@@ -82,6 +84,7 @@ class FactoryRead(StrictModel):
     serial_number: str
     hardware_model: str
     hardware_revision: str
+    network_transport: NetworkTransport = "wifi"
     batch: str
     distributor: str | None
     status: str
@@ -89,6 +92,8 @@ class FactoryRead(StrictModel):
     device_id: uuid.UUID | None
     claimed_at: datetime | None
     last_contact_at: datetime | None
+    last_contact_transport: NetworkTransport | None = None
+    transport_editable: bool = False
     credential_revision: int = 0
     access_revoked: bool = False
 
@@ -106,6 +111,11 @@ class FactorySecrets(StrictModel):
 class ShipmentRequest(StrictModel):
     distributor: str = Field(min_length=2, max_length=160)
     reference: str = Field(min_length=1, max_length=160)
+
+
+class FactoryTransportUpdate(StrictModel):
+    network_transport: NetworkTransport
+    expected_generation: int = Field(ge=1)
 
 
 class FactoryQuarantine(StrictModel):
@@ -158,6 +168,11 @@ class ConnectionRead(StrictModel):
     controller_id: uuid.UUID
     serial_number: str
     hardware_model: str
+    network_transport: NetworkTransport = "wifi"
+    last_contact_transport: NetworkTransport | None = None
+    telemetry_received_at: datetime | None = None
+    connection_state: Literal["not_connected", "transport_mismatch", "bootstrap_connected", "online", "offline"] = "not_connected"
+    initial_equipment_editable: bool = False
     state: Literal["ready", "claimed"]
     device_id: uuid.UUID | None
     site_id: uuid.UUID | None
@@ -178,6 +193,7 @@ class EquipmentSelection(StrictModel):
 
 class BootstrapContact(StrictModel):
     firmware_version: str = Field(min_length=1, max_length=32, pattern=r"^[a-zA-Z0-9._-]+$")
+    network_transport: NetworkTransport = "wifi"
 
 
 class BootstrapConfiguration(StrictModel):

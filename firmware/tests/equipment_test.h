@@ -107,6 +107,15 @@ void provisioningIdentity() {
   doc["mqtt_host"]="192.168.1.10"; doc["mqtt_port"]=8884;
   doc["mqtt_password"]="test-only-opaque-secret-at-least-32-characters"; doc["credential_revision"]=1;
   assert(enrollmentFields(doc,id));
+  assert(enrollmentRevisionAllowed(doc,id,"",0));
+  assert(enrollmentRevisionAllowed(doc,id,"FC-11111111111141118111111111111111-G1",1));
+  assert(!enrollmentRevisionAllowed(doc,id,"FC-11111111111141118111111111111111-G1",2));
+  assert(!enrollmentRevisionAllowed(doc,id,"FC-11111111111141118111111111111111-G2",1));
+  doc["device_uid"]="FC-11111111111141118111111111111111-G2";
+  assert(enrollmentRevisionAllowed(doc,id,"FC-11111111111141118111111111111111-G1",200));
+  doc["device_uid"]="FC-21111111111141118111111111111111-G2";
+  assert(!enrollmentRevisionAllowed(doc,id,"FC-11111111111141118111111111111111-G1",1));
+  doc["device_uid"]="FC-11111111111141118111111111111111-G1";
   doc["mqtt_host"]="https://another.host/path"; assert(!enrollmentFields(doc,id));
   doc["mqtt_host"]="gateway.example.com"; doc["mqtt_port"]=-1; assert(!enrollmentFields(doc,id));
   doc["mqtt_port"]=8884; doc["credential_revision"]=0; assert(!enrollmentFields(doc,id));

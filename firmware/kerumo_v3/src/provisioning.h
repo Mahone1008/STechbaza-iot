@@ -32,4 +32,16 @@ inline bool enrollmentFields(JsonDocument &doc, const char *controllerId) {
            (*cursor>='0' && *cursor<='9') || *cursor=='.' || *cursor=='-')) return false;
   return true;
 }
+
+// A server response cannot rewind an ownership generation or the credential
+// revision of the current owner. An empty cache still requires a valid factory UID.
+inline bool enrollmentRevisionAllowed(JsonDocument &doc, const char *controllerId,
+                                      const char *currentUid, uint32_t currentRevision) {
+  if (!enrollmentFields(doc, controllerId)) return false;
+  const char *nextUid = doc["device_uid"] | "";
+  const uint32_t generation = factoryGeneration(nextUid, controllerId);
+  const uint32_t currentGeneration = factoryGeneration(currentUid, controllerId);
+  return generation > currentGeneration ||
+      (generation == currentGeneration && (doc["credential_revision"] | 0U) >= currentRevision);
+}
 } // namespace kerumo

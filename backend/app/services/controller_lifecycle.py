@@ -19,7 +19,6 @@ from app.schemas.onboarding import (
     ControllerStatus,
     TransferRead,
     FactorySecrets,
-    FactoryRead,
 )
 from app.security.account_keys import digest, new_key, verify_digest
 from app.security.authorization import AccessControl
@@ -33,7 +32,7 @@ from app.services.equipment import (
     desired_configuration,
     require_stopped,
 )
-from app.services.onboarding import audit, locked_controller
+from app.services.onboarding import audit, factory_read, locked_controller
 from app.services.label_accounts import renew_label
 
 
@@ -132,10 +131,14 @@ def bootstrap_configuration(session, controller_id, payload, token):
     if not verify_digest("bootstrap", token, row.bootstrap_hash):
         raise HTTPException(401, "Контролер не авторизований")
     row.last_contact_at, row.firmware_version = utc_now(), payload.firmware_version
+    row.last_contact_transport = payload.network_transport
     row.bootstrap_hash = digest("bootstrap", token)
     if row.status in ("quarantined", "retired", "releasing") or row.access_revoked:
         session.commit()
         return BootstrapConfiguration(state="revoked")
+    if row.network_transport != payload.network_transport:
+        session.commit()
+        raise HTTPException(409, "Тип мережі плати не відповідає заводському комплекту")
     if row.status == "ready":
         session.commit()
         return BootstrapConfiguration(state="waiting")
@@ -262,6 +265,7 @@ def operate(session, current, controller_id, operation, payload):
     renew_label(row)
     row.activation_hash, row.access_revoked = digest("activation", code), False
     row.last_contact_at = None
+    row.last_contact_transport = None
     audit(
         session,
         row,
@@ -307,6 +311,7 @@ def factory_reset(session, current, controller_id, payload):
     row.generation += 1
     renew_label(row)
     row.device_id, row.claimed_at, row.last_contact_at = None, None, None
+    row.last_contact_transport = None
     row.status, row.access_revoked = "ready", False
     row.activation_hash, row.bootstrap_hash = (
         digest("activation", activation),
@@ -325,7 +330,7 @@ def factory_reset(session, current, controller_id, payload):
     )
     session.commit()
     return FactorySecrets(
-        controller=FactoryRead.model_validate(row),
+        controller=factory_read(session, row),
         qr_path=f"/connect/{row.id}",
         activation_code=activation,
         bootstrap_key=bootstrap,

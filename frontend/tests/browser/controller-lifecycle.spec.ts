@@ -181,7 +181,7 @@ test("configuration is delivered explicitly with reviewed transport and limits",
     await fulfillJson(route, 201, {});
   });
   await page.getByRole("button", { name: "Налаштувати підключення" }).click();
-  await page.getByLabel("Серія частотника SUSWE").selectOption(profile.id);
+  await expect(page.getByLabel("Серія частотника SUSWE")).toHaveCount(0);
   await page.getByLabel("Мінімальна частота, Гц", { exact: true }).fill("15");
   await page.getByLabel("Максимальна частота, Гц", { exact: true }).fill("45");
   await page.getByRole("checkbox").check();
@@ -339,7 +339,7 @@ test("opening a supported setup uses its passport model without sending a change
     }
   });
   await page.getByRole("button", { name: "Налаштувати підключення", exact: true }).click();
-  await expect(page.getByLabel("Серія частотника SUSWE")).toHaveValue(profile.id);
+  await expect(page.getByLabel("Серія частотника SUSWE")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Зберегти налаштування", exact: true })).toBeDisabled();
   expect(posts).toBe(0);
   await page.getByRole("checkbox").check();
@@ -356,11 +356,12 @@ test("setup never guesses a driver for a different full model", async ({ page })
   });
   await (await refreshButton(page, "Оновити паспорт")).click();
   await page.getByRole("button", { name: "Налаштувати підключення", exact: true }).click();
-  await expect(page.getByLabel("Серія частотника SUSWE")).toHaveValue("");
-  await page.getByLabel("Серія частотника SUSWE").selectOption(profile.id);
+  await expect(page.getByLabel("Серія частотника SUSWE")).toHaveCount(0);
   await page.getByRole("checkbox").check();
   await expect(page.getByRole("button", { name: "Зберегти налаштування", exact: true })).toBeDisabled();
-  await expect(page.getByText("Обраний профіль не підтверджений", { exact: false })).toBeVisible();
+  await expect(
+    page.getByText("Для повної моделі з паспорта немає перевіреного драйвера", { exact: false }),
+  ).toBeVisible();
 });
 
 test("passport refresh cannot retarget an already reviewed configuration to a replaced drive", async ({ page }) => {

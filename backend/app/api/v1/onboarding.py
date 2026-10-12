@@ -25,6 +25,7 @@ from app.schemas.onboarding import (
     TransferRead,
     FactoryQuarantine,
     FactoryReset,
+    FactoryTransportUpdate,
 )
 from app.schemas.site import SiteRead
 from app.schemas.organization import OrganizationRead
@@ -38,6 +39,8 @@ from app.services.onboarding import (
     select_equipment,
     record_shipment,
     bootstrap_contact as contact_controller,
+    factory_read,
+    update_factory_transport,
 )
 
 router = APIRouter(tags=["onboarding"])
@@ -62,7 +65,8 @@ def factory_list(
     offset: Annotated[int, Query(ge=0)] = 0,
 ):
     manufacturer(session, current)
-    return FactoryRepository(session).list_controllers(limit=limit, offset=offset)
+    return [factory_read(session, row) for row in
+            FactoryRepository(session).list_controllers(limit=limit, offset=offset)]
 
 
 @router.post("/factory/controllers", response_model=FactorySecrets, status_code=201)
@@ -83,7 +87,15 @@ def factory_create(
 @router.post("/factory/controllers/{controller_id}/shipments", response_model=FactoryRead)
 def shipment(controller_id: uuid.UUID, payload: ShipmentRequest, current: Current, session: Db):
     manufacturer(session, current)
-    return record_shipment(session, current, controller_id, payload)
+    return factory_read(session, record_shipment(session, current, controller_id, payload))
+
+
+@router.patch("/factory/controllers/{controller_id}/transport", response_model=FactoryRead)
+def factory_transport(controller_id: uuid.UUID, payload: FactoryTransportUpdate, current: Current,
+                      session: Db, response: Response):
+    manufacturer(session, current)
+    response.headers["Cache-Control"] = "no-store"
+    return update_factory_transport(session, current, controller_id, payload)
 
 
 @router.get("/factory/controllers/{controller_id}/audit")

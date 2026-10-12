@@ -1,5 +1,6 @@
 import { invalidResponse, isRecord, requiredDateTime, requiredString, requiredUuid } from "./access";
 import type { components } from "./schema";
+import { equipmentState } from "./equipment";
 
 const path = "/api/v1/connect";
 export function parseConnection(value: unknown, controllerId: string): components["schemas"]["ConnectionRead"] {
@@ -8,6 +9,24 @@ export function parseConnection(value: unknown, controllerId: string): component
   const claimed = value.state === "claimed";
   if (!claimed && (value.device_id !== null || value.site_id !== null))
     return invalidResponse(path, "unclaimed controller");
+  const transport = value.network_transport ?? "wifi";
+  const contactTransport = value.last_contact_transport ?? null;
+  const connectionState = value.connection_state ?? (value.last_contact_at ? "bootstrap_connected" : "not_connected");
+  if (
+    !["wifi", "lte"].includes(String(transport)) ||
+    (contactTransport !== null && !["wifi", "lte"].includes(String(contactTransport)))
+  )
+    return invalidResponse(path, "controller transport");
+  if (
+    !["not_connected", "transport_mismatch", "bootstrap_connected", "online", "offline"].includes(
+      String(connectionState),
+    )
+  )
+    return invalidResponse(path, "controller connection state");
+  if (connectionState === "online" && value.telemetry_received_at == null)
+    return invalidResponse(path, "live controller telemetry");
+  if (value.initial_equipment_editable !== undefined && typeof value.initial_equipment_editable !== "boolean")
+    return invalidResponse(path, "initial equipment editing");
   return {
     controller_id: requiredUuid(value, "controller_id", path),
     serial_number: requiredString(value, "serial_number", path),
@@ -19,7 +38,49 @@ export function parseConnection(value: unknown, controllerId: string): component
     firmware_version: value.firmware_version === null ? null : requiredString(value, "firmware_version", path),
     activation_required: value.activation_required === false ? false : true,
     permanent_login: value.permanent_login == null ? null : requiredString(value, "permanent_login", path),
+    network_transport: transport as "wifi" | "lte",
+    last_contact_transport: contactTransport as "wifi" | "lte" | null,
+    telemetry_received_at:
+      value.telemetry_received_at == null ? null : requiredDateTime(value, "telemetry_received_at", path),
+    connection_state: connectionState as components["schemas"]["ConnectionRead"]["connection_state"],
+    initial_equipment_editable: value.initial_equipment_editable === true,
   };
+}
+
+export type ConnectionEquipment = {
+  module: { id: string; manufacturer: string; series: string; model: string; hardware_revision: string | null } | null;
+  configuration_state: components["schemas"]["EquipmentPassport"]["configuration_state"];
+  configured: boolean;
+};
+export function parseConnectionEquipment(value: unknown, deviceId: string, controllerId: string): ConnectionEquipment {
+  if (
+    !isRecord(value) ||
+    value.device_id !== deviceId ||
+    value.controller_id !== controllerId ||
+    !Array.isArray(value.modules) ||
+    value.modules.length > 32
+  )
+    return invalidResponse(path, "controller equipment identity");
+  if (value.modules.some((item) => !isRecord(item))) return invalidResponse(path, "equipment module");
+  const modules = value.modules.filter((item) => isRecord(item) && item.kind === "vfd" && item.retired_at === null);
+  if (modules.length > 1) return invalidResponse(path, "active controller drive");
+  const item = modules[0];
+  let installedModule: ConnectionEquipment["module"] = null;
+  if (item) {
+    if (!isRecord(item) || item.device_id !== deviceId) return invalidResponse(path, "drive identity");
+    installedModule = {
+      id: requiredUuid(item, "id", path),
+      manufacturer: requiredString(item, "manufacturer", path),
+      series: requiredString(item, "series", path),
+      model: requiredString(item, "model", path),
+      hardware_revision: item.hardware_revision == null ? null : requiredString(item, "hardware_revision", path),
+    };
+  }
+  if (value.desired !== null && !isRecord(value.desired)) return invalidResponse(path, "saved equipment configuration");
+  const configurationState = equipmentState(value.configuration_state);
+  if (configurationState === "verified" && value.desired === null)
+    return invalidResponse(path, "verified equipment configuration");
+  return { module: installedModule, configuration_state: configurationState, configured: value.desired !== null };
 }
 export function parseRecovery(value: unknown): string {
   if (!isRecord(value) || typeof value.recovery_key !== "string" || !/^[A-Za-z0-9_-]{43}$/.test(value.recovery_key))

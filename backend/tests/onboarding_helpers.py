@@ -70,19 +70,21 @@ class OnboardingFixtures:
         self.assertEqual(code, expected, (path, result))
         return result
 
-    def factory(self):
+    def factory(self, **values):
+        payload = dict(
+            serial_number=f"TEST-{uuid.uuid4().hex}",
+            hardware_model="KERUMO V3",
+            hardware_revision="V3.1",
+            batch="integration-only",
+            test_reference="isolated test fixture",
+            factory_test_passed=True,
+        )
+        payload.update(values)
         result = self.call(
             "/api/v1/factory/controllers",
             method="POST",
             expected=201,
-            body=dict(
-                serial_number=f"TEST-{uuid.uuid4().hex}",
-                hardware_model="KERUMO V3",
-                hardware_revision="V3.1",
-                batch="integration-only",
-                test_reference="isolated test fixture",
-                factory_test_passed=True,
-            ),
+            body=payload,
         )
         self.controllers.append(uuid.UUID(result["controller"]["id"]))
         return result

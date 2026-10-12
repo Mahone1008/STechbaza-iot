@@ -1,6 +1,6 @@
 "use client";
 import { useState, type FormEvent } from "react";
-import { Button, TextField } from "@/components/ui";
+import { Button, SelectField, TextField } from "@/components/ui";
 import type { components } from "@/lib/api";
 import { useAuthSession } from "./auth-session";
 import { useAccountAction } from "./use-account-action";
@@ -16,7 +16,8 @@ export function FactoryControllerActions({
   onKit: (kit: Schema["FactorySecrets"]) => void;
 }) {
   const { authorizedRequest } = useAuthSession();
-  const [action, setAction] = useState<"quarantine" | "reset" | null>(null);
+  const [action, setAction] = useState<"quarantine" | "reset" | "transport" | null>(null);
+  const [transport, setTransport] = useState<"wifi" | "lte">(controller.network_transport ?? "wifi");
   const [reason, setReason] = useState("");
   const [reference, setReference] = useState("");
   const [confirmed, setConfirmed] = useState(false);
@@ -26,7 +27,13 @@ export function FactoryControllerActions({
     if (!action || !confirmed) return;
     void run(async () => {
       const path = `/api/v1/factory/controllers/${controller.id}/${action}`;
-      if (action === "reset") {
+      if (action === "transport") {
+        await authorizedRequest({
+          path,
+          method: "PATCH",
+          body: { network_transport: transport, expected_generation: controller.generation },
+        });
+      } else if (action === "reset") {
         onKit(
           await authorizedRequest<Schema["FactorySecrets"]>({
             path,
@@ -48,6 +55,18 @@ export function FactoryControllerActions({
   return (
     <div>
       <div className="ui-row">
+        {controller.transport_editable && (
+          <Button
+            disabled={busy}
+            onClick={() => {
+              setAction("transport");
+              setTransport(controller.last_contact_transport ?? controller.network_transport ?? "wifi");
+              setConfirmed(false);
+            }}
+          >
+            Змінити тип інтернету
+          </Button>
+        )}
         <Button
           disabled={busy || controller.status === "quarantined"}
           onClick={() => {
@@ -71,20 +90,42 @@ export function FactoryControllerActions({
       </div>
       {action && (
         <form onSubmit={submit} className="equipment-action-form">
-          <h4>{action === "reset" ? "Заводське повернення" : "Карантин контролера"}</h4>
+          <h4>
+            {action === "reset"
+              ? "Заводське повернення"
+              : action === "transport"
+                ? "Тип інтернету контролера"
+                : "Карантин контролера"}
+          </h4>
           <p>
             {action === "reset"
               ? "Після фізичної перевірки буде видано нові ключі. Перепрошийте заводський файл; історія минулого покупця лишиться в його об’єкті."
-              : "Заводський ключ і мережевий доступ контролера буде скасовано. Це не підтверджує фізичну зупинку двигуна."}
+              : action === "transport"
+                ? "Можна виправити до першого підтвердженого підключення плати. Вибір має збігатися з модулем і заводською прошивкою; зміна на сайті не перепрограмовує плату."
+                : "Заводський ключ і мережевий доступ контролера буде скасовано. Це не підтверджує фізичну зупинку двигуна."}
           </p>
-          <TextField
-            label={`Причина · ${controller.serial_number}`}
-            required
-            minLength={5}
-            maxLength={240}
-            value={reason}
-            onChange={(event) => setReason(event.target.value)}
-          />
+          {action === "transport" ? (
+            <SelectField
+              label={`Інтернет · ${controller.serial_number}`}
+              value={transport}
+              onChange={(event) => {
+                setTransport(event.target.value as "wifi" | "lte");
+                setConfirmed(false);
+              }}
+            >
+              <option value="wifi">Wi-Fi</option>
+              <option value="lte">4G / SIM-картка</option>
+            </SelectField>
+          ) : (
+            <TextField
+              label={`Причина · ${controller.serial_number}`}
+              required
+              minLength={5}
+              maxLength={240}
+              value={reason}
+              onChange={(event) => setReason(event.target.value)}
+            />
+          )}
           {action === "reset" && (
             <TextField
               label="Новий протокол заводської перевірки"
@@ -103,7 +144,9 @@ export function FactoryControllerActions({
             />
             {action === "reset"
               ? "Фізичну перевірку після повернення пройдено; контролер зупинено та ізольовано"
-              : "Підтверджую карантин і відкликання ключів цього контролера"}
+              : action === "transport"
+                ? "Тип мережі звірено з модулем і прошивкою цієї плати"
+                : "Підтверджую карантин і відкликання ключів цього контролера"}
           </label>
           <div className="ui-row">
             <Button type="submit" disabled={busy || !confirmed}>

@@ -55,7 +55,7 @@ export function EquipmentActions({
       item.series === installedModule.series &&
       item.tested_model?.toLowerCase() === installedModule.model.toLowerCase(),
   );
-  const selectedProfileId = profileId ?? (mode === "configure" ? (matching?.id ?? "") : "");
+  const selectedProfileId = mode === "configure" ? (matching?.id ?? "") : (profileId ?? "");
   const profile = selectableProfiles?.find((item) => item.id === selectedProfileId);
   const supported = profile?.driver_id && profile.tested_model?.toLowerCase() === installedModule.model.toLowerCase();
   const base = `/api/v1/devices/${passport.device_id}/equipment`;
@@ -193,7 +193,7 @@ export function EquipmentActions({
           {changed && (
             <p role="alert">Паспорт змінився. Закрийте форму й відкрийте її знову, щоб перевірити актуальні дані.</p>
           )}
-          {mode !== "commission" && (
+          {mode === "replace" && (
             <>
               <SelectField
                 label="Серія частотника SUSWE"
@@ -292,7 +292,7 @@ export function EquipmentActions({
                 <strong>
                   {installedModule.manufacturer} {installedModule.model}
                 </strong>
-                . Виробник і серія обрані з паспорта, якщо для повної моделі є перевірений драйвер.
+                . Серія {installedModule.series}; підключення визначається за збереженим паспортом.
               </p>
               {!installedModule.motor && (
                 <TextField
@@ -328,9 +328,14 @@ export function EquipmentActions({
                   onChange={(event) => setMaxHz(event.target.value)}
                 />
               </div>
-              {profile && !supported && (
+              {profiles.isError && (
+                <p role="alert">
+                  Каталог не завантажено. <Button onClick={profiles.refresh}>Повторити</Button>
+                </p>
+              )}
+              {profiles.data && !supported && (
                 <p className="notice notice-warning">
-                  Обраний профіль не підтверджений для цієї повної моделі. Збереження конфігурації недоступне.
+                  Для повної моделі з паспорта немає перевіреного драйвера. Збереження конфігурації недоступне.
                 </p>
               )}
               <details className="equipment-secondary">

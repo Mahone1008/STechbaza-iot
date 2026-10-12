@@ -5,7 +5,7 @@ import { ControllerQr } from "@/components/controller-qr";
 import { FactoryControllerActions } from "./factory-controller-actions";
 import { useState, type FormEvent } from "react";
 import { flushSync } from "react-dom";
-import { Button, Card, PageHeader, TextField } from "@/components/ui";
+import { Button, Card, PageHeader, SelectField, TextField } from "@/components/ui";
 import { apiErrorDisplayMessage, type components } from "@/lib/api";
 import { AccountGate } from "./account-gate";
 import { useAuthSession } from "./auth-session";
@@ -44,6 +44,8 @@ function FactoryRegister() {
     hardware_model: "KERUMO V3",
   });
   const [passed, setPassed] = useState(false);
+  const [transport, setTransport] = useState<"wifi" | "lte">("wifi");
+  const [kitDownloaded, setKitDownloaded] = useState(false);
   const [secrets, setSecrets] = useState<Schema["FactorySecrets"] | null>(null);
   const [labelUrl, setLabelUrl] = useState("");
   const [readyLabelUrl, setReadyLabelUrl] = useState<string | null>(null);
@@ -55,6 +57,22 @@ function FactoryRegister() {
   const [distributor, setDistributor] = useState("");
   const [reference, setReference] = useState("");
   const [offset, setOffset] = useState(0);
+  const validLabelUrl = (() => {
+    if (!secrets) return false;
+    try {
+      const url = new URL(labelUrl);
+      return (
+        ["https:", "http:"].includes(url.protocol) &&
+        url.pathname === secrets.qr_path &&
+        !url.search &&
+        !url.hash &&
+        !url.username &&
+        !url.password
+      );
+    } catch {
+      return false;
+    }
+  })();
   const key = session.status === "authenticated" ? [session.email, session.sessionExpiresAt] : null;
   const query = usePanelQuery({
     queryKey: ["factory", key, offset],
@@ -89,6 +107,7 @@ function FactoryRegister() {
     link.download = `factory-${secrets.controller.serial_number}.json`;
     link.click();
     URL.revokeObjectURL(url);
+    setKitDownloaded(true);
   };
 
   const registerController = (event: FormEvent<HTMLFormElement>) => {
@@ -97,9 +116,10 @@ function FactoryRegister() {
       const created = await authorizedRequest<Schema["FactorySecrets"]>({
         path: "/api/v1/factory/controllers",
         method: "POST",
-        body: { ...values, factory_test_passed: passed },
+        body: { ...values, network_transport: transport, factory_test_passed: passed },
       });
       setSecrets(created);
+      setKitDownloaded(false);
       setLabelUrl(`${process.env.NEXT_PUBLIC_CUSTOMER_URL || window.location.origin}${created.qr_path}`);
     });
   };
@@ -126,11 +146,13 @@ function FactoryRegister() {
       <Card title="Зареєструвати контролер">
         {secrets ? (
           <div className="connect-fields">
-            <p>Контролер зареєстровано. Завантажте приватний заводський комплект: повторно ключі не показуються.</p>
+            <p>
+              Завантажте заводський комплект для прошивки цієї плати. Реєстрація на сайті сама не підключає контролер.
+            </p>
             <div className="factory-label factory-public-label">
-              <ControllerQr url={labelUrl} onReady={setReadyLabelUrl} />
+              {validLabelUrl && <ControllerQr url={labelUrl} onReady={setReadyLabelUrl} />}
               <strong>KERUMO · {secrets.controller.serial_number}</strong>
-              <p>{labelUrl}</p>
+              <p>{validLabelUrl ? labelUrl : "Перевірте публічне посилання"}</p>
             </div>
             <TextField
               label="Публічне посилання для QR"
@@ -139,38 +161,46 @@ function FactoryRegister() {
               type="url"
               onChange={(event) => setLabelUrl(event.target.value)}
               hint="Для сканування телефоном вкажіть захищену адресу сайту, доступну з телефона."
+              {...(!validLabelUrl
+                ? { error: "Посилання має вести на сторінку цього контролера, без паролів і додаткових параметрів." }
+                : {})}
             />
-            <Button disabled={readyLabelUrl !== labelUrl} onClick={() => printLabel(false)}>
+            <Button disabled={!validLabelUrl || readyLabelUrl !== labelUrl} onClick={() => printLabel(false)}>
               Друкувати публічний QR
             </Button>
-            <Button disabled={readyLabelUrl !== labelUrl} onClick={() => printLabel(true)}>
-              Друкувати закриту етикетку покупця
-            </Button>
+            <Button onClick={() => printLabel(true)}>Друкувати закриту етикетку покупця</Button>
             <details open={printBuyer || undefined} data-buyer-print={printBuyer ? "true" : "false"}>
               <summary>Закрита картка покупця</summary>
               <div className="factory-label factory-private-label">
-                <ControllerQr url={labelUrl} onReady={setReadyLabelUrl} />
                 <strong>KERUMO · {secrets.controller.serial_number}</strong>
-                <p>{labelUrl}</p>
-                <p>
-                  Логін: <code className="recovery-key">{secrets.login}</code>
-                </p>
+                <p>Відскануйте QR на контролері. Увійдіть або створіть особистий обліковий запис.</p>
                 <p>
                   Одноразовий пароль активації: <code className="recovery-key">{secrets.password}</code>
                 </p>
-                <p>Локальна мережа: KERUMO-{secrets.controller.id.slice(0, 8)}</p>
-                <p>
-                  Пароль налаштування: <code className="recovery-key">{secrets.setup_password}</code>
-                </p>
+                <details className="factory-setup-access" open={printBuyer || undefined}>
+                  <summary>Локальне налаштування біля контролера</summary>
+                  <p>Мережа: KERUMO-{secrets.controller.id.slice(0, 8)}</p>
+                  <p>
+                    Пароль налаштування: <code className="recovery-key">{secrets.setup_password}</code>
+                  </p>
+                  <p>
+                    {secrets.controller.network_transport === "lte"
+                      ? "Для підтвердження обладнання. Інтернет надходить через SIM-картку, домашній Wi-Fi не потрібен."
+                      : "Для введення домашнього Wi-Fi та підтвердження обладнання."}
+                  </p>
+                </details>
               </div>
               <p>Картку передають покупцеві окремо. Заводський ключ залишається лише у виробника та в контролері.</p>
             </details>
-            <Button onClick={downloadKit}>Завантажити заводський комплект</Button>
+            <Button disabled={!validLabelUrl} onClick={downloadKit}>
+              Завантажити заводський комплект
+            </Button>
             <p>
               Комплект містить приватний ключ контролера. Закриту етикетку з паролем передають лише покупцеві; публічний
               QR не містить даних входу.
             </p>
             <Button
+              disabled={!kitDownloaded}
               onClick={() => {
                 setSecrets(null);
                 setValues((current) => ({ ...current, serial_number: "" }));
@@ -182,6 +212,18 @@ function FactoryRegister() {
           </div>
         ) : (
           <form onSubmit={registerController}>
+            <SelectField
+              label="Інтернет контролера"
+              value={transport}
+              onChange={(event) => {
+                const next = event.target.value as "wifi" | "lte";
+                setTransport(next);
+                setValues((current) => ({ ...current, hardware_model: next === "lte" ? "KERUMO V4" : "KERUMO V3" }));
+              }}
+            >
+              <option value="wifi">Wi-Fi · KERUMO V3</option>
+              <option value="lte">4G / SIM-картка · KERUMO V4</option>
+            </SelectField>
             {fields.map(([name, label, max]) => (
               <TextField
                 key={name}
@@ -235,7 +277,7 @@ function FactoryRegister() {
                   : item.status === "claimed"
                     ? "Активований покупцем"
                     : "Недоступний"}{" "}
-                · {item.distributor ?? "Постачання не зазначено"}
+                · {item.distributor ?? "Постачання не зазначено"} · {item.network_transport === "lte" ? "4G" : "Wi-Fi"}
               </p>
               {item.status === "ready" && (
                 <Button
@@ -250,6 +292,7 @@ function FactoryRegister() {
                 onChanged={query.refresh}
                 onKit={(kit) => {
                   setSecrets(kit);
+                  setKitDownloaded(false);
                   setLabelUrl(`${window.location.origin}${kit.qr_path}`);
                 }}
               />

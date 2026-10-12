@@ -19,11 +19,15 @@ class FactoryController(TimestampMixin, Base):
             name="ck_factory_controller_status",
         ),
         CheckConstraint("generation > 0", name="ck_factory_controller_generation"),
+        CheckConstraint("network_transport IN ('wifi','lte')", name="ck_factory_controller_network_transport"),
+        CheckConstraint("last_contact_transport IS NULL OR last_contact_transport IN ('wifi','lte')",
+                        name="ck_factory_controller_contact_transport"),
     )
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     serial_number: Mapped[str] = mapped_column(String(96), unique=True, nullable=False)
     hardware_model: Mapped[str] = mapped_column(String(80), nullable=False)
     hardware_revision: Mapped[str] = mapped_column(String(80), nullable=False)
+    network_transport: Mapped[str] = mapped_column(String(8), default="wifi", server_default="wifi", nullable=False)
     batch: Mapped[str] = mapped_column(String(80), nullable=False)
     distributor: Mapped[str | None] = mapped_column(String(160))
     test_reference: Mapped[str] = mapped_column(String(160), nullable=False)
@@ -40,6 +44,7 @@ class FactoryController(TimestampMixin, Base):
     )
     claimed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_contact_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_contact_transport: Mapped[str | None] = mapped_column(String(8))
     firmware_version: Mapped[str | None] = mapped_column(String(32))
     credential_revision: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     access_revoked: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")

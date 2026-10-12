@@ -26,6 +26,24 @@ from app.security.passwords import hash_password
 
 @unittest.skipUnless(os.getenv("TECHBAZA_RUN_DB_TESTS") == "1", "Requires isolated PostgreSQL")
 class OnboardingPostgresTests(OnboardingFixtures, unittest.TestCase):
+    def test_manufactured_lte_board_can_contact_before_claim_without_any_customer_credential(self):
+        factory = self.factory(network_transport="lte", hardware_model="KERUMO V4")
+        self.assertEqual(factory["controller"]["network_transport"], "lte")
+        controller_id = factory["controller"]["id"]
+        path = f"/api/v1/connect/{controller_id}"
+        self.assertEqual(self.call(path)["connection_state"], "not_connected")
+        code, result, _ = request("POST", f"/api/v1/bootstrap/{controller_id}/configuration",
+                                  body={"firmware_version": "0.11.0", "network_transport": "lte"},
+                                  headers={"authorization": f"Bearer {factory['bootstrap_key']}"}, ip=self.ip)
+        self.assertEqual(code, 200)
+        self.assertEqual(result["state"], "waiting")
+        self.assertIsNone(result["device_uid"])
+        self.assertIsNone(result["mqtt_password"])
+        claimed = self.call(path + "/claim", method="POST", body=self.claim_body(factory))
+        self.assertEqual(claimed["connection_state"], "bootstrap_connected")
+        self.assertEqual(claimed["last_contact_transport"], "lte")
+        self.assertIsNone(claimed["telemetry_received_at"])
+
     def test_hidden_manufacturer_cannot_be_selected_for_new_equipment(self):
         factory = self.factory()
         path = f"/api/v1/connect/{factory['controller']['id']}"

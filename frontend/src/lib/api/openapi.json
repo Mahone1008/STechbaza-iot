@@ -534,6 +534,15 @@
             "pattern": "^[a-zA-Z0-9._-]+$",
             "title": "Firmware Version",
             "type": "string"
+          },
+          "network_transport": {
+            "default": "wifi",
+            "enum": [
+              "wifi",
+              "lte"
+            ],
+            "title": "Network Transport",
+            "type": "string"
           }
         },
         "required": [
@@ -944,6 +953,18 @@
             "title": "Activation Required",
             "type": "boolean"
           },
+          "connection_state": {
+            "default": "not_connected",
+            "enum": [
+              "not_connected",
+              "transport_mismatch",
+              "bootstrap_connected",
+              "online",
+              "offline"
+            ],
+            "title": "Connection State",
+            "type": "string"
+          },
           "controller_id": {
             "format": "uuid",
             "title": "Controller Id",
@@ -976,6 +997,11 @@
             "title": "Hardware Model",
             "type": "string"
           },
+          "initial_equipment_editable": {
+            "default": false,
+            "title": "Initial Equipment Editable",
+            "type": "boolean"
+          },
           "last_contact_at": {
             "anyOf": [
               {
@@ -987,6 +1013,30 @@
               }
             ],
             "title": "Last Contact At"
+          },
+          "last_contact_transport": {
+            "anyOf": [
+              {
+                "enum": [
+                  "wifi",
+                  "lte"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Contact Transport"
+          },
+          "network_transport": {
+            "default": "wifi",
+            "enum": [
+              "wifi",
+              "lte"
+            ],
+            "title": "Network Transport",
+            "type": "string"
           },
           "permanent_login": {
             "anyOf": [
@@ -1022,6 +1072,18 @@
             ],
             "title": "State",
             "type": "string"
+          },
+          "telemetry_received_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Telemetry Received At"
           }
         },
         "required": [
@@ -2956,6 +3018,15 @@
             "title": "Hardware Revision",
             "type": "string"
           },
+          "network_transport": {
+            "default": "wifi",
+            "enum": [
+              "wifi",
+              "lte"
+            ],
+            "title": "Network Transport",
+            "type": "string"
+          },
           "serial_number": {
             "maxLength": 96,
             "minLength": 3,
@@ -3078,6 +3149,30 @@
             ],
             "title": "Last Contact At"
           },
+          "last_contact_transport": {
+            "anyOf": [
+              {
+                "enum": [
+                  "wifi",
+                  "lte"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Contact Transport"
+          },
+          "network_transport": {
+            "default": "wifi",
+            "enum": [
+              "wifi",
+              "lte"
+            ],
+            "title": "Network Transport",
+            "type": "string"
+          },
           "serial_number": {
             "title": "Serial Number",
             "type": "string"
@@ -3085,6 +3180,11 @@
           "status": {
             "title": "Status",
             "type": "string"
+          },
+          "transport_editable": {
+            "default": false,
+            "title": "Transport Editable",
+            "type": "boolean"
           }
         },
         "required": [
@@ -3179,6 +3279,30 @@
           "password"
         ],
         "title": "FactorySecrets",
+        "type": "object"
+      },
+      "FactoryTransportUpdate": {
+        "additionalProperties": false,
+        "properties": {
+          "expected_generation": {
+            "minimum": 1.0,
+            "title": "Expected Generation",
+            "type": "integer"
+          },
+          "network_transport": {
+            "enum": [
+              "wifi",
+              "lte"
+            ],
+            "title": "Network Transport",
+            "type": "string"
+          }
+        },
+        "required": [
+          "network_transport",
+          "expected_generation"
+        ],
+        "title": "FactoryTransportUpdate",
         "type": "object"
       },
       "FrequencyChange": {
@@ -6785,7 +6909,7 @@
   "info": {
     "description": "Backend API платформи TechBaza IoT Pump Control",
     "title": "TechBaza Backend",
-    "version": "0.53.0"
+    "version": "0.54.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -10776,6 +10900,64 @@
           }
         ],
         "summary": "Shipment",
+        "tags": [
+          "onboarding"
+        ]
+      }
+    },
+    "/api/v1/factory/controllers/{controller_id}/transport": {
+      "patch": {
+        "operationId": "factory_transport_api_v1_factory_controllers__controller_id__transport_patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "controller_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Controller Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FactoryTransportUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FactoryRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Factory Transport",
         "tags": [
           "onboarding"
         ]

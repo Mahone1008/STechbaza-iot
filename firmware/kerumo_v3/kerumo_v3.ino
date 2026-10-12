@@ -28,20 +28,17 @@
 #else
 #include "config.example.h"
 #endif
-#if __has_include("factory_config.local.h")
-#include "factory_config.local.h"
-#endif
 #if __has_include("lte_config.local.h")
 #include "lte_config.local.h"
+#endif
+#if __has_include("factory_config.local.h")
+#include "factory_config.local.h"
 #endif
 #ifndef KERUMO_USE_LTE
 #define KERUMO_USE_LTE false
 #endif
 #if KERUMO_USE_LTE
 #include "src/esp32_cellular.h"
-#ifdef KERUMO_FACTORY_CONTROLLER_ID
-#error "V4 LTE bench uses a pre-registered identity; factory LTE enrollment is not implemented"
-#endif
 #endif
 #ifndef KERUMO_ENABLE_EXTENDED_TEST
 #define KERUMO_ENABLE_EXTENDED_TEST false
@@ -55,12 +52,13 @@ static_assert(!KERUMO_ENABLE_REMOTE_OPERATION ||
 
 using namespace kerumo;
 namespace {
-constexpr char FirmwareVersion[] = "0.10.1";
+constexpr char FirmwareVersion[] = "0.11.0";
 EquipmentBinding equipment{};
 bool managedEquipment = false;
 Provisioning provisioning;
 std::atomic<bool> locallyConfirmed{true};
 std::atomic<bool> configurationRestartPending{false};
+std::atomic<bool> configurationCheckPending{false};
 const char *deviceUid() { return provisioning.enabled ? provisioning.uid.c_str() : KERUMO_DEVICE_UID; }
 const char *mqttHost() { return provisioning.enabled ? provisioning.host.c_str() : KERUMO_MQTT_HOST; }
 const char *mqttPassword() { return provisioning.enabled ? provisioning.password.c_str() : KERUMO_MQTT_PASSWORD; }
@@ -101,7 +99,7 @@ public:
   uint32_t monotonicMs() const override { return millis(); }
   uint64_t uptimeMs() const override { return static_cast<uint64_t>(esp_timer_get_time()) / 1000; }
   bool controlLinkValid() const override {
-    return !configurationRestartPending.load() && networkReady.load() &&
+    return !configurationRestartPending.load() && !configurationCheckPending.load() && networkReady.load() &&
         static_cast<uint32_t>(millis() - networkCheckedMs.load()) < 8000;
   }
   int64_t utcMs() const override {
@@ -159,7 +157,7 @@ void deviceTask(void *) {
   StopReason lastReason = StopReason::None;
   for (;;) {
     uint8_t action = localAction.exchange(0);
-    if (configurationRestartPending.load() && action != 2)
+    if ((configurationRestartPending.load() || configurationCheckPending.load()) && action != 2)
       action = 0;
     if (action == 5) {
       DriveState state{};
@@ -175,12 +173,12 @@ void deviceTask(void *) {
                              "profile and stopped drive");
     }
     if (action == 1)
-      Serial.println(locallyConfirmed.load() && controller.arm() ? "ARMED: SU600 bench, automatic STOP after 60 seconds"
+      Serial.println(locallyConfirmed.load() && (!provisioning.enabled || deviceClock.controlLinkValid()) && controller.arm() ? "ARMED: SU600 bench, automatic STOP after 60 seconds"
                                       : "ARM DENIED: inspect configuration, clock and stopped state");
     if (action == 4)
       Serial.println(!KERUMO_ENABLE_EXTENDED_TEST
                          ? "ARM TEST DENIED: extended test is disabled in config.local.h"
-                     : locallyConfirmed.load() && controller.arm(SessionMode::ExtendedTest)
+                     : locallyConfirmed.load() && (!provisioning.enabled || deviceClock.controlLinkValid()) && controller.arm(SessionMode::ExtendedTest)
                          ? "ARMED: SU600 EXTENDED TEST, no duration cap; normal STOP keeps permission"
                          : "ARM TEST DENIED: verify STOP, clock, profile, F6.02=5.0..10.0s, F5.00 "
                            "stop-on-loss + overload enabled, F4.08=0");
@@ -188,10 +186,10 @@ void deviceTask(void *) {
       controller.disarm();
       Serial.println("DISARMED; pending local STOP is retried until verified");
     }
-    controller.tick(!configurationRestartPending.load() && networkReady.load() &&
+    controller.tick(!configurationRestartPending.load() && !configurationCheckPending.load() && networkReady.load() &&
                     static_cast<uint32_t>(millis() - networkCheckedMs.load()) < 8000,
                     KERUMO_ENABLE_REMOTE_OPERATION && locallyConfirmed.load() &&
-                    !configurationRestartPending.load());
+                    !configurationRestartPending.load() && !configurationCheckPending.load());
     if (controller.stopReason() != lastReason) {
       lastReason = controller.stopReason();
       Serial.printf("CONTROL: last_stop=%s armed=%d\n", stopReasonCode(lastReason), controller.isArmed());
@@ -200,7 +198,7 @@ void deviceTask(void *) {
     if (xQueueReceive(stopCommands, &command, 0) == pdTRUE ||
         xQueueReceive(commands, &command, 0) == pdTRUE) {
       // Config/readback can take time; do not execute after the network lease expires.
-      if (configurationRestartPending.load() || !networkReady.load() ||
+      if (configurationRestartPending.load() || configurationCheckPending.load() || !networkReady.load() ||
           static_cast<uint32_t>(millis() - networkCheckedMs.load()) >= 8000)
         controller.tick(false);
       char ack[37], result[37];
@@ -248,9 +246,10 @@ void deviceTask(void *) {
 }
 void received(int size) {
   const bool valid =
+      (!provisioning.enabled || (managedEquipment && locallyConfirmed.load() && !provisioning.suspended)) &&
       !mqtt.messageRetain() && mqtt.messageTopic() == baseTopic + "/commands" && size > 0 && size <= 1536;
   if (!valid) {
-    Serial.println("COMMAND DROPPED: retained, wrong topic or oversized");
+    Serial.println("COMMAND DROPPED: unconfirmed binding, retained, wrong topic or oversized");
     networkReady.store(false);
     mqtt.stop();
     return;
@@ -399,8 +398,13 @@ void telemetry(const Sample &sample, uint64_t sequence) {
 void setup() {
   Serial.begin(115200);
 #ifdef KERUMO_FACTORY_CONTROLLER_ID
+#ifdef KERUMO_BOOTSTRAP_CA
+  const char *bootstrapCa = KERUMO_BOOTSTRAP_CA;
+#else
+  const char *bootstrapCa = KERUMO_MQTT_CA;
+#endif
   if (!provisioning.begin(KERUMO_FACTORY_CONTROLLER_ID, KERUMO_BOOTSTRAP_KEY, KERUMO_API_URL,
-                          KERUMO_MQTT_CA, KERUMO_SETUP_PASSWORD)) {
+                          bootstrapCa, KERUMO_SETUP_PASSWORD, KERUMO_USE_LTE)) {
     Serial.println("FATAL: invalid factory provisioning; VFD I/O disabled");
     while (true) delay(1000);
   }
@@ -445,7 +449,7 @@ void setup() {
   sntp_set_sync_interval(30 * 60 * 1000);
 #if KERUMO_USE_LTE
   WiFi.mode(WIFI_OFF);
-  Serial.println("V4 LTE: UART2 TX=4 RX=5; PPP, ESP32 SNTP and verified TLS; Wi-Fi off");
+  Serial.println("V4 LTE: UART2 TX=4 RX=5; PPP, ESP32 SNTP and verified TLS; Wi-Fi only for local setup");
 #else
   configTime(0, 0, "pool.ntp.org", "time.cloudflare.com");
   if (!provisioning.enabled) {
@@ -474,6 +478,7 @@ void loop() {
   static size_t lineSize = 0;
   static Record delivered[LedgerSize]{};
   static size_t deliveredNext = 0;
+  static bool subscribed = false;
   while (Serial.available()) {
     char ch = Serial.read();
     if (ch == '\n') {
@@ -494,43 +499,6 @@ void loop() {
         lineSize = 0;
     }
   }
-  if (provisioning.enabled) {
-    static bool wantsPortal = false;
-    static uint32_t restartRequestedAt = 0;
-    Sample state{};
-    const bool fresh = xQueuePeek(samples, &state, 0) == pdTRUE && millis() - state.sampledMs < 5000;
-    const bool stopped = !managedEquipment || (fresh && !state.armed && state.vfd.ok[1] && state.vfd.ok[3] &&
-                                               confirmedStopped(state.vfd.state, state.vfd.outputHz));
-    if (configurationRestartPending.load()) {
-      networkReady.store(false);
-      mqtt.stop();
-      // STOP до HTTP-запиту міг застаріти. ARM заблоковано, а VFD task
-      // виконує DISARM/STOP; перезапуск лише після нового локального readback.
-      if (!managedEquipment || (stopped && static_cast<int32_t>(state.sampledMs - restartRequestedAt) > 0))
-        ESP.restart();
-      delay(20);
-      return;
-    }
-    if (provisioning.buttonHeld()) { wantsPortal = true; localAction.store(2); }
-    if (wantsPortal && stopped) { provisioning.openPortal(); wantsPortal = false; }
-    provisioning.loop();
-    if (provisioning.takeBind()) localAction.store(5);
-    if (provisioning.activePortal()) {
-      networkReady.store(false); mqtt.stop(); delay(5); return;
-    }
-    if (WiFi.status() == WL_CONNECTED && deviceClock.utcMs() && provisioning.poll(FirmwareVersion, stopped)) {
-      restartRequestedAt = millis();
-      configurationRestartPending.store(true);
-      networkReady.store(false);
-      localAction.store(2);
-      mqtt.stop();
-      Serial.println("CONFIGURATION STORED: waiting for fresh local STOP before restart");
-      return;
-    }
-    if (provisioning.suspended || provisioning.uid.isEmpty()) {
-      networkReady.store(false); mqtt.stop(); delay(20); return;
-    }
-  }
 #if KERUMO_USE_LTE
   if (!cellularPort.online())
     networkReady.store(false);
@@ -538,14 +506,15 @@ void loop() {
   static bool previouslyUp = false;
   static bool clockWasValid = false;
   static uint32_t clockRequestedAt = 0;
+  // Local AP start/stop must never switch LTE HTTPS or MQTT to Wi-Fi.
+  if (linkUp && !PPP.setDefault()) {
+    networkReady.store(false);
+    mqtt.stop();
+    Serial.println("LTE: could not select PPP as the default route; retrying");
+    delay(1000);
+    return;
+  }
   if (linkUp && !previouslyUp) {
-    if (!PPP.setDefault()) {
-      networkReady.store(false);
-      mqtt.stop();
-      Serial.println("LTE: could not select PPP as the default route; retrying");
-      delay(1000);
-      return;
-    }
     // Start fresh DNS/SNTP requests after PPP has an address and a route.
     configTime(0, 0, "pool.ntp.org", "time.cloudflare.com");
     clockRequestedAt = millis();
@@ -557,7 +526,7 @@ void loop() {
   previouslyUp = linkUp;
   const bool clockValid = deviceClock.utcMs() != 0;
   if (linkUp && clockValid && !clockWasValid)
-    Serial.println("LTE: ESP32 UTC synchronized; connecting to MQTT with verified TLS");
+    Serial.println("LTE: ESP32 UTC synchronized; HTTPS and MQTT use verified TLS");
   if (linkUp && !clockValid && static_cast<uint32_t>(millis() - clockRequestedAt) >= 60000) {
     Serial.println("LTE: UTC unavailable; retrying SNTP (check cellular DNS and UDP port 123)");
     configTime(0, 0, "pool.ntp.org", "time.cloudflare.com");
@@ -567,6 +536,62 @@ void loop() {
 #else
   const bool linkUp = WiFi.status() == WL_CONNECTED;
 #endif
+  if (provisioning.enabled) {
+    static bool wantsPortal = false;
+    static uint32_t restartRequestedAt = 0, persistAttemptAt = 0;
+    Sample state{};
+    const bool fresh = xQueuePeek(samples, &state, 0) == pdTRUE && millis() - state.sampledMs < 5000;
+    const bool stopped = !managedEquipment || (fresh && !state.armed && state.vfd.ok[1] && state.vfd.ok[3] &&
+                                               confirmedStopped(state.vfd.state, state.vfd.outputHz));
+    if (configurationRestartPending.load()) {
+      networkReady.store(false);
+      mqtt.stop();
+      // STOP до HTTP-запиту міг застаріти. ARM заблоковано, а VFD task
+      // виконує DISARM/STOP. Новий blob також не записується до нового readback.
+      if ((!managedEquipment || (stopped && static_cast<int32_t>(state.sampledMs - restartRequestedAt) > 0)) &&
+          (!persistAttemptAt || static_cast<uint32_t>(millis() - persistAttemptAt) >= 1000)) {
+        persistAttemptAt = millis();
+        if (provisioning.commitPending()) ESP.restart();
+        Serial.println("CONFIGURATION SAVE FAILED: control remains DISARMED; retrying");
+      }
+      delay(20);
+      return;
+    }
+    if (provisioning.buttonHeld()) { wantsPortal = true; localAction.store(2); }
+    if (wantsPortal && stopped) { provisioning.openPortal(); wantsPortal = false; }
+    const bool hadPortal = provisioning.activePortal();
+    provisioning.loop();
+#if KERUMO_USE_LTE
+    if (hadPortal && !provisioning.activePortal() && linkUp && !PPP.setDefault()) {
+      networkReady.store(false); mqtt.stop(); delay(20); return;
+    }
+#else
+    (void)hadPortal;
+#endif
+    if (provisioning.takeBind()) localAction.store(5);
+    if (provisioning.activePortal()) {
+      networkReady.store(false); mqtt.stop(); delay(5); return;
+    }
+    if (linkUp && deviceClock.utcMs() && provisioning.pollDue(stopped)) {
+      // HTTP is synchronous; freeze permission before it. Bootstrap is only
+      // polled while STOP+DISARM. Active revocation is enforced by broker ACLs.
+      configurationCheckPending.store(true);
+      networkReady.store(false);
+      mqtt.stop();
+      const bool changed = provisioning.poll(FirmwareVersion, stopped);
+      if (changed) {
+        restartRequestedAt = millis();
+        configurationRestartPending.store(true);
+        localAction.store(2);
+        Serial.println("CONFIGURATION RECEIVED: waiting for fresh local STOP before save and restart");
+      }
+      configurationCheckPending.store(false);
+      if (changed) return;
+    }
+    if (provisioning.suspended || provisioning.uid.isEmpty()) {
+      networkReady.store(false); mqtt.stop(); delay(20); return;
+    }
+  }
   if (!linkUp || !deviceClock.utcMs()) {
     networkReady.store(false);
     mqtt.stop();
@@ -580,7 +605,8 @@ void loop() {
       return;
     }
     reconnectAt = millis();
-    if (!mqtt.connect(mqttHost(), mqttPort()) || !mqtt.subscribe(baseTopic + "/commands", 1)) {
+    subscribed = false;
+    if (!mqtt.connect(mqttHost(), mqttPort())) {
       Serial.printf("MQTT: reconnect failed (%d); check IP, CA, credentials and firewall\n",
                     mqtt.connectError());
       mqtt.stop();
@@ -596,6 +622,16 @@ void loop() {
     for (auto &record : delivered)
       record = Record{};
     localAction.store(3);
+  }
+  // An enrolled card can publish contact/heartbeat before commissioning, but
+  // command delivery begins only after its manifest and local STOP binding.
+  if (!subscribed && (!provisioning.enabled || (managedEquipment && locallyConfirmed.load()))) {
+    if (!mqtt.subscribe(baseTopic + "/commands", 1)) {
+      networkReady.store(false);
+      mqtt.stop();
+      return;
+    }
+    subscribed = true;
   }
   mqtt.poll();
   networkCheckedMs.store(millis());

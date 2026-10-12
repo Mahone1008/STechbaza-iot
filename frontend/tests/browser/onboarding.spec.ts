@@ -26,7 +26,10 @@ const recovery = "r".repeat(43),
   activation = "a".repeat(43),
   password = "browser-fixture-only-123";
 const connection: Schema["ConnectionRead"] = {
+  network_transport: "wifi",
+  connection_state: "not_connected",
   activation_required: true,
+  initial_equipment_editable: true,
   permanent_login: null,
   controller_id: id,
   serial_number: "BROWSER-001",
@@ -38,6 +41,8 @@ const connection: Schema["ConnectionRead"] = {
   firmware_version: null,
 };
 const controller: Schema["FactoryRead"] = {
+  network_transport: "wifi",
+  transport_editable: false,
   access_revoked: false,
   credential_revision: 0,
   id,
@@ -476,10 +481,14 @@ test("factory requires a passed test, issues one kit and records a shipment", as
   await page.emulateMedia({ media: "print" });
   await expect(page.locator(".factory-public-label")).toBeHidden();
   await expect(page.locator(".factory-private-label")).toBeVisible();
-  await expect(page.locator(".factory-private-label")).toContainText(kit.login);
+  await expect(page.locator(".factory-private-label")).not.toContainText(kit.login);
+  await expect(page.locator(".factory-private-label").locator("svg, canvas")).toHaveCount(0);
+  await expect(page.locator(".factory-private-label")).not.toContainText(kit.qr_path);
   await expect(page.locator(".factory-private-label")).toContainText(kit.password);
+  await expect(page.locator(".factory-private-label")).toContainText(kit.setup_password);
   await expect(page.locator(".factory-private-label")).not.toContainText(kit.bootstrap_key);
   await page.emulateMedia({ media: "screen" });
+  await expect(page.getByRole("button", { name: "Комплект збережено", exact: true })).toBeDisabled();
   const download = page.waitForEvent("download");
   await page.getByRole("button", { name: /Завантажити/ }).click();
   expect((await download).suggestedFilename()).toBe("factory-BROWSER-001.json");
@@ -493,12 +502,202 @@ test("factory requires a passed test, issues one kit and records a shipment", as
   await noStoredSecrets(page, activation, kit.bootstrap_key);
 });
 
+test("factory records a real LTE identity and rejects secret parameters in the public QR", async ({ page }) => {
+  await mockAuthenticatedWorkspace(page);
+  const kit = {
+    controller: { ...controller, hardware_model: "KERUMO V4", network_transport: "lte", transport_editable: true },
+    qr_path: `/connect/${id}`,
+    activation_code: activation,
+    login: "legacy-print-login-only",
+    password: activation,
+    bootstrap_key: "b".repeat(43),
+    setup_password: "local-setup-fixture-only",
+  };
+  let creates = 0;
+  await route(page, "factory/controllers*", async (request) => {
+    if (request.request().method() === "POST") {
+      creates++;
+      expect(request.request().postDataJSON()).toMatchObject({
+        hardware_model: "KERUMO V4",
+        network_transport: "lte",
+        factory_test_passed: true,
+      });
+      await fulfillJson(request, 201, kit);
+    } else await fulfillJson(request, 200, creates ? [kit.controller] : []);
+  });
+  await page.goto("/factory");
+  await page.getByLabel("Інтернет контролера", { exact: true }).selectOption("lte");
+  await expect(page.getByLabel("Модель контролера", { exact: true })).toHaveValue("KERUMO V4");
+  for (const [label, value] of [
+    ["Серійний номер", "BROWSER-001"],
+    ["Апаратна ревізія", "4.1"],
+    ["Партія", "test"],
+    ["Номер протоколу заводської перевірки", "lte-test"],
+  ] as const)
+    await page.getByLabel(label, { exact: true }).fill(value);
+  await page.getByRole("checkbox").check();
+  await page.getByRole("button", { name: "Зареєструвати і видати ключі", exact: true }).click();
+  await expect(page.locator(".factory-public-label svg")).toHaveCount(1);
+  await expect(page.locator(".factory-private-label svg")).toHaveCount(0);
+  await expect(page.locator(".factory-private-label")).not.toContainText(kit.bootstrap_key);
+  await expect(page.locator(".factory-private-label")).not.toContainText(kit.login);
+  const url = page.getByLabel("Публічне посилання для QR", { exact: true });
+  await url.fill(`http://127.0.0.1:3000/connect/${id}?password=must-not-be-in-qr`);
+  await expect(page.locator(".factory-public-label svg")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Друкувати публічний QR", exact: true })).toBeDisabled();
+  await noStoredSecrets(page, activation, kit.bootstrap_key, kit.setup_password);
+});
+
+test("factory transport correction requires physical review and the current generation", async ({ page }) => {
+  await mockAuthenticatedWorkspace(page);
+  let changed = false;
+  await read(page, "factory/controllers?*", () => [
+    { ...controller, transport_editable: !changed, network_transport: changed ? "lte" : "wifi" },
+  ]);
+  await route(page, `factory/controllers/${id}/transport`, async (request) => {
+    expect(request.request().method()).toBe("PATCH");
+    expect(request.request().postDataJSON()).toEqual({ network_transport: "lte", expected_generation: 1 });
+    changed = true;
+    await fulfillJson(request, 200, { ...controller, network_transport: "lte", transport_editable: false });
+  });
+  await page.goto("/factory");
+  await page.getByRole("button", { name: "Змінити тип інтернету", exact: true }).click();
+  await page.getByLabel("Інтернет · BROWSER-001", { exact: true }).selectOption("lte");
+  await expect(page.getByRole("button", { name: "Підтвердити", exact: true })).toBeDisabled();
+  await page
+    .getByRole("checkbox", { name: "Тип мережі звірено з модулем і прошивкою цієї плати", exact: true })
+    .check();
+  await page.getByRole("button", { name: "Підтвердити", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Змінити тип інтернету", exact: true })).toHaveCount(0);
+});
+
+test("LTE onboarding distinguishes ownership, authenticated contact and live readings", async ({ page }) => {
+  await mockAuthenticatedWorkspace(page);
+  let state: "not_connected" | "bootstrap_connected" | "online" = "not_connected";
+  const claimed = {
+    ...connection,
+    state: "claimed",
+    device_id: DEVICE_ID,
+    site_id: SITE_ID,
+    hardware_model: "KERUMO V4",
+    network_transport: "lte",
+    initial_equipment_editable: false,
+  };
+  await read(page, `connect/${id}`, () => ({
+    ...claimed,
+    connection_state: state,
+    last_contact_transport: state === "not_connected" ? null : "lte",
+    last_contact_at: state === "not_connected" ? null : "2026-10-12T10:00:00Z",
+    telemetry_received_at: state === "online" ? "2026-10-12T10:00:02Z" : null,
+  }));
+  await read(page, "connect/sites", () => []);
+  await read(page, "connect/organizations", () => []);
+  await read(page, `devices/${DEVICE_ID}/equipment`, () => ({
+    device_id: DEVICE_ID,
+    controller_id: id,
+    desired: null,
+    configuration_state: "legacy",
+    modules: [
+      {
+        id: "44444444-4444-4444-8444-444444444444",
+        device_id: DEVICE_ID,
+        kind: "vfd",
+        retired_at: null,
+        manufacturer: "SUSWE",
+        series: "SU600",
+        model: "SU600A-5RG1-B",
+        hardware_revision: null,
+      },
+    ],
+  }));
+  await page.goto(`/connect/${id}`);
+  await expect(
+    page.getByText("Контролер прив’язано до вашого об’єкта. Повторна активація не потрібна.", { exact: true }),
+  ).toBeVisible();
+  const network = page
+    .locator(".card")
+    .filter({ has: page.getByRole("heading", { name: "2. Зв’язок із контролером", exact: true }) });
+  await expect(network).toContainText("Плата ще не підключилася");
+  await expect(network).toContainText("Інтернет через 4G");
+  await expect(network).not.toContainText("домашній Wi-Fi");
+  await expect(network).not.toContainText("192.168.4.1");
+  state = "bootstrap_connected";
+  await page.getByRole("button", { name: "Перевірити підключення", exact: true }).click();
+  await expect(network).toContainText("Очікуємо показання обладнання");
+  await expect(network).not.toContainText("отримано свіжі показання");
+  state = "online";
+  await page.getByRole("button", { name: "Перевірити підключення", exact: true }).click();
+  await expect(network).toContainText("отримано свіжі показання");
+  await expect(page.getByText("Потрібна перевірка обладнання", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("Повна модель зі шильдика", { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Запустити", exact: true })).toHaveCount(0);
+});
+
+test("an unused initial passport can be corrected without activation or hardware replacement", async ({ page }) => {
+  await mockAuthenticatedWorkspace(page);
+  let model = "S123456789",
+    writes = 0;
+  await read(page, `connect/${id}`, () => ({
+    ...connection,
+    state: "claimed",
+    device_id: DEVICE_ID,
+    site_id: SITE_ID,
+  }));
+  await read(page, "connect/sites", () => []);
+  await read(page, "connect/organizations", () => []);
+  await read(page, "equipment/profiles", () => [
+    { ...profile, id: "suswe.su600.delta_m.v1", series: "SU600", tested_model: "SU600A-5RG1-B", driver_id: "su600" },
+  ]);
+  await read(page, `devices/${DEVICE_ID}/equipment`, () => ({
+    device_id: DEVICE_ID,
+    controller_id: id,
+    desired: null,
+    configuration_state: "legacy",
+    modules: [
+      {
+        id: "44444444-4444-4444-8444-444444444444",
+        device_id: DEVICE_ID,
+        kind: "vfd",
+        retired_at: null,
+        manufacturer: "SUSWE",
+        series: "SU600",
+        model,
+        hardware_revision: null,
+      },
+    ],
+  }));
+  await route(page, `connect/${id}/equipment`, async (request) => {
+    writes++;
+    expect(request.request().postDataJSON()).toEqual({
+      profile_id: "suswe.su600.delta_m.v1",
+      profile_version: 1,
+      model: "SU600A-5RG1-B",
+      hardware_revision: null,
+      nameplate_confirmed: true,
+    });
+    model = "SU600A-5RG1-B";
+    await fulfillJson(request, 200, {});
+  });
+  await page.goto(`/connect/${id}`);
+  await page.getByRole("button", { name: "Виправити паспорт", exact: true }).click();
+  await expect(page.getByLabel("Повна модель зі шильдика", { exact: true })).toHaveValue("S123456789");
+  await expect(page.getByLabel("Серія частотника SUSWE", { exact: true })).toHaveValue("suswe.su600.delta_m.v1:1");
+  await page.getByLabel("Повна модель зі шильдика", { exact: true }).fill("SU600A-5RG1-B");
+  await page.getByRole("checkbox", { name: "Модель перевірено за шильдиком обладнання", exact: true }).check();
+  await page.getByRole("button", { name: "Зберегти обладнання", exact: true }).click();
+  await expect(page.getByText("SUSWE SU600A-5RG1-B", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("Повна модель зі шильдика", { exact: true })).toHaveCount(0);
+  expect(writes).toBe(1);
+});
+
 for (const existing of [false, true])
   test(`QR claim uses ${existing ? "existing" : "new"} site and records equipment without enabling control`, async ({
     page,
   }) => {
     await mockAuthenticatedWorkspace(page);
-    await read(page, `connect/${id}`, () => connection);
+    await read(page, `connect/${id}`, () =>
+      claims ? { ...connection, state: "claimed", device_id: DEVICE_ID, site_id: SITE_ID } : connection,
+    );
     await read(page, "connect/sites", () => [{ id: SITE_ID, name: "Existing site" }]);
     await read(page, "connect/organizations", () => []);
     await read(page, "equipment/profiles", () => [
@@ -524,6 +723,26 @@ for (const existing of [false, true])
       });
       await fulfillJson(request, 200, { ...connection, state: "claimed", device_id: DEVICE_ID, site_id: SITE_ID });
     });
+    await read(page, `devices/${DEVICE_ID}/equipment`, () => ({
+      device_id: DEVICE_ID,
+      controller_id: id,
+      desired: null,
+      configuration_state: "legacy",
+      modules: writes
+        ? [
+            {
+              id: "44444444-4444-4444-8444-444444444444",
+              device_id: DEVICE_ID,
+              kind: "vfd",
+              retired_at: null,
+              manufacturer: "SUSWE",
+              series: "SU300",
+              model: "SU300-test",
+              hardware_revision: null,
+            },
+          ]
+        : [],
+    }));
     await route(page, `connect/${id}/equipment`, async (request) => {
       expect(request.request().method()).toBe("PUT");
       expect(request.request().postDataJSON()).toEqual({
@@ -555,7 +774,7 @@ for (const existing of [false, true])
     await page.getByRole("checkbox").check();
     await save.click();
     await expect(page.getByText(/Паспорт збережено. Керування не ввімкнено автоматично/)).toBeVisible();
-    await expect(save).toBeDisabled();
+    await expect(save).toHaveCount(0);
     expect(writes).toBe(1);
     await noStoredSecrets(page, activation);
   });

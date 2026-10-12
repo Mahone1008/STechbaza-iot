@@ -1,13 +1,16 @@
 """One transaction claims one physical controller and creates its tenant context."""
 
 import uuid
+from datetime import timedelta
 
 from fastapi import HTTPException
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
-from app.models import AuthSession, Device, Organization, OrganizationMembership, Site, User
-from app.models.equipment import EquipmentModule, PumpInstallation
+from app.models import AuthSession, Capability, Device, DeviceCapability, Organization, OrganizationMembership, Site, User
+from app.models.command import DeviceCommand
+from app.models.equipment import EquipmentConfiguration, EquipmentModule, PumpInstallation
+from app.models.schedule import DeviceSchedule
 from app.models.onboarding import (
     AccountSecurity,
     FactoryAudit,
@@ -23,17 +26,21 @@ from app.schemas.onboarding import (
     FactoryRead,
     FactorySecrets,
     ShipmentRequest,
+    FactoryTransportUpdate,
 )
 from app.security.account_keys import digest, new_key, verify_digest
 from app.repositories.factory import FactoryRepository
+from app.repositories.telemetry import TelemetryRepository
 from app.security.authorization import AccessControl
 from app.security.current_user import CurrentUserContext
-from app.security.roles import Permission
+from app.security.roles import Permission, role_has_permission
 from app.security.tokens import utc_now
 from app.security.passwords import hash_password, verify_password
 from app.security.mfa_policy import require_privileged_mfa
 from app.services.equipment_profiles import get_profile, selectable_manufacturer
 from app.services.label_accounts import permanent_login, renew_label
+from app.services.telemetry_quality import freshness
+from app.services.telemetry_read_config import TELEMETRY_STALE_AFTER_SECONDS
 
 
 def locked_controller(session: Session, controller_id: uuid.UUID) -> FactoryController:
@@ -76,10 +83,11 @@ def register_controller(
     session.add(row)
     session.flush()
     renew_label(row)
-    audit(session, row, current, "registered", test_reference=payload.test_reference)
+    audit(session, row, current, "registered", test_reference=payload.test_reference,
+          network_transport=payload.network_transport)
     session.commit()
     return FactorySecrets(
-        controller=FactoryRead.model_validate(row),
+        controller=factory_read(session, row),
         qr_path=f"/connect/{row.id}",
         activation_code=activation,
         bootstrap_key=bootstrap,
@@ -89,16 +97,95 @@ def register_controller(
     )
 
 
+def initial_equipment_editable(session: Session, row: FactoryController, device: Device | None) -> bool:
+    """An unused passport may be corrected; commissioned bindings remain immutable."""
+    if row.status != "claimed" or row.access_revoked or device is None or device.lifecycle_status != "provisioning":
+        return False
+    for query in (
+        select(EquipmentConfiguration.device_id).where(EquipmentConfiguration.device_id == device.id),
+        select(DeviceCommand.id).where(DeviceCommand.device_id == device.id),
+        select(DeviceSchedule.id).where(DeviceSchedule.device_id == device.id, DeviceSchedule.enabled),
+        select(DeviceCapability.id).join(Capability).where(
+            DeviceCapability.device_id == device.id, DeviceCapability.is_enabled,
+            Capability.code.in_(("vfd.control", "vfd.program", "vfd.schedule")),
+        ),
+    ):
+        if session.scalar(query.limit(1)) is not None:
+            return False
+    return True
+
+
+def transport_editable(session: Session, row: FactoryController) -> bool:
+    if (row.status not in ("ready", "claimed") or row.access_revoked
+            or row.credential_revision != 0):
+        return False
+    # A rejected transport mismatch never receives a broker key. A manufacturer can
+    # correct that untouched kit to the transport proven by its private board key.
+    if row.last_contact_at is not None and row.last_contact_transport == row.network_transport:
+        return False
+    return row.device_id is None or initial_equipment_editable(session, row, session.get(Device, row.device_id))
+
+
+def factory_read(session: Session, row: FactoryController) -> FactoryRead:
+    result = FactoryRead.model_validate(row)
+    result.transport_editable = transport_editable(session, row)
+    return result
+
+
+def update_factory_transport(session: Session, current: CurrentUserContext,
+                             controller_id: uuid.UUID, payload: FactoryTransportUpdate) -> FactoryRead:
+    row = locked_controller(session, controller_id)
+    if row.device_id:
+        session.scalar(select(Device.id).where(Device.id == row.device_id).with_for_update())
+    if row.generation != payload.expected_generation or not transport_editable(session, row):
+        raise HTTPException(409, "Тип мережі можна уточнити лише до першого підключення та налаштування плати")
+    if row.last_contact_at is not None and payload.network_transport != row.last_contact_transport:
+        raise HTTPException(409, "Оберіть тип мережі, який підтвердила плата своїм заводським ключем")
+    if row.network_transport != payload.network_transport:
+        previous = row.network_transport
+        row.network_transport = payload.network_transport
+        audit(session, row, current, "network_transport_corrected", previous_transport=previous,
+              network_transport=payload.network_transport, generation=row.generation)
+    session.commit()
+    return factory_read(session, row)
+
+
+def connection_details(session: Session, row: FactoryController, device: Device | None) -> dict:
+    snapshot = TelemetryRepository(session).get_state(device.id) if device else None
+    now = utc_now()
+    state = "not_connected"
+    if row.last_contact_at is not None:
+        if row.last_contact_transport != row.network_transport:
+            state = "transport_mismatch"
+        elif row.access_revoked:
+            state = "offline"
+        elif snapshot and freshness(snapshot, device_session_id=device.last_observed_session_id, now=now).status == "fresh":
+            state = "online"
+        elif snapshot or now - row.last_contact_at > timedelta(seconds=TELEMETRY_STALE_AFTER_SECONDS):
+            state = "offline"
+        else:
+            state = "bootstrap_connected"
+    return dict(network_transport=row.network_transport, last_contact_transport=row.last_contact_transport,
+                telemetry_received_at=snapshot.last_received_at if snapshot else None,
+                connection_state=state, initial_equipment_editable=initial_equipment_editable(session, row, device))
+
+
 def connection_read(
     session: Session, current: CurrentUserContext, row: FactoryController
 ) -> ConnectionRead:
     if row.status not in ("ready", "claimed"):
         raise HTTPException(404, "Контролер недоступний")
     device = None
+    can_manage = False
     if row.device_id:
-        device = AccessControl(session, current).require_device(
+        access = AccessControl(session, current)
+        context = access.require_device_context(
             row.device_id, Permission.DEVICE_READ
         )
+        device = context.device
+        can_manage = access.is_superadmin or role_has_permission(context.organization_role, Permission.CAPABILITY_MANAGE)
+    details = connection_details(session, row, device)
+    details["initial_equipment_editable"] = can_manage and details["initial_equipment_editable"]
     return ConnectionRead(
         controller_id=row.id,
         serial_number=row.serial_number,
@@ -114,6 +201,7 @@ def connection_read(
         and row.buyer_user_id == current.user.id
         and current.user.login_name == row.buyer_login
         else None,
+        **details,
     )
 
 
@@ -297,10 +385,20 @@ def select_equipment(
             payload.hardware_revision,
             payload.software_revision,
         ):
-            raise HTTPException(
-                409,
-                "Паспорт уже збережено. Заміна обладнання потребує окремого підтвердження зупинки",
-            )
+            if existing.retired_at is not None or not initial_equipment_editable(session, row, device):
+                raise HTTPException(
+                    409,
+                    "Обладнання вже налаштовано. Заміна потребує окремого підтвердження зупинки",
+                )
+            keys = ("manufacturer", "series", "model", "hardware_revision", "software_revision")
+            previous = {key: getattr(existing, key) for key in keys}
+            for key, value in zip(keys, (profile.manufacturer, profile.series, payload.model,
+                                        payload.hardware_revision, payload.software_revision)):
+                setattr(existing, key, value)
+            audit(session, row, current, "initial_equipment_corrected", module_id=str(existing.id),
+                  previous=previous, profile_id=profile.id, profile_version=profile.version,
+                  model=payload.model)
+            session.commit()
         return existing
     installation = PumpInstallation(
         id=uuid.uuid4(), site_id=device.site_id, name="Насосна установка"
@@ -364,6 +462,7 @@ def bootstrap_contact(
     ):
         raise HTTPException(401, "Контролер не авторизований")
     row.last_contact_at, row.firmware_version = utc_now(), payload.firmware_version
+    row.last_contact_transport = payload.network_transport
     # Successful use migrates an old digest to the current dedicated root key.
     row.bootstrap_hash = digest("bootstrap", token)
     session.commit()
@@ -377,4 +476,5 @@ def bootstrap_contact(
         site_id=device.site_id if device else None,
         last_contact_at=row.last_contact_at,
         firmware_version=row.firmware_version,
+        **connection_details(session, row, device),
     )

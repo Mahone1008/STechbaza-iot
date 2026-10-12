@@ -1124,6 +1124,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/factory/controllers/{controller_id}/transport": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Factory Transport */
+        patch: operations["factory_transport_api_v1_factory_controllers__controller_id__transport_patch"];
+        trace?: never;
+    };
     "/api/v1/invitations/accept": {
         parameters: {
             query?: never;
@@ -2042,6 +2059,12 @@ export interface components {
         BootstrapContact: {
             /** Firmware Version */
             firmware_version: string;
+            /**
+             * Network Transport
+             * @default wifi
+             * @enum {string}
+             */
+            network_transport: "wifi" | "lte";
         };
         /**
          * BrowserTokenResponse
@@ -2209,6 +2232,12 @@ export interface components {
              */
             activation_required: boolean;
             /**
+             * Connection State
+             * @default not_connected
+             * @enum {string}
+             */
+            connection_state: "not_connected" | "transport_mismatch" | "bootstrap_connected" | "online" | "offline";
+            /**
              * Controller Id
              * Format: uuid
              */
@@ -2219,8 +2248,21 @@ export interface components {
             firmware_version: string | null;
             /** Hardware Model */
             hardware_model: string;
+            /**
+             * Initial Equipment Editable
+             * @default false
+             */
+            initial_equipment_editable: boolean;
             /** Last Contact At */
             last_contact_at: string | null;
+            /** Last Contact Transport */
+            last_contact_transport?: ("wifi" | "lte") | null;
+            /**
+             * Network Transport
+             * @default wifi
+             * @enum {string}
+             */
+            network_transport: "wifi" | "lte";
             /** Permanent Login */
             permanent_login?: string | null;
             /** Serial Number */
@@ -2232,6 +2274,8 @@ export interface components {
              * @enum {string}
              */
             state: "ready" | "claimed";
+            /** Telemetry Received At */
+            telemetry_received_at?: string | null;
         };
         /** ControllerDiagnostics */
         ControllerDiagnostics: {
@@ -2993,6 +3037,12 @@ export interface components {
             hardware_model: string;
             /** Hardware Revision */
             hardware_revision: string;
+            /**
+             * Network Transport
+             * @default wifi
+             * @enum {string}
+             */
+            network_transport: "wifi" | "lte";
             /** Serial Number */
             serial_number: string;
             /** Test Reference */
@@ -3036,10 +3086,23 @@ export interface components {
             id: string;
             /** Last Contact At */
             last_contact_at: string | null;
+            /** Last Contact Transport */
+            last_contact_transport?: ("wifi" | "lte") | null;
+            /**
+             * Network Transport
+             * @default wifi
+             * @enum {string}
+             */
+            network_transport: "wifi" | "lte";
             /** Serial Number */
             serial_number: string;
             /** Status */
             status: string;
+            /**
+             * Transport Editable
+             * @default false
+             */
+            transport_editable: boolean;
         };
         /** FactoryReset */
         FactoryReset: {
@@ -3070,6 +3133,16 @@ export interface components {
             qr_path: string;
             /** Setup Password */
             setup_password: string;
+        };
+        /** FactoryTransportUpdate */
+        FactoryTransportUpdate: {
+            /** Expected Generation */
+            expected_generation: number;
+            /**
+             * Network Transport
+             * @enum {string}
+             */
+            network_transport: "wifi" | "lte";
         };
         /** FrequencyChange */
         FrequencyChange: {
@@ -6888,6 +6961,41 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["ShipmentRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FactoryRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    factory_transport_api_v1_factory_controllers__controller_id__transport_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                controller_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FactoryTransportUpdate"];
             };
         };
         responses: {
