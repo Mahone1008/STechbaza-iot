@@ -29,6 +29,7 @@ import { durationText, parseProgramPlan, programActive, programWithinLimits } fr
 import { controlBlockReason, effectiveQuality, parseOverview, type Overview } from "@/lib/api/overview";
 import type { PollSeconds } from "@/lib/api/polling-policy";
 import { sameEquipmentTarget, type EquipmentTarget } from "@/lib/api/equipment";
+import { VfdSourceControl } from "./vfd-settings";
 
 const SchedulePanel = dynamic(() => import("./schedule-panel").then((module) => module.SchedulePanel), {
   loading: () => <p role="status">Завантажуємо розклади…</p>,
@@ -83,7 +84,8 @@ export function CommandControls({
   const programValid = !!plan && programWithinLimits(plan, overview?.frequencyLimits ?? null);
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const [busyType, setBusyType] = useState<CommandType | null>(null);
-  const busy = busyType !== null;
+  const [settingsBusy, setSettingsBusy] = useState(false);
+  const busy = busyType !== null || settingsBusy;
   const [uncertain, setUncertain] = useState<Uncertain | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [now, setNow] = useState(0);
@@ -279,7 +281,7 @@ export function CommandControls({
     }
     void handleSend({ input, deadline: monotonicNow() + seconds * 1000 }, null);
   }
-  if (!canExecute && !canReadSchedules && !uncertain) return null;
+  if (!canExecute && !canReadSchedules && !uncertain && !overview?.diagnostics?.vfd_settings) return null;
   const selectedType = dialog?.kind === "new" ? dialog.type : uncertain?.intent.input.command_type;
   const selectedFrequency =
     dialog?.kind === "new" ? validFrequency(frequency) : uncertain?.intent.input.payload?.frequency_hz;
@@ -306,6 +308,13 @@ export function CommandControls({
           : "Доступ лише до перегляду. Створення розкладів і керування потребують дозволу оператора."
       }
     >
+      <VfdSourceControl
+        context={context}
+        overview={overview}
+        receivedAt={receivedAt}
+        onCreated={onCreated}
+        onBusy={setSettingsBusy}
+      />
       {!overview ? (
         <p>Для керування потрібна актуальна панель.</p>
       ) : overview.allowedCommands.length === 0 && !canReadSchedules ? (

@@ -1,6 +1,7 @@
 import { invalidResponse, isRecord, requiredDateTime, requiredString } from "./access";
 import type { components } from "./schema";
 import { parseProgramProgress } from "./programs";
+import { parseVfdSettings } from "./vfd-settings";
 
 export type ControllerDiagnostics = components["schemas"]["ControllerDiagnostics"];
 type StopDiagnostics = components["schemas"]["StopDiagnostics"];
@@ -64,7 +65,7 @@ export function parseDiagnostics(raw: unknown): ControllerDiagnostics | null {
       requested_at: stop.requested_at === null || stop.requested_at === undefined ? null : requiredDateTime(stop, "requested_at", path),
     };
   }
-  return { version: 1, firmware_version: firmware, uptime_ms: uptimeMs, reset_reason: knownKey(data.reset_reason, resetReasonLabels), connection: { transport, signal }, last_stop: lastStop, program: parseProgramProgress(data.program) };
+  return { version: 1, firmware_version: firmware, uptime_ms: uptimeMs, reset_reason: knownKey(data.reset_reason, resetReasonLabels), connection: { transport, signal }, last_stop: lastStop, program: parseProgramProgress(data.program), ...(data.vfd_settings === undefined ? {} : { vfd_settings: parseVfdSettings(data.vfd_settings) }) };
 }
 
 export function uptimeText(ms: number): string {

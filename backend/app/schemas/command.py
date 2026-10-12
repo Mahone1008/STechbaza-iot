@@ -8,6 +8,7 @@ from app.numeric import finite_number
 from app.schemas.program import ProgramPlan
 from app.schemas.schedule import ScheduleRun
 from app.schemas.equipment import EquipmentTarget
+from app.schemas.vfd_settings import ParameterChange, SourceChange
 
 CommandType = Literal[
     "vfd.start",
@@ -15,6 +16,8 @@ CommandType = Literal[
     "vfd.frequency.set",
     "vfd.program.start",
     "vfd.schedule.start",
+    "vfd.source.set",
+    "vfd.parameter.set",
 ]
 
 
@@ -35,6 +38,10 @@ class DeviceCommandCreate(BaseModel):
 
     @model_validator(mode="after")
     def validate_payload(self) -> "DeviceCommandCreate":
+        if self.command_type == "vfd.source.set":
+            SourceChange.model_validate(self.payload)
+        if self.command_type == "vfd.parameter.set":
+            ParameterChange.model_validate(self.payload)
         if self.supersedes_request_id is not None and (self.command_type != "vfd.stop" or self.supersedes_request_id == self.request_id):
             raise ValueError("Only Stop may supersede a different request")
         if self.command_type == "vfd.program.start":

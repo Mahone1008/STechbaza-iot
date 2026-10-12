@@ -26,7 +26,7 @@ class Su600Driver final : public VfdDriver {
   const char* profileId() const override { return "suswe.su600.modbus"; }
   void setInstallationLimits(double minHz,double maxHz) { minHz_=minHz; maxHz_=maxHz; }
   unsigned profileVersion() const override { return 1; }
-  void refreshConfig() override { config_=readConfig(bus_); }
+  void refreshConfig() override;
   bool profileOk() const override { return config_.profileOk(); }
   bool controlOk() const override;
   bool extendedTestOk() const override { return controlOk() && config_.extendedTestOk(); }
@@ -41,11 +41,19 @@ class Su600Driver final : public VfdDriver {
   bool startForward() override { return controlOk() && bus_.write(0x2000,0x0012); }
   bool stop() override { return profileOk() && bus_.write(0x2000,0x0001); }
   bool setFrequency(double hz) override;
+  DriveSettings settings() const override { return settings_; }
+  bool settingsReady() const override;
+  bool sourceAllowed(bool remote) const override;
+  bool readSetting(const char* code, uint16_t& value) override;
+  bool writeSetting(const char* code, uint16_t value) override;
+  bool writeSourcePart(bool run, bool remote) override;
+  bool clearRemoteFrequency() override { return settingsReady() && bus_.write(0x2001, 0); }
   const Su600Config& config() const { return config_; }
  private:
   bool scaled(uint16_t address, double divisor, double& value);
   Bus& bus_;
   double minHz_, maxHz_;
   Su600Config config_{};
+  DriveSettings settings_{};
 };
 } // namespace kerumo

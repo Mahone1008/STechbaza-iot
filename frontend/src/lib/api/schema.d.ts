@@ -719,6 +719,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/devices/{device_id}/commands/by-request/{request_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Command By Request */
+        get: operations["get_command_by_request_api_v1_devices__device_id__commands_by_request__request_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/devices/{device_id}/equipment": {
         parameters: {
             query?: never;
@@ -2236,6 +2253,7 @@ export interface components {
              * @constant
              */
             version: 1;
+            vfd_settings?: components["schemas"]["VfdSettings"] | null;
         };
         /** ControllerOperation */
         ControllerOperation: {
@@ -2486,7 +2504,7 @@ export interface components {
              * Command Type
              * @enum {string}
              */
-            command_type: "vfd.start" | "vfd.stop" | "vfd.frequency.set" | "vfd.program.start" | "vfd.schedule.start";
+            command_type: "vfd.start" | "vfd.stop" | "vfd.frequency.set" | "vfd.program.start" | "vfd.schedule.start" | "vfd.source.set" | "vfd.parameter.set";
             equipment_target?: components["schemas"]["EquipmentTarget"] | null;
             /** Payload */
             payload?: {
@@ -4370,6 +4388,31 @@ export interface components {
             /** Error Type */
             type: string;
         };
+        /** VfdSettings */
+        VfdSettings: {
+            /** Command Sequence */
+            command_sequence: number;
+            /**
+             * Driver Id
+             * @constant
+             */
+            driver_id: "su600";
+            /** Frequency Source */
+            frequency_source: number | null;
+            /** Parameters */
+            parameters: {
+                [key: string]: number | null;
+            };
+            /** Ready */
+            ready: boolean;
+            /** Run Source */
+            run_source: number | null;
+            /**
+             * Version
+             * @constant
+             */
+            version: 1;
+        };
     };
     responses: never;
     parameters: never;
@@ -5946,6 +5989,38 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeviceCommandRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_command_by_request_api_v1_devices__device_id__commands_by_request__request_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                device_id: string;
+                request_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };

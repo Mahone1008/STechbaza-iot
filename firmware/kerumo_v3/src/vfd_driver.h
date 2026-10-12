@@ -21,6 +21,22 @@ struct DriveSample {
   double setHz{}, outputHz{}, currentA{}, voltageV{};
   bool ok[6]{}; // fault, state, set Hz, output Hz, A, V
 };
+// Model-owned parameter codes; no arbitrary register address crosses the core.
+struct DriveSettings {
+  bool supported{}, readOk{};
+  uint16_t runSource{}, frequencySource{};
+  uint16_t acceleration{}, deceleration{};
+  bool accelerationOk{}, decelerationOk{};
+};
+struct SettingRequest {
+  char code[6]{};
+  uint16_t expected{}, value{}, expectedRun{}, expectedFrequency{};
+  bool remote{};
+};
+struct SettingResult {
+  uint16_t before{}, actual{}, runSource{}, frequencySource{};
+  bool beforeKnown{}, actualKnown{}, sourceKnown{}, attempted{};
+};
 
 // The core knows physical quantities and operations, not register addresses,
 // F/P groups, wire scaling or manufacturer-specific state words.
@@ -44,6 +60,13 @@ class VfdDriver {
   virtual bool startForward() = 0;
   virtual bool stop() = 0;
   virtual bool setFrequency(double hz) = 0;
+  virtual DriveSettings settings() const { return {}; }
+  virtual bool settingsReady() const { return false; }
+  virtual bool sourceAllowed(bool) const { return false; }
+  virtual bool readSetting(const char*, uint16_t&) { return false; }
+  virtual bool writeSetting(const char*, uint16_t) { return false; }
+  virtual bool writeSourcePart(bool, bool) { return false; }
+  virtual bool clearRemoteFrequency() { return false; }
   DriveSample sample() {
     DriveSample value{};
     if (!profileOk()) return value;

@@ -1,5 +1,6 @@
 #include "su600_driver.h"
 #include <cmath>
+#include <cstring>
 
 namespace kerumo {
 bool Su600Config::profileOk() const {
@@ -77,5 +78,46 @@ bool Su600Driver::scaled(uint16_t address, double divisor, double &value) {
 bool Su600Driver::setFrequency(double hz) {
   uint16_t word{};
   return frequencyAllowed(hz) && frequencyWord(hz, config_, word) && bus_.write(0x2001, word);
+}
+void Su600Driver::refreshConfig() {
+  config_ = readConfig(bus_);
+  settings_ = {};
+  settings_.supported = true;
+  settings_.readOk = config_.readOk;
+  settings_.runSource = config_.runSource;
+  settings_.frequencySource = config_.frequencySource;
+  if (config_.profileOk()) {
+    settings_.accelerationOk = readSetting("F0.10", settings_.acceleration) && settings_.acceleration <= 9999;
+    settings_.decelerationOk = readSetting("F0.11", settings_.deceleration) && settings_.deceleration <= 9999;
+  }
+}
+bool Su600Driver::settingsReady() const {
+  // Terminal RUN is installation-owned. The website cannot take it over.
+  return config_.profileOk() && (config_.runSource == 0 || config_.runSource == 2) &&
+      (config_.frequencySource == 0 || config_.frequencySource == 1 || config_.frequencySource == 6) &&
+      config_.maxRaw == 500 && config_.upperRaw == 500 && config_.lowerRaw == 0 && config_.scaleRaw == 100;
+}
+bool Su600Driver::readSetting(const char* code, uint16_t& value) {
+  if (!config_.profileOk()) return false;
+  if (std::strcmp(code, "F0.10") == 0) return bus_.read(0x000A, value);
+  if (std::strcmp(code, "F0.11") == 0) return bus_.read(0x000B, value);
+  return false;
+}
+bool Su600Driver::sourceAllowed(bool remote) const {
+  if (!settingsReady()) return false;
+  if (!remote) return true;
+  auto proposed = config_;
+  proposed.runSource = 2;
+  proposed.frequencySource = 6;
+  return proposed.extendedTestOk();
+}
+bool Su600Driver::writeSetting(const char* code, uint16_t value) {
+  if (!settingsReady() || value < 1 || value > 9999) return false;
+  if (std::strcmp(code, "F0.10") == 0) return bus_.write(0x000A, value);
+  if (std::strcmp(code, "F0.11") == 0) return bus_.write(0x000B, value);
+  return false;
+}
+bool Su600Driver::writeSourcePart(bool run, bool remote) {
+  return settingsReady() && bus_.write(run ? 0x0002 : 0x0003, run ? (remote ? 2 : 0) : (remote ? 6 : 0));
 }
 } // namespace kerumo

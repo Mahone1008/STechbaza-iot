@@ -104,6 +104,65 @@ class FrontendPostgresTests(unittest.TestCase):
                                     values=values or {}, state=state or {}))
             session.commit()
 
+    def test_vfd_source_and_staff_parameter_flow_recheck_permissions_and_readback(self):
+        from app.models.command import DeviceCommand
+        from app.schemas.command_result import CommandResultEnvelope
+        from app.services.command_result import CommandResultService
+        from app.services.command_policy import dispatch_rejection
+        self.assign("vfd.control"); self.assign("vfd.state.read"); self.assign("vfd.frequency.read"); self.assign("vfd.diagnostics.read")
+        boot = uuid.uuid4()
+        settings = {"version": 1, "driver_id": "su600", "ready": True, "command_sequence": 0,
+                    "run_source": 2, "frequency_source": 6, "parameters": {"F0.10": 75, "F0.11": 75}}
+        with SessionLocal() as session:
+            TelemetryService(session).ingest(device_uid=f"TB-FRONTEND-{self.devices[0].hex}", received_at=self.now,
+                payload=TelemetryEnvelope(schema_version=1, message_id=uuid.uuid4(), session_id=boot, sequence=1,
+                    sent_at=self.now, values={"vfd.frequency_hz": 0},
+                    state={"pump_running": False, "vfd_fault_code": 0, "vfd_link": True},
+                    diagnostics={**diagnostic_payload(), "vfd_settings": settings}))
+        path = f"/devices/{self.devices[0]}/commands"
+        source = {"request_id": str(uuid.uuid4()), "command_type": "vfd.source.set",
+                  "payload": {"source": "local", "expected_run_source": 2, "expected_frequency_source": 6}}
+        parameter = {"request_id": str(uuid.uuid4()), "command_type": "vfd.parameter.set",
+                     "payload": {"code": "F0.10", "expected_raw": 75, "value_raw": 100}}
+        self.request(path, who="viewer", method="POST", expected=403, body=source)
+        self.request(path, who="outsider", method="POST", expected=404, body=source)
+        self.request(path, who="owner", method="POST", expected=403, body=parameter)
+        with patch("app.services.command_dispatch.publish_command_message", return_value=(True, "published")) as publish:
+            created = self.request(path, who="operator", method="POST", expected=201, body=source)
+            replay = self.request(path, who="operator", method="POST", expected=200, body=source)
+            self.assertEqual(created["id"], replay["id"]); self.assertEqual(publish.call_count, 1)
+            lookup = self.request(f"{path}/by-request/{source['request_id']}", who="operator")
+            self.assertEqual(lookup["id"], created["id"])
+            self.request(f"{path}/by-request/{source['request_id']}", who="outsider", expected=404)
+            self.request(f"/devices/{self.devices[1]}/commands/by-request/{source['request_id']}", expected=404)
+            self.request(path, who="operator", method="POST", expected=409,
+                         body={"request_id": str(uuid.uuid4()), "command_type": "vfd.start", "payload": {}})
+            with SessionLocal() as session:
+                CommandResultService(session).complete(device_uid=f"TB-FRONTEND-{self.devices[0].hex}",
+                    payload=CommandResultEnvelope(schema_version=1, message_id=uuid.uuid4(), session_id=boot,
+                        command_id=uuid.UUID(created["id"]), status="succeeded",
+                        result={"run_source": 0, "frequency_source": 1, "write_attempted": True}))
+                snapshot = session.get(DeviceState, self.devices[0])
+                snapshot.diagnostics = {**diagnostic_payload(), "vfd_settings": {**settings, "run_source": 0,
+                    "frequency_source": 1, "command_sequence": created["control_sequence"]}}
+                snapshot.last_reported_at = snapshot.last_received_at = datetime.now(timezone.utc)
+                session.get(User, self.identities["service"].user.id).platform_role = "service_admin"
+                session.get(AuthSession, self.identities["service"].auth_session.id).mfa_verified_at = self.now
+                session.commit()
+            self.request(path, who="operator", method="POST", expected=409,
+                         body={"request_id": str(uuid.uuid4()), "command_type": "vfd.start", "payload": {}})
+            service_view = self.request(self.overview, who="service")
+            self.assertIn("vfd.parameter.set", service_view["allowed_commands"])
+            self.assertNotIn("vfd.parameter.set", self.request(self.overview, who="owner")["allowed_commands"])
+            changed = self.request(path, who="service", method="POST", expected=201, body=parameter)
+            self.assertEqual(changed["command_type"], "vfd.parameter.set")
+            with SessionLocal() as session:
+                command = session.get(DeviceCommand, uuid.UUID(changed["id"]))
+                # Role snapshots in the audit do not grant a revoked permission at dispatch.
+                session.get(User, self.identities["service"].user.id).platform_role = "user"
+                session.commit()
+                self.assertEqual(dispatch_rejection(session, command, datetime.now(timezone.utc)), "vfd_settings_staff_only")
+
     def test_program_http_permissions_profile_and_long_result_deadline(self):
         from app.models.command import DeviceCommand
         from app.schemas.command_ack import CommandAckEnvelope
@@ -264,11 +323,12 @@ class FrontendPostgresTests(unittest.TestCase):
 
     def test_roles_and_capability_commands_follow_server_guards(self):
         cap_id = self.assign("vfd.control")
-        commands = ["vfd.frequency.set", "vfd.start", "vfd.stop"]
+        commands = ["vfd.frequency.set", "vfd.parameter.set", "vfd.source.set", "vfd.start", "vfd.stop"]
         for role in ("owner", "admin", "operator", "viewer", "service"):
             result = self.request(self.overview, who=role)
             self.assertEqual(result["command_types"], commands)
-            self.assertEqual(result["allowed_commands"], [] if role == "viewer" else commands)
+            self.assertEqual(result["allowed_commands"], [] if role == "viewer" else
+                             [command for command in commands if command != "vfd.parameter.set"])
             self.assertEqual(result["modules"][0]["code"], "vfd.control")
             self.assertEqual(result["modules"][0]["allowed_commands"], result["allowed_commands"])
             self.assertEqual(result["modules"][0]["channels"], [])
@@ -464,6 +524,12 @@ class FrontendPostgresTests(unittest.TestCase):
                         self.assertEqual(series["unit"], channel["unit"])
                         self.assertEqual(series["buckets"][0]["average"], values[channel["key"]])
                 for command in module["allowed_commands"]:
+                    if command == "vfd.source.set":
+                        # Older firmware advertises no source snapshot: mutation fails closed.
+                        self.request(f"/devices/{self.devices[0]}/commands", method="POST", who="operator", expected=409,
+                            body={"request_id": str(uuid.uuid4()), "command_type": command,
+                                  "payload": {"source": "local", "expected_run_source": 2, "expected_frequency_source": 6}})
+                        continue
                     self.request(f"/devices/{self.devices[0]}/commands", method="POST", who="operator", expected=201,
                         body={"request_id": str(uuid.uuid4()), "command_type": command,
                               "payload": {"frequency_hz": 31} if command == "vfd.frequency.set" else {}})

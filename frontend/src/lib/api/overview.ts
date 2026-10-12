@@ -112,6 +112,9 @@ export function effectiveQuality(status: Quality, freshness: Freshness, elapsedS
 }
 // Apply firmware interlocks only when this optional diagnostic capability is assigned.
 export function controlBlockReason(overview: Overview, elapsedSeconds = 0): string | null {
+  const source = overview.diagnostics?.vfd_settings;
+  if (source && effectiveQuality(overview.freshness.status, overview.freshness, elapsedSeconds) === "fresh" && (source.run_source !== 2 || source.frequency_source !== 6))
+    return "Частотник керується місцево або має інше джерело частоти. Для запуску із сайту увімкніть дистанційне керування.";
   if (overview.equipmentState && !["legacy", "verified"].includes(overview.equipmentState)) return equipmentStateLabels[overview.equipmentState];
   const diagnostics = overview.modules.find((module) => module.code === "vfd.diagnostics.read");
   if (!diagnostics) return null;

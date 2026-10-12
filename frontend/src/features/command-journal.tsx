@@ -90,6 +90,22 @@ export function CommandDetail({ context, id, poll }: { context: ReadyAccessSnaps
             <div role="status">
               <CommandStatus command={command} />
             </div>
+            {command.command_type === "vfd.parameter.set" && (
+              <p>
+                {String(command.payload.code)}:{" "}
+                {typeof command.result.before_raw === "number"
+                  ? `${command.result.before_raw / 10} с`
+                  : "початкове значення не підтверджено"}
+                {" → "}
+                {typeof command.result.actual_raw === "number"
+                  ? `${command.result.actual_raw / 10} с`
+                  : "результат запису не підтверджено"}
+                .
+              </p>
+            )}
+            {command.command_type === "vfd.source.set" && (
+              <p>Фактичне джерело керування після зміни показується на панелі за свіжими даними контролера.</p>
+            )}
             <p className="help-copy">Фактичний стан обладнання перевіряйте за актуальними показаннями на панелі.</p>
             {command.status === "result_unknown" && (
               <p className="notice notice-warning">
@@ -116,7 +132,12 @@ export function CommandDetail({ context, id, poll }: { context: ReadyAccessSnaps
                       ? "Програма не відповідає можливостям або локальному режиму контролера."
                       : command.error_code === "not_armed"
                         ? "Локальний дозвіл керування вимкнено. Перевірте причину зупинки та відновіть дозвіл на контролері."
-                        : command.error_message}
+                        : command.error_code === "setting_changed"
+                          ? "Поточне значення змінилося. Перечитайте налаштування перед новою дією."
+                          : command.error_code === "physical_result_unconfirmed" &&
+                              ["vfd.source.set", "vfd.parameter.set"].includes(command.command_type)
+                            ? "Запис не підтверджено повністю. Частина налаштувань могла змінитися; перечитайте їх перед новою дією."
+                            : command.error_message}
               </p>
             )}
             <details className="customer-disclosure command-delivery-details">
