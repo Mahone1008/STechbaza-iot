@@ -326,6 +326,37 @@ class PersonalAccountTests(OnboardingFixtures, unittest.TestCase):
             self.assertEqual(user.platform_role, "user")
         self.http("/invitations/inspect", body={"token": proof}, expected=404)
 
+    def test_service_invitation_sends_role_label_and_grants_only_selected_object(self):
+        invitation, _ = self.http(
+            f"/organizations/{self.orgs[0]}/invitations", who="owner", expected=201,
+            body={"email": self.email, "role": "service", "site_ids": [str(self.sites[0])]},
+        )
+        self.assertEqual(invitation["role"], "service")
+        self.assertEqual(len(self.letters), 1)
+        self.assertIn("Роль: Сервісне обслуговування.", self.letters[0][2])
+        self.assertIn("Доступ лише до об’єктів:", self.letters[0][2])
+        proof = self.mail_token()
+        preview, _ = self.http("/invitations/inspect", body={"token": proof})
+        self.assertEqual((preview["role"], preview["site_names"]), ("service", ["Test only"]))
+        created, _ = self.http("/invitations/register", body={
+            "token": proof, "display_name": "Service specialist", "password": self.password,
+        })
+        with SessionLocal() as session:
+            user = session.scalar(select(User).where(User.email == created["email"]))
+            self.additional_users.append(user.id)
+            membership = session.scalar(select(OrganizationMembership).where(
+                OrganizationMembership.user_id == user.id,
+                OrganizationMembership.organization_id == self.orgs[0],
+            ))
+            self.assertEqual((membership.role, membership.site_ids), ("service", [str(self.sites[0])]))
+            self.assertEqual(user.platform_role, "user")
+        login, _ = self.http("/auth/browser/login", body={"email": self.email, "password": self.password})
+        access, _ = self.http(f"/organizations/{self.orgs[0]}/access", method="GET", token=login["access_token"])
+        self.assertIn("capability.manage", access["permissions"])
+        self.assertIn("command.execute", access["permissions"])
+        self.assertNotIn("membership.manage", access["permissions"])
+        self.assertNotIn("site.create", access["permissions"])
+
     def test_invitation_preview_and_mail_show_only_selected_objects_and_access_expiry(self):
         second = uuid.uuid4()
         with SessionLocal.begin() as session:

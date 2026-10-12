@@ -126,6 +126,7 @@ def create_invitation(
         "admin": "Адміністратор",
         "operator": "Оператор",
         "viewer": "Перегляд",
+        "service": "Сервісне обслуговування",
     }[row.role]
     scope = (
         "Доступ: усі об’єкти організації."
