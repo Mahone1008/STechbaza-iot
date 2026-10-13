@@ -61,6 +61,7 @@ services:
       - "127.0.0.1:8001:8000"
     volumes:
       - ./.local/mail:/private/mail
+      - ./infrastructure/staff/runtime-roles.sql:/infrastructure/staff/runtime-roles.sql:ro
     depends_on:
       postgres:
         condition: service_healthy
