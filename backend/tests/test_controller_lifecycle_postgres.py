@@ -97,11 +97,12 @@ class ControllerLifecycleTests(unittest.TestCase):
         with SessionLocal.begin() as session:
             session.execute(delete(Capability).where(Capability.id.not_in(self.initial_capabilities)))
 
-    def bootstrap(self, key=None, expected=200, transport="wifi"):
+    def bootstrap(self, key=None, expected=200, transport="wifi", capability="read_only"):
         code, result, headers = request(
             "POST",
             f"/api/v1/bootstrap/{self.controller_id}/configuration",
-            body={"firmware_version": "0.7.0", "network_transport": transport},
+            body={"firmware_version": "0.7.0", "network_transport": transport,
+                  "control_capability": capability},
             headers={"authorization": f"Bearer {key or self.kit['bootstrap_key']}"},
             ip=self.ip,
         )
@@ -413,6 +414,69 @@ class ControllerLifecycleTests(unittest.TestCase):
             )
             self.assertEqual(session.get(ControllerCredential, self.device_id).revoked, True)
 
+    def test_rotation_requires_new_local_confirmation_before_recommissioning(self):
+        configuration = self.configure()
+        first = self.bootstrap(capability="bench")
+        self.fresh(configuration)
+        body = dict(expected_revision=1, installation_checked=True, control_mode="bench_without_motor")
+        self.call(self.equipment + "/commission", method="POST", body=body)
+        self.assertTrue(self.bootstrap(capability="bench")["commissioned"])
+
+        self.operation("rotate")
+        second = self.bootstrap(capability="bench")
+        self.assertFalse(second["commissioned"])
+        self.assertGreater(second["credential_revision"], first["credential_revision"])
+        self.assertNotEqual(second["mqtt_password"], first["mqtt_password"])
+        passport = self.call(self.equipment)
+        renewed = passport["desired"]
+        self.assertEqual(passport["configuration_state"], "mismatch")
+        self.assertEqual(renewed["manifest"], {**configuration["manifest"], "revision": 2})
+        self.assertNotEqual(renewed["configuration_hash"], configuration["configuration_hash"])
+        self.assertEqual(json.loads(second["manifest"]), renewed["manifest"])
+        self.assertEqual(second["configuration_hash"], renewed["configuration_hash"])
+        with SessionLocal() as session:
+            original = session.get(EquipmentConfiguration, (self.device_id, 1))
+            self.assertEqual(original.configuration_hash, configuration["configuration_hash"])
+        self.call(self.equipment + "/commission", method="POST", body=body, expected=409)
+        body["expected_revision"] = 2
+        self.fresh(configuration)  # Навіть нова телеметрія старого підтвердження не підходить.
+        self.call(self.equipment + "/commission", method="POST", body=body, expected=409)
+
+        self.fresh(renewed)
+        with SessionLocal.begin() as session:
+            state = session.get(DeviceState, self.device_id)
+            state.diagnostics = {"equipment": {**state.diagnostics["equipment"], "compatible": False}}
+        self.call(self.equipment + "/commission", method="POST", body=body, expected=409)
+        self.fresh(renewed)  # Новий hash і локальна перевірка дозволяють лише явне commissioning.
+        self.call(self.equipment + "/commission", method="POST", body=body)
+        self.assertTrue(self.bootstrap(capability="bench")["commissioned"])
+
+        self.operation("rotate")
+        third = self.call(self.equipment)
+        self.assertEqual(third["desired"]["manifest"]["revision"], 3)
+        self.assertEqual(third["configuration_state"], "mismatch")
+        self.assertFalse(self.bootstrap(capability="bench")["commissioned"])
+
+    def test_rotation_broker_failure_keeps_new_confirmation_requirement(self):
+        configuration = self.configure()
+        first = self.bootstrap()
+        self.fresh(configuration)
+        self.broker.return_value.__enter__.return_value.apply.side_effect = BrokerUnavailable("Gateway unavailable")
+        self.operation("rotate", expected=503)
+        passport = self.call(self.equipment)
+        self.assertEqual(passport["configuration_state"], "mismatch")
+        self.assertEqual(passport["desired"]["manifest"]["revision"], 2)
+        with SessionLocal() as session:
+            credential = session.get(ControllerCredential, self.device_id)
+            self.assertEqual(credential.applied_revision, first["credential_revision"])
+            self.assertEqual(credential.revision, first["credential_revision"] + 1)
+        self.broker.return_value.__enter__.return_value.apply.side_effect = None
+        second = self.bootstrap()
+        self.assertFalse(second["commissioned"])
+        self.assertEqual(second["configuration_hash"], passport["desired"]["configuration_hash"])
+        self.call(self.equipment + "/commission", method="POST",
+                  body=dict(expected_revision=2, installation_checked=True), expected=409)
+
     def test_unauthorized_replacement_and_device_key_revocation(self):
         self.bootstrap()
         self.fresh()
@@ -549,4 +613,10 @@ class ControllerLifecycleTests(unittest.TestCase):
             self.equipment + "/commission",
             method="POST",
             body=dict(expected_revision=1, installation_checked=True),
+            expected=409,
         )
+        renewed = self.call(self.equipment)["desired"]
+        self.assertEqual(renewed["manifest"]["revision"], 2)
+        self.fresh(renewed)
+        self.call(self.equipment + "/commission", method="POST",
+                  body=dict(expected_revision=2, installation_checked=True))

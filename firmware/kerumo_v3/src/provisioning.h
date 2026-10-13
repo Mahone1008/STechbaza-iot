@@ -1,7 +1,19 @@
 #pragma once
 #include "equipment.h"
+#include <cstdio>
 
 namespace kerumo {
+// Receipt належить конкретному обладнанню й ключу; старий hash-only кеш не є підтвердженням.
+inline bool localConfirmationKey(char *out, size_t size, const char *uid,
+                                 const char *hash, uint32_t credentialRevision) {
+  if (!out || !size) return false;
+  out[0] = 0;
+  if (!uid || !*uid || std::strlen(uid) > 96 || !validHash(hash) || !credentialRevision) return false;
+  const int length = std::snprintf(out, size, "v1:%s:%lu:%s", uid,
+                                   static_cast<unsigned long>(credentialRevision), hash);
+  if (length < 0 || static_cast<size_t>(length) >= size) { out[0] = 0; return false; }
+  return true;
+}
 enum class ControlGrantMode : uint8_t { ReadOnly, Bench, Extended };
 inline const char *controlGrantModeCode(ControlGrantMode mode) {
   return mode == ControlGrantMode::Extended ? "extended_test" :

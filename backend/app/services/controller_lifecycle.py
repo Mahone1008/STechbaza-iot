@@ -33,6 +33,7 @@ from app.services.equipment import (
     require_stopped,
     read_configuration,
     require_current_binding,
+    renew_local_confirmation,
 )
 from app.services.onboarding import audit, factory_read, locked_controller
 from app.services.label_accounts import renew_label
@@ -295,6 +296,7 @@ def operate(session, current, controller_id, operation, payload):
         require_stopped(session, device, utc_now())
     if operation == "rotate":
         invalidate_control(row)
+        renew_local_confirmation(session, device.id, current)
         credentials.issue(session, row, device)
     else:
         invalidate_control(row)

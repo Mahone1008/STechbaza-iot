@@ -54,6 +54,29 @@ def read_configuration(row: EquipmentConfiguration) -> ConfigurationRead:
     )
 
 
+def renew_local_confirmation(session: Session, device_id, current) -> None:
+    """Нова ревізія вимагає місцевого STOP навіть від прошивки зі старим receipt."""
+    previous = desired_configuration(session, device_id)
+    if previous is None:
+        return
+    if previous.revision >= 2147483647:
+        raise EquipmentConflict("Досягнуто межу ревізій конфігурації; зверніться до виробника")
+    manifest = read_configuration(previous).manifest.model_copy(
+        update={"revision": previous.revision + 1}
+    )
+    canonical = canonical_json(manifest.model_dump(mode="json"))
+    session.add(EquipmentConfiguration(
+        device_id=device_id,
+        revision=manifest.revision,
+        module_id=manifest.module_id,
+        configuration_hash=configuration_hash(canonical),
+        canonical_manifest=canonical,
+        actor_user_id=current.user.id,
+        actor_auth_session_id=current.auth_session.id,
+        created_at=datetime.now(timezone.utc),
+    ))
+
+
 def configuration_target(row: EquipmentConfiguration | None) -> dict | None:
     if row is None:
         return None

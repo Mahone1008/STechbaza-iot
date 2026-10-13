@@ -161,8 +161,16 @@ public:
     revision = doc["credential_revision"] | 0;
     grant.read(doc, false);
   }
-  bool confirmed() { return manifest.length() && prefs_.getString("confirmed", "") == hash; }
-  bool confirm() { return hash.length() == 64 && prefs_.putString("confirmed", hash) == hash.length(); }
+  bool confirmed() {
+    char receipt[192];
+    return manifest.length() && localConfirmationKey(receipt, sizeof(receipt), uid.c_str(), hash.c_str(), revision) &&
+        prefs_.getString("confirmed", "") == receipt;
+  }
+  bool confirm() {
+    char receipt[192];
+    return manifest.length() && localConfirmationKey(receipt, sizeof(receipt), uid.c_str(), hash.c_str(), revision) &&
+        prefs_.putString("confirmed", receipt) == std::strlen(receipt);
+  }
   bool activePortal() const { return portal_; }
   bool takeBind() { const bool result = bindRequested_; bindRequested_ = false; return result; }
   bool takeRestore() { const bool result = restoreRequested_; restoreRequested_ = false; return result; }
