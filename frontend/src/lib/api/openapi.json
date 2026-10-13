@@ -995,6 +995,11 @@
             "title": "Can Invite Installer",
             "type": "boolean"
           },
+          "can_setup": {
+            "default": false,
+            "title": "Can Setup",
+            "type": "boolean"
+          },
           "connection_state": {
             "default": "not_connected",
             "enum": [
@@ -5865,6 +5870,831 @@
         "title": "SessionRead",
         "type": "object"
       },
+      "SetupAccept": {
+        "additionalProperties": false,
+        "properties": {
+          "control_mode": {
+            "default": "extended_test",
+            "enum": [
+              "extended_test",
+              "read_only"
+            ],
+            "title": "Control Mode",
+            "type": "string"
+          },
+          "expected_configuration_hash": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Expected Configuration Hash",
+            "type": "string"
+          },
+          "expected_configuration_revision": {
+            "minimum": 0.0,
+            "title": "Expected Configuration Revision",
+            "type": "integer"
+          },
+          "expected_credential_revision": {
+            "minimum": 0.0,
+            "title": "Expected Credential Revision",
+            "type": "integer"
+          },
+          "expected_draft_revision": {
+            "maximum": 2147483647.0,
+            "minimum": 0.0,
+            "title": "Expected Draft Revision",
+            "type": "integer"
+          },
+          "expected_generation": {
+            "minimum": 1.0,
+            "title": "Expected Generation",
+            "type": "integer"
+          },
+          "installation_checked": {
+            "const": true,
+            "title": "Installation Checked",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "expected_generation",
+          "expected_credential_revision",
+          "expected_configuration_revision",
+          "expected_draft_revision",
+          "expected_configuration_hash",
+          "installation_checked"
+        ],
+        "title": "SetupAccept",
+        "type": "object"
+      },
+      "SetupApply": {
+        "additionalProperties": false,
+        "properties": {
+          "expected_configuration_revision": {
+            "minimum": 0.0,
+            "title": "Expected Configuration Revision",
+            "type": "integer"
+          },
+          "expected_credential_revision": {
+            "minimum": 0.0,
+            "title": "Expected Credential Revision",
+            "type": "integer"
+          },
+          "expected_draft_revision": {
+            "maximum": 2147483647.0,
+            "minimum": 0.0,
+            "title": "Expected Draft Revision",
+            "type": "integer"
+          },
+          "expected_generation": {
+            "minimum": 1.0,
+            "title": "Expected Generation",
+            "type": "integer"
+          },
+          "nameplate_checked": {
+            "const": true,
+            "title": "Nameplate Checked",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "expected_generation",
+          "expected_credential_revision",
+          "expected_configuration_revision",
+          "expected_draft_revision",
+          "nameplate_checked"
+        ],
+        "title": "SetupApply",
+        "type": "object"
+      },
+      "SetupCheck": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "status": {
+            "enum": [
+              "passed",
+              "pending",
+              "blocked"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "title",
+          "status"
+        ],
+        "title": "SetupCheck",
+        "type": "object"
+      },
+      "SetupDraftWrite": {
+        "additionalProperties": false,
+        "properties": {
+          "equipment": {
+            "$ref": "#/components/schemas/SetupEquipmentDraft"
+          },
+          "expected_configuration_revision": {
+            "minimum": 0.0,
+            "title": "Expected Configuration Revision",
+            "type": "integer"
+          },
+          "expected_credential_revision": {
+            "minimum": 0.0,
+            "title": "Expected Credential Revision",
+            "type": "integer"
+          },
+          "expected_draft_revision": {
+            "maximum": 2147483646.0,
+            "minimum": 0.0,
+            "title": "Expected Draft Revision",
+            "type": "integer"
+          },
+          "expected_generation": {
+            "minimum": 1.0,
+            "title": "Expected Generation",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "expected_generation",
+          "expected_credential_revision",
+          "expected_configuration_revision",
+          "expected_draft_revision",
+          "equipment"
+        ],
+        "title": "SetupDraftWrite",
+        "type": "object"
+      },
+      "SetupEquipmentDraft": {
+        "additionalProperties": false,
+        "properties": {
+          "frequency_limits": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FrequencyLimits"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "hardware_revision": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hardware Revision"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "motor": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SetupMotorDraft"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "profile_id": {
+            "anyOf": [
+              {
+                "maxLength": 96,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Profile Id"
+          },
+          "profile_version": {
+            "default": 1,
+            "maximum": 2147483647.0,
+            "minimum": 1.0,
+            "title": "Profile Version",
+            "type": "integer"
+          },
+          "serial_number": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Serial Number"
+          },
+          "software_revision": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Software Revision"
+          }
+        },
+        "title": "SetupEquipmentDraft",
+        "type": "object"
+      },
+      "SetupHelperContext": {
+        "additionalProperties": false,
+        "properties": {
+          "checks": {
+            "items": {
+              "$ref": "#/components/schemas/SetupCheck"
+            },
+            "title": "Checks",
+            "type": "array"
+          },
+          "configuration_revision": {
+            "title": "Configuration Revision",
+            "type": "integer"
+          },
+          "credential_revision": {
+            "title": "Credential Revision",
+            "type": "integer"
+          },
+          "draft_revision": {
+            "title": "Draft Revision",
+            "type": "integer"
+          },
+          "equipment": {
+            "$ref": "#/components/schemas/SetupEquipmentDraft"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "generation": {
+            "title": "Generation",
+            "type": "integer"
+          },
+          "helper_id": {
+            "format": "uuid",
+            "title": "Helper Id",
+            "type": "string"
+          },
+          "missing_fields": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Missing Fields",
+            "type": "array"
+          },
+          "profiles": {
+            "items": {
+              "$ref": "#/components/schemas/SetupHelperProfile"
+            },
+            "title": "Profiles",
+            "type": "array"
+          },
+          "progress": {
+            "enum": [
+              "activated",
+              "connected",
+              "ready"
+            ],
+            "title": "Progress",
+            "type": "string"
+          },
+          "serial_number": {
+            "title": "Serial Number",
+            "type": "string"
+          }
+        },
+        "required": [
+          "helper_id",
+          "expires_at",
+          "serial_number",
+          "generation",
+          "credential_revision",
+          "configuration_revision",
+          "draft_revision",
+          "equipment",
+          "missing_fields",
+          "checks",
+          "progress",
+          "profiles"
+        ],
+        "title": "SetupHelperContext",
+        "type": "object"
+      },
+      "SetupHelperCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "expected_configuration_revision": {
+            "minimum": 0.0,
+            "title": "Expected Configuration Revision",
+            "type": "integer"
+          },
+          "expected_credential_revision": {
+            "minimum": 0.0,
+            "title": "Expected Credential Revision",
+            "type": "integer"
+          },
+          "expected_draft_revision": {
+            "maximum": 2147483647.0,
+            "minimum": 0.0,
+            "title": "Expected Draft Revision",
+            "type": "integer"
+          },
+          "expected_generation": {
+            "minimum": 1.0,
+            "title": "Expected Generation",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "expected_generation",
+          "expected_credential_revision",
+          "expected_configuration_revision",
+          "expected_draft_revision"
+        ],
+        "title": "SetupHelperCreate",
+        "type": "object"
+      },
+      "SetupHelperCreated": {
+        "additionalProperties": false,
+        "properties": {
+          "active": {
+            "title": "Active",
+            "type": "boolean"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "revoked_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revoked At"
+          },
+          "token": {
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "created_at",
+          "expires_at",
+          "revoked_at",
+          "active",
+          "token"
+        ],
+        "title": "SetupHelperCreated",
+        "type": "object"
+      },
+      "SetupHelperDraftWrite": {
+        "additionalProperties": false,
+        "properties": {
+          "equipment": {
+            "$ref": "#/components/schemas/SetupEquipmentDraft"
+          },
+          "expected_configuration_revision": {
+            "minimum": 0.0,
+            "title": "Expected Configuration Revision",
+            "type": "integer"
+          },
+          "expected_credential_revision": {
+            "minimum": 0.0,
+            "title": "Expected Credential Revision",
+            "type": "integer"
+          },
+          "expected_draft_revision": {
+            "maximum": 2147483646.0,
+            "minimum": 0.0,
+            "title": "Expected Draft Revision",
+            "type": "integer"
+          },
+          "expected_generation": {
+            "minimum": 1.0,
+            "title": "Expected Generation",
+            "type": "integer"
+          },
+          "token": {
+            "maxLength": 76,
+            "minLength": 76,
+            "pattern": "^[0-9a-f]{32}\\.[A-Za-z0-9_-]{43}$",
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token",
+          "expected_generation",
+          "expected_credential_revision",
+          "expected_configuration_revision",
+          "expected_draft_revision",
+          "equipment"
+        ],
+        "title": "SetupHelperDraftWrite",
+        "type": "object"
+      },
+      "SetupHelperProfile": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "manufacturer": {
+            "title": "Manufacturer",
+            "type": "string"
+          },
+          "series": {
+            "title": "Series",
+            "type": "string"
+          },
+          "support": {
+            "enum": [
+              "inventory_only",
+              "documented",
+              "bench_limited"
+            ],
+            "title": "Support",
+            "type": "string"
+          },
+          "tested_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tested Model"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "version",
+          "manufacturer",
+          "series",
+          "support",
+          "tested_model"
+        ],
+        "title": "SetupHelperProfile",
+        "type": "object"
+      },
+      "SetupHelperProof": {
+        "additionalProperties": false,
+        "properties": {
+          "token": {
+            "maxLength": 76,
+            "minLength": 76,
+            "pattern": "^[0-9a-f]{32}\\.[A-Za-z0-9_-]{43}$",
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token"
+        ],
+        "title": "SetupHelperProof",
+        "type": "object"
+      },
+      "SetupHelperRead": {
+        "additionalProperties": false,
+        "properties": {
+          "active": {
+            "title": "Active",
+            "type": "boolean"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "revoked_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revoked At"
+          }
+        },
+        "required": [
+          "id",
+          "created_at",
+          "expires_at",
+          "revoked_at",
+          "active"
+        ],
+        "title": "SetupHelperRead",
+        "type": "object"
+      },
+      "SetupMotorDraft": {
+        "additionalProperties": false,
+        "properties": {
+          "rated_current_a": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "maximum": 10000.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rated Current A"
+          },
+          "rated_frequency_hz": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "maximum": 400.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rated Frequency Hz"
+          },
+          "rated_power_kw": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "maximum": 10000.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rated Power Kw"
+          },
+          "rated_voltage_v": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "maximum": 10000.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rated Voltage V"
+          }
+        },
+        "title": "SetupMotorDraft",
+        "type": "object"
+      },
+      "SetupRead": {
+        "additionalProperties": false,
+        "properties": {
+          "applied_draft_revision": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Applied Draft Revision"
+          },
+          "can_accept_control": {
+            "title": "Can Accept Control",
+            "type": "boolean"
+          },
+          "can_accept_read_only": {
+            "title": "Can Accept Read Only",
+            "type": "boolean"
+          },
+          "can_apply": {
+            "title": "Can Apply",
+            "type": "boolean"
+          },
+          "can_setup": {
+            "title": "Can Setup",
+            "type": "boolean"
+          },
+          "checks": {
+            "items": {
+              "$ref": "#/components/schemas/SetupCheck"
+            },
+            "title": "Checks",
+            "type": "array"
+          },
+          "commissioned_control_mode": {
+            "anyOf": [
+              {
+                "enum": [
+                  "read_only",
+                  "bench_without_motor",
+                  "extended_test"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Commissioned Control Mode"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "configuration_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Configuration Hash"
+          },
+          "configuration_revision": {
+            "title": "Configuration Revision",
+            "type": "integer"
+          },
+          "configured_equipment": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SetupEquipmentDraft"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "controller_id": {
+            "format": "uuid",
+            "title": "Controller Id",
+            "type": "string"
+          },
+          "credential_revision": {
+            "title": "Credential Revision",
+            "type": "integer"
+          },
+          "device_id": {
+            "format": "uuid",
+            "title": "Device Id",
+            "type": "string"
+          },
+          "draft_revision": {
+            "title": "Draft Revision",
+            "type": "integer"
+          },
+          "draft_stale": {
+            "default": false,
+            "title": "Draft Stale",
+            "type": "boolean"
+          },
+          "equipment": {
+            "$ref": "#/components/schemas/SetupEquipmentDraft"
+          },
+          "generation": {
+            "title": "Generation",
+            "type": "integer"
+          },
+          "initial_setup_open": {
+            "title": "Initial Setup Open",
+            "type": "boolean"
+          },
+          "missing_fields": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Missing Fields",
+            "type": "array"
+          },
+          "needs_apply": {
+            "title": "Needs Apply",
+            "type": "boolean"
+          },
+          "progress": {
+            "enum": [
+              "activated",
+              "connected",
+              "ready"
+            ],
+            "title": "Progress",
+            "type": "string"
+          }
+        },
+        "required": [
+          "controller_id",
+          "device_id",
+          "generation",
+          "credential_revision",
+          "configuration_revision",
+          "configuration_hash",
+          "initial_setup_open",
+          "can_setup",
+          "completed_at",
+          "draft_revision",
+          "applied_draft_revision",
+          "equipment",
+          "configured_equipment",
+          "missing_fields",
+          "checks",
+          "progress",
+          "needs_apply",
+          "can_apply",
+          "can_accept_control",
+          "can_accept_read_only"
+        ],
+        "title": "SetupRead",
+        "type": "object"
+      },
       "ShipmentRequest": {
         "additionalProperties": false,
         "properties": {
@@ -7286,7 +8116,7 @@
   "info": {
     "description": "Backend API платформи TechBaza IoT Pump Control",
     "title": "TechBaza Backend",
-    "version": "0.55.1"
+    "version": "0.56.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -9078,6 +9908,387 @@
         "summary": "Activation Security",
         "tags": [
           "onboarding"
+        ]
+      }
+    },
+    "/api/v1/connect/{controller_id}/setup": {
+      "get": {
+        "operationId": "get_setup_api_v1_connect__controller_id__setup_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "controller_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Controller Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetupRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Setup",
+        "tags": [
+          "owner-setup"
+        ]
+      }
+    },
+    "/api/v1/connect/{controller_id}/setup/accept": {
+      "post": {
+        "operationId": "accept_api_v1_connect__controller_id__setup_accept_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "controller_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Controller Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetupAccept"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetupRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Accept",
+        "tags": [
+          "owner-setup"
+        ]
+      }
+    },
+    "/api/v1/connect/{controller_id}/setup/apply": {
+      "post": {
+        "operationId": "apply_api_v1_connect__controller_id__setup_apply_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "controller_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Controller Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetupApply"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetupRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Apply",
+        "tags": [
+          "owner-setup"
+        ]
+      }
+    },
+    "/api/v1/connect/{controller_id}/setup/draft": {
+      "put": {
+        "operationId": "put_draft_api_v1_connect__controller_id__setup_draft_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "controller_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Controller Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetupDraftWrite"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetupRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Put Draft",
+        "tags": [
+          "owner-setup"
+        ]
+      }
+    },
+    "/api/v1/connect/{controller_id}/setup/helpers": {
+      "get": {
+        "operationId": "helper_list_api_v1_connect__controller_id__setup_helpers_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "controller_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Controller Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SetupHelperRead"
+                  },
+                  "title": "Response Helper List Api V1 Connect  Controller Id  Setup Helpers Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Helper List",
+        "tags": [
+          "setup-helpers"
+        ]
+      },
+      "post": {
+        "operationId": "helper_create_api_v1_connect__controller_id__setup_helpers_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "controller_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Controller Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetupHelperCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetupHelperCreated"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Helper Create",
+        "tags": [
+          "setup-helpers"
+        ]
+      }
+    },
+    "/api/v1/connect/{controller_id}/setup/helpers/{helper_id}": {
+      "delete": {
+        "operationId": "helper_revoke_api_v1_connect__controller_id__setup_helpers__helper_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "controller_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Controller Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "helper_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Helper Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Helper Revoke",
+        "tags": [
+          "setup-helpers"
         ]
       }
     },
@@ -12512,6 +13723,88 @@
         "summary": "Create Site",
         "tags": [
           "sites"
+        ]
+      }
+    },
+    "/api/v1/setup-help/draft": {
+      "put": {
+        "operationId": "helper_draft_api_v1_setup_help_draft_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetupHelperDraftWrite"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetupHelperContext"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Helper Draft",
+        "tags": [
+          "setup-helpers"
+        ]
+      }
+    },
+    "/api/v1/setup-help/inspect": {
+      "post": {
+        "operationId": "helper_inspect_api_v1_setup_help_inspect_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetupHelperProof"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetupHelperContext"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Helper Inspect",
+        "tags": [
+          "setup-helpers"
         ]
       }
     },

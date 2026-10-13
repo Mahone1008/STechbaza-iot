@@ -26,10 +26,14 @@ it("allows explicitly enabled development previews", () => {
 
 it("separates private operations, manufacturing and customer onboarding routes", () => {
   for (const [portal, hidden, visible] of [
-    ["customer", ["/operations", "/operations/users", "/factory"], ["/register", "/connect", "/devices"]],
+    [
+      "customer",
+      ["/operations", "/operations/users", "/factory"],
+      ["/register", "/connect", "/devices", "/setup-help"],
+    ],
     [
       "staff",
-      ["/register", "/register/verify", "/connect", "/connect/test"],
+      ["/register", "/register/verify", "/connect", "/connect/test", "/setup-help"],
       ["/operations", "/factory", "/account/security", "/invite"],
     ],
   ] as const) {

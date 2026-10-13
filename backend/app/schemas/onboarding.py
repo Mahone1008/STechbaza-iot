@@ -214,6 +214,7 @@ class ConnectionRead(StrictModel):
     activation_required: bool = True
     permanent_login: str | None = None
     can_install: bool = False
+    can_setup: bool = False
     readiness: EquipmentReadiness
 
 

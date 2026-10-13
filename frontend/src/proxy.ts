@@ -29,7 +29,7 @@ export function proxy(request: NextRequest) {
   const hidden =
     (portal !== "staff" && (path === "/operations" || path.startsWith("/operations/"))) ||
     (portal === "customer" && (path === "/factory" || path.startsWith("/factory/"))) ||
-    (portal === "staff" && /^\/(register|connect)(?:\/|$)/u.test(path));
+    (portal === "staff" && /^\/(register|connect|setup-help)(?:\/|$)/u.test(path));
   const notFoundUrl = new URL("/_not-found", request.url);
   const response =
     hidden || (internalPreview && process.env.KERUMO_UI_PREVIEW !== "1")

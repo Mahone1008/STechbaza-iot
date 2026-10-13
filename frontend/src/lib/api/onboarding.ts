@@ -9,6 +9,7 @@ export type Connection = components["schemas"]["ConnectionRead"] & {
   can_install: boolean;
   organization_id: string | null;
   can_invite_installer: boolean;
+  can_setup: boolean;
 };
 export function parseConnection(value: unknown, controllerId: string): Connection {
   if (!isRecord(value) || value.controller_id !== controllerId || !["ready", "claimed"].includes(String(value.state)))
@@ -38,6 +39,9 @@ export function parseConnection(value: unknown, controllerId: string): Connectio
     return invalidResponse(path, "installation permission");
   if (value.can_invite_installer !== undefined && typeof value.can_invite_installer !== "boolean")
     return invalidResponse(path, "installer invitation permission");
+  if (value.can_setup !== undefined && typeof value.can_setup !== "boolean")
+    return invalidResponse(path, "owner setup permission");
+  if (value.can_setup === true && !claimed) return invalidResponse(path, "claimed owner setup");
   const organizationId = value.organization_id == null ? null : requiredUuid(value, "organization_id", path);
   if (value.can_invite_installer === true && (!claimed || !organizationId))
     return invalidResponse(path, "installer invitation scope");
@@ -49,6 +53,7 @@ export function parseConnection(value: unknown, controllerId: string): Connectio
     can_install: value.can_install === true,
     organization_id: organizationId,
     can_invite_installer: value.can_invite_installer === true,
+    can_setup: value.can_setup === true,
     controller_id: requiredUuid(value, "controller_id", path),
     serial_number: requiredString(value, "serial_number", path),
     hardware_model: requiredString(value, "hardware_model", path),

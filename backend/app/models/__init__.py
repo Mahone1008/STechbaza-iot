@@ -17,8 +17,12 @@ from app.models.telemetry import DeviceState, TelemetryMessage
 from app.models.user import User
 from app.models.schedule import DeviceSchedule, ScheduleOccurrence, ScheduleRevision
 from app.models.equipment import PumpInstallation, EquipmentModule, EquipmentConfiguration
+from app.models.owner_setup import DeviceSetupDraft
+from app.models.setup_helpers import DeviceSetupHelper
 
 __all__ = [
+    "DeviceSetupHelper",
+    "DeviceSetupDraft",
     "AccountLink",
     "PlatformAudit",
     "FactoryController", "FactoryAudit", "PersonalWorkspace", "AccountSecurity", "ControllerCredential",

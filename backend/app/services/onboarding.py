@@ -214,6 +214,7 @@ def connection_read(
     can_manage = False
     organization_id = None
     can_invite_installer = False
+    can_setup = False
     if row.device_id:
         access = AccessControl(session, current)
         context = access.require_device_context(
@@ -228,6 +229,8 @@ def connection_read(
             pass
         from app.services.installation_readiness import can_install
         can_manage = can_install(session, current, device)
+        from app.services.owner_setup import is_setup_owner
+        can_setup = is_setup_owner(session, current.user.id, organization_id)
     details = connection_details(session, row, device)
     details["initial_equipment_editable"] = can_manage and details["initial_equipment_editable"]
     return ConnectionRead(
@@ -249,6 +252,7 @@ def connection_read(
         else None,
         **details,
         can_install=can_manage,
+        can_setup=can_setup,
     )
 
 

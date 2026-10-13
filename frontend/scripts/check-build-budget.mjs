@@ -31,7 +31,10 @@ const report = {
   // 0.55 adds factory equipment preparation, installation readiness and the
   // separate installer workflow. Clean totals measured 427953 / 423567 bytes
   // for customer / staff, including the staff invitation route. Single-chunk stays 120 KiB.
-  budgets: { totalGzipBytes: (buildDir === ".next-staff" ? 418 : 420) * 1024, largestGzipBytes: 120 * 1024 },
+  // 0.56 додає первинне налаштування власником і окрему сторінку помічника.
+  // Виміряно 442356 / 437860 bytes для customer / staff; це сума всіх
+  // маршрутів, не обсяг завантаження однієї сторінки. Межа окремого chunk незмінна.
+  budgets: { totalGzipBytes: (buildDir === ".next-staff" ? 431 : 435) * 1024, largestGzipBytes: 120 * 1024 },
   chunks: chunks.sort((a, b) => b.gzipBytes - a.gzipBytes),
 };
 await mkdir("artifacts/stage14", { recursive: true });

@@ -126,6 +126,15 @@ def commission(session, current, device_id, payload):
     device = session.scalar(select(Device).where(Device.id == device_id).with_for_update().execution_options(populate_existing=True))
     require_current_binding(device, factory)
     AccessControl(session, current).require_device(device.id, Permission.CAPABILITY_MANAGE)
+    commission_locked(session, current, device, factory, payload)
+    session.commit()
+    result = EquipmentService(session).passport(device)
+    result.can_install = can_install(session, current, device)
+    return result
+
+
+def commission_locked(session, current, device, factory, payload):
+    """Спільні фізичні перевірки; caller вже перевірив права та заблокував прив’язку."""
     passport = EquipmentService(session).passport(device)
     if passport.controller_id:
         if factory.status != "claimed" or factory.access_revoked:
@@ -157,6 +166,7 @@ def commission(session, current, device_id, payload):
         mode=payload.control_mode,
     )
     device.lifecycle_status = "active"
+    device.initial_setup_completed_at = device.initial_setup_completed_at or utc_now()
     if passport.controller_id:
         row = session.get(FactoryController, passport.controller_id)
         invalidate_control(row)
@@ -170,10 +180,6 @@ def commission(session, current, device_id, payload):
             revision=payload.expected_revision,
             mode=payload.control_mode,
         )
-    session.commit()
-    result = EquipmentService(session).passport(device)
-    result.can_install = can_install(session, current, device)
-    return result
 
 
 def bootstrap_configuration(session, controller_id, payload, token):
