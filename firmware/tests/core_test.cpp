@@ -13,22 +13,27 @@
 #include <limits>
 using namespace kerumo;
 struct TestClock : Clock {
-  uint64_t ms=1000; int64_t epoch=1790686800000LL; bool valid=true,linkValid=true;
+  uint64_t ms=1000,linkUntil=std::numeric_limits<uint64_t>::max(); int64_t epoch=1790686800000LL; bool valid=true,linkValid=true;
   uint32_t monotonicMs() const override { return ms; }
   uint64_t uptimeMs() const override { return ms; }
   int64_t utcMs() const override { return valid?epoch+ms:0; }
-  bool controlLinkValid() const override { return linkValid; }
+  bool controlLinkValid() const override { return linkValid && ms<linkUntil; }
 };
 struct TestBus : Bus {
   TestClock& clock; unsigned readDelay=0; bool readable=true,apply=true,echo=true,stopWorks=true,followTarget=true;
-  uint16_t ignoredAddress=0xFFFF,dropLinkAddress=0xFFFF,crashAddress=0xFFFF;
+  uint16_t ignoredAddress=0xFFFF,dropLinkAddress=0xFFFF,dropLinkReadAddress=0xFFFF,crashAddress=0xFFFF;
   bool dropLinkAfterWrite=false,localSetpoint=false,crashAfterWrite=false,settingEcho=true;
+  unsigned dropLinkReadSkip=0;
   std::map<uint16_t,uint16_t> registers{{2,2},{3,6},{4,500},{5,500},{6,0},{0x600,1},{0x601,0},
     {0x602,0},{0x603,5},{0x604,100},{0x605,0},{0x2100,0},{0x2101,2},{0x2102,1000},{0x2103,0},{0x2104,0},{0x2106,0}};
   std::vector<std::pair<uint16_t,uint16_t>> writes;
   explicit TestBus(TestClock& c):clock(c){}
   bool read(uint16_t address,uint16_t& value) override {
     clock.ms+=readDelay;
+    if (address==dropLinkReadAddress) {
+      if(dropLinkReadSkip) --dropLinkReadSkip;
+      else clock.linkValid=false;
+    }
     if (!readable || !registers.count(address)) return false;
     value=localSetpoint && address==0x2102 && registers[3]!=6 ? 1000 : registers[address]; return true;
   }
@@ -46,16 +51,22 @@ struct TestBus : Bus {
   }
 };
 struct TestStorage : Storage {
-  Journal saved{}; bool exists=false,fail=false; int saves=0;
-  int load(Journal& value) override { if(exists) value=saved; return exists?1:0; }
-  bool save(const Journal& value) override { ++saves; if(fail)return false; saved=value; exists=true; return true; }
+  Journal saved{}; bool exists=false,fail=false,failLoad=false; int saves=0,dropLinkAtSave=0;
+  TestClock* clock=nullptr; unsigned saveDelay=0;
+  int load(Journal& value) override { if(failLoad)return -1; if(exists) value=saved; return exists?1:0; }
+  bool save(const Journal& value) override {
+    ++saves;
+    if(clock) { clock->ms+=saveDelay; if(saves==dropLinkAtSave) clock->linkValid=false; }
+    if(fail)return false;
+    saved=value; exists=true; return true;
+  }
 };
 struct TestEvents : Events { std::vector<Record> records; void emit(const Record& r) override { records.push_back(r); } };
 struct Fixture {
   TestClock clock; TestBus bus{clock}; TestStorage storage; TestEvents events;
   Su600Driver driver{bus};
   Controller controller;
-  explicit Fixture(bool controls=true):controller(driver,storage,clock,events,controls) { assert(controller.begin("test-device")); }
+  explicit Fixture(bool controls=true):controller(driver,storage,clock,events,controls) { storage.clock=&clock; assert(controller.begin("test-device")); }
   Command command(uint64_t sequence,Type type=Type::Start,double hz=0) {
     Command c{}; snprintf(c.id,sizeof(c.id),"00000000-0000-4000-8000-%012llu",static_cast<unsigned long long>(sequence));
     c.sequence=sequence; c.issuedMs=clock.utcMs(); c.expiresMs=c.issuedMs+30000; c.ttl=30; c.type=type; c.hz=hz; return c;
@@ -527,7 +538,159 @@ void calendarWeekExecution() {
 #include "equipment_test.h"
 #include "remote_operation_test.h"
 #include "vfd_settings_test.h"
+
+void failedRepeatedBeginLocksController() {
+  for (unsigned failure=0;failure<8;++failure) {
+    Fixture f; remoteProfile(f);
+    f.receive(f.command(7,Type::Stop)); f.controller.tick(true);
+    const Journal valid=f.storage.saved;
+    const size_t writes=f.bus.writes.size();
+    assert(f.controller.journal().highest==7);
+    if(failure==0) f.storage.failLoad=true;
+    if(failure==1) f.storage.saved.checksum^=1;
+    if(failure==2) { std::strcpy(f.storage.saved.uid,"another-device"); f.storage.saved.checksum=checksum(f.storage.saved); }
+    if(failure==3 || failure==4) {
+      auto& record=f.storage.saved.records[0];
+      record.outcome=Outcome::Pending; record.command.type=Type::Program;
+      record.command.program={};
+      if(failure==4) {
+        record.command.program.count=1; record.command.program.steps[0]={30,10};
+        f.storage.saved.records[1]=record;
+      }
+      f.storage.saved.checksum=checksum(f.storage.saved);
+    }
+    const Journal rejected=f.storage.saved;
+    const int saves=f.storage.saves;
+    if(failure==5) f.storage.fail=true;
+    const char* uid=failure==6?nullptr:failure==7?
+        "1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123":"test-device";
+    assert(!f.controller.begin(uid));
+    assert(!f.controller.sample().storageOk && !f.controller.isArmed());
+    assert(!f.controller.restoreRemotePermission() && !f.controller.arm(SessionMode::ExtendedTest));
+    f.clock.ms+=1001; f.controller.tick(true,true);
+    f.receive(f.command(8));
+    const size_t events=f.events.records.size(); f.controller.replay();
+    assert(f.events.records.size()==events && f.bus.writes.size()==writes);
+    assert(f.storage.saves==saves+(failure==5?1:0) && std::memcmp(&rejected,&f.storage.saved,sizeof(Journal))==0);
+    f.storage.fail=f.storage.failLoad=false; f.storage.saved=valid;
+    assert(f.controller.begin("test-device"));
+    assert(f.controller.journal().highest==7 && !f.controller.isArmed());
+    f.clock.ms+=3001; f.controller.tick(true,true);
+    assert(f.controller.isArmed() && f.bus.writes.size()==writes);
+    f.clock.ms+=1; f.receive(f.command(8)); f.controller.tick(true,true);
+    assert(f.controller.journal().motionPossible && f.controller.journal().highest==8);
+  }
+  // Повторна ініціалізація не втрачає відомий RUN-намір під час руху.
+  Fixture running; remoteProfile(running); running.controller.tick(true,true);
+  running.clock.ms+=1; running.receive(running.command(1)); running.controller.tick(true,true);
+  const int saves=running.storage.saves;
+  running.storage.failLoad=true;
+  assert(!running.controller.begin("test-device"));
+  assert(!running.controller.isArmed() && !running.controller.sample().storageOk);
+  assert(running.controller.journal().motionPossible);
+  running.clock.ms+=1001; running.controller.tick(true,true);
+  assert(!running.controller.journal().motionPossible && !running.controller.sample().storageOk);
+  assert(running.storage.saves==saves && running.storage.saved.motionPossible);
+  running.storage.failLoad=false;
+  assert(running.controller.begin("test-device"));
+  running.clock.ms+=3001; running.controller.tick(true,true);
+  assert(!running.controller.journal().motionPossible);
+  unsigned starts=0; for(auto write:running.bus.writes) if(write.first==0x2000 && write.second==0x12) ++starts;
+  assert(starts==1);
+  Fixture activeProgram; assert(activeProgram.armExtended());
+  activeProgram.receive(programCommand(activeProgram)); reachHold(activeProgram);
+  assert(!activeProgram.controller.begin("test-device"));
+  activeProgram.clock.ms+=1001; activeProgram.controller.tick(true,true);
+  assert(!activeProgram.controller.journal().motionPossible && !activeProgram.controller.sample().storageOk);
+  assert(activeProgram.controller.sample().program.phase==ProgramPhase::Failed);
+  assert(activeProgram.controller.begin("test-device"));
+  activeProgram.clock.ms+=1001; activeProgram.controller.tick(true);
+  assert(!activeProgram.controller.journal().motionPossible);
+  starts=0; for(auto write:activeProgram.bus.writes) if(write.first==0x2000 && write.second==0x12) ++starts;
+  assert(starts==1);
+  for(Type type:{Type::Start,Type::Stop,Type::Frequency}) {
+    Fixture pending; assert(pending.armExtended());
+    const auto command=pending.command(1,type,25);
+    pending.receive(command); // Перевірка результату ще не виконувалася.
+    const Journal persisted=pending.storage.saved;
+    const int saves=pending.storage.saves;
+    assert(!pending.controller.begin("test-device"));
+    pending.clock.ms+=1001; pending.controller.tick(true,true);
+    const auto stopped=pending.controller.sample();
+    assert(!stopped.motionPossible && !stopped.controlBusy && !stopped.storageOk);
+    assert(pending.storage.saves==saves && std::memcmp(&persisted,&pending.storage.saved,sizeof(Journal))==0);
+    assert(pending.controller.begin("test-device"));
+    assert(pending.controller.journal().highest==1 && !pending.controller.isArmed());
+    pending.clock.ms+=3001; pending.controller.tick(true,true);
+    const size_t writes=pending.bus.writes.size();
+    pending.receive(command); pending.controller.tick(true,true);
+    assert(pending.bus.writes.size()==writes && !pending.controller.journal().motionPossible);
+  }
+  puts("PASS: failed same-object begin locks storage/ARM/replay, preserves persisted sequence and recovery STOP");
+}
+
+void actuationRechecksControlLink() {
+  for(Type type:{Type::Start,Type::Frequency}) for(unsigned loss=0;loss<4;++loss) {
+    Fixture f; assert(f.armExtended());
+    auto command=f.command(1,type,25);
+    if(loss==0) f.bus.dropLinkReadAddress=2;
+    if(loss==1) f.storage.dropLinkAtSave=f.storage.saves+2;
+    if(loss==2) { f.clock.linkUntil=f.clock.ms+100; f.bus.readDelay=25; }
+    if(loss==3) { f.clock.linkUntil=f.clock.ms+100; f.storage.saveDelay=60; }
+    f.receive(command);
+    assert(!f.clock.controlLinkValid() && !f.controller.isArmed());
+    assert(f.events.records.back().outcome==Outcome::Failed);
+    assert(f.bus.writes.empty());
+    // STOP доступний і після завершення lease, без ARM.
+    f.receive(f.command(2,Type::Stop)); f.controller.tick(false);
+    assert(!f.controller.journal().motionPossible);
+    for(auto write:f.bus.writes) assert(write.first==0x2000 && write.second==1);
+    f.clock.linkValid=true; f.clock.linkUntil=std::numeric_limits<uint64_t>::max();
+    f.bus.dropLinkReadAddress=0xFFFF; f.bus.readDelay=0; f.storage.saveDelay=0;
+    f.clock.ms+=3001; f.controller.tick(true,true);
+    for(auto write:f.bus.writes) assert(write.first==0x2000 && write.second==1);
+  }
+  for(bool calendar:{false,true}) for(unsigned loss=0;loss<4;++loss) {
+    Fixture f; assert(f.armExtended());
+    auto command=calendar?scheduledCommand(f):programCommand(f);
+    if(loss==0) f.bus.dropLinkReadAddress=2;
+    if(loss==1) f.storage.dropLinkAtSave=f.storage.saves+2;
+    f.receive(command);
+    if(loss==2) { f.bus.dropLinkReadAddress=0x2100; f.clock.ms+=300; f.controller.tick(true); }
+    if(loss==3) {
+      reachHold(f);
+      const size_t writes=f.bus.writes.size();
+      f.storage.dropLinkAtSave=f.storage.saves+1;
+      f.clock.ms+=11000; f.controller.tick(true);
+      assert(f.bus.writes.size()==writes);
+    }
+    assert(!f.clock.controlLinkValid() && !f.controller.isArmed());
+    if(loss<3) assert(f.bus.writes.size()==(loss==2?1U:0U)); // Лише початкова частота, без RUN.
+    f.clock.ms+=1001; f.controller.tick(false);
+    assert(!f.controller.journal().motionPossible);
+    unsigned starts=0; for(auto write:f.bus.writes) if(write.first==0x2000 && write.second==0x12) ++starts;
+    assert(starts==(loss==3?1U:0U));
+    const size_t writes=f.bus.writes.size();
+    f.clock.linkValid=true; f.bus.dropLinkReadAddress=0xFFFF;
+    f.clock.ms+=3001; f.controller.tick(true,true);
+    assert(f.bus.writes.size()==writes); // Reconnect не продовжує програму.
+  }
+  // Збереження журналу перед записом параметра також може затримати виконання.
+  for(bool duringSave:{false,true}) {
+    Fixture parameter; remoteProfile(parameter);
+    parameter.bus.registers[0xA]=100; parameter.controller.tick(true,true);
+    auto change=parameter.command(1,Type::Parameter);
+    std::strcpy(change.setting.code,"F0.10"); change.setting.expected=100; change.setting.value=200;
+    if(duringSave) parameter.storage.dropLinkAtSave=parameter.storage.saves+3;
+    else { parameter.bus.dropLinkReadAddress=0x2100; parameter.bus.dropLinkReadSkip=1; }
+    parameter.receive(change);
+    assert(!parameter.clock.controlLinkValid() && parameter.bus.writes.empty());
+  }
+  puts("PASS: START/frequency/program/calendar writes recheck read/save lease loss, STOP and no-resume preserved");
+}
+
 int main() {
+  failedRepeatedBeginLocksController(); actuationRechecksControlLink();
   vfdSettingsTests();
 
   remotePermissionAndLocalStop(); remoteGuardsAndReconnect(); remoteRestartRecovery(); remoteRunningInterlocks(); remoteProgramRestart(); explicitLocalRestoreAndRevocation(); factoryGrantCommandBoundary(); configurationReadbackCannotRaceMotion();

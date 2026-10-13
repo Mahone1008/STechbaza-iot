@@ -24,7 +24,7 @@ services:
       - demo_mqtt:/mosquitto/data
 
   backend:
-    image: techbaza-acceptance-backend:0.49.0
+    image: techbaza-acceptance-backend:0.55.1
     build:
       context: ./backend
     restart: unless-stopped
@@ -48,6 +48,8 @@ services:
       DEMO_OPERATOR_PASSWORD: ${DEMO_OPERATOR_PASSWORD:?Create .env.demo first}
       DEMO_VIEWER_PASSWORD: ${DEMO_VIEWER_PASSWORD:?Create .env.demo first}
       DEMO_OTHER_PASSWORD: ${DEMO_OTHER_PASSWORD:?Create .env.demo first}
+    volumes:
+      - ./infrastructure/staff/runtime-roles.sql:/infrastructure/staff/runtime-roles.sql:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -61,7 +63,7 @@ services:
       start_period: 5s
 
   simulator:
-    image: techbaza-acceptance-backend:0.49.0
+    image: techbaza-acceptance-backend:0.55.1
     restart: unless-stopped
     command: ["python", "-m", "app.demo.simulator", "run"]
     environment:

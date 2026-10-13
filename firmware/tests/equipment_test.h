@@ -119,6 +119,24 @@ void provisioningIdentity() {
   doc["mqtt_host"]="https://another.host/path"; assert(!enrollmentFields(doc,id));
   doc["mqtt_host"]="gateway.example.com"; doc["mqtt_port"]=-1; assert(!enrollmentFields(doc,id));
   doc["mqtt_port"]=8884; doc["credential_revision"]=0; assert(!enrollmentFields(doc,id));
+
+  const char *uid="FC-11111111111141118111111111111111-G1";
+  const std::string hash(64, 'a');
+  char receipt[192], next[192];
+  assert(localConfirmationKey(receipt, sizeof(receipt), uid, hash.c_str(), 1));
+  assert(std::strcmp(receipt, hash.c_str()) != 0); // Hash-only підтвердження потребує нової місцевої перевірки.
+  assert(localConfirmationKey(next, sizeof(next), uid, hash.c_str(), 1));
+  assert(std::strcmp(receipt, next) == 0); // Reboot з тим самим ключем зберігає підтвердження.
+  assert(localConfirmationKey(next, sizeof(next), uid, hash.c_str(), 2));
+  assert(std::strcmp(receipt, next) != 0); // Та сама конфігурація після rotation вже не підтверджена.
+  assert(localConfirmationKey(next, sizeof(next), "FC-11111111111141118111111111111111-G2", hash.c_str(), 1));
+  assert(std::strcmp(receipt, next) != 0);
+  const std::string changedHash(64, 'b');
+  assert(localConfirmationKey(next, sizeof(next), uid, changedHash.c_str(), 1));
+  assert(std::strcmp(receipt, next) != 0);
+  assert(!localConfirmationKey(next, sizeof(next), uid, hash.c_str(), 0) && !*next);
+  assert(!localConfirmationKey(next, sizeof(next), uid, "", 1) && !*next);
+  assert(!localConfirmationKey(next, 4, uid, hash.c_str(), 1) && !*next);
 }
 
 void factoryServerGrant() {

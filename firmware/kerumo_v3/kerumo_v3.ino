@@ -52,7 +52,7 @@ static_assert(!KERUMO_ENABLE_REMOTE_OPERATION ||
 
 using namespace kerumo;
 namespace {
-constexpr char FirmwareVersion[] = "0.12.0";
+constexpr char FirmwareVersion[] = "0.12.1";
 constexpr const char *ControlCapability = KERUMO_ENABLE_CONTROL ?
     (KERUMO_ENABLE_EXTENDED_TEST && KERUMO_ENABLE_REMOTE_OPERATION ? "full" : "bench") : "read_only";
 EquipmentBinding equipment{};

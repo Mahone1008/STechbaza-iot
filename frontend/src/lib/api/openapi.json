@@ -7286,7 +7286,7 @@
   "info": {
     "description": "Backend API платформи TechBaza IoT Pump Control",
     "title": "TechBaza Backend",
-    "version": "0.55.0"
+    "version": "0.55.1"
   },
   "openapi": "3.1.0",
   "paths": {
