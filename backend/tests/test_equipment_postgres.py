@@ -30,6 +30,12 @@ class EquipmentPostgresTests(unittest.TestCase):
 
     def setUp(self):
         base.ComprehensivePostgresTests.setUp(self)
+        from app.models import User, AuthSession
+        from app.security.tokens import utc_now
+        with SessionLocal.begin() as session:
+            for role in ("owner", "other"):
+                session.get(User, self.contexts[role].user.id).platform_role = "service_admin"
+                session.get(AuthSession, self.contexts[role].auth_session.id).mfa_verified_at = utc_now()
         self.installation = self.call(f"/api/v1/sites/{self.sites[0]}/installations", method="POST",
             body={"name": "Pump installation"}, who="owner", expected=201)
         self.module_body = dict(installation_id=self.installation["id"], slot="vfd-1", kind="vfd", name="Pump drive",
@@ -103,6 +109,16 @@ class EquipmentPostgresTests(unittest.TestCase):
         for changes in ({"profile_id":"suswe.su100.modbus"}, {"profile_version":2},
                         {"bus":{**self.body["bus"],"address":2}}, {"frequency_limits":{"min_hz":20,"max_hz":60}}):
             self.call(self.base + "/equipment/configurations", method="POST", body={**self.body, **changes}, who="owner", expected=409)
+
+    def test_ordinary_owner_keeps_read_access_but_cannot_change_physical_setup(self):
+        from app.models import User
+        with SessionLocal.begin() as session:
+            session.get(User, self.contexts["owner"].user.id).platform_role = "user"
+        self.assertFalse(self.call(self.base + "/equipment", who="owner")["can_install"])
+        self.call(self.base + "/equipment/configurations", method="POST", body=self.body, who="owner", expected=403)
+        self.call(self.base + "/equipment/modules", method="POST", body={**self.module_body, "slot": "vfd-2"}, who="owner", expected=403)
+        self.call(self.base + "/equipment/commission", method="POST", body={"expected_revision": 1, "installation_checked": True}, who="owner", expected=403)
+        self.call(self.base + f"/capabilities/{self.caps['vfd.control']}", method="PATCH", body={"is_enabled": False}, who="owner", expected=403)
 
     def test_applied_hash_protocol_v3_and_old_queued_command_fence(self):
         configured = self.configure()

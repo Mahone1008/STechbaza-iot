@@ -107,7 +107,79 @@ void provisioningIdentity() {
   doc["mqtt_host"]="192.168.1.10"; doc["mqtt_port"]=8884;
   doc["mqtt_password"]="test-only-opaque-secret-at-least-32-characters"; doc["credential_revision"]=1;
   assert(enrollmentFields(doc,id));
+  assert(enrollmentRevisionAllowed(doc,id,"",0));
+  assert(enrollmentRevisionAllowed(doc,id,"FC-11111111111141118111111111111111-G1",1));
+  assert(!enrollmentRevisionAllowed(doc,id,"FC-11111111111141118111111111111111-G1",2));
+  assert(!enrollmentRevisionAllowed(doc,id,"FC-11111111111141118111111111111111-G2",1));
+  doc["device_uid"]="FC-11111111111141118111111111111111-G2";
+  assert(enrollmentRevisionAllowed(doc,id,"FC-11111111111141118111111111111111-G1",200));
+  doc["device_uid"]="FC-21111111111141118111111111111111-G2";
+  assert(!enrollmentRevisionAllowed(doc,id,"FC-11111111111141118111111111111111-G1",1));
+  doc["device_uid"]="FC-11111111111141118111111111111111-G1";
   doc["mqtt_host"]="https://another.host/path"; assert(!enrollmentFields(doc,id));
   doc["mqtt_host"]="gateway.example.com"; doc["mqtt_port"]=-1; assert(!enrollmentFields(doc,id));
   doc["mqtt_port"]=8884; doc["credential_revision"]=0; assert(!enrollmentFields(doc,id));
+
+  const char *uid="FC-11111111111141118111111111111111-G1";
+  const std::string hash(64, 'a');
+  char receipt[192], next[192];
+  assert(localConfirmationKey(receipt, sizeof(receipt), uid, hash.c_str(), 1));
+  assert(std::strcmp(receipt, hash.c_str()) != 0); // Hash-only підтвердження потребує нової місцевої перевірки.
+  assert(localConfirmationKey(next, sizeof(next), uid, hash.c_str(), 1));
+  assert(std::strcmp(receipt, next) == 0); // Reboot з тим самим ключем зберігає підтвердження.
+  assert(localConfirmationKey(next, sizeof(next), uid, hash.c_str(), 2));
+  assert(std::strcmp(receipt, next) != 0); // Та сама конфігурація після rotation вже не підтверджена.
+  assert(localConfirmationKey(next, sizeof(next), "FC-11111111111141118111111111111111-G2", hash.c_str(), 1));
+  assert(std::strcmp(receipt, next) != 0);
+  const std::string changedHash(64, 'b');
+  assert(localConfirmationKey(next, sizeof(next), uid, changedHash.c_str(), 1));
+  assert(std::strcmp(receipt, next) != 0);
+  assert(!localConfirmationKey(next, sizeof(next), uid, hash.c_str(), 0) && !*next);
+  assert(!localConfirmationKey(next, sizeof(next), uid, "", 1) && !*next);
+  assert(!localConfirmationKey(next, 4, uid, hash.c_str(), 1) && !*next);
+}
+
+void factoryServerGrant() {
+  JsonDocument doc;
+  doc["commissioned"] = true; doc["control_mode"] = "extended_test"; doc["control_revision"] = 4;
+  ServerControlGrant grant;
+  assert(grant.read(doc, false));
+  assert(!grant.permits(true, true, true)); // Reboot/cache never restores permission.
+  assert(grant.read(doc, true));
+  assert(!grant.permits(false, true, true)); // Claim alone never proves local hardware.
+  assert(!grant.permits(true, false, true));
+  assert(!grant.permits(true, true, false));
+  assert(grant.permits(true, true, true));
+  doc["control_revision"] = 3;
+  assert(!grant.read(doc, true) && !grant.permits(true, true, true));
+  doc["control_revision"] = 4; doc["control_mode"] = "bench_without_motor";
+  assert(!grant.read(doc, true)); // The same revision cannot silently change mode.
+  doc["control_revision"] = 5;
+  assert(grant.read(doc, true) && grant.permits(true, true, false));
+  Fixture bench;
+  bench.controller.tick(true, grant.permits(true, true, false), SessionMode::Bench);
+  assert(bench.controller.isArmed() && bench.controller.sessionMode() == SessionMode::Bench);
+  assert(bench.bus.writes.empty()); // Permission never issues RUN.
+  bench.receive(bench.command(1)); bench.controller.tick(true, true, SessionMode::Bench);
+  assert(bench.controller.journal().motionPossible);
+  bench.clock.ms += AutoStopMs + 1; bench.controller.tick(true, true, SessionMode::Bench);
+  bench.clock.ms += 1001; bench.controller.tick(true, true, SessionMode::Bench);
+  assert(!bench.controller.journal().motionPossible);
+  doc["commissioned"] = false; doc["control_mode"] = "read_only"; doc["control_revision"] = 6;
+  assert(grant.read(doc, true) && !grant.permits(true, true, true));
+  doc["control_revision"] = 7; doc["control_mode"] = "extended_test";
+  assert(!grant.read(doc, true)); // Non-commissioned images cannot request full mode.
+  doc["commissioned"] = true; doc["control_mode"] = "read_only";
+  assert(grant.read(doc, true) && !grant.permits(true, true, true));
+  for (const char *invalid : {"remote", "", "EXTENDED_TEST"}) {
+    doc["control_mode"] = invalid; assert(!grant.read(doc, true));
+  }
+  doc["control_mode"] = "extended_test"; doc["control_revision"] = -1; assert(!grant.read(doc, true));
+  doc["control_revision"] = uint64_t(2147483648); assert(!grant.read(doc, true));
+  doc["control_revision"] = 8; doc["commissioned"] = "true"; assert(!grant.read(doc, true));
+  doc["commissioned"] = true; doc.remove("control_revision"); assert(!grant.read(doc, true));
+  ServerControlGrant initial;
+  doc["control_revision"] = 0; assert(!initial.read(doc, true));
+  doc["commissioned"] = false; doc["control_mode"] = "read_only";
+  assert(initial.read(doc, true) && !initial.permits(true, true, true));
 }

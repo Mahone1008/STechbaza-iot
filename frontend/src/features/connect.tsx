@@ -6,26 +6,24 @@ import { useAccountAction } from "./use-account-action";
 import type { Route } from "next";
 import Link from "next/link";
 import { useState, type FormEvent } from "react";
-import { Button, Card, PageHeader, SelectField, TextField } from "@/components/ui";
+import { useQueryClient } from "@tanstack/react-query";
+import { Button, Card, PageHeader, SelectField, StatusBadge, TextField } from "@/components/ui";
 import { useAuthSession } from "./auth-session";
 import { usePanelQuery } from "./use-panel-query";
 import { apiErrorDisplayMessage, type components } from "@/lib/api";
-import { parseConnection } from "@/lib/api/onboarding";
+import { parseConnection, type Connection } from "@/lib/api/onboarding";
 import { isRecord, requiredString, requiredUuid, invalidResponse } from "@/lib/api/access";
+import "./connect.css";
 
 type Schema = components["schemas"];
-type Connection = Schema["ConnectionRead"];
 
 export function ConnectionEntry() {
   const [id, setId] = useState("");
   const valid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
   return (
     <main className="connect-page">
-      <PageHeader
-        title="Додати контролер"
-        description="Відскануйте QR на корпусі камерою телефона. Він відкриє сторінку саме вашого контролера."
-      />
-      <Card title="Маєте посилання або номер QR?">
+      <PageHeader title="Додати контролер" description="Відскануйте QR на корпусі контролера камерою телефона." />
+      <Card title="Маєте посилання з QR?">
         <TextField
           label="Посилання або ідентифікатор QR"
           value={id}
@@ -37,10 +35,10 @@ export function ConnectionEntry() {
         />
         {valid && (
           <Link className="button button-primary" href={`/connect/${id}` as Route}>
-            Продовжити підключення
+            Продовжити
           </Link>
         )}
-        <p>Код активації вводиться окремо на наступному кроці. Пароль Wi-Fi вводиться лише локально в контролері.</p>
+        <p className="help-copy">Пароль із закритої картки знадобиться для активації.</p>
       </Card>
       <Link href="/devices">До пристроїв</Link>
     </main>
@@ -51,7 +49,7 @@ export function ConnectPage({ id }: { id: string }) {
   const { session } = useAuthSession();
   return (
     <main className="connect-page">
-      <PageHeader title="Підключення контролера" description="Ваш об’єкт, обладнання та перевірка зв’язку." />
+      <PageHeader title="Підключення контролера" description="Активуйте контролер і дочекайтеся його готовності." />
       {session.status === "anonymous" ? (
         <ControllerActivation id={id} />
       ) : (
@@ -59,148 +57,88 @@ export function ConnectPage({ id }: { id: string }) {
           <ConnectWizard id={id} />
         </AccountGate>
       )}
-      <div className="ui-row">
-        <Link href="/devices">До пристроїв</Link>
-        <Link href="/account/security">Безпека облікового запису</Link>
-      </div>
+      <Link href="/devices">До пристроїв</Link>
     </main>
   );
 }
 
 function ConnectWizard({ id }: { id: string }) {
   const { authorizedRequest, session } = useAuthSession();
+  const queryClient = useQueryClient();
   const { retryAccess } = useAccessContext();
-  const [connection, setConnection] = useState<Connection | null>(null);
   const [activation, setActivation] = useState("");
-  const [deviceName, setDeviceName] = useState("Контролер насоса");
+  const [deviceName, setDeviceName] = useState("");
   const [siteName, setSiteName] = useState("");
   const [timezone, setTimezone] = useState("Europe/Kyiv");
   const [siteId, setSiteId] = useState("");
   const [organizationId, setOrganizationId] = useState("");
-  const [organizationName, setOrganizationName] = useState("Моя організація");
-  const [selectedProfile, setSelectedProfile] = useState("");
-  const [model, setModel] = useState("");
-  const [revision, setRevision] = useState("");
-  const [confirmed, setConfirmed] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const [organizationName, setOrganizationName] = useState("");
   const key = session.status === "authenticated" ? [session.email, session.sessionExpiresAt] : null;
+  const connectionKey = ["connect", key, id];
   const query = usePanelQuery({
-    queryKey: ["connect", key, id],
-    intervalMs: 0,
+    queryKey: connectionKey,
+    intervalMs: 5000,
     queryFn: async (signal) =>
-      parseConnection(
-        await authorizedRequest<unknown>({
-          path: `/api/v1/connect/${id}`,
-          signal,
-        }),
-        id,
-      ),
+      parseConnection(await authorizedRequest<unknown>({ path: `/api/v1/connect/${id}`, signal }), id),
   });
+  const data = query.data;
+  const claiming = data?.state === "ready" && !data.permanent_login;
   const sites = usePanelQuery({
     queryKey: ["connect-sites", key],
+    enabled: claiming,
     intervalMs: 0,
     queryFn: async (signal) => {
-      const raw = await authorizedRequest<unknown>({
-        path: "/api/v1/connect/sites",
-        signal,
-      });
+      const raw = await authorizedRequest<unknown>({ path: "/api/v1/connect/sites", signal });
       if (!Array.isArray(raw)) return invalidResponse("connect-sites", "sites");
       return raw.map((value) => {
         if (!isRecord(value)) return invalidResponse("connect-sites", "site");
-        return {
-          id: requiredUuid(value, "id", "sites"),
-          name: requiredString(value, "name", "sites"),
-        };
+        return { id: requiredUuid(value, "id", "sites"), name: requiredString(value, "name", "sites") };
       });
     },
   });
-  const profiles = usePanelQuery({
-    queryKey: ["connect-profiles", key],
-    intervalMs: 0,
-    queryFn: (signal) =>
-      authorizedRequest<Schema["ProfileRead"][]>({
-        path: "/api/v1/equipment/profiles",
-        signal,
-      }),
-  });
   const organizations = usePanelQuery({
     queryKey: ["connect-organizations", key],
+    enabled: claiming,
     intervalMs: 0,
     queryFn: (signal) =>
-      authorizedRequest<Schema["OrganizationRead"][]>({
-        path: "/api/v1/connect/organizations",
-        signal,
-      }),
+      authorizedRequest<Schema["OrganizationRead"][]>({ path: "/api/v1/connect/organizations", signal }),
   });
-  const data = connection ?? query.data;
-  const selectableProfiles = profiles.data?.filter((item) => item.manufacturer.trim().toUpperCase() === "SUSWE");
-  const profile = selectableProfiles?.find((item) => `${item.id}:${item.version}` === selectedProfile);
   const { busy, error, run: mutate } = useAccountAction();
   const submitClaim = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     void mutate(async () => {
-      const result = await authorizedRequest<Connection>({
+      const result = await authorizedRequest<unknown>({
         path: `/api/v1/connect/${id}/claim`,
         method: "POST",
         body: {
           ...(data?.activation_required === false ? {} : { activation_code: activation }),
-          device_name: deviceName,
+          device_name: deviceName.trim() || data?.hardware_model || "Контролер",
           ...(siteId
             ? { site_id: siteId }
             : {
                 new_site: {
-                  name: siteName,
+                  name: siteName.trim(),
                   timezone,
-                  ...(organizationId ? { organization_id: organizationId } : { organization_name: organizationName }),
+                  ...(organizationId === "new"
+                    ? { organization_name: organizationName.trim() }
+                    : organizationId
+                      ? { organization_id: organizationId }
+                      : {}),
                 },
               }),
         },
       });
-      setConnection(parseConnection(result, id));
+      queryClient.setQueryData(connectionKey, parseConnection(result, id));
       setActivation("");
       retryAccess();
     });
   };
 
-  const checkConnection = () =>
-    void mutate(async () => {
-      setConnection(
-        parseConnection(
-          await authorizedRequest<unknown>({
-            path: `/api/v1/connect/${id}`,
-          }),
-          id,
-        ),
-      );
-    });
-
-  const submitEquipment = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!profile) return;
-    void mutate(async () => {
-      await authorizedRequest({
-        path: `/api/v1/connect/${id}/equipment`,
-        method: "PUT",
-        body: {
-          profile_id: profile.id,
-          profile_version: profile.version,
-          model,
-          hardware_revision: revision || null,
-          nameplate_confirmed: confirmed,
-        },
-      });
-      setSaved(true);
-    });
-  };
-
   if (query.isError)
     return (
-      <Card title="Контролер недоступний">
+      <Card title="Не вдалося перевірити контролер">
         <p role="alert">{apiErrorDisplayMessage(query.error)}</p>
-        <p>
-          Перевірте QR та обліковий запис. Якщо пристрій уже належить іншому власнику, попередній власник має виконати
-          передачу у вкладці «Обладнання».
-        </p>
+        <p>Перевірте QR та свій обліковий запис. Для передачі від іншого власника потрібна нова картка активації.</p>
         <Button onClick={query.refresh}>Повторити</Button>
       </Card>
     );
@@ -208,10 +146,7 @@ function ConnectWizard({ id }: { id: string }) {
   if (data.permanent_login)
     return (
       <Card title="Створіть особистий обліковий запис">
-        <p>
-          Заводські дані підтверджено. Збережіть особистий доступ із вашою поштою та паролем, щоб додавати кілька
-          контролерів до одного кабінету.
-        </p>
+        <p>Використовуйте власну пошту й пароль. У цьому кабінеті можна додати всі ваші контролери.</p>
         <Link className="button button-primary" href={`/register?controller=${id}` as Route}>
           Створити обліковий запис
         </Link>
@@ -219,79 +154,9 @@ function ConnectWizard({ id }: { id: string }) {
     );
   return (
     <>
-      <Card title={data.hardware_model} description={`Серійний номер: ${data.serial_number}`}>
-        {data.state === "ready" ? (
+      {data.state === "ready" ? (
+        <Card title={data.hardware_model} description={`Серійний номер: ${data.serial_number}`}>
           <form onSubmit={submitClaim}>
-            <h2>1. Створіть об’єкт</h2>
-            <p>Об’єктом може бути свердловина, насосна станція або інше місце встановлення обладнання.</p>
-            <SelectField
-              label="Куди додати контролер"
-              value={siteId}
-              onChange={(event) => setSiteId(event.target.value)}
-            >
-              <option value="">Створити новий об’єкт</option>
-              {sites.data?.map((site) => (
-                <option key={site.id} value={site.id}>
-                  {site.name}
-                </option>
-              ))}
-            </SelectField>
-            {sites.isError && (
-              <p role="status">Наявні об’єкти не завантажено. Можна створити новий або повторити завантаження.</p>
-            )}
-            {!siteId && (
-              <>
-                <SelectField
-                  label="Організація для нового об’єкта"
-                  value={organizationId}
-                  onChange={(event) => setOrganizationId(event.target.value)}
-                >
-                  <option value="">Створити нову організацію</option>
-                  {organizations.data?.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.name}
-                    </option>
-                  ))}
-                </SelectField>
-                {!organizationId && (
-                  <TextField
-                    label="Назва організації"
-                    required
-                    minLength={2}
-                    maxLength={160}
-                    value={organizationName}
-                    onChange={(event) => setOrganizationName(event.target.value)}
-                  />
-                )}
-                {organizations.isError && (
-                  <p role="status">Наявні організації не завантажено. Можна створити нову або повторити підключення.</p>
-                )}
-                <TextField
-                  required
-                  minLength={2}
-                  maxLength={160}
-                  label="Назва об’єкта"
-                  value={siteName}
-                  placeholder="Свердловина біля будинку"
-                  onChange={(event) => setSiteName(event.target.value)}
-                />
-                <TextField
-                  required
-                  label="Часовий пояс"
-                  value={timezone}
-                  hint="Наприклад Europe/Kyiv. За ним працюватимуть розклади."
-                  onChange={(event) => setTimezone(event.target.value)}
-                />
-              </>
-            )}
-            <TextField
-              required
-              minLength={2}
-              maxLength={160}
-              label="Назва контролера"
-              value={deviceName}
-              onChange={(event) => setDeviceName(event.target.value)}
-            />
             {data.activation_required !== false && (
               <TextField
                 required
@@ -299,121 +164,260 @@ function ConnectWizard({ id }: { id: string }) {
                 autoComplete="off"
                 minLength={32}
                 maxLength={100}
-                label="Пароль активації з етикетки"
+                label="Пароль активації з картки"
                 value={activation}
                 onChange={(event) => setActivation(event.target.value.trim())}
-                hint="Пароль із комплекту підтверджує право додати контролер. Сам QR цього права не дає."
               />
             )}
-            <Button variant="primary" type="submit" disabled={busy}>
-              {busy ? "Прив’язуємо…" : "Підключити до об’єкта"}
-            </Button>
-          </form>
-        ) : (
-          <>
-            <p role="status">Контролер прив’язано до вашого об’єкта. Повторна активація не потрібна.</p>
-            <Link className="button button-secondary" href={`/devices/${data.device_id}` as Route}>
-              Відкрити пристрій
-            </Link>
-          </>
-        )}
-      </Card>
-      {data.state === "claimed" && (
-        <>
-          <Card title="2. Вкажіть частотний перетворювач">
-            <form onSubmit={submitEquipment}>
+            {!!sites.data?.length && (
               <SelectField
-                required
-                label="Серія частотника SUSWE"
-                value={selectedProfile}
-                onChange={(event) => {
-                  setSelectedProfile(event.target.value);
-                  setConfirmed(false);
-                  setSaved(false);
-                }}
+                label="Куди додати контролер"
+                value={siteId}
+                onChange={(event) => setSiteId(event.target.value)}
               >
-                <option value="">Оберіть за шильдиком</option>
-                {selectableProfiles?.map((item) => (
-                  <option key={`${item.id}:${item.version}`} value={`${item.id}:${item.version}`}>
-                    {item.series}
+                <option value="">Новий об’єкт</option>
+                {sites.data.map((site) => (
+                  <option key={site.id} value={site.id}>
+                    {site.name}
                   </option>
                 ))}
               </SelectField>
-              {profiles.isError && <p role="alert">{apiErrorDisplayMessage(profiles.error)}</p>}
+            )}
+            {sites.isError && (
+              <p role="status">Не вдалося завантажити ваші об’єкти. Повторіть завантаження або створіть новий.</p>
+            )}
+            {sites.isError && <Button onClick={sites.refresh}>Завантажити об’єкти</Button>}
+            {!siteId && (
               <TextField
                 required
-                label="Повна модель зі шильдика"
-                value={model}
-                maxLength={120}
-                onChange={(event) => {
-                  setModel(event.target.value);
-                  setConfirmed(false);
-                  setSaved(false);
-                }}
+                minLength={2}
+                maxLength={160}
+                label="Назва об’єкта"
+                value={siteName}
+                placeholder="Наприклад, свердловина біля будинку"
+                hint="Місце, де встановлено контролер."
+                onChange={(event) => setSiteName(event.target.value)}
               />
-              <TextField
-                label="Версія обладнання, якщо зазначено"
-                value={revision}
-                maxLength={80}
-                onChange={(event) => setRevision(event.target.value)}
-              />
-              <label className="ui-row">
-                <input
-                  type="checkbox"
-                  required
-                  checked={confirmed}
-                  onChange={(event) => setConfirmed(event.target.checked)}
+            )}
+            <details>
+              <summary>Назва пристрою та інші параметри</summary>
+              <div className="connect-fields">
+                <TextField
+                  minLength={2}
+                  maxLength={160}
+                  label="Назва контролера"
+                  value={deviceName}
+                  placeholder={data.hardware_model}
+                  onChange={(event) => setDeviceName(event.target.value)}
                 />
-                Модель перевірено за шильдиком обладнання
-              </label>
-              {profile && (
-                <p className="notice notice-warning">
-                  {profile.tested_model === model && profile.driver_id
-                    ? "Перед керуванням потрібні перевірка зв’язку, меж установки й підтвердження конфігурації контролером."
-                    : "Паспорт можна зберегти. Керування цією моделлю поки недоступне: потрібен перевірений сумісний драйвер."}
-                </p>
-              )}
-              <Button type="submit" variant="primary" disabled={busy || !profile || !confirmed || saved}>
-                Зберегти обладнання
-              </Button>
-              {saved && (
-                <p role="status">
-                  Паспорт збережено. Керування не ввімкнено автоматично. Стан узгодження доступний у вкладці
-                  «Обладнання».
-                  <Link className="button button-primary" href={`/devices/${data.device_id}?view=equipment` as Route}>
-                    Налаштувати й перевірити обладнання
-                  </Link>
-                </p>
-              )}
-            </form>
-          </Card>
-        </>
+                {!siteId && (
+                  <>
+                    <SelectField
+                      label="Організація для нового об’єкта"
+                      value={organizationId}
+                      onChange={(event) => setOrganizationId(event.target.value)}
+                    >
+                      <option value="">Мій особистий кабінет</option>
+                      <option value="new">Нова організація</option>
+                      {organizations.data?.map((item) => (
+                        <option key={item.id} value={item.id}>
+                          {item.name}
+                        </option>
+                      ))}
+                    </SelectField>
+                    {organizationId === "new" && (
+                      <TextField
+                        label="Назва організації"
+                        required
+                        minLength={2}
+                        maxLength={160}
+                        value={organizationName}
+                        onChange={(event) => setOrganizationName(event.target.value)}
+                      />
+                    )}
+                    {organizations.isError && (
+                      <>
+                        <p role="status">Не вдалося завантажити організації.</p>
+                        <Button onClick={organizations.refresh}>Завантажити організації</Button>
+                      </>
+                    )}
+                    <TextField
+                      label="Часовий пояс"
+                      value={timezone}
+                      hint="За ним працюватимуть розклади."
+                      onChange={(event) => setTimezone(event.target.value)}
+                    />
+                  </>
+                )}
+              </div>
+            </details>
+            <Button variant="primary" type="submit" disabled={busy}>
+              {busy ? "Активуємо…" : "Активувати контролер"}
+            </Button>
+          </form>
+        </Card>
+      ) : (
+        <ConnectionProgress connection={data} available={query.active} />
       )}
       {error && (
         <p className="notice notice-warning" role="alert">
           {error}
         </p>
       )}
-      <Card title="3. Підключіть до мережі">
-        <p>
-          Зупиніть двигун. Утримуйте BOOT на контролері 3 секунди та підключіться телефоном до його Wi-Fi. Назва мережі
-          й окремий пароль зазначені в комплекті.
-        </p>
-        <p>
-          Відкрийте <strong>http://192.168.4.1</strong> у браузері телефона. Локальна мережа закривається через 10
-          хвилин. Пароль домашнього Wi-Fi зберігається тільки в контролері.
-        </p>
-        <p>
-          Стан зв’язку:{" "}
-          {data.last_contact_at
-            ? `останнє повідомлення ${new Date(data.last_contact_at).toLocaleString("uk-UA")}`
-            : "контролер ще не підтвердив підключення"}
-          .
-        </p>
-        <Button disabled={query.isFetching || busy} onClick={checkConnection}>
-          Перевірити підключення
-        </Button>
-      </Card>
     </>
+  );
+}
+
+function ConnectionProgress({ connection, available }: { connection: Connection; available: boolean }) {
+  const readiness = connection.readiness;
+  const ready = available && readiness.state === "ready";
+  const live = available && connection.connection_state === "online";
+  const equipmentChecked = readiness.state === "ready" || readiness.state === "needs_commissioning";
+  return (
+    <Card title={connection.hardware_model} description={`Серійний номер: ${connection.serial_number}`}>
+      <div className="connect-fields" aria-live="polite">
+        <StatusBadge tone={ready ? "success" : !available || readiness.state === "blocked" ? "warning" : "info"}>
+          {available ? readiness.title : "Зв’язок із сайтом перервано"}
+        </StatusBadge>
+        <p>Контролер прив’язано до вашого об’єкта. Повторна активація не потрібна.</p>
+        <ol className="connection-progress" aria-label="Готовність контролера">
+          <li data-complete="true">
+            <span className="connection-step-marker" aria-hidden="true">
+              ✓
+            </span>
+            <span>
+              Ваш об’єкт<small>Контролер активовано</small>
+            </span>
+          </li>
+          <li data-complete={live}>
+            <span className="connection-step-marker" aria-hidden="true">
+              {live ? "✓" : "2"}
+            </span>
+            <span>
+              Зв’язок із контролером
+              <small>
+                {!available
+                  ? "Не можемо перевірити зв’язок"
+                  : live
+                    ? "Отримуємо свіжі показання"
+                    : connection.connection_state === "bootstrap_connected"
+                      ? "Плата підключилася. Очікуємо показання"
+                      : "Очікуємо підключення"}
+              </small>
+            </span>
+          </li>
+          <li data-complete={equipmentChecked}>
+            <span className="connection-step-marker" aria-hidden="true">
+              {equipmentChecked ? "✓" : "3"}
+            </span>
+            <span>
+              Перевірка установки<small>{equipmentChecked ? "Обладнання підтверджено" : "Завершує монтажник"}</small>
+            </span>
+          </li>
+          <li data-complete={ready}>
+            <span className="connection-step-marker" aria-hidden="true">
+              {ready ? "✓" : "4"}
+            </span>
+            <span>
+              Готовність до використання<small>{ready ? "Перевірки завершено" : "Очікуємо підтвердження"}</small>
+            </span>
+          </li>
+        </ol>
+        {available ? (
+          readiness.next_action && <p>{readiness.next_action}</p>
+        ) : (
+          <p>Перевірте інтернет на телефоні або комп’ютері.</p>
+        )}
+        {!ready && connection.network_transport === "lte" && readiness.state === "awaiting_controller" && (
+          <p>Увімкніть контролер і модем із підготовленою SIM-карткою. Зв’язок через 4G з’явиться автоматично.</p>
+        )}
+        {readiness.blockers.length > 0 && (
+          <details>
+            <summary>Що ще потрібно</summary>
+            <ul>
+              {readiness.blockers.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </details>
+        )}
+        {connection.device_id && (
+          <div className="ui-row">
+            <Link
+              className={`button button-${ready ? "primary" : "secondary"}`}
+              href={`/devices/${connection.device_id}` as Route}
+            >
+              Відкрити пристрій
+            </Link>
+            {connection.can_install && (
+              <Link
+                className="button button-secondary"
+                href={`/devices/${connection.device_id}?view=equipment` as Route}
+              >
+                Монтаж і перевірка
+              </Link>
+            )}
+          </div>
+        )}
+        {!ready &&
+          !connection.can_install &&
+          ["needs_equipment", "needs_local_confirmation", "needs_commissioning", "blocked"].includes(
+            readiness.state,
+          ) && <p className="help-copy">Налаштування виконує виробник або монтажник. Вашу активацію вже збережено.</p>}
+        {available &&
+          !ready &&
+          !connection.can_install &&
+          connection.can_invite_installer &&
+          connection.organization_id &&
+          connection.site_id && <InstallerInvitation controllerId={connection.controller_id} />}
+        <p className="help-copy">
+          {available ? "Стан оновлюється автоматично." : "Оновимо стан після відновлення зв’язку."}
+        </p>
+      </div>
+    </Card>
+  );
+}
+
+function InstallerInvitation({ controllerId }: { controllerId: string }) {
+  const { authorizedRequest } = useAuthSession();
+  const [email, setEmail] = useState("");
+  const [sent, setSent] = useState(false);
+  const { busy, error, run } = useAccountAction();
+  const invite = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    void run(async () => {
+      await authorizedRequest({
+        path: `/api/v1/connect/${controllerId}/installer-invitations`,
+        method: "POST",
+        csrf: true,
+        body: {
+          email: email.trim(),
+          expires_in_days: 7,
+        },
+      });
+      setEmail("");
+      setSent(true);
+    });
+  };
+  return (
+    <details>
+      <summary>Запросити монтажника</summary>
+      <form onSubmit={invite}>
+        <p>Вкажіть пошту зареєстрованого сервісного фахівця. Він отримає доступ лише до цього об’єкта на 7 днів.</p>
+        <TextField
+          label="Пошта монтажника"
+          type="email"
+          required
+          maxLength={320}
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+        />
+        <Button type="submit" disabled={busy}>
+          {busy ? "Надсилаємо…" : "Надіслати запрошення"}
+        </Button>
+        {sent && <p role="status">Запрошення надіслано. Монтажник має прийняти його протягом трьох днів.</p>}
+        {error && <p role="alert">{error}</p>}
+      </form>
+    </details>
   );
 }

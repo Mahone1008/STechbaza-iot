@@ -7,9 +7,32 @@ import type { ReadyAccessSnapshot } from "./access-context";
 import { useAuthSession } from "./auth-session";
 import { usePanelQuery } from "./use-panel-query";
 import { useAccountAction } from "./use-account-action";
+import { InstallerWorkspace } from "./installer-workspace";
 
 type Schema = components["schemas"];
 export function EquipmentActions({
+  context,
+  passport,
+  onSaved,
+}: {
+  context: ReadyAccessSnapshot;
+  passport: EquipmentPassport;
+  onSaved: () => void;
+}) {
+  const canInstall =
+    process.env.NEXT_PUBLIC_PORTAL_MODE === "staff" &&
+    ["superadmin", "service_admin"].includes(context.profile.platform_role) &&
+    passport.can_install === true &&
+    context.activeDevice?.lifecycle_status !== "retired";
+  if (!canInstall) return null;
+  return (
+    <InstallerWorkspace context={context} passport={passport} onSaved={onSaved}>
+      <EquipmentInstallationActions context={context} passport={passport} onSaved={onSaved} />
+    </InstallerWorkspace>
+  );
+}
+
+function EquipmentInstallationActions({
   context,
   passport,
   onSaved,
@@ -41,12 +64,7 @@ export function EquipmentActions({
     queryFn: (signal) => authorizedRequest<Schema["ProfileRead"][]>({ path: "/api/v1/equipment/profiles", signal }),
   });
   const installedModule = passport.modules.find((item) => item.kind === "vfd" && !item.retired_at);
-  if (
-    !context.access.permissions.includes("capability.manage") ||
-    !installedModule ||
-    context.activeDevice?.lifecycle_status === "retired"
-  )
-    return null;
+  if (!installedModule || context.activeDevice?.lifecycle_status === "retired") return null;
   const selectableProfiles = profiles.data?.filter((item) => item.manufacturer.toUpperCase() === "SUSWE");
   const matching = selectableProfiles?.find(
     (item) =>
@@ -55,14 +73,33 @@ export function EquipmentActions({
       item.series === installedModule.series &&
       item.tested_model?.toLowerCase() === installedModule.model.toLowerCase(),
   );
-  const selectedProfileId = profileId ?? (mode === "configure" ? (matching?.id ?? "") : "");
+  const selectedProfileId = mode === "configure" ? (matching?.id ?? "") : (profileId ?? "");
   const profile = selectableProfiles?.find((item) => item.id === selectedProfileId);
   const supported = profile?.driver_id && profile.tested_model?.toLowerCase() === installedModule.model.toLowerCase();
   const base = `/api/v1/devices/${passport.device_id}/equipment`;
+  const fullControlAvailable = passport.firmware_control_capability === "full" && !!installedModule.motor;
+  const benchControlAvailable = ["bench", "full"].includes(passport.firmware_control_capability);
+  const awaitingConfirmation = !!passport.desired && passport.configuration_state !== "verified";
   const changed =
     !!review &&
     (review.moduleId !== installedModule.id || review.revision !== (passport.desired?.manifest.revision ?? 0));
   const selectMode = (next: typeof mode) => {
+    if (next === "commission") {
+      const previous = passport.commissioned_control_mode;
+      const previousAvailable =
+        previous === "read_only" ||
+        (previous === "extended_test" && fullControlAvailable) ||
+        (previous === "bench_without_motor" && benchControlAvailable);
+      setControlMode(
+        previousAvailable
+          ? previous!
+          : fullControlAvailable
+            ? "extended_test"
+            : benchControlAvailable
+              ? "bench_without_motor"
+              : "read_only",
+      );
+    }
     setMode(next);
     setConfirmed(false);
     setNotice("");
@@ -119,7 +156,7 @@ export function EquipmentActions({
           },
         });
         setNotice(
-          "Конфігурацію збережено. Контролер завантажить її протягом 30 секунд після зупинки. Підтвердьте обладнання локально та оновіть паспорт.",
+          "Межі збережено. Дочекайтеся доставки до контролера, підтвердьте обладнання біля установки та оновіть паспорт.",
         );
       } else if (mode === "commission" && passport.desired) {
         await authorizedRequest({
@@ -132,7 +169,7 @@ export function EquipmentActions({
           },
         });
         setNotice(
-          "Налаштування завершено. Для керування потрібен окремий локальний ARM; двигун автоматично не запускається.",
+          "Дозвіл збережено. Контролер отримає його автоматично. Якщо пуск було заблоковано місцево, відновіть дозвіл біля установки. Двигун запуститься лише після окремої команди користувача.",
         );
       } else return;
       setMode(null);
@@ -141,17 +178,23 @@ export function EquipmentActions({
   };
   return (
     <section className="equipment-actions" aria-label="Налаштування обладнання">
-      <h3>Налаштування та обслуговування</h3>
-      <p className="help-copy">
-        Налаштуйте підключення, дочекайтеся підтвердження контролера та завершіть перевірку обладнання.
-      </p>
       <div className="ui-row">
         <Button
           variant="primary"
           disabled={busy}
-          onClick={() => selectMode(passport.configuration_state === "verified" ? "commission" : "configure")}
+          onClick={() =>
+            awaitingConfirmation
+              ? onSaved()
+              : selectMode(passport.configuration_state === "verified" ? "commission" : "configure")
+          }
         >
-          {passport.configuration_state === "verified" ? "Завершити підключення" : "Налаштувати підключення"}
+          {awaitingConfirmation
+            ? "Перевірити готовність"
+            : passport.configuration_state === "verified"
+              ? passport.commissioned_control_mode
+                ? "Змінити дозвіл використання"
+                : "Дозволити використання"
+              : "Налаштувати робочі межі"}
         </Button>
       </div>
       <details className="equipment-secondary">
@@ -183,17 +226,40 @@ export function EquipmentActions({
             {mode === "replace"
               ? "Заміна частотного перетворювача"
               : mode === "configure"
-                ? "Підключення та межі установки"
+                ? "Робочі межі установки"
                 : "Перевірка перед використанням"}
           </h4>
           <p className="help-copy">
             Зупиніть двигун, заблокуйте пуск на контролері (DISARM), призупиніть розклади та дочекайтеся завершення
             команд.
           </p>
+          {(mode === "replace" ||
+            (passport.desired && (mode === "configure" || passport.commissioned_control_mode != null))) && (
+            <details className="equipment-secondary">
+              <summary>Як заблокувати пуск без USB</summary>
+              <ol>
+                <li>Зупиніть двигун, вимкніть розклади та дочекайтеся завершення команд.</li>
+                <li>Утримуйте BOOT 3 секунди, підключіть телефон до мережі контролера та відкрийте 192.168.4.1.</li>
+                <li>
+                  Натисніть «Завершити налаштування», не натискаючи «Дозволити керування після перевірки». Місцеве
+                  блокування пуску залишиться.
+                </li>
+                <li>
+                  Поверніться до інтернету та оновіть паспорт. Після свіжого підтвердження зупинки збережіть зміни на
+                  цьому сайті.
+                </li>
+              </ol>
+              <p className="help-copy">
+                Після зміни конфігурації дочекайтеся доставки й повторно підтвердьте монтаж у кроці 3. Для відновлення
+                попереднього дозволу без зміни конфігурації використайте місцеву кнопку «Дозволити керування після
+                перевірки».
+              </p>
+            </details>
+          )}
           {changed && (
             <p role="alert">Паспорт змінився. Закрийте форму й відкрийте її знову, щоб перевірити актуальні дані.</p>
           )}
-          {mode !== "commission" && (
+          {mode === "replace" && (
             <>
               <SelectField
                 label="Серія частотника SUSWE"
@@ -292,7 +358,7 @@ export function EquipmentActions({
                 <strong>
                   {installedModule.manufacturer} {installedModule.model}
                 </strong>
-                . Виробник і серія обрані з паспорта, якщо для повної моделі є перевірений драйвер.
+                . Серія {installedModule.series}; підключення визначається за збереженим паспортом.
               </p>
               {!installedModule.motor && (
                 <TextField
@@ -328,18 +394,20 @@ export function EquipmentActions({
                   onChange={(event) => setMaxHz(event.target.value)}
                 />
               </div>
-              {profile && !supported && (
+              {profiles.isError && (
+                <p role="alert">
+                  Каталог не завантажено. <Button onClick={profiles.refresh}>Повторити</Button>
+                </p>
+              )}
+              {profiles.data && !supported && (
                 <p className="notice notice-warning">
-                  Обраний профіль не підтверджений для цієї повної моделі. Збереження конфігурації недоступне.
+                  Для повної моделі з паспорта немає перевіреного драйвера. Збереження конфігурації недоступне.
                 </p>
               )}
               <details className="equipment-secondary">
                 <summary>Як підтвердити підключення</summary>
                 <p>Перевірене підключення SU600: адреса 1, 9600, 8N1.</p>
-                <p>
-                  Після доставки відкрийте локальне налаштування кнопкою BOOT на 3 секунди та підтвердьте обладнання.
-                  Для legacy-прошивки потрібен експорт manifest за інструкцією.
-                </p>
+                <p>Порядок місцевого підтвердження наведено у кроці 3 вище.</p>
               </details>
             </>
           )}
@@ -354,12 +422,22 @@ export function EquipmentActions({
                 }}
               >
                 <option value="read_only">Спостереження без керування</option>
-                <option value="bench_without_motor">Стенд без двигуна · до 60 секунд</option>
-                <option value="extended_test">Випробування після перевірки захистів двигуна</option>
+                <option value="bench_without_motor" disabled={!benchControlAvailable}>
+                  Стенд без двигуна · до 60 секунд
+                </option>
+                <option value="extended_test" disabled={!fullControlAvailable}>
+                  Повне керування після перевірки установки
+                </option>
               </SelectField>
+              {!installedModule.motor && (
+                <p className="notice notice-warning">
+                  Для повного керування внесіть паспорт двигуна через «Змінити налаштування» і підтвердьте конфігурацію.
+                </p>
+              )}
               <p>
                 Профіль SU600 залишається стендовим. Для випробування з двигуном перевірте його паспорт, захисти та
-                незалежну зупинку за інструкцією.
+                незалежну зупинку за інструкцією. Режим повного керування використовує чинний дозвіл випробувань; він не
+                засвідчує промислову сертифікацію установки.
               </p>
             </>
           )}
@@ -384,7 +462,10 @@ export function EquipmentActions({
                 changed ||
                 !confirmed ||
                 (mode === "configure" && !supported) ||
-                (mode === "replace" && !profile)
+                (mode === "replace" && !profile) ||
+                (mode === "commission" &&
+                  ((controlMode === "extended_test" && !fullControlAvailable) ||
+                    (controlMode === "bench_without_motor" && !benchControlAvailable)))
               }
             >
               {busy ? "Зберігаємо…" : mode === "replace" ? "Підтвердити заміну" : "Зберегти налаштування"}

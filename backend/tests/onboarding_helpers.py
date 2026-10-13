@@ -5,8 +5,8 @@ from sqlalchemy import delete, select
 import test_comprehensive_postgres as base
 from auth_http_helpers import request
 from app.db import SessionLocal
-from app.models import AuthSession, Device, Organization, User
-from app.models.equipment import EquipmentModule
+from app.models import AuthSession, Device, Organization, User, ControllerCredential
+from app.models.equipment import EquipmentModule, EquipmentConfiguration
 from app.models.onboarding import FactoryAudit, FactoryController, PersonalWorkspace
 from app.security.tokens import utc_now
 
@@ -46,6 +46,12 @@ class OnboardingFixtures:
                 )
             )
             session.execute(
+                delete(ControllerCredential).where(ControllerCredential.controller_id.in_(self.controllers))
+            )
+            session.execute(
+                delete(EquipmentConfiguration).where(EquipmentConfiguration.device_id.in_(controller_devices))
+            )
+            session.execute(
                 delete(EquipmentModule).where(EquipmentModule.device_id.in_(controller_devices))
             )
             session.execute(
@@ -70,19 +76,21 @@ class OnboardingFixtures:
         self.assertEqual(code, expected, (path, result))
         return result
 
-    def factory(self):
+    def factory(self, **values):
+        payload = dict(
+            serial_number=f"TEST-{uuid.uuid4().hex}",
+            hardware_model="KERUMO V3",
+            hardware_revision="V3.1",
+            batch="integration-only",
+            test_reference="isolated test fixture",
+            factory_test_passed=True,
+        )
+        payload.update(values)
         result = self.call(
             "/api/v1/factory/controllers",
             method="POST",
             expected=201,
-            body=dict(
-                serial_number=f"TEST-{uuid.uuid4().hex}",
-                hardware_model="KERUMO V3",
-                hardware_revision="V3.1",
-                batch="integration-only",
-                test_reference="isolated test fixture",
-                factory_test_passed=True,
-            ),
+            body=payload,
         )
         self.controllers.append(uuid.UUID(result["controller"]["id"]))
         return result

@@ -3,6 +3,10 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
+from sqlalchemy import select
+from app.models.capability import Capability
+from app.models.onboarding import FactoryController
+from app.services.installation_readiness import require_installer
 
 from app.alarm_keys import ReservedAlarmRuleKeyError
 from app.db import get_db_session
@@ -35,6 +39,13 @@ CurrentUser = Annotated[
     CurrentUserContext,
     Depends(get_current_user_context),
 ]
+
+
+def protect_factory_control(session, device_id, capability_id):
+    if (session.scalar(select(FactoryController.id).where(FactoryController.device_id == device_id))
+            and session.scalar(select(Capability.code).where(Capability.id == capability_id))
+            in ("vfd.control", "vfd.program", "vfd.schedule")):
+        raise HTTPException(409, "Дозвіл керування і робочі межі змінюються лише через перевірку обладнання")
 
 
 @router.get("/capabilities", response_model=list[CapabilityRead])
@@ -125,10 +136,12 @@ def assign_capability(
     session: DbSession,
     current: CurrentUser,
 ) -> DeviceCapabilityRead:
-    AccessControl(session, current).require_device(
+    device = AccessControl(session, current).require_device(
         device_id,
         Permission.CAPABILITY_MANAGE,
     )
+    require_installer(session, current, device)
+    protect_factory_control(session, device_id, capability_id)
 
     try:
         item = CapabilityService(session).assign_to_device(
@@ -184,10 +197,17 @@ def update_device_capability(
 ) -> DeviceCapabilityRead:
     """Оновити enabled/config конкретного DeviceCapability assignment."""
 
-    AccessControl(session, current).require_device(
+    device = AccessControl(session, current).require_device(
         device_id,
         Permission.CAPABILITY_MANAGE,
     )
+    logical_rules_only = (payload.is_enabled is None and payload.config is not None
+        and set(payload.config) == {"alarm_rules"}
+        and session.scalar(select(Capability.code).where(Capability.id == capability_id))
+        not in ("vfd.control", "vfd.program", "vfd.schedule"))
+    if not logical_rules_only:
+        require_installer(session, current, device)
+    protect_factory_control(session, device_id, capability_id)
 
     try:
         item = CapabilityService(session).update_assignment(

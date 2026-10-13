@@ -8,14 +8,14 @@ CI звіряє його з tracked code. Це перелік реалізаці
 
 | Компонент | Значення з коду |
 |---|---|
-| Backend / OpenAPI / health | 0.53.0 |
-| Alembic head | `20261007_0029`; 29 міграцій |
+| Backend / OpenAPI / health | 0.55.1 |
+| Alembic head | `20261012_0031`; 31 міграцій |
 | Frontend package | 0.1.0 |
 | Node engine | `>=20.9.0` |
 | Package manager | `npm@10.9.2` |
 | Next.js / React | 16.3.8 / 19.2.8 |
-| Firmware V3 | 0.10.1 |
-| OpenAPI paths | 106 |
+| Firmware V3 | 0.12.1 |
+| OpenAPI paths | 109 |
 
 ## Канали телеметрії
 
@@ -118,6 +118,7 @@ ACK/Result лишаються v1. Дозвіл API не замінює лока�
 | `/api/v1/connect/{controller_id}/account-registration` | POST |
 | `/api/v1/connect/{controller_id}/claim` | POST |
 | `/api/v1/connect/{controller_id}/equipment` | PUT |
+| `/api/v1/connect/{controller_id}/installer-invitations` | POST |
 | `/api/v1/connect/{controller_id}/security` | POST |
 | `/api/v1/connect/{controller_id}/status` | GET |
 | `/api/v1/devices/{device_id}` | GET |
@@ -146,9 +147,11 @@ ACK/Result лишаються v1. Дозвіл API не замінює лока�
 | `/api/v1/events/{event_id}` | GET |
 | `/api/v1/factory/controllers` | GET, POST |
 | `/api/v1/factory/controllers/{controller_id}/audit` | GET |
+| `/api/v1/factory/controllers/{controller_id}/equipment` | PATCH |
 | `/api/v1/factory/controllers/{controller_id}/quarantine` | POST |
 | `/api/v1/factory/controllers/{controller_id}/reset` | POST |
 | `/api/v1/factory/controllers/{controller_id}/shipments` | POST |
+| `/api/v1/factory/controllers/{controller_id}/transport` | PATCH |
 | `/api/v1/invitations/accept` | POST |
 | `/api/v1/invitations/inspect` | POST |
 | `/api/v1/invitations/register` | POST |

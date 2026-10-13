@@ -67,6 +67,7 @@ services:
       AUTH_SESSION_IP_LIMIT: ${AUTH_SESSION_IP_LIMIT:-120}
       MAIL_DELIVERY_MODE: ${MAIL_DELIVERY_MODE:-disabled}
       MAIL_PUBLIC_URL: ${MAIL_PUBLIC_URL:-http://127.0.0.1:3000}
+      STAFF_PUBLIC_URL: ${STAFF_PUBLIC_URL:-http://127.0.0.1:3001}
       MAIL_LOCAL_DIRECTORY: /private/mail
       MAIL_FROM: ${MAIL_FROM:-KERUMO <access@kerumo.example.com>}
       SMTP_HOST: ${SMTP_HOST:-}

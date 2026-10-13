@@ -1,7 +1,54 @@
 #pragma once
 #include "equipment.h"
+#include <cstdio>
 
 namespace kerumo {
+// Receipt належить конкретному обладнанню й ключу; старий hash-only кеш не є підтвердженням.
+inline bool localConfirmationKey(char *out, size_t size, const char *uid,
+                                 const char *hash, uint32_t credentialRevision) {
+  if (!out || !size) return false;
+  out[0] = 0;
+  if (!uid || !*uid || std::strlen(uid) > 96 || !validHash(hash) || !credentialRevision) return false;
+  const int length = std::snprintf(out, size, "v1:%s:%lu:%s", uid,
+                                   static_cast<unsigned long>(credentialRevision), hash);
+  if (length < 0 || static_cast<size_t>(length) >= size) { out[0] = 0; return false; }
+  return true;
+}
+enum class ControlGrantMode : uint8_t { ReadOnly, Bench, Extended };
+inline const char *controlGrantModeCode(ControlGrantMode mode) {
+  return mode == ControlGrantMode::Extended ? "extended_test" :
+      mode == ControlGrantMode::Bench ? "bench_without_motor" : "read_only";
+}
+struct ServerControlGrant {
+  uint32_t revision{};
+  ControlGrantMode mode{ControlGrantMode::ReadOnly};
+  bool commissioned{}, current{};
+  // A cached response is only an anti-rollback watermark, never permission.
+  bool read(JsonDocument &doc, bool live) {
+    current = false;
+    if (!doc["commissioned"].is<bool>() || !doc["control_revision"].is<uint32_t>()) return false;
+    const uint32_t nextRevision = doc["control_revision"].as<uint32_t>();
+    if (nextRevision > 2147483647U || nextRevision < revision) return false;
+    const char *code = doc["control_mode"] | "";
+    ControlGrantMode nextMode;
+    if (std::strcmp(code, "read_only") == 0) nextMode = ControlGrantMode::ReadOnly;
+    else if (std::strcmp(code, "bench_without_motor") == 0) nextMode = ControlGrantMode::Bench;
+    else if (std::strcmp(code, "extended_test") == 0) nextMode = ControlGrantMode::Extended;
+    else return false;
+    const bool nextCommissioned = doc["commissioned"].as<bool>();
+    if (nextCommissioned && !nextRevision) return false;
+    if (!nextCommissioned && nextMode != ControlGrantMode::ReadOnly) return false;
+    if (known_ && nextRevision == revision && (mode != nextMode || commissioned != nextCommissioned)) return false;
+    revision = nextRevision; mode = nextMode; commissioned = nextCommissioned; known_ = true; current = live;
+    return true;
+  }
+  bool permits(bool bound, bool controlCapable, bool extendedCapable) const {
+    return current && commissioned && bound && controlCapable &&
+        (mode == ControlGrantMode::Bench || (mode == ControlGrantMode::Extended && extendedCapable));
+  }
+private:
+  bool known_{};
+};
 inline uint32_t factoryGeneration(const char *uid, const char *controllerId) {
   if (!uid || !validUuid(controllerId) || std::strncmp(uid, "FC-", 3) != 0) return false;
   size_t offset = 3;
@@ -31,5 +78,17 @@ inline bool enrollmentFields(JsonDocument &doc, const char *controllerId) {
     if (!( (*cursor>='a' && *cursor<='z') || (*cursor>='A' && *cursor<='Z') ||
            (*cursor>='0' && *cursor<='9') || *cursor=='.' || *cursor=='-')) return false;
   return true;
+}
+
+// A server response cannot rewind an ownership generation or the credential
+// revision of the current owner. An empty cache still requires a valid factory UID.
+inline bool enrollmentRevisionAllowed(JsonDocument &doc, const char *controllerId,
+                                      const char *currentUid, uint32_t currentRevision) {
+  if (!enrollmentFields(doc, controllerId)) return false;
+  const char *nextUid = doc["device_uid"] | "";
+  const uint32_t generation = factoryGeneration(nextUid, controllerId);
+  const uint32_t currentGeneration = factoryGeneration(currentUid, controllerId);
+  return generation > currentGeneration ||
+      (generation == currentGeneration && (doc["credential_revision"] | 0U) >= currentRevision);
 }
 } // namespace kerumo

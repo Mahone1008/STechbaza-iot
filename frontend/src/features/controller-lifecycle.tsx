@@ -107,12 +107,12 @@ export function ControllerLifecycle({
       setConfirmed(false);
       if ("activation_code" in result) {
         setTransfer(result);
-        setUrl(`${window.location.origin}${result.qr_path}`);
+        setUrl(`${process.env.NEXT_PUBLIC_CUSTOMER_URL || window.location.origin}${result.qr_path}`);
       } else {
         setNotice(
           result.access_revoked
             ? "Доступ відкликано. Керування вимкнено."
-            : "Новий ключ підтверджено шлюзом. Контролер завантажить його автоматично; потрібен новий локальний ARM.",
+            : "Новий ключ підтверджено шлюзом. Контролер завантажить його автоматично. Монтажник має перевірити підключення й відновити дозвіл керування.",
         );
         query.refresh();
       }

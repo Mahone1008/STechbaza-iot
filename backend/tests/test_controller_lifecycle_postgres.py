@@ -24,6 +24,7 @@ from app.models import (
     Site,
 )
 from app.models.equipment import EquipmentConfiguration, EquipmentModule
+from app.models.onboarding import FactoryAudit
 from app.models.telemetry import DeviceState
 from app.security.passwords import hash_password
 from app.security.tokens import utc_now
@@ -96,11 +97,12 @@ class ControllerLifecycleTests(unittest.TestCase):
         with SessionLocal.begin() as session:
             session.execute(delete(Capability).where(Capability.id.not_in(self.initial_capabilities)))
 
-    def bootstrap(self, key=None, expected=200):
+    def bootstrap(self, key=None, expected=200, transport="wifi", capability="read_only"):
         code, result, headers = request(
             "POST",
             f"/api/v1/bootstrap/{self.controller_id}/configuration",
-            body={"firmware_version": "0.7.0"},
+            body={"firmware_version": "0.7.0", "network_transport": transport,
+                  "control_capability": capability},
             headers={"authorization": f"Bearer {key or self.kit['bootstrap_key']}"},
             ip=self.ip,
         )
@@ -108,6 +110,103 @@ class ControllerLifecycleTests(unittest.TestCase):
         if expected == 200:
             self.assertEqual(headers.get("cache-control"), "no-store")
         return result
+
+    def test_lte_contact_is_authenticated_and_live_telemetry_is_distinct_from_claim(self):
+        updated = self.call(f"/api/v1/factory/controllers/{self.controller_id}/transport",
+                            method="PATCH", body={"network_transport": "lte", "expected_generation": 1})
+        self.assertEqual(updated["network_transport"], "lte")
+        self.assertTrue(updated["transport_editable"])
+        before = self.call(self.connect)
+        self.assertEqual(before["connection_state"], "not_connected")
+        self.assertIsNone(before["telemetry_received_at"])
+        self.bootstrap(self.kit["activation_code"], expected=401, transport="lte")
+        self.bootstrap("wrong" * 8, expected=401, transport="lte")
+        self.assertIsNone(self.call(self.connect)["last_contact_at"])
+        self.bootstrap(expected=409)  # A Wi-Fi build cannot silently enroll an LTE board.
+        self.assertEqual(self.call(self.connect)["connection_state"], "transport_mismatch")
+        with SessionLocal() as session:
+            self.assertIsNone(session.get(ControllerCredential, self.device_id))
+        self.assertEqual(self.bootstrap(transport="lte")["state"], "configured")
+        bootstrap = self.call(self.connect)
+        self.assertEqual(bootstrap["connection_state"], "bootstrap_connected")
+        self.assertEqual(bootstrap["last_contact_transport"], "lte")
+        self.assertIsNone(bootstrap["telemetry_received_at"])
+        self.fresh()
+        self.assertEqual(self.call(self.connect)["connection_state"], "online")
+        self.fresh(age=300)
+        self.assertEqual(self.call(self.connect)["connection_state"], "offline")
+        with SessionLocal() as session:
+            device = session.get(Device, self.device_id)
+            self.assertEqual(device.lifecycle_status, "provisioning")
+            self.assertEqual(list(session.scalars(select(DeviceCapability).where(
+                DeviceCapability.device_id == self.device_id))), [])
+
+    def test_transport_correction_preserves_qr_and_secrets_but_is_locked_after_contact(self):
+        path = f"/api/v1/factory/controllers/{self.controller_id}/transport"
+        values = {"network_transport": "lte", "expected_generation": 1}
+        self.call(path, method="PATCH", who="viewer", body=values, expected=403)
+        self.call(path, method="PATCH", body={**values, "expected_generation": 2}, expected=409)
+        with SessionLocal() as session:
+            row = session.get(FactoryController, uuid.UUID(self.controller_id))
+            activation, bootstrap = row.activation_hash, row.bootstrap_hash
+        updated = self.call(path, method="PATCH", body=values)
+        self.assertEqual(updated["id"], self.controller_id)
+        self.assertEqual(updated["generation"], 1)
+        self.assertNotIn("bootstrap_key", updated)
+        with SessionLocal() as session:
+            row = session.get(FactoryController, uuid.UUID(self.controller_id))
+            self.assertEqual((row.activation_hash, row.bootstrap_hash), (activation, bootstrap))
+            actions = list(session.scalars(select(FactoryAudit.action).where(FactoryAudit.controller_id == row.id)))
+            self.assertIn("network_transport_corrected", actions)
+        self.bootstrap(transport="lte")
+        self.call(path, method="PATCH", body={**values, "network_transport": "wifi"}, expected=409)
+        listed = self.call("/api/v1/factory/controllers")
+        self.assertFalse(next(row for row in listed if row["id"] == self.controller_id)["transport_editable"])
+
+    def test_rejected_first_lte_contact_can_correct_an_untouched_wifi_kit(self):
+        self.bootstrap(transport="lte", expected=409)
+        self.assertEqual(self.call(self.connect)["connection_state"], "transport_mismatch")
+        path = f"/api/v1/factory/controllers/{self.controller_id}/transport"
+        self.call(path, method="PATCH", body={"network_transport": "wifi", "expected_generation": 1}, expected=409)
+        self.call(path, method="PATCH", body={"network_transport": "lte", "expected_generation": 1})
+        self.assertEqual(self.bootstrap(transport="lte")["state"], "configured")
+        self.call(path, method="PATCH", body={"network_transport": "wifi", "expected_generation": 1}, expected=409)
+
+    def test_initial_passport_typo_can_be_corrected_without_changing_binding_or_enabling_control(self):
+        path = self.connect + "/equipment"
+        values = dict(profile_id="suswe.su600.modbus", profile_version=1,
+                      model="S123456789", nameplate_confirmed=True)
+        first = self.call(path, method="PUT", body=values)
+        self.assertTrue(self.call(self.connect)["initial_equipment_editable"])
+        self.assertFalse(self.call(self.connect, who="viewer")["initial_equipment_editable"])
+        self.call(path, who="viewer", method="PUT", body={**values, "model": "SU600A-5RG1-B"}, expected=403)
+        corrected = self.call(path, method="PUT", body={**values, "model": "SU600A-5RG1-B"})
+        self.assertEqual(corrected["id"], first["id"])
+        self.assertEqual(corrected["device_id"], str(self.device_id))
+        passport = self.call(self.equipment)
+        self.assertIsNone(passport["desired"])
+        with SessionLocal() as session:
+            self.assertTrue(session.get(Device, self.device_id).uid.startswith("FC-"))
+            self.assertEqual(session.get(Device, self.device_id).lifecycle_status, "provisioning")
+            correction = session.scalar(select(FactoryAudit).where(FactoryAudit.controller_id == uuid.UUID(self.controller_id),
+                                      FactoryAudit.action == "initial_equipment_corrected"))
+            self.assertEqual(correction.details["previous"]["model"], "S123456789")
+        self.configure()
+        self.assertFalse(self.call(self.connect)["initial_equipment_editable"])
+        self.call(path, method="PUT", body={**values, "model": "another-model"}, expected=409)
+
+    def test_initial_passport_correction_rejects_a_previously_used_controller(self):
+        from app.models.command import DeviceCommand
+        values = dict(profile_id="suswe.su600.modbus", profile_version=1,
+                      model="S123456789", nameplate_confirmed=True)
+        path = self.connect + "/equipment"
+        self.call(path, method="PUT", body=values)
+        with SessionLocal.begin() as session:
+            session.add(DeviceCommand(request_id=uuid.uuid4(), device_id=self.device_id,
+                                      command_type="vfd.stop", status="completed",
+                                      expires_at=utc_now()))
+        self.assertFalse(self.call(self.connect)["initial_equipment_editable"])
+        self.call(path, method="PUT", body={**values, "model": "SU600A-5RG1-B"}, expected=409)
 
     def configure(self):
         module = self.call(
@@ -315,6 +414,69 @@ class ControllerLifecycleTests(unittest.TestCase):
             )
             self.assertEqual(session.get(ControllerCredential, self.device_id).revoked, True)
 
+    def test_rotation_requires_new_local_confirmation_before_recommissioning(self):
+        configuration = self.configure()
+        first = self.bootstrap(capability="bench")
+        self.fresh(configuration)
+        body = dict(expected_revision=1, installation_checked=True, control_mode="bench_without_motor")
+        self.call(self.equipment + "/commission", method="POST", body=body)
+        self.assertTrue(self.bootstrap(capability="bench")["commissioned"])
+
+        self.operation("rotate")
+        second = self.bootstrap(capability="bench")
+        self.assertFalse(second["commissioned"])
+        self.assertGreater(second["credential_revision"], first["credential_revision"])
+        self.assertNotEqual(second["mqtt_password"], first["mqtt_password"])
+        passport = self.call(self.equipment)
+        renewed = passport["desired"]
+        self.assertEqual(passport["configuration_state"], "mismatch")
+        self.assertEqual(renewed["manifest"], {**configuration["manifest"], "revision": 2})
+        self.assertNotEqual(renewed["configuration_hash"], configuration["configuration_hash"])
+        self.assertEqual(json.loads(second["manifest"]), renewed["manifest"])
+        self.assertEqual(second["configuration_hash"], renewed["configuration_hash"])
+        with SessionLocal() as session:
+            original = session.get(EquipmentConfiguration, (self.device_id, 1))
+            self.assertEqual(original.configuration_hash, configuration["configuration_hash"])
+        self.call(self.equipment + "/commission", method="POST", body=body, expected=409)
+        body["expected_revision"] = 2
+        self.fresh(configuration)  # Навіть нова телеметрія старого підтвердження не підходить.
+        self.call(self.equipment + "/commission", method="POST", body=body, expected=409)
+
+        self.fresh(renewed)
+        with SessionLocal.begin() as session:
+            state = session.get(DeviceState, self.device_id)
+            state.diagnostics = {"equipment": {**state.diagnostics["equipment"], "compatible": False}}
+        self.call(self.equipment + "/commission", method="POST", body=body, expected=409)
+        self.fresh(renewed)  # Новий hash і локальна перевірка дозволяють лише явне commissioning.
+        self.call(self.equipment + "/commission", method="POST", body=body)
+        self.assertTrue(self.bootstrap(capability="bench")["commissioned"])
+
+        self.operation("rotate")
+        third = self.call(self.equipment)
+        self.assertEqual(third["desired"]["manifest"]["revision"], 3)
+        self.assertEqual(third["configuration_state"], "mismatch")
+        self.assertFalse(self.bootstrap(capability="bench")["commissioned"])
+
+    def test_rotation_broker_failure_keeps_new_confirmation_requirement(self):
+        configuration = self.configure()
+        first = self.bootstrap()
+        self.fresh(configuration)
+        self.broker.return_value.__enter__.return_value.apply.side_effect = BrokerUnavailable("Gateway unavailable")
+        self.operation("rotate", expected=503)
+        passport = self.call(self.equipment)
+        self.assertEqual(passport["configuration_state"], "mismatch")
+        self.assertEqual(passport["desired"]["manifest"]["revision"], 2)
+        with SessionLocal() as session:
+            credential = session.get(ControllerCredential, self.device_id)
+            self.assertEqual(credential.applied_revision, first["credential_revision"])
+            self.assertEqual(credential.revision, first["credential_revision"] + 1)
+        self.broker.return_value.__enter__.return_value.apply.side_effect = None
+        second = self.bootstrap()
+        self.assertFalse(second["commissioned"])
+        self.assertEqual(second["configuration_hash"], passport["desired"]["configuration_hash"])
+        self.call(self.equipment + "/commission", method="POST",
+                  body=dict(expected_revision=2, installation_checked=True), expected=409)
+
     def test_unauthorized_replacement_and_device_key_revocation(self):
         self.bootstrap()
         self.fresh()
@@ -451,4 +613,10 @@ class ControllerLifecycleTests(unittest.TestCase):
             self.equipment + "/commission",
             method="POST",
             body=dict(expected_revision=1, installation_checked=True),
+            expected=409,
         )
+        renewed = self.call(self.equipment)["desired"]
+        self.assertEqual(renewed["manifest"]["revision"], 2)
+        self.fresh(renewed)
+        self.call(self.equipment + "/commission", method="POST",
+                  body=dict(expected_revision=2, installation_checked=True))

@@ -86,7 +86,7 @@ test("verified registration saves recovery and resumes the QR without mandatory 
   await enter.click();
   await expect(page).toHaveURL(`/connect/${controller}`);
   await expect(page.getByLabel("Назва об’єкта", { exact: true })).toBeVisible();
-  await expect(page.getByLabel("Пароль активації з етикетки", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("Пароль активації з картки", { exact: true })).toBeVisible();
   await privateState(page, token, password, recovery);
 });
 

@@ -28,6 +28,8 @@ jobs:
           /tmp/v4-cellular-test
           g++ -std=c++17 -Wall -Wextra -Werror -fsanitize=address,undefined -I firmware/tests/stubs firmware/tests/modbus_adapter_test.cpp firmware/kerumo_v3/src/core.cpp -o /tmp/v4-modbus-test
           /tmp/v4-modbus-test
+          g++ -std=c++17 -Wall -Wextra -Werror -fsanitize=address,undefined -I "$HOME/Arduino/libraries/ArduinoJson/src" firmware/kerumo_v3/src/core.cpp firmware/kerumo_v3/src/su600_driver.cpp firmware/tests/core_test.cpp -o /tmp/v4-control-grant-test
+          /tmp/v4-control-grant-test
       - name: Compile read-only LTE firmware for the original USB-UART port
         run: |
           cp firmware/kerumo_v3/lte_config.example.h firmware/kerumo_v3/lte_config.local.h
@@ -36,10 +38,33 @@ jobs:
         run: |
           sed -e 's/KERUMO_ENABLE_CONTROL false/KERUMO_ENABLE_CONTROL true/' -e 's/KERUMO_ENABLE_EXTENDED_TEST false/KERUMO_ENABLE_EXTENDED_TEST true/' -e 's/KERUMO_ENABLE_REMOTE_OPERATION false/KERUMO_ENABLE_REMOTE_OPERATION true/' firmware/kerumo_v3/lte_config.example.h > firmware/kerumo_v3/lte_config.local.h
           arduino-cli compile --warnings all --fqbn esp32:esp32:esp32s3:CDCOnBoot=cdc,FlashSize=16M,PSRAM=opi,PartitionScheme=app3M_fat9M_16MB firmware/kerumo_v3
+      - name: Compile factory LTE enrollment and commissioned full control with separate API and broker trust
+        run: |
+          rm -f firmware/kerumo_v3/lte_config.local.h firmware/kerumo_v3/config.local.h firmware/kerumo_v3/equipment_config.local.h
+          cat > firmware/kerumo_v3/factory_config.local.h <<'EOF'
+          #define KERUMO_FACTORY_CONTROLLER_ID "11111111-1111-4111-8111-111111111111"
+          #define KERUMO_BOOTSTRAP_KEY "ci-software-test-only-not-real-key-1234567890"
+          #define KERUMO_API_URL "https://api.example.invalid"
+          #define KERUMO_SETUP_PASSWORD "ci-software-test-only-password"
+          #define KERUMO_BOOTSTRAP_CA "compile-test-api-ca"
+          #undef KERUMO_MQTT_CA
+          #define KERUMO_MQTT_CA "compile-test-broker-ca"
+          #define KERUMO_USE_LTE true
+          #define KERUMO_MODEM_APN "internet"
+          #undef KERUMO_ENABLE_CONTROL
+          #define KERUMO_ENABLE_CONTROL false
+          #undef KERUMO_ENABLE_EXTENDED_TEST
+          #define KERUMO_ENABLE_EXTENDED_TEST false
+          #undef KERUMO_ENABLE_REMOTE_OPERATION
+          #define KERUMO_ENABLE_REMOTE_OPERATION false
+          EOF
+          arduino-cli compile --warnings all --fqbn esp32:esp32:esp32s3:CDCOnBoot=default,FlashSize=16M,PSRAM=opi,PartitionScheme=app3M_fat9M_16MB firmware/kerumo_v3
+          sed -i -e 's/KERUMO_ENABLE_CONTROL false/KERUMO_ENABLE_CONTROL true/' -e 's/KERUMO_ENABLE_EXTENDED_TEST false/KERUMO_ENABLE_EXTENDED_TEST true/' -e 's/KERUMO_ENABLE_REMOTE_OPERATION false/KERUMO_ENABLE_REMOTE_OPERATION true/' firmware/kerumo_v3/factory_config.local.h
+          arduino-cli compile --warnings all --fqbn esp32:esp32:esp32s3:CDCOnBoot=cdc,FlashSize=16M,PSRAM=opi,PartitionScheme=app3M_fat9M_16MB firmware/kerumo_v3
       - name: Parse Windows preparation and physical probe scripts
         shell: pwsh
         run: |
-          foreach ($name in @('prepare-v4.ps1', 'check-v4.ps1', 'update-vfd-service.ps1')) {
+          foreach ($name in @('prepare-v4.ps1', 'check-v4.ps1', 'update-vfd-service.ps1', 'prepare-factory-v4.ps1')) {
             $parseErrors = $null
             [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $PWD "scripts/$name"), [ref]$null, [ref]$parseErrors) | Out-Null
             if ($parseErrors) { throw ($parseErrors | Out-String) }
@@ -64,6 +89,7 @@ jobs:
       - name: Verify endpoint renewal and limited observer credentials
         run: |
           docker run --rm --network none -v "$PWD/infrastructure/v3:/tests:ro" --entrypoint python3 kerumo-v4-gateway:local /tests/test_v4.py
+          docker run --rm --network none -v "$PWD/infrastructure/v3:/tests:ro" -e PYTHONPATH=/opt/kerumo --entrypoint python3 kerumo-v4-gateway:local /tests/test_controllers.py
           docker run --rm --network none -v "$PWD/.local/v3:/source:ro" -v "$PWD/.local/v4:/work:rw" --entrypoint python3 kerumo-v4-gateway:local /opt/kerumo/v4.py
       - name: Seed isolated test database
         run: |

@@ -1,0 +1,45 @@
+# Managed factory controllers on the production pilot's equipment network.
+# Combine only with compose.pilot.yml, .env.pilot and the private .env.controllers.
+# HTTPS bootstrap uses the existing customer edge; the staff portal stays private.
+services:
+  backend:
+    environment: &controller_gateway_env
+      CONTROLLER_BROKER_ADMIN_HOST: controller-gateway
+      CONTROLLER_BROKER_ADMIN_PORT: '1884'
+      CONTROLLER_BROKER_ADMIN_PASSWORD: ${CONTROLLER_BROKER_ADMIN_PASSWORD:?Prepare the controller gateway}
+      CONTROLLER_MQTT_PUBLIC_HOST: ${CONTROLLER_HOST:?Prepare the controller gateway with its fixed public IPv4}
+      CONTROLLER_MQTT_PUBLIC_PORT: '8884'
+    depends_on:
+      controller-gateway: {condition: service_healthy}
+  staff-backend:
+    environment: *controller_gateway_env
+    depends_on:
+      controller-gateway: {condition: service_healthy}
+  controller-gateway:
+    image: kerumo-controller-gateway:pilot
+    build:
+      context: ./infrastructure/v3
+    restart: unless-stopped
+    user: '1883:1883'
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs: [/tmp]
+    environment:
+      CONTROLLER_HOST: ${CONTROLLER_HOST:?Prepare the controller gateway with its fixed public IPv4}
+    ports: ['8884:8883']
+    volumes: ['./.local/controllers:/work:rw']
+    command: [mosquitto, '-c', /work/controllers.conf]
+    networks: [equipment, controller-ingress]
+    depends_on:
+      mosquitto: {condition: service_started}
+    healthcheck:
+      test: [CMD, python3, '-c', "import os, socket, ssl; c = ssl.create_default_context(cafile='/work/ca.crt'); s = c.wrap_socket(socket.create_connection(('127.0.0.1', 8883), timeout=3), server_hostname=os.environ['CONTROLLER_HOST']); s.close()"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    logging:
+      driver: json-file
+      options: {max-size: '10m', max-file: '5'}
+networks:
+  controller-ingress: {}

@@ -1,0 +1,43 @@
+.connection-progress {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.connection-progress li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  min-width: 0;
+  padding: 0.9rem;
+  border: 1px solid var(--border, #d6dee5);
+  border-radius: 0.75rem;
+}
+.connection-step-marker {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 1.8rem;
+  height: 1.8rem;
+  border-radius: 50%;
+  color: var(--text-muted, #667772);
+  background: var(--surface-alt, #f0f4f3);
+  font-weight: 650;
+}
+.connection-progress li[data-complete="true"] .connection-step-marker {
+  color: var(--accent, #176b5a);
+  background: #e8f3ee;
+}
+.connection-progress small {
+  display: block;
+  margin-top: 0.3rem;
+  line-height: 1.5;
+  color: var(--text-muted, #667772);
+}
+@media (max-width: 600px) {
+  .connection-progress {
+    grid-template-columns: 1fr;
+    gap: 0.65rem;
+  }
+}

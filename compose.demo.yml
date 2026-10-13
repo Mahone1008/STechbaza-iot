@@ -37,6 +37,7 @@ services:
       AUTH_COOKIE_SECURE: 'false'
       MAIL_DELIVERY_MODE: ${MAIL_DELIVERY_MODE:-local}
       MAIL_PUBLIC_URL: ${MAIL_PUBLIC_URL:-http://127.0.0.1:3000}
+      STAFF_PUBLIC_URL: ${STAFF_PUBLIC_URL:-http://127.0.0.1:3001}
       MAIL_LOCAL_DIRECTORY: /private/mail
       MAIL_FROM: ${MAIL_FROM:-KERUMO <access@kerumo.example.com>}
       SMTP_HOST: ${SMTP_HOST:-}
@@ -60,6 +61,7 @@ services:
       - "127.0.0.1:8001:8000"
     volumes:
       - ./.local/mail:/private/mail
+      - ./infrastructure/staff/runtime-roles.sql:/infrastructure/staff/runtime-roles.sql:ro
     depends_on:
       postgres:
         condition: service_healthy

@@ -29,8 +29,8 @@ it("separates private operations, manufacturing and customer onboarding routes",
     ["customer", ["/operations", "/operations/users", "/factory"], ["/register", "/connect", "/devices"]],
     [
       "staff",
-      ["/register", "/register/verify", "/connect", "/invite"],
-      ["/operations", "/factory", "/account/security"],
+      ["/register", "/register/verify", "/connect", "/connect/test"],
+      ["/operations", "/factory", "/account/security", "/invite"],
     ],
   ] as const) {
     vi.stubEnv("NEXT_PUBLIC_PORTAL_MODE", portal);

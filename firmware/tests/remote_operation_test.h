@@ -171,3 +171,83 @@ void remoteProgramRestart() {
   reboot.receive(command, "", "", "");
   assert(f.bus.writes.size() == stoppedWrites);
 }
+
+void explicitLocalRestoreAndRevocation() {
+  Fixture f; remoteProfile(f);
+  f.controller.tick(true, true);
+  f.controller.disarm();
+  f.clock.ms += 3001; f.controller.tick(true, true);
+  assert(!f.controller.isArmed());
+  const size_t writes = f.bus.writes.size();
+  assert(f.controller.restoreRemotePermission());
+  assert(!f.controller.isArmed() && f.bus.writes.size() == writes);
+  f.clock.ms += 3001; f.controller.tick(true, true);
+  assert(f.controller.isArmed() && f.bus.writes.size() == writes);
+  f.clock.ms += 1; f.receive(f.command(1)); f.controller.tick(true, true);
+  assert(!f.controller.restoreRemotePermission()); // Cannot clear DISARM during motion.
+  f.controller.disarm(StopReason::Config); f.clock.ms += 1001; f.controller.tick(true, false);
+  assert(!f.controller.journal().motionPossible && !f.controller.isArmed());
+  const size_t stopped = f.bus.writes.size();
+  f.receive(f.command(2, Type::Frequency, 20));
+  assert(f.events.records.back().error == Error::NotArmed && f.bus.writes.size() == stopped);
+  auto source = f.command(3, Type::Source); source.setting.remote = true;
+  f.receive(source);
+  assert(f.events.records.back().error == Error::Busy && f.bus.writes.size() == stopped);
+  auto parameter = f.command(4, Type::Parameter); std::strcpy(parameter.setting.code, "F0.10");
+  parameter.setting.value = 100; f.receive(parameter);
+  assert(f.events.records.back().error == Error::Busy && f.bus.writes.size() == stopped);
+  f.receive(f.command(5, Type::Stop)); f.controller.tick(true, false);
+  assert(f.events.records.back().outcome == Outcome::Succeeded);
+  f.controller.disarm(); f.bus.registers[0x2103] = 1;
+  assert(!f.controller.restoreRemotePermission());
+  f.bus.registers[0x2103] = 0; f.bus.registers[0x2100] = 16;
+  assert(!f.controller.restoreRemotePermission());
+  f.bus.registers[0x2100] = 0; f.bus.readable = false;
+  assert(!f.controller.restoreRemotePermission());
+}
+
+void factoryGrantCommandBoundary() {
+  Fixture f; remoteProfile(f);
+  f.bus.registers[0x000A] = 100; f.bus.registers[0x000B] = 100;
+  // Local control is valid for source editing even though communication RUN
+  // cannot be armed until the source is deliberately switched to remote.
+  f.bus.registers[2] = 0; f.bus.registers[3] = 0;
+  auto oldSource = f.command(1, Type::Source);
+  oldSource.setting.remote = true;
+  oldSource.setting.expectedRun = 0; oldSource.setting.expectedFrequency = 0;
+  auto oldParameter = f.command(2, Type::Parameter);
+  std::strcpy(oldParameter.setting.code, "F0.10"); oldParameter.setting.expected = 100; oldParameter.setting.value = 200;
+  f.clock.ms += 1000;
+  f.controller.tick(true, true);
+  assert(!f.controller.isArmed());
+  f.controller.requireCommandsIssuedAfter(f.clock.utcMs());
+  f.receive(oldSource); f.receive(oldParameter);
+  assert(f.events.records.back().error == Error::NotArmed && f.bus.writes.empty());
+  auto freshSource = oldSource; freshSource.sequence = 3;
+  std::strcpy(freshSource.id, "00000000-0000-4000-8000-000000000003");
+  freshSource.issuedMs = f.clock.utcMs(); freshSource.expiresMs = freshSource.issuedMs + 30000;
+  f.receive(freshSource);
+  assert(f.events.records.back().outcome == Outcome::Succeeded);
+  assert(f.bus.registers[2] == 2 && f.bus.registers[3] == 6);
+  unsigned starts = 0;
+  for (const auto &write : f.bus.writes)
+    if (write.first == 0x2000 && write.second == 0x12) ++starts;
+  assert(!starts); // A fresh source switch still never runs the motor.
+}
+
+void configurationReadbackCannotRaceMotion() {
+  Fixture f; remoteProfile(f);
+  f.controller.tick(true, true);
+  auto idle = f.controller.sample();
+  assert(!idle.motionPossible && !idle.controlBusy && idle.armed);
+  auto plan = scheduledCommand(f);
+  f.receive(plan);
+  auto awaiting = f.controller.sample();
+  assert(awaiting.motionPossible && awaiting.controlBusy);
+  assert(confirmedStopped(awaiting.vfd.state, awaiting.vfd.outputHz));
+  // A 0 Hz sample during a scheduled wait does not permit synchronous HTTPS.
+  f.receive(f.command(2, Type::Stop)); f.controller.tick(true, true);
+  f.clock.ms += 1001; f.controller.tick(true, true);
+  auto stopped = f.controller.sample();
+  assert(!stopped.motionPossible && !stopped.controlBusy);
+}

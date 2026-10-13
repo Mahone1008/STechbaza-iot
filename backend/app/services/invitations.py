@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.models import AccountLink, Organization, OrganizationMembership, Site, User
 from app.schemas.personal_accounts import AccountCreated, InvitationCreate, RegistrationComplete
+from app.security.actor_metadata import customer_actor_metadata
 from app.security.authorization import AccessControl
 from app.security.roles import OrganizationRole, Permission, role_has_permission
 from app.security.tokens import utc_now
@@ -57,7 +58,7 @@ def lock_organization(session: Session, organization_id: uuid.UUID):
 
 
 def create_invitation(
-    session: Session, current, organization_id: uuid.UUID, payload: InvitationCreate
+    session: Session, current, organization_id: uuid.UUID, payload: InvitationCreate, *, delivery_url=None
 ):
     org = lock_organization(session, organization_id)
     session.expire_all()
@@ -145,7 +146,7 @@ def create_invitation(
         "Запрошення до організації в KERUMO",
         f"Вас запрошують до організації «{org.name}».\n\n"
         f"Роль: {role}.\n{scope}\n{duration}\n\n"
-        f"Відкрийте посилання протягом трьох днів:\n{public_url()}/invite#token={token}\n\n"
+        f"Відкрийте посилання протягом трьох днів:\n{delivery_url or public_url()}/invite#token={token}\n\n"
         "Увійдіть у свій обліковий запис або створіть особистий пароль. Нікому не передавайте його.",
     )
     session.commit()
@@ -153,7 +154,10 @@ def create_invitation(
 
 
 def validate_inviter(session: Session, row: AccountLink) -> None:
-    actor = session.get(User, row.created_by_user_id) if row.created_by_user_id else None
+    actor = session.get(User, row.created_by_user_id, populate_existing=True) if row.created_by_user_id else None
+    if actor is None and row.created_by_user_id:
+        # Customer RLS приховує credentials персоналу, але не чинні права автора.
+        actor = customer_actor_metadata(session, row.created_by_user_id)
     if actor is not None and actor.is_active and actor.platform_role == "superadmin":
         return
     membership = session.scalar(

@@ -220,6 +220,7 @@ jobs:
         run: |
           python scripts/prepare-pilot.py --customer-host app.example.com --staff-url https://private.example.ts.net
           docker compose --env-file .env.pilot -f compose.pilot.yml config --quiet
+          CONTROLLER_HOST=203.0.113.10 CONTROLLER_BROKER_ADMIN_PASSWORD=ci-only-factory-gateway-password docker compose --env-file .env.pilot -f compose.pilot.yml -f compose.factory.pilot.yml config --quiet
       - name: Validate public Caddy configuration
         run: >-
           docker run --rm -e CUSTOMER_HOST=localhost

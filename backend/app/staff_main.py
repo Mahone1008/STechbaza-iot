@@ -32,7 +32,7 @@ async def lifespan(app):
     stop_mqtt()
 
 
-app = FastAPI(title="KERUMO Operations", version="0.53.0", lifespan=lifespan)
+app = FastAPI(title="KERUMO Operations", version="0.55.1", lifespan=lifespan)
 for router in (auth.router, account_security.router):
     app.include_router(router, prefix="/api/v1")
 for router in (staff.router, organizations.router,
@@ -47,6 +47,13 @@ for router, prefix in ((onboarding.router, "/factory/"), (personal_accounts.rout
     selected = APIRouter()
     selected.routes = [route for route in router.routes if route.path.startswith(prefix)]
     app.include_router(selected, prefix="/api/v1", dependencies=[Depends(staff.require_staff)])
+
+# Qualified installers accept their customer's scoped invitation in the staff
+# session. Registration and controller ownership activation remain customer-only.
+installer_acceptance = APIRouter()
+installer_acceptance.routes = [route for route in personal_accounts.router.routes
+    if route.path in ("/invitations/inspect", "/invitations/accept")]
+app.include_router(installer_acceptance, prefix="/api/v1", dependencies=[Depends(staff.require_staff)])
 
 app.add_middleware(CORSMiddleware, allow_origins=list(AUTH_BROWSER_ORIGINS),
                    allow_credentials=True, allow_methods=["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
@@ -79,4 +86,4 @@ async def temporarily_unavailable(request: Request, exc):
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "service": "kerumo-operations", "version": "0.53.0"}
+    return {"status": "ok", "service": "kerumo-operations", "version": "0.55.1"}

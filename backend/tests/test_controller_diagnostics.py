@@ -11,7 +11,7 @@ from app.schemas.telemetry import TelemetryEnvelope
 
 def diagnostic_payload():
     return {
-        "program": None, "equipment": None, "vfd_settings": None, "version": 1, "firmware_version": "0.2.2", "uptime_ms": 2**32 + 9000,
+        "program": None, "equipment": None, "vfd_settings": None, "control_grant": None, "version": 1, "firmware_version": "0.2.2", "uptime_ms": 2**32 + 9000,
         "reset_reason": "brownout", "connection": {"transport": "wifi", "signal": {"metric": "rssi", "dbm": -67}},
         "last_stop": {"reason": "network_lost", "uptime_ms": 2**32 + 3000,
                       "requested_at": None, "confirmed": False},
@@ -84,3 +84,12 @@ class ControllerDiagnosticsTests(unittest.TestCase):
         data["last_stop"]["requested_at"] = "2026-10-01T10:01:00Z"
         # UTC may be corrected backwards; monotonic uptime remains authoritative.
         self.envelope(data, sent_at="2026-10-01T10:00:00Z")
+
+    def test_control_grant_has_strict_revision_mode_and_acknowledgement(self):
+        grant = {"revision": 5, "mode": "extended_test", "accepted": True}
+        data = {**diagnostic_payload(), "control_grant": grant}
+        self.assertEqual(self.envelope(data).diagnostics.control_grant.model_dump(), grant)
+        for change in ({"revision": True}, {"revision": -1}, {"revision": 2147483648},
+                {"mode": "full"}, {"accepted": 1}, {"extra": "unknown"}):
+            with self.subTest(change=change), self.assertRaises(ValidationError):
+                self.envelope({**data, "control_grant": {**grant, **change}})

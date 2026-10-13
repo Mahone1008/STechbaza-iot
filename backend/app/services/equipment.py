@@ -54,6 +54,29 @@ def read_configuration(row: EquipmentConfiguration) -> ConfigurationRead:
     )
 
 
+def renew_local_confirmation(session: Session, device_id, current) -> None:
+    """Нова ревізія вимагає місцевого STOP навіть від прошивки зі старим receipt."""
+    previous = desired_configuration(session, device_id)
+    if previous is None:
+        return
+    if previous.revision >= 2147483647:
+        raise EquipmentConflict("Досягнуто межу ревізій конфігурації; зверніться до виробника")
+    manifest = read_configuration(previous).manifest.model_copy(
+        update={"revision": previous.revision + 1}
+    )
+    canonical = canonical_json(manifest.model_dump(mode="json"))
+    session.add(EquipmentConfiguration(
+        device_id=device_id,
+        revision=manifest.revision,
+        module_id=manifest.module_id,
+        configuration_hash=configuration_hash(canonical),
+        canonical_manifest=canonical,
+        actor_user_id=current.user.id,
+        actor_auth_session_id=current.auth_session.id,
+        created_at=datetime.now(timezone.utc),
+    ))
+
+
 def configuration_target(row: EquipmentConfiguration | None) -> dict | None:
     if row is None:
         return None
@@ -115,7 +138,7 @@ def command_target(session, device, now, *, stop=False) -> dict | None:
         factory = session.scalar(
             select(FactoryController).where(FactoryController.device_id == device.id)
         )
-        if factory and (factory.access_revoked or factory.status != "claimed"):
+        if factory is None or factory.access_revoked or factory.status != "claimed":
             raise EquipmentConflict("Доступ контролера відкликано")
     row = desired_configuration(session, device.id)
     if device.uid.startswith("FC-") and (row is None or device.lifecycle_status == "retired"):
@@ -127,6 +150,11 @@ def command_target(session, device, now, *, stop=False) -> dict | None:
     # STOP може доставлятися за старої телеметрії, але тільки тій самій підтвердженій прив'язці.
     if state != "verified" and not (stop and state == "stale"):
         raise EquipmentConflict("Конфігурацію обладнання ще не підтверджено контролером")
+    if not stop and device.uid.startswith("FC-") and factory:
+        from app.services.installation_readiness import readiness
+        ready = readiness(session, device, factory, row, snapshot, state, fresh=True)
+        if ready.state != "ready":
+            raise EquipmentConflict("Контролер ще не підтвердив готовність до керування")
     return configuration_target(row)
 
 
@@ -166,6 +194,13 @@ def require_stopped(session, device, now):
         raise EquipmentConflict("Спочатку дочекайтеся завершення попередніх команд")
 
 
+def require_current_binding(device, factory):
+    if device.lifecycle_status == "retired" or (device.uid.startswith("FC-") and
+            (factory is None or factory.status != "claimed" or factory.access_revoked
+            or factory.device_id != device.id)):
+        raise EquipmentConflict("Архівне або відкликане обладнання не можна налаштовувати")
+
+
 class EquipmentService:
     def __init__(self, session: Session):
         self.session = session
@@ -183,6 +218,10 @@ class EquipmentService:
             .where(EquipmentModule.device_id == device.id)
             .order_by(EquipmentModule.slot)
         ).all()
+        from app.services.installation_readiness import readiness, commissioned_mode
+        factory = self.session.scalar(select(FactoryController).where(FactoryController.device_id == device.id))
+        checked_at = now or datetime.now(timezone.utc)
+        config_state = configuration_state(device, row, snapshot, checked_at)
         return EquipmentPassport(
             device_id=device.id,
             controller_uid=device.uid,
@@ -193,18 +232,20 @@ class EquipmentService:
             modules=[ModuleRead.model_validate(item) for item in modules],
             desired=read_configuration(row) if row else None,
             reported=read_report(snapshot),
-            configuration_state=configuration_state(
-                device, row, snapshot, now or datetime.now(timezone.utc)
-            ),
-            controller_id=self.session.scalar(
-                select(FactoryController.id).where(FactoryController.device_id == device.id)
-            ),
+            configuration_state=config_state,
+            controller_id=factory.id if factory else None,
+            readiness=readiness(self.session, device, factory, row, snapshot, config_state,
+                fresh=bool(snapshot and freshness(snapshot, device_session_id=device.last_observed_session_id, now=checked_at).status == "fresh")),
+            firmware_control_capability=factory.firmware_control_capability if factory else "read_only",
+            commissioned_control_mode=commissioned_mode(self.session, device),
         )
 
     def add_module(self, device_id, payload: ModuleCreate) -> EquipmentModule:
         if payload.kind == "vfd" and not selectable_manufacturer(payload.manufacturer):
             raise EquipmentConflict("Для нового частотника оберіть SUSWE")
+        factory = self.session.scalar(select(FactoryController).where(FactoryController.device_id == device_id).with_for_update())
         device = DeviceRepository(self.session).get_for_update(device_id)
+        require_current_binding(device, factory)
         installation = self.session.get(PumpInstallation, payload.installation_id)
         if not installation or installation.site_id != device.site_id:
             raise EquipmentConflict("Установка повинна належати тому самому об'єкту")
@@ -222,10 +263,12 @@ class EquipmentService:
         return module
 
     def configure(
-        self, device_id, payload: ConfigurationCreate, current, now=None
+        self, device_id, payload: ConfigurationCreate, current, now=None, *, commit=True
     ) -> EquipmentConfiguration:
         now = now or datetime.now(timezone.utc)
+        factory = self.session.scalar(select(FactoryController).where(FactoryController.device_id == device_id).with_for_update())
         device = DeviceRepository(self.session).get_for_update(device_id)
+        require_current_binding(device, factory)
         previous = desired_configuration(self.session, device_id)
         if payload.expected_revision != (previous.revision if previous else 0):
             raise EquipmentConflict("Конфігурацію вже змінено; перечитайте паспорт")
@@ -306,19 +349,26 @@ class EquipmentService:
         )
         self.session.add(row)
         if device.uid.startswith("FC-") or device.lifecycle_status == "maintenance":
-            from app.services.controller_lifecycle import install_capabilities
+            from app.services.controller_lifecycle import install_capabilities, invalidate_control
 
             install_capabilities(
                 self.session, device, manifest.frequency_limits.model_dump(), enabled=False
             )
             device.lifecycle_status = "provisioning"
-        self.session.commit()
+            if factory:
+                invalidate_control(factory)
+        if commit:
+            self.session.commit()
+        else:
+            self.session.flush()
         return row
 
     def replace(self, device_id, payload: ReplacementCreate, current):
         if not selectable_manufacturer(payload.replacement.manufacturer):
             raise EquipmentConflict("Для нового частотника оберіть SUSWE")
+        factory = self.session.scalar(select(FactoryController).where(FactoryController.device_id == device_id).with_for_update())
         device = DeviceRepository(self.session).get_for_update(device_id)
+        require_current_binding(device, factory)
         previous = desired_configuration(self.session, device_id)
         if payload.expected_revision != (previous.revision if previous else 0):
             raise EquipmentConflict("Паспорт змінився; перечитайте його")
@@ -357,10 +407,9 @@ class EquipmentService:
         )
         from app.services.onboarding import audit
 
-        factory = self.session.scalar(
-            select(FactoryController).where(FactoryController.device_id == device_id)
-        )
         if factory:
+            from app.services.controller_lifecycle import invalidate_control
+            invalidate_control(factory)
             audit(
                 self.session,
                 factory,

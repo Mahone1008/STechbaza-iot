@@ -19,11 +19,18 @@ class FactoryController(TimestampMixin, Base):
             name="ck_factory_controller_status",
         ),
         CheckConstraint("generation > 0", name="ck_factory_controller_generation"),
+        CheckConstraint("network_transport IN ('wifi','lte')", name="ck_factory_controller_network_transport"),
+        CheckConstraint("last_contact_transport IS NULL OR last_contact_transport IN ('wifi','lte')",
+                        name="ck_factory_controller_contact_transport"),
+        CheckConstraint("preparation_revision >= 0 AND control_revision >= 0", name="ck_factory_controller_preparation_revisions"),
+        CheckConstraint("firmware_control_capability IN ('read_only','bench','full')", name="ck_factory_controller_control_capability"),
+        CheckConstraint("(control_mode IS NULL AND control_configuration_hash IS NULL) OR (control_mode IS NOT NULL AND control_configuration_hash IS NOT NULL AND control_mode IN ('read_only','bench_without_motor','extended_test') AND control_configuration_hash ~ '^[0-9a-f]{64}$' AND control_revision > 0)", name="ck_factory_controller_control_grant"),
     )
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     serial_number: Mapped[str] = mapped_column(String(96), unique=True, nullable=False)
     hardware_model: Mapped[str] = mapped_column(String(80), nullable=False)
     hardware_revision: Mapped[str] = mapped_column(String(80), nullable=False)
+    network_transport: Mapped[str] = mapped_column(String(8), default="wifi", server_default="wifi", nullable=False)
     batch: Mapped[str] = mapped_column(String(80), nullable=False)
     distributor: Mapped[str | None] = mapped_column(String(160))
     test_reference: Mapped[str] = mapped_column(String(160), nullable=False)
@@ -40,9 +47,16 @@ class FactoryController(TimestampMixin, Base):
     )
     claimed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_contact_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_contact_transport: Mapped[str | None] = mapped_column(String(8))
     firmware_version: Mapped[str | None] = mapped_column(String(32))
     credential_revision: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     access_revoked: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    prepared_equipment: Mapped[dict | None] = mapped_column(JSONB)
+    preparation_revision: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
+    control_revision: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
+    firmware_control_capability: Mapped[str] = mapped_column(String(12), default="read_only", server_default="read_only", nullable=False)
+    control_mode: Mapped[str | None] = mapped_column(String(24))
+    control_configuration_hash: Mapped[str | None] = mapped_column(String(64))
 
 
 class ControllerCredential(Base):

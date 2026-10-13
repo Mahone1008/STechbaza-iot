@@ -62,6 +62,9 @@ class AlarmKeyPostgresTests(unittest.TestCase):
             for who, org, role in (("owner", self.org, "owner"), ("viewer", self.org, "viewer"),
                                    ("other", self.other_org, "owner")):
                 ctx = _identity(session, org, role)
+                if who == "owner":
+                    ctx.user.platform_role = "service_admin"
+                    ctx.auth_session.mfa_verified_at = self.now
                 self.users.append(ctx.user.id)
                 self.tokens[who] = create_access_token(user_id=ctx.user.id, auth_session_id=ctx.auth_session.id).token
             session.commit()

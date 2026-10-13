@@ -28,8 +28,10 @@ const report = {
   totalGzipBytes: total, largestGzipBytes: largest,
   // 0.50 adds separate operations routes and two staff themes.
   // The cumulative build includes all three portals, not one page download.
-  // Keep the 120 KiB single-chunk ceiling and a bounded 410 KiB whole build.
-  budgets: { totalGzipBytes: 410 * 1024, largestGzipBytes: 120 * 1024 },
+  // 0.55 adds factory equipment preparation, installation readiness and the
+  // separate installer workflow. Clean totals measured 427953 / 423567 bytes
+  // for customer / staff, including the staff invitation route. Single-chunk stays 120 KiB.
+  budgets: { totalGzipBytes: (buildDir === ".next-staff" ? 418 : 420) * 1024, largestGzipBytes: 120 * 1024 },
   chunks: chunks.sort((a, b) => b.gzipBytes - a.gzipBytes),
 };
 await mkdir("artifacts/stage14", { recursive: true });

@@ -1,11 +1,15 @@
-param([Parameter(Mandatory=$true)][string]$HostIp)
+param([Parameter(Mandatory=$true)][string]$HostIp, [switch]$RenewTls)
 $ErrorActionPreference = 'Stop'
 Set-Location (Split-Path $PSScriptRoot -Parent)
 $root = Join-Path $PWD '.local/controllers'
+$signingRoot = Join-Path $PWD '.local/controller-signing'
 New-Item -ItemType Directory -Force $root | Out-Null
+New-Item -ItemType Directory -Force $signingRoot | Out-Null
 docker build -t kerumo-v3-gateway:local infrastructure/v3
 if ($LASTEXITCODE -ne 0) { throw 'Не вдалося зібрати шлюз' }
-docker run --rm --network none -v "${root}:/work:rw" --entrypoint python3 kerumo-v3-gateway:local /opt/kerumo/controllers.py --host $HostIp
+$tlsArguments = @('--host', $HostIp, '--signing-dir', '/signing')
+if ($RenewTls) { $tlsArguments += '--renew-tls' }
+docker run --rm --network none -v "${root}:/work:rw" -v "${signingRoot}:/signing:rw" --entrypoint python3 kerumo-v3-gateway:local /opt/kerumo/controllers.py @tlsArguments
 if ($LASTEXITCODE -ne 0) { throw 'Підготовку зупинено; наявні ключі не замінюйте' }
 $privateEnv = docker run --rm --network none -v "${root}:/work:ro" --entrypoint cat kerumo-v3-gateway:local /work/controllers.env
 if ($LASTEXITCODE -ne 0) { throw 'Не вдалося прочитати конфігурацію' }
@@ -17,4 +21,5 @@ $privateEnv = $null
 $ca = docker run --rm --network none -v "${root}:/work:ro" --entrypoint cat kerumo-v3-gateway:local /work/ca.crt
 if ($LASTEXITCODE -ne 0) { throw 'Не вдалося прочитати CA' }
 [IO.File]::WriteAllText((Join-Path $PWD '.local/controllers-ca.crt'), ($ca -join "`n") + "`n", [Text.UTF8Encoding]::new($false))
-Write-Host 'Шлюз підготовлено. Секрети у .env.controllers та .local/controllers; не публікуйте їх.'
+Write-Host 'Шлюз підготовлено. Секрети у .env.controllers, .local/controllers та .local/controller-signing; не публікуйте їх.'
+if ($RenewTls) { Write-Host 'Сертифікат оновлено. Перезапустіть лише controller-gateway; прошивки та паролі змінювати не потрібно.' }

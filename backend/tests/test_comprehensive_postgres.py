@@ -183,6 +183,7 @@ class ComprehensivePostgresTests(unittest.TestCase):
         self.assertEqual(self.call(self.command_path, who="owner"), [])
 
     def test_http_module_disable_blocks_new_commands_and_preserves_audit(self):
+        self.qualify_installer()
         first = self.create()
         assignment = self.base + f"/capabilities/{self.caps['vfd.control']}"
         self.call(assignment, method="PATCH", body={"is_enabled": False}, who="owner")
@@ -286,6 +287,7 @@ class ComprehensivePostgresTests(unittest.TestCase):
         self.assertEqual(self.read(first), first)
 
     def test_duplicate_and_old_telemetry_do_not_repeat_alarm_or_replace_current_state(self):
+        self.qualify_installer()
         rule = {"rule_key": "complex.pressure", "alarm_type": "complex.pressure", "metric": "pressure.bar",
                 "kind": "low", "threshold": 1, "clear_threshold": 2, "debounce_samples": 1, "severity": "warning", "title": "Test"}
         self.call(self.base + f"/capabilities/{self.caps['pressure.read']}", method="PATCH",
@@ -434,6 +436,7 @@ class ComprehensivePostgresTests(unittest.TestCase):
                     session.commit()
 
     def test_frequency_profile_validates_creation_and_revalidates_before_delivery(self):
+        self.qualify_installer()
         target = self.base + f"/capabilities/{self.caps['vfd.control']}"
         body = self.body(command_type="vfd.frequency.set", payload={"frequency_hz": 40})
         self.call(self.command_path, method="POST", body=body, expected=409)
@@ -451,6 +454,12 @@ class ComprehensivePostgresTests(unittest.TestCase):
             self.dispatch(first, allow_retry=True)
             publish.assert_not_called()
         self.assertEqual(self.read(first)["error_code"], "command_frequency_profile_changed")
+
+    def qualify_installer(self):
+        # Scope remains the same tenant; staff qualification does not grant bypass.
+        with SessionLocal.begin() as session:
+            session.get(User, self.contexts["owner"].user.id).platform_role = "service_admin"
+            session.get(AuthSession, self.contexts["owner"].auth_session.id).mfa_verified_at = self.now
 
     def test_late_superseded_stop_cannot_cancel_newer_intent(self):
         late_stop = self.body(command_type="vfd.stop")

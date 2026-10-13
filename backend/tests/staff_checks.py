@@ -107,6 +107,30 @@ class StaffChecks(unittest.TestCase):
     def body(self, **changes):
         return {"proof": self.proof(), "reason": "Staff integration acceptance", **changes}
 
+    def test_qualified_installer_accepts_scoped_customer_invitation_in_staff_plane(self):
+        from app.services.account_links import create_link
+        with SessionLocal.begin() as session:
+            session.get(User, self.ids["service"]).email_verified_at = utc_now()
+            _, token = create_link(session, "invitation", self.email("service"), hours=72,
+                organization_id=self.org_ids[1], role="service", site_ids=[str(self.site_ids[2])],
+                access_expires_at=utc_now() + timedelta(days=7), created_by_user_id=self.ids["customer"])
+        status, preview = request("POST", "/api/v1/invitations/inspect", self.tokens["service"], {"token": token})
+        self.assertEqual(status, 200, preview)
+        self.assertEqual(preview["site_names"], ["Site 2"])
+        self.assertIsNotNone(preview["access_expires_at"])
+        self.assertEqual(request("POST", "/api/v1/invitations/accept", self.tokens["customer"], {"token": token})[0], 401)
+        status, accepted = request("POST", "/api/v1/invitations/accept", self.tokens["service"], {"token": token})
+        self.assertEqual(status, 200, accepted)
+        with SessionLocal() as session:
+            membership = session.scalar(select(OrganizationMembership).where(
+                OrganizationMembership.organization_id == self.org_ids[1],
+                OrganizationMembership.user_id == self.ids["service"]))
+            self.assertEqual(membership.role, "service")
+            self.assertEqual(membership.site_ids, [str(self.site_ids[2])])
+            self.assertEqual(session.get(User, self.ids["service"]).platform_role, "service_admin")
+        self.assertEqual(request("GET", f"/api/v1/devices/{self.device_ids[2]}/equipment", self.tokens["service"])[0], 200)
+        self.assertEqual(request("POST", "/api/v1/invitations/register", self.tokens["service"], {})[0], 404)
+
     def test_customer_cannot_login_or_use_even_a_valid_staff_signed_token(self):
         with SessionLocal() as session:
             with self.assertRaises(InvalidCredentialsError):
@@ -235,12 +259,18 @@ class StaffChecks(unittest.TestCase):
                     connection.exec_driver_sql(f"CREATE ROLE {role} NOLOGIN")
             connection.exec_driver_sql(sql[sql.index("REVOKE CREATE"):])
         with SessionLocal.begin() as session:
+            session.get(User, self.ids["service"]).email_verified_at = utc_now()
+        with SessionLocal.begin() as session:
             session.execute(text("SET LOCAL ROLE kerumo_customer"))
             self.assertIsNone(session.get(User, self.ids["admin"]))
             self.assertIsNone(session.get(AccountSecurity, self.ids["admin"]))
             self.assertIsNone(session.get(AuthSession, self.sessions["admin"]))
             metadata = session.execute(text("SELECT * FROM public.customer_actor_metadata(:id)"), {"id": self.ids["service"]}).mappings().one()
             self.assertEqual(set(metadata), {"id", "email", "display_name", "platform_role", "is_active"})
+            installer = session.execute(text("SELECT * FROM public.customer_installer_metadata(:email)"), {"email": self.email("service")}).mappings().one()
+            self.assertEqual(set(installer), {"id", "email", "platform_role", "is_active"})
+            self.assertEqual(installer["id"], self.ids["service"])
+            self.assertIsNone(session.execute(text("SELECT * FROM public.customer_installer_metadata(:email)"), {"email": self.email("customer")}).first())
             from app.services.schedules import schedule_actor
             schedule = SimpleNamespace(author_user_id=self.ids["service"], device_id=self.device_ids[0], organization_id=self.org_ids[0])
             with patch("app.security.actor_metadata.APP_PLANE", "customer"):

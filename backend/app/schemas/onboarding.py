@@ -11,9 +11,12 @@ from pydantic import (
     field_validator,
     model_validator,
 )
+from app.schemas.command_profile import FrequencyLimits
+from app.schemas.equipment import MotorNameplate, EquipmentReadiness
 
 
 Password = Annotated[str, StringConstraints(strip_whitespace=False)]
+NetworkTransport = Literal["wifi", "lte"]
 
 
 class StrictModel(BaseModel):
@@ -68,13 +71,33 @@ class SessionRead(StrictModel):
     current: bool
 
 
+class FactoryEquipmentSetup(StrictModel):
+    profile_id: str = Field(min_length=1, max_length=96)
+    profile_version: int = Field(strict=True, ge=1, le=2147483647)
+    model: str = Field(min_length=1, max_length=120)
+    serial_number: str | None = Field(default=None, max_length=120)
+    hardware_revision: str | None = Field(default=None, max_length=80)
+    software_revision: str | None = Field(default=None, max_length=80)
+    motor: MotorNameplate | None = None
+    frequency_limits: FrequencyLimits
+
+    @model_validator(mode="after")
+    def limits_precision(self):
+        from decimal import Decimal
+        if any(Decimal(str(value)) * 100 % 1 for value in (self.frequency_limits.min_hz, self.frequency_limits.max_hz)):
+            raise ValueError("Межі частоти мають не більше двох знаків після коми")
+        return self
+
+
 class FactoryCreate(StrictModel):
     serial_number: str = Field(min_length=3, max_length=96, pattern=r"^[A-Za-z0-9._:-]+$")
     hardware_model: str = Field(min_length=2, max_length=80)
     hardware_revision: str = Field(min_length=1, max_length=80)
+    network_transport: NetworkTransport = "wifi"
     batch: str = Field(min_length=1, max_length=80)
     test_reference: str = Field(min_length=1, max_length=160)
     factory_test_passed: Literal[True]
+    equipment: FactoryEquipmentSetup | None = None
 
 
 class FactoryRead(StrictModel):
@@ -82,6 +105,7 @@ class FactoryRead(StrictModel):
     serial_number: str
     hardware_model: str
     hardware_revision: str
+    network_transport: NetworkTransport = "wifi"
     batch: str
     distributor: str | None
     status: str
@@ -89,8 +113,20 @@ class FactoryRead(StrictModel):
     device_id: uuid.UUID | None
     claimed_at: datetime | None
     last_contact_at: datetime | None
+    last_contact_transport: NetworkTransport | None = None
+    transport_editable: bool = False
     credential_revision: int = 0
     access_revoked: bool = False
+    prepared_equipment: FactoryEquipmentSetup | None = None
+    preparation_revision: int = 0
+    preparation_editable: bool = False
+    firmware_control_capability: Literal["read_only", "bench", "full"] = "read_only"
+
+
+class FactoryEquipmentUpdate(StrictModel):
+    expected_generation: int = Field(strict=True, ge=1)
+    expected_preparation_revision: int = Field(strict=True, ge=0, le=2147483646)
+    equipment: FactoryEquipmentSetup | None
 
 
 class FactorySecrets(StrictModel):
@@ -106,6 +142,11 @@ class FactorySecrets(StrictModel):
 class ShipmentRequest(StrictModel):
     distributor: str = Field(min_length=2, max_length=160)
     reference: str = Field(min_length=1, max_length=160)
+
+
+class FactoryTransportUpdate(StrictModel):
+    network_transport: NetworkTransport
+    expected_generation: int = Field(ge=1)
 
 
 class FactoryQuarantine(StrictModel):
@@ -158,13 +199,22 @@ class ConnectionRead(StrictModel):
     controller_id: uuid.UUID
     serial_number: str
     hardware_model: str
+    network_transport: NetworkTransport = "wifi"
+    last_contact_transport: NetworkTransport | None = None
+    telemetry_received_at: datetime | None = None
+    connection_state: Literal["not_connected", "transport_mismatch", "bootstrap_connected", "online", "offline"] = "not_connected"
+    initial_equipment_editable: bool = False
     state: Literal["ready", "claimed"]
     device_id: uuid.UUID | None
     site_id: uuid.UUID | None
+    organization_id: uuid.UUID | None = None
+    can_invite_installer: bool = False
     last_contact_at: datetime | None
     firmware_version: str | None
     activation_required: bool = True
     permanent_login: str | None = None
+    can_install: bool = False
+    readiness: EquipmentReadiness
 
 
 class EquipmentSelection(StrictModel):
@@ -174,10 +224,14 @@ class EquipmentSelection(StrictModel):
     hardware_revision: str | None = Field(default=None, max_length=80)
     software_revision: str | None = Field(default=None, max_length=80)
     nameplate_confirmed: Literal[True]
+    serial_number: str | None = Field(default=None, max_length=120)
+    motor: MotorNameplate | None = None
 
 
 class BootstrapContact(StrictModel):
     firmware_version: str = Field(min_length=1, max_length=32, pattern=r"^[a-zA-Z0-9._-]+$")
+    network_transport: NetworkTransport = "wifi"
+    control_capability: Literal["read_only", "bench", "full"] = "read_only"
 
 
 class BootstrapConfiguration(StrictModel):
@@ -189,6 +243,9 @@ class BootstrapConfiguration(StrictModel):
     credential_revision: int = 0
     manifest: str | None = None
     configuration_hash: str | None = None
+    commissioned: bool = False
+    control_mode: Literal["read_only", "bench_without_motor", "extended_test"] = "read_only"
+    control_revision: int = Field(default=0, strict=True, ge=0, le=2147483647)
 
 
 class ControllerOperation(SecurityProof):

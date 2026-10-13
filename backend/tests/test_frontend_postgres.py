@@ -562,6 +562,10 @@ class FrontendPostgresTests(unittest.TestCase):
             self.assertEqual(publish.call_count, 3)
 
     def test_http_disable_removes_modules_and_blocks_ingest_series_and_commands(self):
+        from app.models import AuthSession
+        with SessionLocal.begin() as session:
+            session.get(User, self.identities["owner"].user.id).platform_role = "service_admin"
+            session.get(AuthSession, self.identities["owner"].auth_session.id).mfa_verified_at = self.now
         ids = {code: self.assign(code) for code in ("pressure.read", "vfd.state.read", "vfd.control")}
         self.store_snapshot(seen_at=self.now, received_at=self.now, values={"pressure.bar": 2.5}, state={"pump_running": False})
         for cap_id in ids.values():

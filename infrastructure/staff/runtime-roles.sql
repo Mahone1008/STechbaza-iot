@@ -41,6 +41,19 @@ $$;
 REVOKE ALL ON FUNCTION public.customer_actor_metadata(uuid) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.customer_actor_metadata(uuid) TO kerumo_customer, kerumo_staff;
 
+-- A customer may invite an already-qualified installer, never promote a user.
+-- The result contains no password, recovery, MFA or session material.
+CREATE OR REPLACE FUNCTION public.customer_installer_metadata(installer_email text)
+RETURNS TABLE(id uuid, email varchar, platform_role varchar, is_active boolean)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $$
+  SELECT u.id, u.email, u.platform_role, u.is_active
+  FROM public.users u WHERE u.email=lower(installer_email)
+    AND u.is_active AND u.email_verified_at IS NOT NULL
+    AND u.platform_role IN ('service_admin','superadmin');
+$$;
+REVOKE ALL ON FUNCTION public.customer_installer_metadata(text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.customer_installer_metadata(text) TO kerumo_customer, kerumo_staff;
+
 CREATE OR REPLACE FUNCTION guard_customer_audit() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
   IF current_user='kerumo_customer' AND (
