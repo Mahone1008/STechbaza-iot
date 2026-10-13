@@ -149,6 +149,13 @@ bool writeResponse(const uint8_t *bytes, size_t size, const uint8_t request[8]) 
 Controller::Controller(VfdDriver &driver, Storage &storage, Clock &clock, Events &events, bool controls)
     : driver_(driver), storage_(storage), clock_(clock), events_(events), controls_(controls) {}
 bool Controller::save() {
+  // Після невдалого begin() відомий RAM-намір ще допускає повтор STOP,
+  // але не перезапис неперевіреного журналу чи відновлення доступу до NVS.
+  if (!journalWritable_) {
+    storageOk_ = false;
+    disarm(StopReason::Storage);
+    return false;
+  }
   journal_.checksum = checksum(journal_);
   storageOk_ = storage_.save(journal_);
   if (!storageOk_)
@@ -161,8 +168,27 @@ static void clearJournal(Journal &target) {
   target = empty;
 }
 bool Controller::begin(const char *uid) {
+  const bool executing = journal_.motionPossible || stopping_ || pending_ >= 0 || programSlot_ >= 0;
+  disarm(StopReason::Storage);
+  storageOk_ = false;
+  journalWritable_ = false;
+  remoteOperation_ = false;
+  // Не замінюємо відомий намір руху чи активні slots читанням NVS.
+  // Спочатку recovery STOP; лише після нього можна повторити ініціалізацію.
+  if (executing) {
+    // Припиняємо очікування readback у RAM, не записуючи неперевірений NVS.
+    // Намір руху лишається для STOP, а durable pending перечитаємо після нього.
+    if (pending_ >= 0)
+      finish(journal_.records[pending_], Outcome::Unknown, Error::Unconfirmed);
+    return false;
+  }
   if (!uid || std::strlen(uid) > 96)
     return false;
+  pending_ = programSlot_ = -1;
+  program_ = {};
+  programReason_ = StopReason::None;
+  programError_ = Error::None;
+  calendarStopAt_ = 0;
   const int loaded = storage_.load(journal_);
   if (loaded < 0) {
     clearJournal(journal_);
@@ -171,22 +197,27 @@ bool Controller::begin(const char *uid) {
   if (loaded == 0) {
     clearJournal(journal_);
     std::strncpy(journal_.uid, uid, 96);
-    if (!save())
-      return false;
   } else if (journal_.magic != 0x4B563305 || journal_.checksum != checksum(journal_) ||
              journal_.next >= LedgerSize || std::strncmp(journal_.uid, uid, sizeof(journal_.uid)) != 0 ||
              journal_.highest > MaxSequence) {
     clearJournal(journal_);
     return false;
   }
-  storageOk_ = true;
+  // Перевіряємо всі очікувані програми до призначення slots і дозволу запису.
+  // Некоректний чи дубльований план залишає журнал заблокованим.
+  bool pendingProgram = false;
+  for (const auto &record : journal_.records)
+    if (record.outcome == Outcome::Pending && programType(record.command.type)) {
+      if (pendingProgram || !validProgram(record.command.program,
+              record.command.type == Type::Schedule ? MaxScheduleSeconds : MaxProgramSeconds)) {
+        clearJournal(journal_);
+        return false;
+      }
+      pendingProgram = true;
+    }
   for (auto &record : journal_.records)
     if (record.outcome == Outcome::Pending) {
       if (programType(record.command.type)) {
-        if (programSlot_ >= 0 ||
-            !validProgram(record.command.program,
-                          record.command.type == Type::Schedule ? MaxScheduleSeconds : MaxProgramSeconds))
-          return false;
         programSlot_ = static_cast<int>(&record - journal_.records);
         journal_.motionPossible = true; // Відновлення незавершеної програми вимагає підтвердження STOP.
         std::strncpy(program_.commandId, record.command.id, 36);
@@ -205,12 +236,16 @@ bool Controller::begin(const char *uid) {
         }
       }
     }
-  if (!save())
+  journalWritable_ = true;
+  if (!save()) {
+    journalWritable_ = false;
     return false;
+  }
   driver_.refreshConfig();
   lastConfigRead_ = clock_.monotonicMs();
   // No blanket boot write: a persisted run intent is stopped only in the verified profile.
   stopping_ = controls_ && journal_.motionPossible;
+  stopReason_ = StopReason::None;
   if (stopping_) {
     stopReason_ = StopReason::Restart;
     recordStop(StopReason::Restart);
@@ -219,6 +254,12 @@ bool Controller::begin(const char *uid) {
 }
 bool Controller::sessionConfigOk() const {
   return mode_ == SessionMode::ExtendedTest ? driver_.extendedTestOk() : driver_.controlOk();
+}
+bool Controller::controlLinkPermitsWrite() {
+  if (clock_.controlLinkValid())
+    return true;
+  disarm(StopReason::Network);
+  return false;
 }
 bool Controller::arm(SessionMode mode) {
   // A repeated ARM during motion must not change the session or the timer.
@@ -475,6 +516,12 @@ void Controller::receive(const Command &c, const char *session, const char *ackI
       requestStop(StopReason::Unconfirmed);
     return;
   }
+  // Читання і NVS commit можуть тривати довше за мережевий lease. Перевіряємо
+  // чинний зв'язок після них, безпосередньо перед кожним записом, крім STOP.
+  if (c.type != Type::Stop && !controlLinkPermitsWrite()) {
+    finish(record, Outcome::Failed, Error::Unconfirmed);
+    return;
+  }
   pending_ = static_cast<int>(slot);
   pendingSince_ = clock_.monotonicMs();
   if (c.type == Type::Frequency)
@@ -509,6 +556,8 @@ void Controller::beginProgramStep() {
   program_.phase = ProgramPhase::Setting;
   programPhaseSince_ = clock_.uptimeMs();
   lastProgramPoll_ = 0;
+  if (!controlLinkPermitsWrite())
+    return;
   driver_.setFrequency(step.hz);
 }
 uint64_t Controller::calendarStepEnd() const {
@@ -625,6 +674,8 @@ void Controller::tickProgram() {
       requestStop(StopReason::Unconfirmed);
       return;
     }
+    if (!controlLinkPermitsWrite())
+      return;
     program_.phase = ProgramPhase::Starting;
     driver_.startForward(); // Один RUN; втрату echo перевіряємо читанням, без повторного запуску.
     return;
@@ -754,7 +805,7 @@ bool Controller::settingsStopped() {
       remoteOperation_ && clock_.controlLinkValid() && !remoteInhibited_ && !journal_.motionPossible &&
       !stopping_ && programSlot_ < 0 && driver_.settingsReady() &&
       driver_.readState(state) && driver_.readOutputHz(output) && driver_.readFault(fault) &&
-      fault == 0 && confirmedStopped(state, output);
+      fault == 0 && confirmedStopped(state, output) && clock_.controlLinkValid();
 }
 void Controller::executeSetting(Record& record) {
   const auto& c = record.command;
@@ -794,6 +845,7 @@ void Controller::executeSetting(Record& record) {
     if (!permitted()) { finish(record, Outcome::Failed, Error::Expired); return; }
     if (result.before != c.setting.value) {
       if (!beforeWrite()) return;
+      if (!permitted()) { finish(record, Outcome::Failed, Error::Expired); return; }
       driver_.writeSetting(c.setting.code, c.setting.value); // One write, even if FC06 echo is lost.
     }
     result.actualKnown = driver_.readSetting(c.setting.code, result.actual);

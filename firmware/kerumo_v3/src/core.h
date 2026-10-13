@@ -130,6 +130,7 @@ class Controller {
   void requestStop(StopReason reason);
   void recordStop(StopReason reason);
   bool sessionConfigOk() const;
+  bool controlLinkPermitsWrite();
   void beginProgramStep();
   void tickProgram();
   void completeProgram(bool stopConfirmed);
@@ -138,7 +139,7 @@ class Controller {
   VfdDriver& driver_; Storage& storage_; Clock& clock_; Events& events_;
   const bool controls_;
   Journal journal_{};
-  bool storageOk_{}, armed_{}, stopping_{};
+  bool journalWritable_{}, storageOk_{}, armed_{}, stopping_{};
   bool remoteInhibited_{}, remoteCheckStarted_{};
   bool remoteOperation_{}, networkConnected_{};
   uint32_t lastRemoteCheck_{};
