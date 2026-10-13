@@ -56,6 +56,7 @@ class Device(TimestampMixin, Base):
     )
     command_sequence: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0, server_default="0")
     last_stop_requested_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    initial_setup_completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     site: Mapped["Site"] = relationship(back_populates="devices")
     capabilities: Mapped[list["DeviceCapability"]] = relationship(

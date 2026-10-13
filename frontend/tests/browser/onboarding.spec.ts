@@ -28,6 +28,7 @@ const recovery = "r".repeat(43),
   password = "browser-fixture-only-123";
 const connection: Schema["ConnectionRead"] = {
   can_install: false,
+  can_setup: false,
   can_invite_installer: false,
   organization_id: null,
   readiness: { state: "needs_equipment", title: "Активація контролера", next_action: null, blockers: [] },

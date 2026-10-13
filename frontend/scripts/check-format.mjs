@@ -56,6 +56,11 @@ const files = [
   "src/features/use-account-action.ts",
   "src/features/use-elapsed-seconds.ts",
   "src/lib/api/onboarding.ts",
+  "src/lib/api/setup.ts",
+  "src/features/owner-setup.tsx",
+  "src/features/setup-helper.tsx",
+  "src/features/setup-equipment-form.tsx",
+  "src/app/setup-help/page.tsx",
 ];
 const result = spawnSync(process.execPath, ["node_modules/prettier/bin/prettier.cjs", "--check", ...files], {
   stdio: "inherit",

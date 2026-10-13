@@ -18,6 +18,8 @@
 | `/staff/*` | Користувачі, ролі, scope, сесії, audit і діагностика | Private API, platform role + MFA, sensitive changes: password/OTP/reason |
 | `/factory/controllers*` | Заводський реєстр, постачання, аудит | `superadmin` та MFA-verified session завжди |
 | `/connect/*` | Claim покупця, об'єкти й вибір обладнання | Bearer, заводський пароль, permanent password/TOTP при першій активації, tenant/scope guards |
+| `/connect/{id}/setup*` | Первинний майстер, чернетка, прийняття й посилання помічнику | Чинний звичайний owner організації без Site scope; завершений первинний ввід не відкривається повторно |
+| `/setup-help/inspect`, `/setup-help/draft` | Обмежений перегляд і пропозиція даних одного контролера | Окремий двогодинний token у body, Exact Origin/CSRF, throttle; без акаунта й команд |
 | `/bootstrap/{id}/contact` | Час контакту та версія контролера | Окремий bootstrap Bearer secret, throttle; не user JWT |
 | `/organizations`, `/organizations/{id}/access` | Доступні клієнти й permissions | Tenant membership; superadmin bypass |
 | Sites/devices | Каталог установок та контролерів | Відповідні read/create permissions |

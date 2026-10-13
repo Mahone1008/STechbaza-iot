@@ -32,7 +32,7 @@ async def lifespan(app):
     stop_mqtt()
 
 
-app = FastAPI(title="KERUMO Operations", version="0.55.1", lifespan=lifespan)
+app = FastAPI(title="KERUMO Operations", version="0.56.0", lifespan=lifespan)
 for router in (auth.router, account_security.router):
     app.include_router(router, prefix="/api/v1")
 for router in (staff.router, organizations.router,
@@ -86,4 +86,4 @@ async def temporarily_unavailable(request: Request, exc):
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "service": "kerumo-operations", "version": "0.55.1"}
+    return {"status": "ok", "service": "kerumo-operations", "version": "0.56.0"}

@@ -18,6 +18,8 @@ from app.models.organization import Organization
 from app.models.site import Site
 from app.models.user import User
 from app.models.schedule import DeviceSchedule
+from app.models.onboarding import FactoryController
+from app.models.setup_helpers import DeviceSetupHelper
 from app.operations.recovery import harden_restored_database
 
 
@@ -46,6 +48,16 @@ class RestorePostgresTests(unittest.TestCase):
         self.link = uuid.uuid4()
         s.add(AccountLink(id=self.link, purpose="registration", email=f"{self.user.hex}@example.com", token_hash="c"*64, expires_at=self.now + timedelta(hours=1)))
         s.flush()
+        self.factory, self.helper = uuid.uuid4(), uuid.uuid4()
+        s.add(FactoryController(id=self.factory, serial_number=f"RESTORE-{self.factory.hex}",
+            hardware_model="KERUMO V4", hardware_revision="V4.1", batch="restore-test",
+            test_reference="restore-test", status="claimed", device_id=self.device))
+        s.flush()
+        s.add(DeviceSetupHelper(id=self.helper, device_id=self.device, controller_id=self.factory,
+            issuer_user_id=self.user, issuer_updated_at=s.get(User, self.user).updated_at,
+            membership_id=uuid.uuid4(), membership_updated_at=self.now, controller_generation=1,
+            credential_revision=0, configuration_revision=0, token_hash="d" * 64,
+            created_at=self.now, expires_at=self.now + timedelta(hours=2)))
         self.schedule = uuid.uuid4()
         s.add(DeviceSchedule(id=self.schedule, device_id=self.device, organization_id=self.org,
             author_user_id=self.user, revision=1, enabled=True, spec={}, next_start_at=self.now + timedelta(hours=1), next_check_at=self.now))
@@ -70,6 +82,8 @@ class RestorePostgresTests(unittest.TestCase):
         self.assertGreaterEqual(result["unknown_results"], 2)
         self.assertGreaterEqual(result["paused_schedules"], 1)
         self.assertGreaterEqual(result["revoked_account_links"], 1)
+        self.assertGreaterEqual(result["revoked_setup_helpers"], 1)
+        self.assertEqual(self.session.get(DeviceSetupHelper, self.helper).revoked_at, self.now)
         self.assertIsNotNone(self.session.get(AccountLink, self.link).revoked_at)
         self.assertFalse(self.session.get(DeviceSchedule, self.schedule).enabled)
         self.assertIsNone(self.session.get(DeviceSchedule, self.schedule).next_check_at)
@@ -86,7 +100,7 @@ class RestorePostgresTests(unittest.TestCase):
             self.assertEqual(self.session.get(DeviceCommand, self.ids[status]).status, status)
         count = len(list(self.session.scalars(select(AlarmNotification).where(AlarmNotification.device_id == self.device))))
         self.assertEqual(harden_restored_database(self.session, now=self.now),
-                         {"revoked_sessions": 0, "cancelled_delivery": 0, "unknown_results": 0, "cleared_rate_limits": 0, "paused_schedules": 0, "revoked_controller_keys": 0, "revoked_account_links": 0})
+                         {"revoked_sessions": 0, "cancelled_delivery": 0, "unknown_results": 0, "cleared_rate_limits": 0, "paused_schedules": 0, "revoked_controller_keys": 0, "revoked_account_links": 0, "revoked_setup_helpers": 0})
         self.session.commit()
         self.assertEqual(len(list(self.session.scalars(select(AlarmNotification).where(AlarmNotification.device_id == self.device)))), count)
 
@@ -96,6 +110,7 @@ class RestorePostgresTests(unittest.TestCase):
                 harden_restored_database(self.session, now=self.now)
         self.session.rollback()
         self.assertIsNone(self.session.get(AuthSession, self.auth).revoked_at)
+        self.assertIsNone(self.session.get(DeviceSetupHelper, self.helper).revoked_at)
         self.assertTrue(self.session.get(DeviceSchedule, self.schedule).enabled)
         for status, command_id in self.ids.items():
             self.assertEqual(self.session.get(DeviceCommand, command_id).status, status)

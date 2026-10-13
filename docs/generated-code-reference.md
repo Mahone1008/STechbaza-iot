@@ -8,14 +8,14 @@ CI звіряє його з tracked code. Це перелік реалізаці
 
 | Компонент | Значення з коду |
 |---|---|
-| Backend / OpenAPI / health | 0.55.1 |
-| Alembic head | `20261012_0031`; 31 міграцій |
+| Backend / OpenAPI / health | 0.56.0 |
+| Alembic head | `20261013_0033`; 33 міграцій |
 | Frontend package | 0.1.0 |
 | Node engine | `>=20.9.0` |
 | Package manager | `npm@10.9.2` |
 | Next.js / React | 16.3.8 / 19.2.8 |
 | Firmware V3 | 0.12.1 |
-| OpenAPI paths | 109 |
+| OpenAPI paths | 117 |
 
 ## Канали телеметрії
 
@@ -120,6 +120,12 @@ ACK/Result лишаються v1. Дозвіл API не замінює лока�
 | `/api/v1/connect/{controller_id}/equipment` | PUT |
 | `/api/v1/connect/{controller_id}/installer-invitations` | POST |
 | `/api/v1/connect/{controller_id}/security` | POST |
+| `/api/v1/connect/{controller_id}/setup` | GET |
+| `/api/v1/connect/{controller_id}/setup/accept` | POST |
+| `/api/v1/connect/{controller_id}/setup/apply` | POST |
+| `/api/v1/connect/{controller_id}/setup/draft` | PUT |
+| `/api/v1/connect/{controller_id}/setup/helpers` | GET, POST |
+| `/api/v1/connect/{controller_id}/setup/helpers/{helper_id}` | DELETE |
 | `/api/v1/connect/{controller_id}/status` | GET |
 | `/api/v1/devices/{device_id}` | GET |
 | `/api/v1/devices/{device_id}/alarms` | GET |
@@ -167,6 +173,8 @@ ACK/Result лишаються v1. Дозвіл API не замінює лока�
 | `/api/v1/organizations/{organization_id}/notifications` | GET |
 | `/api/v1/organizations/{organization_id}/notifications/unread-count` | GET |
 | `/api/v1/organizations/{organization_id}/sites` | GET, POST |
+| `/api/v1/setup-help/draft` | PUT |
+| `/api/v1/setup-help/inspect` | POST |
 | `/api/v1/sites/{site_id}` | GET |
 | `/api/v1/sites/{site_id}/devices` | GET, POST |
 | `/api/v1/sites/{site_id}/installations` | POST |

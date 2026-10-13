@@ -18,6 +18,7 @@ from app.models.auth_session import AuthSession
 from app.models.command import DeviceCommand
 from app.models.schedule import DeviceSchedule
 from app.models.onboarding import ControllerCredential, FactoryController
+from app.models.setup_helpers import DeviceSetupHelper
 from app.services.system_alarms import SystemAlarmService
 
 
@@ -80,8 +81,8 @@ def database_fingerprint(engine):
                 connection.execution_options(stream_results=False)
                 result[name] = {"rows": count, "sha256": digest.hexdigest()}
             migration = list(connection.execute(text("SELECT version_num FROM alembic_version ORDER BY version_num")).scalars())
-            if migration != ["20261012_0031"]:
-                raise ValueError("Очікується migration 0031 head")
+            if migration != ["20261013_0033"]:
+                raise ValueError("Очікується migration 0033 head")
             return {"migration": migration, "tables": result, "schema": structure,
                     "schema_sha256": hashlib.sha256(json.dumps(structure, sort_keys=True, default=str).encode()).hexdigest()}
 
@@ -117,6 +118,13 @@ def harden_restored_database(session, *, now=None):
     for item in links:
         item.revoked_at = now
     counts["revoked_account_links"] = len(links)
+    # Допомога може бути видана ще до bootstrap і створення device credentials.
+    # Окреме відкликання не дозволяє оживити таке посилання зі старої копії.
+    helpers = list(session.scalars(select(DeviceSetupHelper).where(
+        DeviceSetupHelper.revoked_at.is_(None)).with_for_update()))
+    for item in helpers:
+        item.revoked_at = now
+    counts["revoked_setup_helpers"] = len(helpers)
     # Ліміти старого вікна/IP не переносяться в нове оточення; наступні
     # login/refresh знову проходять звичайний DB rate limiter.
     counts["cleared_rate_limits"] = session.execute(delete(AuthRateLimit)).rowcount

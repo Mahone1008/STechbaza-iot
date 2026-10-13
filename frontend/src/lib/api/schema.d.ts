@@ -575,6 +575,109 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/connect/{controller_id}/setup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Setup */
+        get: operations["get_setup_api_v1_connect__controller_id__setup_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/connect/{controller_id}/setup/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Accept */
+        post: operations["accept_api_v1_connect__controller_id__setup_accept_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/connect/{controller_id}/setup/apply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Apply */
+        post: operations["apply_api_v1_connect__controller_id__setup_apply_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/connect/{controller_id}/setup/draft": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Put Draft */
+        put: operations["put_draft_api_v1_connect__controller_id__setup_draft_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/connect/{controller_id}/setup/helpers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Helper List */
+        get: operations["helper_list_api_v1_connect__controller_id__setup_helpers_get"];
+        put?: never;
+        /** Helper Create */
+        post: operations["helper_create_api_v1_connect__controller_id__setup_helpers_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/connect/{controller_id}/setup/helpers/{helper_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Helper Revoke */
+        delete: operations["helper_revoke_api_v1_connect__controller_id__setup_helpers__helper_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/connect/{controller_id}/status": {
         parameters: {
             query?: never;
@@ -1431,6 +1534,40 @@ export interface paths {
         put?: never;
         /** Create Site */
         post: operations["create_site_api_v1_organizations__organization_id__sites_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/setup-help/draft": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Helper Draft */
+        put: operations["helper_draft_api_v1_setup_help_draft_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/setup-help/inspect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Helper Inspect */
+        post: operations["helper_inspect_api_v1_setup_help_inspect_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2297,6 +2434,11 @@ export interface components {
              * @default false
              */
             can_invite_installer: boolean;
+            /**
+             * Can Setup
+             * @default false
+             */
+            can_setup: boolean;
             /**
              * Connection State
              * @default not_connected
@@ -4115,6 +4257,289 @@ export interface components {
             /** Last Used At */
             last_used_at: string | null;
         };
+        /** SetupAccept */
+        SetupAccept: {
+            /**
+             * Control Mode
+             * @default extended_test
+             * @enum {string}
+             */
+            control_mode: "extended_test" | "read_only";
+            /** Expected Configuration Hash */
+            expected_configuration_hash: string;
+            /** Expected Configuration Revision */
+            expected_configuration_revision: number;
+            /** Expected Credential Revision */
+            expected_credential_revision: number;
+            /** Expected Draft Revision */
+            expected_draft_revision: number;
+            /** Expected Generation */
+            expected_generation: number;
+            /**
+             * Installation Checked
+             * @constant
+             */
+            installation_checked: true;
+        };
+        /** SetupApply */
+        SetupApply: {
+            /** Expected Configuration Revision */
+            expected_configuration_revision: number;
+            /** Expected Credential Revision */
+            expected_credential_revision: number;
+            /** Expected Draft Revision */
+            expected_draft_revision: number;
+            /** Expected Generation */
+            expected_generation: number;
+            /**
+             * Nameplate Checked
+             * @constant
+             */
+            nameplate_checked: true;
+        };
+        /** SetupCheck */
+        SetupCheck: {
+            /** Code */
+            code: string;
+            /** Detail */
+            detail?: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "passed" | "pending" | "blocked";
+            /** Title */
+            title: string;
+        };
+        /** SetupDraftWrite */
+        SetupDraftWrite: {
+            equipment: components["schemas"]["SetupEquipmentDraft"];
+            /** Expected Configuration Revision */
+            expected_configuration_revision: number;
+            /** Expected Credential Revision */
+            expected_credential_revision: number;
+            /** Expected Draft Revision */
+            expected_draft_revision: number;
+            /** Expected Generation */
+            expected_generation: number;
+        };
+        /** SetupEquipmentDraft */
+        SetupEquipmentDraft: {
+            frequency_limits?: components["schemas"]["FrequencyLimits"] | null;
+            /** Hardware Revision */
+            hardware_revision?: string | null;
+            /** Model */
+            model?: string | null;
+            motor?: components["schemas"]["SetupMotorDraft"] | null;
+            /** Profile Id */
+            profile_id?: string | null;
+            /**
+             * Profile Version
+             * @default 1
+             */
+            profile_version: number;
+            /** Serial Number */
+            serial_number?: string | null;
+            /** Software Revision */
+            software_revision?: string | null;
+        };
+        /** SetupHelperContext */
+        SetupHelperContext: {
+            /** Checks */
+            checks: components["schemas"]["SetupCheck"][];
+            /** Configuration Revision */
+            configuration_revision: number;
+            /** Credential Revision */
+            credential_revision: number;
+            /** Draft Revision */
+            draft_revision: number;
+            equipment: components["schemas"]["SetupEquipmentDraft"];
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /** Generation */
+            generation: number;
+            /**
+             * Helper Id
+             * Format: uuid
+             */
+            helper_id: string;
+            /** Missing Fields */
+            missing_fields: string[];
+            /** Profiles */
+            profiles: components["schemas"]["SetupHelperProfile"][];
+            /**
+             * Progress
+             * @enum {string}
+             */
+            progress: "activated" | "connected" | "ready";
+            /** Serial Number */
+            serial_number: string;
+        };
+        /** SetupHelperCreate */
+        SetupHelperCreate: {
+            /** Expected Configuration Revision */
+            expected_configuration_revision: number;
+            /** Expected Credential Revision */
+            expected_credential_revision: number;
+            /** Expected Draft Revision */
+            expected_draft_revision: number;
+            /** Expected Generation */
+            expected_generation: number;
+        };
+        /** SetupHelperCreated */
+        SetupHelperCreated: {
+            /** Active */
+            active: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Revoked At */
+            revoked_at: string | null;
+            /** Token */
+            token: string;
+        };
+        /** SetupHelperDraftWrite */
+        SetupHelperDraftWrite: {
+            equipment: components["schemas"]["SetupEquipmentDraft"];
+            /** Expected Configuration Revision */
+            expected_configuration_revision: number;
+            /** Expected Credential Revision */
+            expected_credential_revision: number;
+            /** Expected Draft Revision */
+            expected_draft_revision: number;
+            /** Expected Generation */
+            expected_generation: number;
+            /** Token */
+            token: string;
+        };
+        /** SetupHelperProfile */
+        SetupHelperProfile: {
+            /** Id */
+            id: string;
+            /** Manufacturer */
+            manufacturer: string;
+            /** Series */
+            series: string;
+            /**
+             * Support
+             * @enum {string}
+             */
+            support: "inventory_only" | "documented" | "bench_limited";
+            /** Tested Model */
+            tested_model: string | null;
+            /** Version */
+            version: number;
+        };
+        /** SetupHelperProof */
+        SetupHelperProof: {
+            /** Token */
+            token: string;
+        };
+        /** SetupHelperRead */
+        SetupHelperRead: {
+            /** Active */
+            active: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Revoked At */
+            revoked_at: string | null;
+        };
+        /** SetupMotorDraft */
+        SetupMotorDraft: {
+            /** Rated Current A */
+            rated_current_a?: number | null;
+            /** Rated Frequency Hz */
+            rated_frequency_hz?: number | null;
+            /** Rated Power Kw */
+            rated_power_kw?: number | null;
+            /** Rated Voltage V */
+            rated_voltage_v?: number | null;
+        };
+        /** SetupRead */
+        SetupRead: {
+            /** Applied Draft Revision */
+            applied_draft_revision: number | null;
+            /** Can Accept Control */
+            can_accept_control: boolean;
+            /** Can Accept Read Only */
+            can_accept_read_only: boolean;
+            /** Can Apply */
+            can_apply: boolean;
+            /** Can Setup */
+            can_setup: boolean;
+            /** Checks */
+            checks: components["schemas"]["SetupCheck"][];
+            /** Commissioned Control Mode */
+            commissioned_control_mode?: ("read_only" | "bench_without_motor" | "extended_test") | null;
+            /** Completed At */
+            completed_at: string | null;
+            /** Configuration Hash */
+            configuration_hash: string | null;
+            /** Configuration Revision */
+            configuration_revision: number;
+            configured_equipment: components["schemas"]["SetupEquipmentDraft"] | null;
+            /**
+             * Controller Id
+             * Format: uuid
+             */
+            controller_id: string;
+            /** Credential Revision */
+            credential_revision: number;
+            /**
+             * Device Id
+             * Format: uuid
+             */
+            device_id: string;
+            /** Draft Revision */
+            draft_revision: number;
+            /**
+             * Draft Stale
+             * @default false
+             */
+            draft_stale: boolean;
+            equipment: components["schemas"]["SetupEquipmentDraft"];
+            /** Generation */
+            generation: number;
+            /** Initial Setup Open */
+            initial_setup_open: boolean;
+            /** Missing Fields */
+            missing_fields: string[];
+            /** Needs Apply */
+            needs_apply: boolean;
+            /**
+             * Progress
+             * @enum {string}
+             */
+            progress: "activated" | "connected" | "ready";
+        };
         /** ShipmentRequest */
         ShipmentRequest: {
             /** Distributor */
@@ -5910,6 +6335,238 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ActivationAccessRead"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_setup_api_v1_connect__controller_id__setup_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                controller_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SetupRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    accept_api_v1_connect__controller_id__setup_accept_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                controller_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetupAccept"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SetupRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    apply_api_v1_connect__controller_id__setup_apply_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                controller_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetupApply"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SetupRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_draft_api_v1_connect__controller_id__setup_draft_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                controller_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetupDraftWrite"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SetupRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    helper_list_api_v1_connect__controller_id__setup_helpers_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                controller_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SetupHelperRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    helper_create_api_v1_connect__controller_id__setup_helpers_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                controller_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetupHelperCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SetupHelperCreated"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    helper_revoke_api_v1_connect__controller_id__setup_helpers__helper_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                controller_id: string;
+                helper_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -7893,6 +8550,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SiteRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    helper_draft_api_v1_setup_help_draft_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetupHelperDraftWrite"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SetupHelperContext"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    helper_inspect_api_v1_setup_help_inspect_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetupHelperProof"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SetupHelperContext"];
                 };
             };
             /** @description Validation Error */

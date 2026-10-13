@@ -2,6 +2,8 @@
 import { EquipmentActions } from "./equipment-actions";
 import { ControllerLifecycle } from "./controller-lifecycle";
 import { useState } from "react";
+import Link from "next/link";
+import type { Route } from "next";
 import { RefreshAction } from "./refresh-actions";
 import { Button, Card, StatusBadge } from "@/components/ui";
 import { useAuthSession } from "@/features/auth-session";
@@ -41,6 +43,12 @@ export function EquipmentPassportPanel({
       ),
   });
   const data = query.data;
+  const ownerSetupLink =
+    process.env.NEXT_PUBLIC_PORTAL_MODE !== "staff" &&
+    context.profile.platform_role === "user" &&
+    context.access.organization_role === "owner" &&
+    !!data?.controller_id &&
+    device.lifecycle_status !== "retired";
   const [knownControllerId, setKnownControllerId] = useState<string | null>(null);
   if (data?.controller_id && data.controller_id !== knownControllerId) setKnownControllerId(data.controller_id);
   return (
@@ -74,10 +82,18 @@ export function EquipmentPassportPanel({
                 >
                   {data.readiness?.title ?? passportTitles[data.configuration_state]}
                 </StatusBadge>
+                {ownerSetupLink && (
+                  <Link className="button button-secondary" href={`/connect/${data.controller_id}` as Route}>
+                    Підготовка та готовність
+                  </Link>
+                )}
                 {data.modules.length === 0 ? (
                   <p>
                     Обладнання ще не внесено в паспорт. Для заповнення потрібні модель зі шильдика та перевірка
-                    підключення. Зверніться до виробника або сервісу.
+                    підключення.{" "}
+                    {ownerSetupLink
+                      ? "Відкрийте підготовку контролера, щоб доповнити дані."
+                      : "Зверніться до власника або сервісу."}
                   </p>
                 ) : (
                   data.modules

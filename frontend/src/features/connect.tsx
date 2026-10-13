@@ -2,6 +2,7 @@
 import { AccountGate } from "./account-gate";
 import { useAccessContext } from "./access-context";
 import { ControllerActivation } from "./controller-activation";
+import { OwnerSetup } from "./owner-setup";
 import { useAccountAction } from "./use-account-action";
 import type { Route } from "next";
 import Link from "next/link";
@@ -256,6 +257,8 @@ function ConnectWizard({ id }: { id: string }) {
             </Button>
           </form>
         </Card>
+      ) : data.can_setup ? (
+        <OwnerSetup key={data.controller_id} connection={data} />
       ) : (
         <ConnectionProgress connection={data} available={query.active} />
       )}
