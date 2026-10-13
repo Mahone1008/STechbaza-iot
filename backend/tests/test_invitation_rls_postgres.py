@@ -4,7 +4,6 @@ import os
 import unittest
 import uuid
 from datetime import timedelta
-from pathlib import Path
 from unittest.mock import patch
 
 from sqlalchemy import create_engine, event, select, text
@@ -12,8 +11,9 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import NullPool
 
 from auth_http_helpers import request
+from customer_rls_helpers import IsolatedCustomerRls
 from onboarding_helpers import OnboardingFixtures
-from app.db import SessionLocal, engine, get_db_session
+from app.db import SessionLocal, get_db_session
 from app.main import app
 from app.models import AccountLink, AuthSession, OrganizationMembership, User
 from app.models.onboarding import AccountSecurity
@@ -25,20 +25,10 @@ from app.services.invitations import create_invitation
 
 
 @unittest.skipUnless(os.getenv("TECHBAZA_RUN_DB_TESTS") == "1", "Requires isolated PostgreSQL")
-class CustomerInvitationRlsTests(OnboardingFixtures, unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        # Як у staff_checks: політики встановлюються лише в disposable test DB.
-        sql = (Path(__file__).resolve().parents[2] / "infrastructure/staff/runtime-roles.sql").read_text()
-        with engine.begin() as connection:
-            for role in ("kerumo_customer", "kerumo_staff"):
-                if not connection.scalar(text("SELECT 1 FROM pg_roles WHERE rolname=:role"), {"role": role}):
-                    connection.exec_driver_sql(f"CREATE ROLE {role} NOLOGIN")
-            connection.exec_driver_sql(sql[sql.index("REVOKE CREATE"):])
-
+class CustomerInvitationRlsTests(IsolatedCustomerRls, OnboardingFixtures, unittest.TestCase):
     def setUp(self):
         super().setUp()
-        self.customer_engine = create_engine(engine.url, poolclass=NullPool)
+        self.customer_engine = create_engine(self.rls_engine.url, poolclass=NullPool)
         self.addCleanup(self.customer_engine.dispose)
 
         @event.listens_for(self.customer_engine, "connect")
